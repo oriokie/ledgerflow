@@ -1,0 +1,399 @@
+"""Composing selectors — assemble model-free provider inputs from real reads.
+
+The providers are pure functions over DTOs; these selectors are the ONLY place
+that turns live engine data (budget status, cash flow, balances, transactions)
+into those DTOs. Keeping the mapping here means the providers stay testable and
+swappable, and the "what data feeds the AI" question has one auditable answer.
+"""
+
+from __future__ import annotations
+
+from datetime import date, datetime, time, timedelta
+
+from django.db import models
+from django.db.models import Sum
+from django.utils import timezone
+
+from apps.budgeting.models import Budget
+from apps.budgeting.selectors import budget_status
+from apps.finance.models import Transaction
+from apps.finance.selectors import cash_flow, net_worth
+
+from .protocols import AmountObservation, CashflowPoint, HealthInputs, RecommendationContext
+
+
+def _month_bounds(as_of: date) -> tuple[datetime, datetime]:
+    """[start-of-month, as_of end-of-day) as aware datetimes for cash_flow."""
+    start = datetime.combine(as_of.replace(day=1), time.min)
+    end = datetime.combine(as_of, time.max)
+    tz = timezone.get_current_timezone()
+    return timezone.make_aware(start, tz), timezone.make_aware(end, tz)
+
+
+def _income_expense(as_of: date) -> tuple[int, int]:
+    """Total income and (positive) expense this month across currencies.
+
+    NOTE: sums across currencies without FX — acceptable for a ratio/rate on a
+    predominantly single-currency tenant, which is the current product reality;
+    the FX consolidation layer is the documented seam for multi-currency."""
+    start, end = _month_bounds(as_of)
+    income = 0
+    expense = 0
+    for flow in cash_flow(start=start, end=end):
+        income += flow.income_minor
+        expense += abs(flow.expense_minor)  # expense_minor is signed negative
+    return income, expense
+
+
+def build_recommendation_context(*, as_of: date | None = None) -> RecommendationContext:
+    """Assemble the recommender's input from current budgets and cash flow."""
+    as_of = as_of or timezone.localdate()
+
+    over_budget_lines: list[dict] = []
+    underspent_lines: list[dict] = []
+    for budget in Budget.objects.all():
+        for line in budget_status(budget, as_of=as_of):
+            if line.over_budget:
+                over_budget_lines.append(
+                    {
+                        "line_id": line.line_id,
+                        "name": line.category_name,
+                        "overage_minor": line.actual_minor - line.effective_limit_minor,
+                    }
+                )
+            elif line.remaining_minor > 0:
+                underspent_lines.append(
+                    {
+                        "line_id": line.line_id,
+                        "name": line.category_name,
+                        "remaining_minor": line.remaining_minor,
+                    }
+                )
+
+    income, expense = _income_expense(as_of)
+    savings_rate = round((income - expense) / income, 3) if income > 0 else 0.0
+
+    return RecommendationContext(
+        over_budget_lines=tuple(over_budget_lines),
+        underspent_lines=tuple(underspent_lines),
+        upcoming_bills=_upcoming_bills_dtos(),  # now backed by the Bill model
+        savings_rate=savings_rate,
+    )
+
+
+def build_health_inputs(*, as_of: date | None = None) -> HealthInputs:
+    """Assemble the health scorer's five inputs from balances, budgets, cash
+    flow. Deterministic and explainable — each input traces to a real read."""
+    as_of = as_of or timezone.localdate()
+
+    income, expense = _income_expense(as_of)
+    savings_rate = round((income - expense) / income, 3) if income > 0 else 0.0
+
+    # assets vs liabilities from the materialized balances in ONE aggregate
+    # query (was a per-account loop — an N+1 on the dashboard's hot path).
+    assets = 0
+    liabilities = 0
+    for nw in net_worth():
+        assets += nw.assets_minor
+        liabilities += nw.liabilities_minor
+    debt_to_asset = round(liabilities / assets, 3) if assets > 0 else 1.0
+
+    # emergency runway: months of spend covered by liquid assets
+    monthly_expense = expense or 1
+    coverage_months = round(assets / monthly_expense, 1) if monthly_expense else 0.0
+
+    # budget adherence: share of lines within limit
+    within = 0
+    total = 0
+    for budget in Budget.objects.all():
+        for line in budget_status(budget, as_of=as_of):
+            total += 1
+            if not line.over_budget:
+                within += 1
+    adherence = round(within / total, 3) if total else 1.0
+
+    stability = _income_stability(as_of)
+
+    return HealthInputs(
+        savings_rate=savings_rate,
+        essential_coverage_months=coverage_months,
+        budget_adherence=adherence,
+        debt_to_asset=debt_to_asset,
+        income_stability=stability,
+    )
+
+
+def build_amount_observations(*, days: int = 120) -> list[AmountObservation]:
+    """Recent transactions as anomaly observations (expenses only; transfers
+    excluded — moving money isn't spending)."""
+    since = timezone.now() - timedelta(days=days)
+    rows = (
+        Transaction.objects.filter(occurred_at__gte=since, transfer_group__isnull=True, amount_minor__lt=0)
+        .select_related("payee")
+        .order_by("occurred_at")
+    )
+    observations = []
+    for txn in rows:
+        payee_name = txn.payee.normalized_name if txn.payee_id else (txn.memo or "unknown")
+        observations.append(
+            AmountObservation(
+                transaction_id=str(txn.id),
+                payee_normalized=payee_name,
+                category_id=str(txn.category_id) if txn.category_id else None,
+                amount_minor=txn.amount_minor,
+                occurred_at=txn.occurred_at,
+            )
+        )
+    return observations
+
+
+# --------------------------------------------------------------- helpers
+
+
+def _income_stability(as_of: date) -> float:
+    """1 - coefficient of variation of the last 3 months' income, clamped to
+    0..1. Steady income -> near 1; erratic -> near 0."""
+    import statistics
+
+    monthly = []
+    cursor = as_of.replace(day=1)
+    for _ in range(3):
+        prev_end = cursor
+        prev_start = (cursor - timedelta(days=1)).replace(day=1)
+        agg = Transaction.objects.filter(
+            occurred_at__date__gte=prev_start,
+            occurred_at__date__lt=prev_end,
+            amount_minor__gt=0,
+            transfer_group__isnull=True,
+        ).aggregate(total=Sum("amount_minor"))
+        monthly.append(agg["total"] or 0)
+        cursor = prev_start
+    if len(monthly) < 2 or statistics.fmean(monthly) == 0:
+        return 1.0
+    mean = statistics.fmean(monthly)
+    cv = statistics.pstdev(monthly) / mean
+    return round(max(0.0, min(1.0, 1 - cv)), 3)
+
+
+def _prev_month_first(d: date) -> date:
+    """First day of the month before `d`'s month."""
+    return (d.replace(day=1) - timedelta(days=1)).replace(day=1)
+
+
+def build_cashflow_history(*, months: int = 6, as_of: date | None = None) -> list[CashflowPoint]:
+    """Trailing per-month income/expense series, oldest first — the forecaster's
+    input. One grouped query per month over the non-transfer partial index;
+    `months` is small (single digits) so this is a handful of cheap aggregates,
+    not an N+1 over transactions.
+    """
+    as_of = as_of or timezone.localdate()
+    points: list[CashflowPoint] = []
+    month_start = as_of.replace(day=1)
+    starts: list[date] = []
+    for _ in range(months):
+        starts.append(month_start)
+        month_start = _prev_month_first(month_start)
+    for start in reversed(starts):  # oldest first
+        nxt = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        agg = Transaction.objects.filter(
+            occurred_at__date__gte=start,
+            occurred_at__date__lt=nxt,
+            transfer_group__isnull=True,
+        ).aggregate(
+            income=Sum("amount_minor", filter=models.Q(amount_minor__gt=0)),
+            expense=Sum("amount_minor", filter=models.Q(amount_minor__lt=0)),
+        )
+        points.append(
+            CashflowPoint(
+                period_start=start,
+                income_minor=agg["income"] or 0,
+                expense_minor=abs(agg["expense"] or 0),
+            )
+        )
+    return points
+
+
+def net_worth_history(*, months: int = 12, as_of: date | None = None) -> list[dict]:
+    """Net-worth as a dated monthly series, reconstructed from the immutable
+    ledger. For each month end we sum every account's signed cash-flow up to
+    that point (assets add, liabilities subtract), giving a running net figure.
+
+    Single-currency assumption noted (same as the rest of intelligence): the
+    per-currency FX consolidation layer is the documented seam. Costs one
+    grouped query per month boundary — `months` is small.
+    """
+    from apps.finance.models import FinancialAccount
+    from apps.finance.selectors import _ASSET_TYPES
+
+    as_of = as_of or timezone.localdate()
+    accounts = list(FinancialAccount.objects.all())
+    asset_ids = {a.id for a in accounts if a.account_type in _ASSET_TYPES}
+
+    series: list[dict] = []
+    month_start = as_of.replace(day=1)
+    boundaries: list[date] = []
+    for _ in range(months):
+        # month END = first day of next month
+        nxt = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        boundaries.append(nxt)
+        month_start = _prev_month_first(month_start)
+
+    for boundary in sorted(boundaries):
+        rows = (
+            Transaction.objects.filter(occurred_at__date__lt=boundary)
+            .exclude(status="void")
+            .values("financial_account_id")
+            .annotate(total=Sum("amount_minor"))
+        )
+        assets = 0
+        liabilities = 0
+        for r in rows:
+            total = r["total"] or 0
+            if r["financial_account_id"] in asset_ids:
+                assets += total
+            else:
+                # liability txns are signed like cash flow; owed balance is the negative
+                liabilities += -total
+        series.append(
+            {
+                "as_of": (boundary - timedelta(days=1)).isoformat(),
+                "assets_minor": assets,
+                "liabilities_minor": liabilities,
+                "net_minor": assets - liabilities,
+            }
+        )
+    return series
+
+
+def spending_trend(*, months: int = 6, as_of: date | None = None) -> list[dict]:
+    """Per-month total expense (positive magnitude), oldest first — the
+    dashboard spending-trend chart. Derived from the cashflow history so the
+    two charts can never disagree."""
+    return [
+        {
+            "period_start": p.period_start.isoformat(),
+            "income_minor": p.income_minor,
+            "expense_minor": p.expense_minor,
+            "net_minor": p.income_minor - p.expense_minor,
+        }
+        for p in build_cashflow_history(months=months, as_of=as_of)
+    ]
+
+
+def _due_label(days_until_due: int) -> str:
+    """A human phrase for a due date, matching how the Bills page itself
+    phrases "due soon" — the recommender's title and the Bills list should
+    never disagree about what "due" means for the same bill."""
+    if days_until_due < 0:
+        return "overdue"
+    if days_until_due == 0:
+        return "today"
+    if days_until_due == 1:
+        return "tomorrow"
+    return f"in {days_until_due} days"
+
+
+def _upcoming_bills_dtos(*, within_days: int = 30) -> tuple[dict, ...]:
+    """Model-free upcoming-bill snapshot for the recommender. Reads the finance
+    Bill model via its selector; kept here so the recommender stays pure.
+
+    Every field here must be one the recommender actually reads — see the
+    "action the product can execute" rule in providers/recommend.py. Earlier
+    revisions included from_account_id/to_account_id/on_date for a
+    "schedule_transfer" action that Bill has no model support for (it's paid
+    against a Payee, not transferred between two of the user's own accounts)
+    and that the frontend never read regardless — both recommender and
+    frontend already treat this as "go to the Bills page," so the DTO now
+    only carries what's real: identity, amount, and a due-date phrase.
+    """
+    from apps.finance.bills import upcoming_bills
+
+    return tuple(
+        {
+            "bill_id": str(ub.bill.id),
+            "name": ub.bill.name,
+            "amount_minor": ub.bill.amount_minor,
+            "currency": ub.bill.currency,
+            "due_on": ub.bill.due_on.isoformat(),
+            "days_until_due": ub.days_until_due,
+            "due_label": _due_label(ub.days_until_due),
+        }
+        for ub in upcoming_bills(within_days=within_days)
+    )
+
+
+# ------------------------------------------------------------- cash runway ---
+
+RUNWAY_HEALTHY_MONTHS = 12
+RUNWAY_WATCH_MONTHS = 6
+RUNWAY_WARNING_MONTHS = 3
+
+
+def cash_runway(*, as_of: date | None = None) -> dict:
+    """Will this workspace run out of cash, and roughly when?
+
+    Factors combined:
+      • today's liquid balance (checking + savings + cash, dominant currency)
+      • the average monthly net flow over the last 3 *full* months
+      • bills coming due in the next 30 days (near-term pressure on top of trend)
+
+    If the trend is negative, runway = balance / burn, and the projected
+    run-out date is stated plainly. With under two full months of history the
+    answer is honestly "insufficient_data" rather than a guess.
+    """
+    from apps.finance.selectors import _dominant_liquid_currency, liquid_balance_minor
+
+    as_of = as_of or timezone.localdate()
+    currency = _dominant_liquid_currency()
+    if currency is None:
+        return {"status": "insufficient_data", "reason": "no_accounts"}
+
+    balance = liquid_balance_minor(currency)
+
+    # Last 3 *full* months (exclude the in-progress month: partial data skews burn).
+    history = build_cashflow_history(months=4, as_of=as_of)[:-1]
+    active_months = [p for p in history if p.income_minor or p.expense_minor]
+    if len(active_months) < 2:
+        return {
+            "status": "insufficient_data",
+            "reason": "not_enough_history",
+            "currency": currency,
+            "liquid_balance_minor": balance,
+        }
+
+    nets = [p.income_minor - p.expense_minor for p in active_months]
+    avg_net = sum(nets) // len(nets)
+
+    upcoming = _upcoming_bills_dtos(within_days=30)
+    upcoming_total = sum(b["amount_minor"] for b in upcoming)
+
+    result = {
+        "currency": currency,
+        "liquid_balance_minor": balance,
+        "avg_monthly_net_minor": avg_net,
+        "months_analyzed": len(active_months),
+        "upcoming_bills_minor": upcoming_total,
+        "upcoming_bills_count": len(upcoming),
+    }
+
+    if avg_net >= 0:
+        # Trend is positive; the only near-term risk is a bill wall taller than the balance.
+        result["status"] = "critical" if upcoming_total > balance else "healthy"
+        result["months_of_runway"] = None
+        result["projected_runout_date"] = None
+        return result
+
+    burn = -avg_net
+    months_left = balance / burn if burn else float("inf")
+    runout = as_of + timedelta(days=int(months_left * 30.44))
+    result["months_of_runway"] = round(months_left, 1)
+    result["projected_runout_date"] = runout.isoformat()
+    if months_left < RUNWAY_WARNING_MONTHS:
+        result["status"] = "critical"
+    elif months_left < RUNWAY_WATCH_MONTHS:
+        result["status"] = "warning"
+    elif months_left < RUNWAY_HEALTHY_MONTHS:
+        result["status"] = "watch"
+    else:
+        result["status"] = "healthy"
+    return result

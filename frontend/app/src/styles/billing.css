@@ -1,0 +1,146 @@
+/* ==========================================================================
+   Bills & subscriptions — upcoming payments and recurring spend, with urgency
+   cues and quick pause/cancel/pay actions.
+   ========================================================================== */
+
+/* ---------- shared stat band ---------- */
+.lf-stat-band {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-6);
+  align-items: center;
+}
+.lf-stat-band-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lf-stat-band-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--lf-border-subtle);
+}
+
+/* ---------- group headings ---------- */
+.lf-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lf-space-2);
+  margin: var(--lf-space-5) 0 var(--lf-space-2);
+}
+.lf-group-title {
+  font-size: 0.75rem;
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide, 0.04em);
+  text-transform: uppercase;
+  color: var(--lf-text-secondary);
+}
+.lf-group-title[data-tone="danger"] {
+  color: var(--lf-status-danger);
+}
+.lf-group-title[data-tone="warning"] {
+  color: var(--lf-status-warning);
+}
+.lf-group-count {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* ---------- subscription rows ---------- */
+.lf-sub-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+.lf-sub-row:last-child {
+  border-bottom: 0;
+}
+.lf-sub-row[data-paused="true"] {
+  opacity: 0.6;
+}
+.lf-sub-main {
+  flex: 1;
+  min-width: 0;
+}
+.lf-sub-name {
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lf-sub-meta {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  margin-top: 1px;
+}
+.lf-sub-cost {
+  text-align: end;
+  white-space: nowrap;
+}
+.lf-sub-cost-main {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-primary);
+}
+.lf-sub-cost-sub {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+.lf-sub-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* ---------- bill rows ---------- */
+.lf-bill-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+.lf-bill-row:last-child {
+  border-bottom: 0;
+}
+.lf-bill-main {
+  flex: 1;
+  min-width: 0;
+}
+.lf-bill-name {
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+}
+.lf-bill-amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lf-bill-pay {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  flex-shrink: 0;
+}
+
+/* due-date pill */
+.lf-due-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--lf-radius-full);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  background: var(--lf-bg-sunken);
+  color: var(--lf-text-secondary);
+}
+.lf-due-pill[data-tone="danger"] {
+  background: color-mix(in srgb, var(--lf-status-danger) 14%, transparent);
+  color: var(--lf-status-danger);
+}
+.lf-due-pill[data-tone="warning"] {
+  background: color-mix(in srgb, var(--lf-status-warning) 16%, transparent);
+  color: var(--lf-status-warning);
+}

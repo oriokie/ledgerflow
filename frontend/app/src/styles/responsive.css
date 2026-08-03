@@ -1,0 +1,219 @@
+/* ==========================================================================
+   Responsive pass — mobile usability across every screen.
+   Imported LAST so these rules win the cascade. Organized by concern:
+   navigation & shell, touch targets, typography, forms, per-feature reflow, overlays, and safe areas. Desktop is untouched; everything here activates
+   under breakpoints or coarse pointers.
+   ========================================================================== */
+
+/* ---------------------------------------------------------- shell & nav --- */
+
+/* Content clears the fixed bottom tab bar on phones/tablets. */
+@media (max-width: 1023px) {
+  .lf-content {
+    padding-bottom: calc(var(--lf-tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--lf-space-6));
+  }
+}
+
+/* Notched-device safe areas: the drawer hugs the left edge, the tab bar the
+   bottom (already handled), the topbar the top in standalone/PWA contexts. */
+.lf-drawer {
+  padding-left: max(var(--lf-space-3), env(safe-area-inset-left, 0px));
+  padding-bottom: max(var(--lf-space-3), env(safe-area-inset-bottom, 0px));
+}
+
+.lf-topbar {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Give tab-bar items a real hit area and an active affordance. */
+.lf-tabbar-item {
+  min-height: var(--lf-touch-target);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------------------------------------------------------- touch targets --- */
+
+/* Interactive chips (filters, quick-add contributions) get a real hit area on
+   touch devices; decorative span chips keep their compact look. */
+@media (max-width: 767px),
+(pointer: coarse) {
+  button.lf-chip {
+    min-height: 40px;
+    padding: var(--lf-space-1) var(--lf-space-4);
+  }
+}
+
+/* Clickable analytics category rows: comfortable rows, not dense desktop ones. */
+button.lf-cat-row {
+  min-height: var(--lf-touch-target);
+}
+
+/* ------------------------------------------------------------- typography --- */
+
+/* Hero figures and page-level greetings step down so numbers never dominate a
+   small screen or force horizontal scroll. */
+@media (max-width: 639px) {
+  .lf-amount--hero {
+    font-size: var(--lf-text-xl);
+  }
+  .lf-insights-greeting-title {
+    font-size: var(--lf-text-xl);
+  }
+  .lf-goal-ring-pct {
+    font-size: var(--lf-text-lg);
+  }
+}
+
+/* ------------------------------------------------------------------ forms --- */
+
+/* iOS zooms the page when a focused control's text is under 16px. Hold form
+   controls at 16px on phones so focus never triggers a zoom jump. */
+@media (max-width: 767px) {
+  .lf-input,
+  .lf-select,
+  select.lf-select,
+  textarea.lf-input {
+    font-size: 16px;
+  }
+}
+
+/* ------------------------------------------------------- bills & subs --- */
+
+/* Stat bands: tighter rhythm, no orphaned dividers once items wrap. */
+@media (max-width: 639px) {
+  .lf-stat-band {
+    gap: var(--lf-space-4);
+  }
+  .lf-stat-band-divider {
+    display: none;
+  }
+}
+
+/* Subscription rows: name gets the full first line; cost + actions form a
+   second, right-anchored line. */
+@media (max-width: 519px) {
+  .lf-sub-row {
+    flex-wrap: wrap;
+  }
+  .lf-sub-main {
+    flex: 1 1 100%;
+  }
+  .lf-sub-actions {
+    margin-left: auto;
+  }
+}
+
+/* Bill rows: stack into [name+date] / [due pill · amount] / [full-width pay
+   controls] so nothing overflows and the pay button stays thumb-sized. */
+@media (max-width: 639px) {
+  .lf-bill-row {
+    flex-wrap: wrap;
+    row-gap: var(--lf-space-2);
+  }
+  .lf-bill-main {
+    flex: 1 1 100%;
+  }
+  .lf-bill-amount {
+    margin-left: auto;
+  }
+  .lf-bill-pay {
+    flex: 1 1 100%;
+  }
+  .lf-bill-pay .lf-select {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* ----------------------------------------------------------------- goals --- */
+
+@media (max-width: 479px) {
+  .lf-goal-ring {
+    width: 108px;
+    height: 108px;
+  }
+  .lf-goal-head {
+    gap: var(--lf-space-3);
+  }
+}
+
+/* --------------------------------------------------------------- budgets --- */
+
+/* Long category names wrap above their figures instead of colliding. */
+@media (max-width: 519px) {
+  .lf-budget-line-head {
+    flex-wrap: wrap;
+  }
+}
+
+/* ------------------------------------------------------------- analytics --- */
+
+/* Breakdown + drill-down sit side by side only when both get real room. */
+.lf-analytics-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--lf-space-4);
+}
+@media (min-width: 900px) {
+  .lf-analytics-split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+@media (max-width: 639px) {
+  .lf-drill-head {
+    flex-wrap: wrap;
+  }
+}
+
+/* --------------------------------------------------------------- overlays --- */
+
+/* Modals never outgrow a phone screen: cap height, scroll inside, and sit as a
+   bottom sheet on the smallest screens where reach matters most. */
+.lf-modal[open] {
+  max-height: min(90dvh, 720px);
+  overflow-y: auto;
+}
+@media (max-width: 639px) {
+  /* Dialogs become bottom sheets on phones — except the command palette, which must stay top-anchored so results aren't hidden by the on-screen
+     keyboard the moment it opens. */
+  .lf-modal[open]:not(.lf-cmdk) {
+    width: 100vw;
+    max-width: none;
+    margin: auto 0 0;
+    border-radius: var(--lf-radius-xl) var(--lf-radius-xl) 0 0;
+    padding: var(--lf-space-5);
+    padding-bottom: calc(var(--lf-space-5) + env(safe-area-inset-bottom, 0px));
+    max-height: 92dvh;
+  }
+
+/* Structured dialogs pad their own zones, so the sheet itself stays
+     padding-free — otherwise the footer rule would stop short of the edges.
+     The safe-area inset moves onto the footer, which is what actually sits
+     against the home indicator. */
+  .lf-modal--structured[open] {
+    padding: 0;
+  }
+
+.lf-modal--structured .lf-modal-head {
+    padding: var(--lf-space-5) var(--lf-space-5) var(--lf-space-3);
+  }
+
+.lf-modal--structured .lf-modal-body {
+    padding: 0 var(--lf-space-5) var(--lf-space-5);
+  }
+
+.lf-modal--structured .lf-modal-footer {
+    padding: var(--lf-space-4) var(--lf-space-5);
+    padding-bottom: calc(var(--lf-space-4) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ------------------------------------------------------------- misc reflow --- */
+
+/* Insight cards and guidance footers breathe a little less on phones. */
+@media (max-width: 639px) {
+  .lf-guidance {
+    padding: var(--lf-space-3);
+    padding-left: var(--lf-space-4);
+  }
+}

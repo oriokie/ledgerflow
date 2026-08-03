@@ -1,0 +1,178 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  DJANGO_SETTINGS_MODULE: config.settings.test
+  DJANGO_SECRET_KEY: ci-secret-key
+  DATABASE_URL: postgres://ledgerflow:ledgerflow@localhost:5432/ledgerflow
+  REDIS_URL: redis://localhost:6379/0
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements/development.txt
+      - run: ruff check apps config tests manage.py
+      - run: black --check apps config tests manage.py
+
+      # Design-system guards. Both are stdlib-only and need no browser, so
+      # they belong in the fast job rather than gating on the test matrix.
+      - name: Palette contrast and colour-vision floors
+        run: python scripts/verify_palette.py
+      - name: Design-token drift (ratchet)
+        run: python scripts/check_style_tokens.py
+
+  # The frontend had no CI at all: 644 tests, a typecheck and a linter, none of
+  # which gated anything. A suite nobody runs is documentation, not a test.
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend/app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/app/package-lock.json
+      - run: npm ci
+      # `tsc --noEmit` here would be a no-op: the root tsconfig has `files: []`
+      # and only project references, so without `-b` it checks zero files and
+      # always exits 0. Ran that way for several phases before it was noticed.
+      - name: Typecheck
+        run: npm run typecheck
+      # `tsconfig.app.json` excludes test files, so `tsc -b` never saw them and
+      # the `typecheck:test` script nothing ran had drifted into failure: four
+      # goal fixtures were missing fields that `SavingsGoal` had since gained.
+      # An untyped fixture silently stops testing what it claims to.
+      - name: Typecheck tests
+        run: npm run typecheck:test
+      - name: Lint
+        run: npm run lint
+      - name: Unit tests
+        run: npm run test
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ledgerflow
+          POSTGRES_USER: ledgerflow
+          POSTGRES_PASSWORD: ledgerflow
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ledgerflow"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -r requirements/test.txt
+
+      - name: Grant CREATEDB (pytest-django creates/drops the test DB)
+        run: |
+          PGPASSWORD=ledgerflow psql -h localhost -U ledgerflow -d ledgerflow \
+            -c "ALTER ROLE ledgerflow CREATEDB;"
+
+      - name: Check for missing migrations
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run tests
+        run: pytest --cov-fail-under=70
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  # Browser-measured assertions that jsdom cannot make: text overlap, rendered
+  # font sizes, touch-target geometry, horizontal overflow. Needs the whole
+  # stack up and a seeded workspace, so it runs after `test` rather than
+  # blocking the fast feedback.
+  route-audit:
+    runs-on: ubuntu-latest
+    needs: [test, frontend]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ledgerflow
+          POSTGRES_USER: ledgerflow
+          POSTGRES_PASSWORD: ledgerflow
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ledgerflow"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.development
+      DJANGO_DEBUG: "true"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/app/package-lock.json
+
+      - run: pip install -r requirements/development.txt
+      - run: python -m playwright install --with-deps chromium
+
+      - name: Migrate and seed a workspace to measure
+        run: |
+          python manage.py migrate
+          python manage.py seed_platform_demo
+          python manage.py seed_tenant_demo
+
+      - name: Start the stack
+        run: |
+          python manage.py runserver 0.0.0.0:8000 --noreload &
+          npm --prefix frontend/app ci
+          npm --prefix frontend/app run dev &
+          npx --yes wait-on http://localhost:8000/healthz/ http://localhost:5173 --timeout 120000
+
+      - name: Route audit (ratchet)
+        run: python scripts/audit_routes.py
+
+      - name: Show every finding on failure
+        if: failure()
+        run: python scripts/audit_routes.py --list || true
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production image (no push — validates the Dockerfile)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          build-args: REQUIREMENTS_FILE=requirements/production.txt
+          tags: ledgerflow:ci

@@ -1,0 +1,2758 @@
+{
+  "/ @desktop": {
+    "background": [
+      "color(srgb 0.054902 0.478431 0.372549 / 0.14)",
+      "rgb(14, 122, 95)",
+      "rgb(220, 242, 234)",
+      "rgb(240, 241, 245)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)",
+      "rgb(85, 88, 217)"
+    ],
+    "border": [
+      "rgb(14, 122, 95)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)",
+      "rgb(85, 88, 217)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(14, 122, 95)",
+      "rgb(21, 25, 40)",
+      "rgb(69, 71, 196)",
+      "rgb(85, 88, 217)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "12px",
+      "13.328px",
+      "13.6px",
+      "16px",
+      "19.2px",
+      "19.584px",
+      "27.648px",
+      "33.8368px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "3px",
+      "6px",
+      "7px",
+      "999px"
+    ],
+    "shadow": [
+      "rgb(85, 88, 217) 0px 0px 0px 2px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/ @mobile": {
+    "background": [
+      "color(srgb 0.054902 0.478431 0.372549 / 0.14)",
+      "rgb(14, 122, 95)",
+      "rgb(220, 242, 234)",
+      "rgb(240, 241, 245)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)",
+      "rgb(85, 88, 217)"
+    ],
+    "border": [
+      "rgb(14, 122, 95)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)",
+      "rgb(85, 88, 217)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(14, 122, 95)",
+      "rgb(21, 25, 40)",
+      "rgb(69, 71, 196)",
+      "rgb(85, 88, 217)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "12px",
+      "13.328px",
+      "13.6px",
+      "16px",
+      "19.2px",
+      "19.584px",
+      "23.5008px",
+      "27.648px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "3px",
+      "6px",
+      "7px",
+      "999px"
+    ],
+    "shadow": [
+      "rgb(85, 88, 217) 0px 0px 0px 2px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/accounts @desktop": {
+    "background": [
+      "color(srgb 0.333333 0.345098 0.85098 / 0.12)",
+      "color(srgb 0.756863 0.227451 0.294118 / 0.12)",
+      "rgb(232, 232, 251)",
+      "rgb(236, 238, 242)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(14, 122, 95)",
+      "rgb(21, 25, 40)",
+      "rgb(58, 64, 85)",
+      "rgb(69, 71, 196)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11.3288px",
+      "13.328px",
+      "13.6px",
+      "19.2px",
+      "23.04px",
+      "27.648px",
+      "33.8368px",
+      "39.808px",
+      "9.4384px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/accounts @mobile": {
+    "background": [
+      "color(srgb 0.333333 0.345098 0.85098 / 0.12)",
+      "color(srgb 0.756863 0.227451 0.294118 / 0.12)",
+      "rgb(232, 232, 251)",
+      "rgb(236, 238, 242)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11.3288px",
+      "13.328px",
+      "13.6px",
+      "19.2px",
+      "23.04px",
+      "23.5008px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/admin @desktop": {
+    "background": [
+      "rgb(250, 227, 230)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)",
+      "rgb(85, 88, 217)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(133, 77, 14)",
+      "rgb(161, 47, 62)",
+      "rgb(193, 58, 75)",
+      "rgb(21, 25, 40)",
+      "rgb(69, 71, 196)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "27.648px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 2px 4px 0px, rgba(21, 25, 40, 0.07) 0px 10px 26px 0px"
+    ]
+  },
+  "/admin @mobile": {
+    "background": [
+      "rgb(250, 227, 230)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)",
+      "rgb(85, 88, 217)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(133, 77, 14)",
+      "rgb(161, 47, 62)",
+      "rgb(193, 58, 75)",
+      "rgb(21, 25, 40)",
+      "rgb(69, 71, 196)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "27.648px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 2px 4px 0px, rgba(21, 25, 40, 0.07) 0px 10px 26px 0px"
+    ]
+  },
+  "/admin/analytics @desktop": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11px",
+      "13.328px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "16px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/analytics @mobile": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11px",
+      "13.328px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "16px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/audit @desktop": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "monospace"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/audit @mobile": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "monospace"
+    ],
+    "fontSize": [
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/billing @desktop": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(250, 227, 230)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(133, 77, 14)",
+      "rgb(161, 47, 62)",
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/billing @mobile": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(250, 227, 230)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(133, 77, 14)",
+      "rgb(161, 47, 62)",
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/coupons @desktop": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "monospace"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/admin/coupons @mobile": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "monospace"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/admin/dunning @desktop": {
+    "background": [
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(133, 77, 14)",
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/admin/dunning @mobile": {
+    "background": [
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(133, 77, 14)",
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/admin/health @desktop": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(236, 238, 242)",
+      "rgb(250, 227, 230)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(133, 77, 14)",
+      "rgb(161, 47, 62)",
+      "rgb(21, 25, 40)",
+      "rgb(58, 64, 85)",
+      "rgb(69, 71, 196)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "16px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/health @mobile": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(236, 238, 242)",
+      "rgb(250, 227, 230)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(133, 77, 14)",
+      "rgb(161, 47, 62)",
+      "rgb(21, 25, 40)",
+      "rgb(58, 64, 85)",
+      "rgb(69, 71, 196)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "16px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/invoices @desktop": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(250, 227, 230)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(161, 47, 62)",
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/invoices @mobile": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(250, 227, 230)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(161, 47, 62)",
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/settings @desktop": {
+    "background": [
+      "rgb(216, 219, 228)",
+      "rgb(236, 238, 242)",
+      "rgb(255, 255, 255)",
+      "rgb(85, 88, 217)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(58, 64, 85)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "16px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/settings @mobile": {
+    "background": [
+      "rgb(216, 219, 228)",
+      "rgb(236, 238, 242)",
+      "rgb(255, 255, 255)",
+      "rgb(85, 88, 217)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(58, 64, 85)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "16px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/staff @desktop": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(236, 238, 242)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(133, 77, 14)",
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(58, 64, 85)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/admin/staff @mobile": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(236, 238, 242)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(133, 77, 14)",
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(58, 64, 85)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/admin/tenants @desktop": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(236, 238, 242)",
+      "rgb(250, 227, 230)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(133, 77, 14)",
+      "rgb(161, 47, 62)",
+      "rgb(21, 25, 40)",
+      "rgb(58, 64, 85)",
+      "rgb(69, 71, 196)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/admin/tenants @mobile": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(236, 238, 242)",
+      "rgb(250, 227, 230)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(133, 77, 14)",
+      "rgb(161, 47, 62)",
+      "rgb(21, 25, 40)",
+      "rgb(58, 64, 85)",
+      "rgb(69, 71, 196)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/analytics @desktop": {
+    "background": [
+      "rgb(240, 241, 245)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(14, 122, 95)",
+      "rgb(193, 58, 75)",
+      "rgb(21, 25, 40)",
+      "rgb(58, 64, 85)",
+      "rgb(85, 88, 217)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "12px",
+      "13.328px",
+      "16px",
+      "19.2px",
+      "19.584px",
+      "23.04px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "7px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset"
+    ]
+  },
+  "/analytics @mobile": {
+    "background": [
+      "rgb(240, 241, 245)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(14, 122, 95)",
+      "rgb(193, 58, 75)",
+      "rgb(21, 25, 40)",
+      "rgb(58, 64, 85)",
+      "rgb(85, 88, 217)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "12px",
+      "13.328px",
+      "16.32px",
+      "16px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "7px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset"
+    ]
+  },
+  "/automation @desktop": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/automation @mobile": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/billing @desktop": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(236, 238, 242)",
+      "rgb(240, 241, 245)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(161, 98, 7)",
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(85, 88, 217)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(133, 77, 14)",
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(58, 64, 85)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11.3288px",
+      "13.328px",
+      "16px",
+      "19.2px",
+      "23.04px",
+      "33.8368px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "7px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/billing @mobile": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(236, 238, 242)",
+      "rgb(240, 241, 245)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(161, 98, 7)",
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(85, 88, 217)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(133, 77, 14)",
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(58, 64, 85)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11.3288px",
+      "13.328px",
+      "16px",
+      "19.2px",
+      "23.04px",
+      "23.5008px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "7px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/bills @desktop": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/bills @mobile": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/budgets @desktop": {
+    "background": [
+      "rgb(14, 122, 95)",
+      "rgb(240, 241, 245)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11.3288px",
+      "13.328px",
+      "13.6px",
+      "16px",
+      "19.2px",
+      "33.8368px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "1px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/budgets @mobile": {
+    "background": [
+      "rgb(14, 122, 95)",
+      "rgb(240, 241, 245)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11.3288px",
+      "13.328px",
+      "13.6px",
+      "16px",
+      "19.2px",
+      "23.5008px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "1px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/cashflow @desktop": {
+    "background": [
+      "rgb(240, 241, 245)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "16px",
+      "19.584px",
+      "23.04px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "7px"
+    ],
+    "shadow": [
+      "rgb(85, 88, 217) 0px 0px 0px 2px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset"
+    ]
+  },
+  "/cashflow @mobile": {
+    "background": [
+      "rgb(240, 241, 245)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "16px",
+      "19.584px",
+      "23.04px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "7px"
+    ],
+    "shadow": [
+      "rgb(85, 88, 217) 0px 0px 0px 2px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset"
+    ]
+  },
+  "/categories @desktop": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "23.04px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/categories @mobile": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "23.04px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/coach @desktop": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(240, 241, 245)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(133, 77, 14)",
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "16px",
+      "19.2px",
+      "23.04px",
+      "27.648px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "7px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset"
+    ]
+  },
+  "/coach @mobile": {
+    "background": [
+      "rgb(220, 242, 234)",
+      "rgb(240, 241, 245)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(10, 95, 74)",
+      "rgb(133, 77, 14)",
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "16px",
+      "19.2px",
+      "23.04px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "7px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset"
+    ]
+  },
+  "/debt @desktop": {
+    "background": [
+      "rgb(240, 241, 245)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(154, 161, 180)",
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(69, 71, 196)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11.3288px",
+      "13.328px",
+      "13.6px",
+      "16px",
+      "19.2px",
+      "23.5008px",
+      "27.2px",
+      "27.648px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 2px 4px 0px, rgba(21, 25, 40, 0.07) 0px 10px 26px 0px"
+    ]
+  },
+  "/debt @mobile": {
+    "background": [
+      "rgb(240, 241, 245)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(154, 161, 180)",
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(69, 71, 196)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11.3288px",
+      "13.328px",
+      "13.6px",
+      "16px",
+      "19.2px",
+      "23.5008px",
+      "27.648px",
+      "33.8368px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 2px 4px 0px, rgba(21, 25, 40, 0.07) 0px 10px 26px 0px"
+    ]
+  },
+  "/goals @desktop": {
+    "background": [
+      "rgb(232, 232, 251)",
+      "rgb(240, 241, 245)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)",
+      "rgb(85, 88, 217)"
+    ],
+    "border": [
+      "rgb(154, 161, 180)",
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)",
+      "rgb(85, 88, 217)"
+    ],
+    "color": [
+      "rgb(133, 77, 14)",
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(85, 88, 217)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11.3288px",
+      "13.328px",
+      "13.6px",
+      "16px",
+      "23.04px",
+      "27.648px",
+      "33.8368px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "1px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/goals @mobile": {
+    "background": [
+      "rgb(232, 232, 251)",
+      "rgb(240, 241, 245)",
+      "rgb(253, 240, 210)",
+      "rgb(255, 255, 255)",
+      "rgb(85, 88, 217)"
+    ],
+    "border": [
+      "rgb(154, 161, 180)",
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)",
+      "rgb(85, 88, 217)"
+    ],
+    "color": [
+      "rgb(133, 77, 14)",
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(85, 88, 217)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11.3288px",
+      "13.328px",
+      "13.6px",
+      "16px",
+      "23.04px",
+      "23.5008px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "1px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/insights @desktop": {
+    "background": [
+      "color(srgb 0.054902 0.478431 0.372549 / 0.1)",
+      "color(srgb 0.054902 0.478431 0.372549 / 0.12)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(14, 122, 95)",
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "16px",
+      "19.2px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/insights @mobile": {
+    "background": [
+      "color(srgb 0.054902 0.478431 0.372549 / 0.1)",
+      "color(srgb 0.054902 0.478431 0.372549 / 0.12)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(14, 122, 95)",
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "16px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "6px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/investments @desktop": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/investments @mobile": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/members @desktop": {
+    "background": [
+      "rgb(236, 238, 242)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(58, 64, 85)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/members @mobile": {
+    "background": [
+      "rgb(236, 238, 242)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(58, 64, 85)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/notifications @desktop": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/notifications @mobile": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px"
+    ]
+  },
+  "/recurring @desktop": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/recurring @mobile": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "999px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/reports @desktop": {
+    "background": [
+      "rgb(239, 239, 239)",
+      "rgb(240, 241, 245)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(0, 0, 0)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11px",
+      "13.328px",
+      "13.6px",
+      "16px",
+      "19.2px",
+      "32px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "7px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset"
+    ]
+  },
+  "/reports @mobile": {
+    "background": [
+      "rgb(239, 239, 239)",
+      "rgb(240, 241, 245)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(0, 0, 0)",
+      "rgb(227, 230, 236)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11px",
+      "13.328px",
+      "13.6px",
+      "16px",
+      "19.2px",
+      "27.648px",
+      "32px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px",
+      "7px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(21, 25, 40, 0.06) 0px 1px 2px 0px inset"
+    ]
+  },
+  "/settings @desktop": {
+    "background": [
+      "rgb(232, 232, 251)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(85, 88, 217)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/settings @mobile": {
+    "background": [
+      "rgb(232, 232, 251)",
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(21, 25, 40)",
+      "rgb(85, 88, 217)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk"
+    ],
+    "fontSize": [
+      "11.104px",
+      "13.328px",
+      "19.2px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.02) 0px 1px 1px 0px inset",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/transactions @desktop": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(14, 122, 95)",
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11.3288px",
+      "13.328px",
+      "39.808px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  },
+  "/transactions @mobile": {
+    "background": [
+      "rgb(255, 255, 255)"
+    ],
+    "border": [
+      "rgb(216, 219, 228)",
+      "rgb(227, 230, 236)",
+      "rgb(236, 238, 242)"
+    ],
+    "color": [
+      "rgb(14, 122, 95)",
+      "rgb(21, 25, 40)",
+      "rgb(255, 255, 255)",
+      "rgb(93, 100, 120)",
+      "rgb(95, 102, 121)"
+    ],
+    "fontFamily": [
+      "-apple-system",
+      "Schibsted Grotesk",
+      "Spline Sans Mono"
+    ],
+    "fontSize": [
+      "11.104px",
+      "11.3288px",
+      "13.328px",
+      "27.648px"
+    ],
+    "fontWeight": [
+      "400",
+      "500",
+      "600",
+      "700"
+    ],
+    "radius": [
+      "10px",
+      "16px"
+    ],
+    "shadow": [
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px",
+      "rgba(21, 25, 40, 0.05) 0px 1px 2px 0px, rgba(21, 25, 40, 0.04) 0px 3px 12px 0px",
+      "rgba(255, 255, 255, 0.18) 0px 1px 0px 0px inset, rgba(21, 25, 40, 0.05) 0px 1px 2px 0px"
+    ]
+  }
+}

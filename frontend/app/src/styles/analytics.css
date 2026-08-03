@@ -1,0 +1,243 @@
+/* ==========================================================================
+   Analytics — trends, comparisons, and category drill-down. Charts reuse
+   `.lf-chart-container`; this adds the comparison deltas and the clickable
+   category breakdown.
+   ========================================================================== */
+
+.lf-analytics-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-4);
+}
+
+/* States the basis of the comparison above it. Tertiary because it is a
+   qualifier, not a finding — but present, because the numbers overstate
+   themselves without it. */
+.lf-compare-basis {
+  margin-top: var(--lf-space-4);
+  padding-top: var(--lf-space-3);
+  border-top: 1px solid var(--lf-border-subtle);
+  font-size: var(--lf-text-xs);
+  line-height: 1.45;
+  color: var(--lf-text-tertiary);
+  max-width: 62ch;
+}
+
+/* ---------- category breakdown ---------- */
+.lf-cat-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.lf-cat-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--lf-space-3);
+  align-items: baseline;
+  width: 100%;
+  padding: var(--lf-space-3) var(--lf-space-2);
+  border: 0;
+  border-radius: var(--lf-radius-md);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: background var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-cat-row:hover {
+  background: var(--lf-bg-sunken);
+}
+
+.lf-cat-row[data-selected="true"] {
+  background: var(--lf-selection-bg, var(--lf-bg-sunken));
+}
+
+.lf-cat-name {
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lf-cat-amount {
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-primary);
+  white-space: nowrap;
+}
+
+.lf-cat-share {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-cat-bar {
+  grid-column: 1 / -1;
+  height: 6px;
+  margin-top: 4px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-bg-sunken);
+  overflow: hidden;
+}
+
+.lf-cat-bar-fill {
+  height: 100%;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-chart-1);
+  transition: width var(--lf-duration-base) var(--lf-ease-out);
+}
+
+/* ---------- drilldown ---------- */
+.lf-drill-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-2);
+}
+
+.lf-drill-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: var(--lf-space-6);
+  text-align: center;
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-sm);
+}
+
+/* Cash flow statement: numeric columns right-aligned in tabular figures */
+.lf-cashflow-table th:not(:first-child),
+.lf-cashflow-table td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Reporting platform
+   --------------------------------------------------------------------------
+   One renderer draws fourteen dashboards from seven chart types, so these
+   styles are written once rather than per-report.
+   ========================================================================== */
+
+.lf-report-groups {
+  margin-bottom: var(--lf-rhythm-section);
+}
+
+.lf-report-filters {
+  display: flex;
+  gap: var(--lf-space-2);
+  flex-wrap: wrap;
+}
+
+.lf-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+}
+
+.lf-report-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--lf-space-3);
+  margin: 0;
+}
+
+.lf-report-totals dt {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  margin-bottom: 2px;
+}
+
+.lf-report-totals dd {
+  margin: 0;
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Caveats sit above the chart, because a partial month read as a collapse in
+   spending is the most common way a report gets misread. */
+.lf-report-caveat {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-status-warning-bg);
+  color: var(--lf-status-warning-text);
+  font-size: var(--lf-text-xs);
+  line-height: 1.5;
+}
+
+.lf-report-caveat svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lf-report-score {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lf-space-2);
+}
+
+.lf-report-score-value {
+  font-family: var(--lf-font-ledger);
+  /* `--lf-text-3xl` never existed, so this silently rendered at the
+     hardcoded 2rem fallback — 32px, off the scale entirely. These are
+     page-hero figures, so they take the same step as the dashboard's. */
+  font-size: var(--lf-text-3xl);
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.lf-report-export {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--lf-radius-md);
+  color: var(--lf-text-tertiary);
+  transition: background var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+@media (hover: hover) {
+  .lf-report-export:hover {
+    background: var(--lf-bg-sunken);
+    color: var(--lf-text-secondary);
+  }
+}
+
+.lf-report-export:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+.lf-report-table {
+  font-size: var(--lf-text-sm);
+}
+
+/* Drill-down: a row is a filter someone wants to apply. Only shown as
+   interactive when a handler is actually wired. */
+.lf-report-table tr[data-clickable] {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .lf-report-table tr[data-clickable]:hover {
+    background: var(--lf-bg-sunken);
+  }
+}
+
+@media (max-width: 767px) {
+  /* Two report cards side by side leaves each too narrow for a legible chart. */
+  .lf-report-totals {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

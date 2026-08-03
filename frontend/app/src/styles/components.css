@@ -1,0 +1,1903 @@
+/* ==========================================================================
+   LedgerFlow components. Everything references semantic tokens only —
+   retheme by swapping tokens.css blocks, never by editing this file.
+   Mobile-first: base styles are the phone layout; min-width queries add the
+   rail/topbar shell at md (768px) and lg (1024px).
+   ========================================================================== */
+
+/* ==========================================================================
+   App shell
+   --------------------------------------------------------------------------
+   Mobile:   topbar + content + bottom tab bar
+   Desktop:  left rail + topbar + content (rail replaces tab bar at lg)
+   ========================================================================== */
+.lf-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Page gutters. The top pad is deliberately tighter than the sides: the
+   topbar already supplies visual separation, so a large gap above the page
+   title just pushes primary content below the fold. Everything below the
+   title is spaced by the rhythm tokens, not by this padding. */
+.lf-content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--lf-content-max);
+  margin: 0 auto;
+  padding: var(--lf-space-4) var(--lf-space-4)
+    calc(var(--lf-tabbar-height) + var(--lf-space-8));
+}
+
+@media (min-width: 768px) {
+  .lf-content {
+    padding: var(--lf-space-5) var(--lf-space-8) var(--lf-space-12);
+  }
+}
+
+/* Ultrawide: the content column stays readable and centered rather than
+   stretching measure to 2000px, but the gutters grow so it never looks
+   pinned to a narrow strip. */
+@media (min-width: 1600px) {
+  .lf-content {
+    padding-inline: var(--lf-space-12);
+  }
+}
+
+@media (min-width: 1024px) {
+  .lf-shell {
+    flex-direction: row;
+  }
+
+.lf-shell-main {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* ---------- topbar ---------- */
+.lf-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  height: var(--lf-topbar-height);
+  padding: 0 var(--lf-space-4);
+  background: var(--lf-bg-surface);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+.lf-topbar-spacer {
+  flex: 1;
+}
+
+/* workspace switcher — multi-tenancy is a first-class product concept */
+.lf-workspace-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-1) var(--lf-space-3);
+  border: 0;
+  border-radius: var(--lf-radius-md);
+  background: transparent;
+  font-weight: var(--lf-weight-semibold);
+  cursor: pointer;
+}
+
+.lf-workspace-switcher:hover {
+  background: var(--lf-bg-sunken);
+}
+
+.lf-workspace-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--lf-radius-sm);
+  background: var(--lf-action-primary);
+  color: var(--lf-action-primary-text);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-bold);
+}
+
+.lf-kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--lf-border-default);
+  border-bottom-width: 2px;
+  border-radius: var(--lf-radius-sm);
+  background: var(--lf-bg-surface);
+  font-family: var(--lf-font-ledger);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-secondary);
+}
+
+/* ---------- side rail (desktop) ---------- */
+.lf-rail {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .lf-rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lf-space-1);
+    width: var(--lf-rail-width);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    /* Tighter horizontal padding pairs with the narrower rail; items keep
+       their own inner padding so the touch target is unchanged. */
+    padding: var(--lf-space-4) var(--lf-space-2);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--lf-bg-surface);
+    border-right: 1px solid var(--lf-border-subtle);
+  }
+
+/* The rail's own scrollbar is chrome inside chrome — keep it faint. */
+  .lf-rail::-webkit-scrollbar {
+    width: 6px;
+  }
+
+.lf-rail::-webkit-scrollbar-thumb {
+    background: var(--lf-border-subtle);
+    border-radius: var(--lf-radius-full);
+  }
+}
+
+.lf-rail-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-2) var(--lf-space-3) var(--lf-space-4);
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-medium);
+  font-size: var(--lf-text-md);
+  letter-spacing: var(--lf-tracking-snug);
+  color: var(--lf-text-primary);
+  text-decoration: none;
+}
+
+.lf-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  /* Slightly shorter than the 44px touch floor is wrong for a tap target, so
+     the height stays — but the label sits on a tighter type rhythm so a
+     14-item rail fits a laptop viewport without scrolling. */
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  color: var(--lf-text-secondary);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  line-height: 1.2;
+  text-decoration: none;
+  transition:
+    background var(--lf-duration-fast) var(--lf-ease-out),
+    color var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+/* Hover is a wash, not a block of color: the item should feel like it warms
+   under the cursor rather than switching on. */
+@media (hover: hover) {
+  .lf-nav-item:hover {
+    background: color-mix(in srgb, var(--lf-bg-sunken) 70%, transparent);
+    color: var(--lf-text-primary);
+  }
+
+  .lf-nav-item:hover .lf-nav-icon {
+    color: var(--lf-text-primary);
+  }
+}
+
+.lf-nav-item:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: -2px;
+}
+
+.lf-nav-item[aria-current="page"] {
+  background: var(--lf-selection-bg);
+  color: var(--lf-text-link);
+  font-weight: var(--lf-weight-semibold);
+}
+
+/* The active indicator: a rounded accent bar on the leading edge that grows
+   into place rather than appearing. scaleY is compositor-only, so this stays
+   at 60fps and costs no layout. */
+.lf-nav-item::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 50%;
+  width: 3px;
+  height: 18px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-action-primary);
+  transform: translateY(-50%) scaleY(0);
+  transform-origin: center;
+  opacity: 0;
+  transition:
+    transform var(--lf-duration-base) var(--lf-ease-entrance),
+    opacity var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-nav-item[aria-current="page"]::before {
+  transform: translateY(-50%) scaleY(1);
+  opacity: 1;
+}
+
+.lf-nav-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Icons are tertiary at rest and take the accent when active — scoped to nav
+   items so the brand lockup (which reuses .lf-nav-icon) is unaffected. */
+.lf-nav-item .lf-nav-icon {
+  color: var(--lf-text-tertiary);
+  transition: color var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-nav-item[aria-current="page"] .lf-nav-icon {
+  color: var(--lf-action-primary);
+}
+
+/* ---------- bottom tab bar (mobile) ---------- */
+.lf-tabbar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  height: calc(var(--lf-tabbar-height) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--lf-bg-surface);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+.lf-tabbar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  text-decoration: none;
+}
+
+.lf-tabbar-item[aria-current="page"] {
+  color: var(--lf-text-link);
+}
+
+@media (min-width: 1024px) {
+  .lf-tabbar {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Buttons — min 44px touch targets throughout
+   ========================================================================== */
+.lf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lf-space-2);
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-2) var(--lf-space-5);
+  border: 1px solid transparent;
+  border-radius: var(--lf-radius-md);
+  font-weight: var(--lf-weight-semibold);
+  font-size: var(--lf-text-sm);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background var(--lf-duration-fast) var(--lf-ease-out),
+    transform var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* One focus treatment for every variant: an offset ring in the focus color.
+   Offset (rather than inset) keeps it legible on dark and colored fills. */
+.lf-btn:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+.lf-btn--primary {
+  background: var(--lf-action-primary);
+  color: var(--lf-action-primary-text);
+}
+
+.lf-btn--primary:hover:not(:disabled) {
+  background: var(--lf-action-primary-hover);
+}
+
+/* Secondary is the workhorse next to a primary action, so it gets real
+   material: a defined edge, a hairline of elevation, and a hover that both
+   darkens the fill and firms the border. */
+.lf-btn--secondary {
+  background: var(--lf-action-secondary-bg);
+  border-color: var(--lf-action-secondary-border);
+  color: var(--lf-text-primary);
+  box-shadow: var(--lf-shadow-sm);
+}
+
+@media (hover: hover) {
+  .lf-btn--secondary:hover:not(:disabled) {
+    background: var(--lf-bg-sunken);
+    border-color: var(--lf-border-strong);
+    box-shadow: var(--lf-shadow-raised);
+  }
+}
+
+.lf-btn--secondary:active:not(:disabled) {
+  box-shadow: none;
+}
+
+.lf-btn--ghost {
+  background: transparent;
+  color: var(--lf-text-secondary);
+}
+
+.lf-btn--ghost:hover:not(:disabled) {
+  background: var(--lf-bg-sunken);
+  color: var(--lf-text-primary);
+}
+
+.lf-btn--danger {
+  background: var(--lf-status-danger);
+  color: #fff;
+}
+
+.lf-btn--danger:hover:not(:disabled) {
+  background: var(--lf-carmine-700);
+}
+
+/* A destructive action that isn't the primary action on the surface: reads
+   as a secondary button until you engage with it. */
+.lf-btn--danger-quiet {
+  background: var(--lf-bg-surface);
+  border-color: color-mix(in srgb, var(--lf-status-danger) 35%, transparent);
+  color: var(--lf-status-danger-text);
+}
+
+.lf-btn--danger-quiet:hover:not(:disabled) {
+  background: var(--lf-status-danger-bg);
+  border-color: var(--lf-status-danger);
+}
+
+.lf-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* A loading button keeps its footprint (see .is-loading in ui.css) so the
+   layout never jumps when an action starts. */
+.lf-btn.is-loading {
+  cursor: progress;
+}
+
+/* ==========================================================================
+   Forms
+   ========================================================================== */
+/* A field is label → control → message, with the label sitting closer to its
+   control than fields sit to each other (proximity does the grouping). */
+.lf-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+
+/* Vertically stacked fields use the rhythm token, so every form in the
+   product breathes identically. */
+.lf-form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-rhythm-field);
+}
+
+/* Side-by-side fields that collapse to one column on narrow screens. */
+.lf-field-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--lf-space-4) var(--lf-space-4);
+}
+
+@media (max-width: 519px) {
+  .lf-field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lf-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-primary);
+  line-height: 1.3;
+}
+
+/* "Optional" reads better than starring the 80% of fields that are required. */
+.lf-label-optional {
+  font-weight: var(--lf-weight-regular);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-hint {
+  font-size: var(--lf-text-xs);
+  line-height: 1.45;
+  color: var(--lf-text-secondary);
+}
+
+.lf-input,
+.lf-select {
+  min-height: var(--lf-touch-target);
+  /* Roomier than before: generous inner padding is most of what separates an
+     input that feels considered from one that feels like a browser default. */
+  padding: var(--lf-space-3);
+  border: 1px solid var(--lf-border-default);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-surface);
+  color: var(--lf-text-primary);
+  box-shadow: inset 0 1px 1px rgba(21, 25, 40, 0.02);
+  transition:
+    border-color var(--lf-duration-fast) var(--lf-ease-out),
+    box-shadow var(--lf-duration-fast) var(--lf-ease-out),
+    background var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-input:hover:not(:disabled):not([aria-invalid="true"]),
+.lf-select:hover:not(:disabled):not([aria-invalid="true"]) {
+  border-color: var(--lf-border-strong);
+}
+
+/* Focus is a colored edge plus a soft ring — the ring reads as focus at a
+   glance, the edge keeps the control's shape crisp. Both are drawn with
+   box-shadow so the layout never shifts on focus. */
+.lf-input:focus,
+.lf-input:focus-visible,
+.lf-select:focus,
+.lf-select:focus-visible {
+  outline: none;
+  border-color: var(--lf-focus-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lf-focus-ring) 22%, transparent);
+}
+
+.lf-input::placeholder {
+  color: var(--lf-text-tertiary);
+}
+
+/* Disabled: unmistakably inert, still legible (never below 4.5:1). */
+.lf-input:disabled,
+.lf-select:disabled,
+.lf-input[readonly] {
+  background: var(--lf-bg-sunken);
+  border-color: var(--lf-border-subtle);
+  color: var(--lf-text-secondary);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.lf-input[readonly] {
+  cursor: default;
+}
+
+/* Select gets a custom chevron so it matches the input metrics on every OS. */
+.lf-select {
+  appearance: none;
+  padding-inline-end: var(--lf-space-8);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%23656c81' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--lf-space-3) center;
+}
+
+[data-theme="dark"] .lf-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%238890aa' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+[dir="rtl"] .lf-select {
+  background-position: left var(--lf-space-3) center;
+}
+
+/* amount input: the ledger face, right-aligned like a ledger column */
+.lf-input--amount {
+  font-family: var(--lf-font-ledger);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* ---------- field states ---------- */
+
+/* Invalid. Color is never the only signal: the message below carries the
+   meaning, the border only draws the eye to it. */
+.lf-field--invalid .lf-input,
+.lf-field--invalid .lf-select,
+.lf-input[aria-invalid="true"],
+.lf-select[aria-invalid="true"] {
+  border-color: var(--lf-status-danger);
+}
+
+.lf-field--invalid .lf-input:focus,
+.lf-field--invalid .lf-select:focus,
+.lf-input[aria-invalid="true"]:focus,
+.lf-select[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lf-status-danger) 20%, transparent);
+}
+
+.lf-field--valid .lf-input,
+.lf-field--valid .lf-select {
+  border-color: var(--lf-status-success);
+}
+
+.lf-field--valid .lf-input:focus,
+.lf-field--valid .lf-select:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lf-status-success) 20%, transparent);
+}
+
+.lf-error,
+.lf-success-text {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-1);
+  font-size: var(--lf-text-xs);
+  line-height: 1.45;
+}
+
+.lf-error {
+  color: var(--lf-status-danger-text);
+}
+
+.lf-success-text {
+  color: var(--lf-status-success-text);
+}
+
+/* Busy: the control is awaiting a server round-trip (async validation, currency lookup). Dimmed and non-interactive, with a trailing spinner
+   supplied by the Field component. */
+.lf-field--busy .lf-input,
+.lf-field--busy .lf-select {
+  color: var(--lf-text-secondary);
+}
+
+/* ---------- adorned inputs (leading/trailing slots) ---------- */
+/* Controls fill their field; standalone controls used inline (a select in a
+   settings row, a filter bar) keep their intrinsic width. */
+.lf-field > .lf-input,
+.lf-field > .lf-select,
+.lf-field > .lf-input-wrap {
+  width: 100%;
+}
+
+.lf-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.lf-input-wrap .lf-input {
+  width: 100%;
+}
+
+.lf-input-affix {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-input-affix--lead {
+  inset-inline-start: var(--lf-space-3);
+}
+
+.lf-input-affix--trail {
+  inset-inline-end: var(--lf-space-3);
+}
+
+.lf-input--has-lead {
+  padding-inline-start: var(--lf-space-8);
+}
+
+.lf-input--has-trail {
+  padding-inline-end: var(--lf-space-8);
+}
+
+/* segmented control — expense / income / transfer */
+.lf-segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+  /* `max-width: 100%` plus scroll keeps the control inside the viewport
+     instead of pushing the document sideways when the labels do not fit.
+     `min-width: 0` is the part that actually makes it work: as a flex item its
+     automatic minimum size resolves to `min-content` — the full width of every
+     segment — and **min-width beats max-width**, so the cap above was being
+     silently overruled. Five window options came to 428px on a 375px screen. */
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.lf-segmented::-webkit-scrollbar {
+  display: none;
+}
+
+.lf-segmented input {
+  position: absolute;
+  opacity: 0;
+}
+
+.lf-segmented label {
+  /* Full 44px, not 44-minus-the-wrapper-padding.
+     While the labels wrapped to two lines they cleared the touch target by
+     accident; stopping the wrap made them a uniform 38px, which is uniform and
+     too small. The route audit caught the trade — WCAG 2.5.5 and this file's
+     own `--lf-touch-target`. */
+  min-height: var(--lf-touch-target);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--lf-space-3);
+  border-radius: calc(var(--lf-radius-md) - 3px);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-secondary);
+  cursor: pointer;
+  /* Four options at 375px wrapped "This month" and "30 days" onto two lines
+     while "Year" stayed on one, so a single control rendered three different
+     segment heights. Labels are short by design; let the row scroll rather
+     than break them. */
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .lf-segmented label {
+    padding: 0 var(--lf-space-4);
+  }
+}
+
+.lf-segmented input:checked + label {
+  background: var(--lf-bg-surface);
+  color: var(--lf-text-primary);
+  box-shadow: var(--lf-shadow-raised);
+}
+
+.lf-segmented input:focus-visible + label {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+/* switch */
+.lf-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 26px;
+}
+
+.lf-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.lf-switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-ink-150);
+  transition: background var(--lf-duration-base) var(--lf-ease-out);
+}
+
+.lf-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--lf-radius-full);
+  background: #fff;
+  box-shadow: var(--lf-shadow-raised);
+  transition: transform var(--lf-duration-base) var(--lf-ease-out);
+}
+
+.lf-switch input:checked + .lf-switch-track {
+  background: var(--lf-action-primary);
+}
+
+.lf-switch input:checked + .lf-switch-track::after {
+  transform: translateX(18px);
+}
+
+.lf-switch input:focus-visible + .lf-switch-track {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Cards
+   ========================================================================== */
+.lf-card {
+  background: var(--lf-bg-surface);
+  /* A slightly stronger edge than a divider: the card must read as an object
+     against the canvas even where the shadow is invisible (dark mode, forced
+     contrast, low-quality panels). */
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-lg);
+  box-shadow: var(--lf-shadow-raised);
+  padding: var(--lf-space-5);
+  transition:
+    border-color var(--lf-duration-med) var(--lf-ease-out),
+    box-shadow var(--lf-duration-med) var(--lf-ease-out),
+    transform var(--lf-duration-med) var(--lf-ease-out);
+}
+
+/* Prominence. The primary card on a page earns more padding and a fractionally
+   deeper shadow — hierarchy through material, not through color. */
+.lf-card--primary {
+  padding: var(--lf-space-6);
+  box-shadow: var(--lf-shadow-hover);
+}
+
+@media (max-width: 639px) {
+  .lf-card--primary {
+    padding: var(--lf-space-5);
+  }
+}
+
+/* A quiet card for supporting content: no elevation, just an edge. */
+.lf-card--quiet {
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Only cards that DO something lift. Motion means "you can act here", so a
+   static figure card never moves under the cursor. */
+.lf-card--interactive {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .lf-card--interactive:hover {
+    transform: translateY(-2px);
+    border-color: var(--lf-border-card-hover);
+    box-shadow: var(--lf-shadow-hover);
+  }
+}
+
+.lf-card--interactive:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+.lf-card--interactive:active {
+  transform: translateY(0);
+}
+
+/* Card header: a hairline rule separates the header from the body only when
+   the card holds a list or table — otherwise spacing alone does the work. */
+.lf-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-4);
+}
+
+.lf-card-header--ruled {
+  padding-bottom: var(--lf-space-3);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+.lf-card-title {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-md);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-snug);
+  color: var(--lf-text-primary);
+}
+
+/* responsive card grids */
+.lf-grid {
+  display: grid;
+  gap: var(--lf-space-4);
+}
+
+/* A grid item's automatic minimum size is its content, so a card holding a
+   long ledger amount refuses to shrink and pushes the whole document sideways
+   — a 400px card inside a 343px column at 375px wide. The track sizing already
+   says `1fr`; this is what lets the item believe it. */
+.lf-grid > * {
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .lf-grid--2 { grid-template-columns: repeat(2, 1fr); }
+
+.lf-grid--3 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1024px) {
+  .lf-grid--3 { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ==========================================================================
+   Badges — transaction/status vocabulary
+   ========================================================================== */
+.lf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-1);
+  padding: 2px var(--lf-space-2);
+  border-radius: var(--lf-radius-full);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+.lf-badge--success { background: var(--lf-status-success-bg); color: var(--lf-status-success-text); }
+
+.lf-badge--danger { background: var(--lf-status-danger-bg);  color: var(--lf-status-danger-text); }
+
+.lf-badge--warning { background: var(--lf-status-warning-bg); color: var(--lf-status-warning-text); }
+
+.lf-badge--neutral { background: var(--lf-status-neutral-bg); color: var(--lf-status-neutral-text); }
+
+/* ==========================================================================
+   Tables — the ledger table
+   --------------------------------------------------------------------------
+   Amount + balance columns are right-aligned ledger columns. On mobile the
+   table body reflows to stacked rows (headers hidden, cells labeled by
+   data-label) — no horizontal scrolling for the primary use case.
+   ========================================================================== */
+.lf-table-wrap {
+  background: var(--lf-bg-surface);
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-lg);
+  box-shadow: var(--lf-shadow-raised);
+  overflow: hidden;
+}
+
+/* Sticky headers need a scroll container. Capped so a long ledger scrolls
+   within the card instead of running the whole page past its own header. */
+.lf-table-wrap--sticky {
+  overflow: auto;
+  max-height: min(72vh, 780px);
+}
+
+.lf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--lf-text-sm);
+}
+
+.lf-table th {
+  padding: var(--lf-space-3) var(--lf-space-4);
+  text-align: start; /* logical: correct in RTL */
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-secondary);
+  background: var(--lf-bg-surface);
+  border-bottom: 1px solid var(--lf-border-default);
+  white-space: nowrap;
+}
+
+/* The header stays put while the body scrolls. Opaque background + z-index
+   so rows pass underneath, not through. */
+.lf-table-wrap--sticky thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.lf-table td {
+  /* A touch more vertical room: financial rows are scanned, not read, and
+     the extra leading is what makes a long ledger comfortable. */
+  padding: var(--lf-space-4);
+  border-bottom: 1px solid var(--lf-border-subtle);
+  vertical-align: middle;
+}
+
+.lf-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Row hover is the pointer's own highlight — kept light so it reads as
+   "you're here", not as a selection. */
+@media (hover: hover) {
+  .lf-table tbody tr:hover {
+    background: color-mix(in srgb, var(--lf-bg-sunken) 60%, transparent);
+  }
+}
+
+.lf-table tbody tr:focus-within {
+  background: color-mix(in srgb, var(--lf-bg-sunken) 60%, transparent);
+}
+
+/* Selection is a real state and outranks hover: tinted fill plus an accent
+   marker on the leading edge, so it survives at a glance and in grayscale. */
+.lf-table tbody tr[aria-selected="true"],
+.lf-table tbody tr[data-selected="true"] {
+  background: var(--lf-selection-bg);
+  box-shadow: inset 3px 0 0 0 var(--lf-action-primary);
+}
+
+@media (hover: hover) {
+  .lf-table tbody tr[aria-selected="true"]:hover,
+.lf-table tbody tr[data-selected="true"]:hover {
+    background: color-mix(in srgb, var(--lf-selection-bg) 80%, var(--lf-text-primary) 4%);
+  }
+}
+
+/* Selection checkbox column: fixed narrow gutter, no wrapping. */
+.lf-table .lf-col-select {
+  width: 44px;
+  padding-inline-end: 0;
+}
+
+.lf-table .lf-col-select input {
+  cursor: pointer;
+  accent-color: var(--lf-action-primary);
+}
+
+/* Row actions live in a trailing column and stay hidden until the row is
+   hovered or focused — the ledger stays clean, the actions stay reachable.
+   Keyboard users get them via :focus-within, and coarse pointers always
+   see them (there is no hover on a phone). */
+.lf-table .lf-col-actions {
+  width: 1%;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.lf-table-row-actions {
+  display: inline-flex;
+  gap: var(--lf-space-1);
+  opacity: 0;
+  transition: opacity var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-table tbody tr:hover .lf-table-row-actions,
+.lf-table tbody tr:focus-within .lf-table-row-actions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .lf-table-row-actions {
+    opacity: 1;
+  }
+}
+
+.lf-table .lf-col-amount {
+  text-align: end; /* logical: ledger columns hug the reading end */
+}
+
+.lf-cell-primary {
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+}
+
+.lf-cell-meta {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* mobile reflow: stacked ledger rows */
+@media (max-width: 767px) {
+  .lf-table--responsive thead {
+    display: none;
+  }
+
+  .lf-table--responsive tbody tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--lf-space-1) var(--lf-space-3);
+    padding: var(--lf-space-3) var(--lf-space-4);
+    border-bottom: 1px solid var(--lf-border-subtle);
+  }
+
+  .lf-table--responsive td {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+
+  /* The trailing slot on the first line belongs to *one* amount — the row's
+     headline figure, opposite its description. Every `.lf-col-amount` used to
+     claim it, so a table with more than one visible amount stacked them all in
+     the same cell rather than laying them out; five of them collided on the
+     cash-flow outlook. `:first-of-type` scopes the pin to the first, and any
+     further amounts flow onto the following lines instead of overlapping.
+     Columns that shouldn't appear at all on a phone still say so with
+     `hideMobile` — this only stops the failure being invisible. */
+  .lf-table--responsive .lf-col-amount:first-of-type {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  /* A second visible amount is a full-width line under the first, not a
+     value crammed into the label column. */
+  .lf-table--responsive .lf-col-amount {
+    grid-column: 1 / -1;
+    text-align: end;
+  }
+
+  .lf-table--responsive .lf-col-hide-mobile {
+    display: none;
+  }
+}
+
+.lf-meter-track {
+  height: 8px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-bg-sunken);
+  overflow: hidden;
+}
+
+.lf-meter-fill {
+  height: 100%;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-action-primary);
+  transition: width var(--lf-duration-base) var(--lf-ease-out);
+}
+
+.lf-meter--over .lf-meter-fill {
+  background: var(--lf-status-danger);
+}
+
+.lf-meter-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--lf-space-3);
+  font-size: var(--lf-text-sm);
+}
+
+/* ==========================================================================
+   Modal / drawer
+   ========================================================================== */
+.lf-modal[open] {
+  border: 0;
+  border-radius: var(--lf-radius-xl);
+  padding: var(--lf-space-6);
+  width: min(480px, calc(100vw - var(--lf-space-8)));
+  /* The global `* { margin: 0 }` reset defeats the UA stylesheet's
+     `margin: auto` that centers a modal <dialog>; restore it explicitly. */
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-height: calc(100dvh - var(--lf-space-8));
+  overflow-y: auto;
+  background: var(--lf-bg-surface);
+  color: var(--lf-text-primary);
+  box-shadow: var(--lf-shadow-overlay);
+}
+
+.lf-modal::backdrop {
+  /* A touch more ink plus a blur: the dialog reads as the only live surface,
+     which is what makes a confirmation feel consequential. */
+  background: rgba(21, 25, 40, 0.5);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+
+/* ---------- modal structure ----------
+   Three zones: a header that names the task, a body that scrolls, and a
+   footer that never scrolls away. Padding moves onto the zones so the
+   footer's rule can span the full dialog width. */
+.lf-modal--structured[open] {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.lf-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--lf-space-4);
+  padding: var(--lf-space-5) var(--lf-space-6) var(--lf-space-4);
+  flex-shrink: 0;
+}
+
+.lf-modal-title {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-lg);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-tight);
+  line-height: 1.25;
+}
+
+.lf-modal-desc {
+  margin-top: var(--lf-space-1);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+  max-width: 56ch;
+}
+
+.lf-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--lf-space-6) var(--lf-space-6);
+}
+
+/* Footer: secondary action leading, primary trailing. `space-between` gives
+   the Cancel/Confirm split the brief asks for, and a single trailing button
+   still lands correctly because of the empty leading slot. */
+.lf-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  flex-shrink: 0;
+  padding: var(--lf-space-4) var(--lf-space-6);
+  border-top: 1px solid var(--lf-border-subtle);
+  background: var(--lf-bg-sunken);
+}
+
+.lf-modal-footer-start,
+.lf-modal-footer-end {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+}
+
+.lf-modal-footer-end {
+  margin-inline-start: auto;
+}
+
+@media (max-width: 519px) {
+  /* Thumb reach beats convention on a phone: full-width, primary on top. */
+  .lf-modal-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+.lf-modal-footer-start,
+.lf-modal-footer-end {
+    width: 100%;
+  }
+
+.lf-modal-footer .lf-btn {
+    flex: 1;
+  }
+}
+
+/* ==========================================================================
+   Toast
+   ========================================================================== */
+.lf-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-inverse);
+  color: var(--lf-text-inverse);
+  box-shadow: var(--lf-shadow-overlay);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+}
+
+/* ---------- inline confirmation ----------
+   An armed destructive control. The pair is grouped tightly so it reads as one
+   decision, and gap-separated from whatever sits beside it. */
+.lf-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-1);
+  animation: lf-confirm-in var(--lf-duration-fast) var(--lf-ease-entrance);
+}
+
+@keyframes lf-confirm-in {
+  from {
+    opacity: 0;
+    transform: translateX(4px);
+  }
+
+to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-confirm {
+    animation: none;
+  }
+}
+
+/* Row actions that are permanently visible shouldn't collapse when a confirm
+   pair replaces a single icon button. */
+.lf-table-row-actions .lf-confirm {
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Empty state — an invitation to act
+   ========================================================================== */
+.lf-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-12) var(--lf-space-6);
+  text-align: center;
+}
+
+.lf-empty h3 {
+  font-size: var(--lf-text-md);
+}
+
+.lf-empty p {
+  color: var(--lf-text-secondary);
+  max-width: 42ch;
+  font-size: var(--lf-text-sm);
+  line-height: 1.55;
+}
+
+/* ---------- the illustration plate ----------
+   Concentric rings fading outward behind the surface's own icon. Built from
+   tokens, so it follows the theme and the user's accent without a single
+   asset request. */
+.lf-empty-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  margin-bottom: var(--lf-space-1);
+}
+
+.lf-empty-ring {
+  position: absolute;
+  border-radius: var(--lf-radius-full);
+  border: 1px solid var(--lf-border-subtle);
+}
+
+.lf-empty-ring--outer {
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 35%,
+    color-mix(in srgb, var(--lf-action-primary) 7%, transparent),
+    transparent 70%
+  );
+}
+
+.lf-empty-ring--inner {
+  inset: 16px;
+  background: var(--lf-bg-surface);
+  box-shadow: var(--lf-shadow-sm);
+}
+
+.lf-empty-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--lf-action-primary);
+}
+
+.lf-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--lf-space-2);
+  margin-top: var(--lf-space-1);
+}
+
+/* Onboarding pointers: what this surface does once it has data. Quiet, but
+   present — the user has nothing else to read here. */
+.lf-empty-tips {
+  list-style: none;
+  margin: var(--lf-space-4) 0 0;
+  padding: var(--lf-space-4) 0 0;
+  border-top: 1px solid var(--lf-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+  max-width: 46ch;
+  text-align: start;
+}
+
+.lf-empty-tips li {
+  position: relative;
+  padding-inline-start: var(--lf-space-5);
+  font-size: var(--lf-text-xs);
+  line-height: 1.5;
+  color: var(--lf-text-secondary);
+}
+
+/* A check mark rather than a bullet: these are capabilities, not a to-do. */
+.lf-empty-tips li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 2px;
+  top: 5px;
+  width: 9px;
+  height: 5px;
+  border-inline-start: 1.6px solid var(--lf-status-success);
+  border-bottom: 1.6px solid var(--lf-status-success);
+  transform: rotate(-45deg);
+}
+
+/* Fallback text row when a table has no rows and no custom empty slot. */
+.lf-table-empty-cell {
+  padding: var(--lf-space-10) var(--lf-space-4) !important;
+  text-align: center;
+  color: var(--lf-text-tertiary);
+}
+
+/* ==========================================================================
+   Skeleton loading
+   ========================================================================== */
+.lf-skeleton {
+  border-radius: var(--lf-radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--lf-bg-sunken) 25%,
+    var(--lf-border-subtle) 50%,
+    var(--lf-bg-sunken) 75%
+  );
+  background-size: 200% 100%;
+  animation: lf-shimmer 1.4s infinite;
+}
+
+@keyframes lf-shimmer {
+  from { background-position: 200% 0; }
+
+to { background-position: -200% 0; }
+}
+
+/* ==========================================================================
+   Page header
+   ========================================================================== */
+.lf-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-rhythm-title);
+}
+
+/* Hierarchy step 1: the page title outranks every section title on the page
+   by a full scale step and a heavier weight. Previously both landed on
+   --lf-text-xl/semibold, which made pages read as a flat list of equals. */
+.lf-page-header h1 {
+  font-size: var(--lf-text-3xl);
+  font-weight: var(--lf-weight-bold);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 639px) {
+  .lf-page-header h1 {
+    font-size: var(--lf-text-xl);
+  }
+}
+
+/* An eyebrow above the title is metadata, not a heading — keep it quiet. */
+.lf-page-header .lf-eyebrow {
+  color: var(--lf-text-tertiary);
+  margin-bottom: var(--lf-space-1);
+}
+
+/* Optional one-line description below the title. */
+.lf-page-header-desc {
+  margin-top: var(--lf-space-2);
+  max-width: 68ch;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+
+.lf-page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  flex-wrap: wrap;
+  /* A flex item's `min-width` defaults to `auto`, so this refused to shrink
+     below its content and pushed the whole document sideways whenever a header
+     control was wider than the viewport — the cash-flow window selector is
+     428px of segments at a 375px screen. `min-width: 0` lets it shrink so the
+     control's own `overflow-x` can do its job. */
+  min-width: 0;
+  max-width: 100%;
+}
+
+.lf-page-header-actions > * {
+  min-width: 0;
+}
+
+/* ==========================================================================
+   Section rhythm
+   --------------------------------------------------------------------------
+   The spacing contract from tokens.css, applied to the heading that opens a
+   section of a page.
+   ========================================================================== */
+.lf-section-title {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-md);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-snug);
+  color: var(--lf-text-primary);
+  margin-bottom: var(--lf-space-3);
+}
+
+/* ==========================================================================
+   Command palette (⌘K) — a working use of .lf-modal via <dialog>.
+   Native dialog gives focus containment and Esc-to-close for free.
+   ========================================================================== */
+.lf-cmdk[open] {
+  margin-top: 10vh;
+  margin-bottom: auto;
+  padding: 0;
+  width: min(620px, calc(100vw - var(--lf-space-8)));
+  overflow: hidden;
+}
+
+/* The search row reads as one continuous control: the icon and the Esc key
+   sit inside the field rather than beside it. */
+.lf-cmdk-input {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+.lf-cmdk-input-icon {
+  flex-shrink: 0;
+  color: var(--lf-text-tertiary);
+}
+
+/* Inside the palette the input IS the surface — its own border and elevation
+   would draw a box inside a box. */
+.lf-cmdk .lf-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+  min-height: 32px;
+  font-size: var(--lf-text-md);
+}
+
+.lf-cmdk .lf-input:focus,
+.lf-cmdk .lf-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border: 0;
+}
+
+.lf-cmdk-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--lf-space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.lf-cmdk-group + .lf-cmdk-group {
+  margin-top: var(--lf-space-2);
+}
+
+.lf-cmdk-icon {
+  flex-shrink: 0;
+  color: var(--lf-text-tertiary);
+}
+
+/* Label takes the room; meta and hint hold the trailing edge so amounts and
+   dates form clean columns down the list. */
+.lf-cmdk-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lf-cmdk-meta {
+  flex-shrink: 0;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+
+.lf-cmdk-footer {
+  display: flex;
+  gap: var(--lf-space-4);
+  padding: var(--lf-space-2) var(--lf-space-4);
+  border-top: 1px solid var(--lf-border-subtle);
+  background: var(--lf-bg-sunken);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-cmdk-footer span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lf-cmdk-list a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  color: var(--lf-text-primary);
+  text-decoration: none;
+}
+
+.lf-cmdk-list a:hover,
+.lf-cmdk-list a:focus-visible {
+  background: var(--lf-selection-bg);
+}
+
+.lf-cmdk-empty {
+  padding: var(--lf-space-8) var(--lf-space-4);
+  text-align: center;
+  color: var(--lf-text-secondary);
+  font-size: var(--lf-text-sm);
+}
+
+@media (max-width: 639px) {
+  /* The palette stays a centered overlay on phones — a bottom sheet would put
+     the results under the keyboard. */
+  .lf-cmdk[open] {
+    margin: 8vh auto auto;
+    width: calc(100vw - var(--lf-space-6));
+    border-radius: var(--lf-radius-xl);
+  }
+
+.lf-cmdk-footer {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Progressive disclosure — styled <details>/<summary>.
+   Native semantics: keyboard, screen readers, and no-JS all work for free.
+   Used for "how is this calculated?", "show the math", and collapsed
+   sections like recent activity.
+   ========================================================================== */
+.lf-disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  min-height: var(--lf-touch-target);
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-secondary);
+  border-radius: var(--lf-radius-sm);
+}
+
+.lf-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.lf-disclosure > summary::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-right: 1.8px solid currentColor;
+  border-bottom: 1.8px solid currentColor;
+  transform: rotate(-45deg); /* chevron pointing right */
+  transition: transform var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-disclosure[open] > summary::before {
+  transform: rotate(45deg); /* pointing down */
+}
+
+.lf-disclosure > summary:hover {
+  color: var(--lf-text-primary);
+}
+
+.lf-disclosure-body {
+  padding: var(--lf-space-3) 0 var(--lf-space-1) var(--lf-space-5);
+}
+
+/* ==========================================================================
+   Insight card — one finding, one severity, at most ONE action.
+   Severity reuses status tokens (no new colors): attention = carmine, soon = amber, good = verdant. Positive insights carry no action —
+   good news doesn't nag.
+   ========================================================================== */
+.lf-insight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+  border-inline-start: 3px solid var(--lf-border-strong);
+}
+
+.lf-insight--attention { border-inline-start-color: var(--lf-status-danger); }
+
+.lf-insight--soon { border-inline-start-color: var(--lf-status-warning); }
+
+.lf-insight--good { border-inline-start-color: var(--lf-status-success); }
+
+.lf-insight-title {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-base);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-snug);
+}
+
+.lf-insight-body {
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+
+.lf-insight-actions {
+  display: flex;
+  gap: var(--lf-space-2);
+  flex-wrap: wrap;
+}
+
+/* The switch's visible track is a deliberate compact 44x26 (see .lf-switch
+   above), but the tappable region wrapping it should still meet this
+   product's own 44px touch-target minimum vertically — this widens the hit
+   area without changing how the control looks. */
+.lf-switch-label {
+  min-height: var(--lf-touch-target);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ==========================================================================
+   Figure — a labelled number
+   --------------------------------------------------------------------------
+   Replaces 71 hand-rolled stat selectors across 13 feature stylesheets
+   (.lf-cashflow-stat, .lf-goal-summary-stat, .lf-debt-metrics, .lf-admin-kpi-value, .lf-hero-figure, …). Each had its own type sizes and
+   label casing, which is why three figures in one row on Goals sat on three
+   different baselines.
+
+   Alignment here is structural. Label and value rows have a fixed line height
+   per size, so sibling figures align without `subgrid` and without every
+   caller remembering to match. A missing `hint` on one figure cannot shift the
+   value row of its neighbour.
+   ========================================================================== */
+
+.lf-figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-1);
+  min-width: 0;
+}
+
+.lf-figure-label {
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+  /* Fixed so a one-line and a two-line label still start their values on the
+     same row — the alignment contract above. */
+  line-height: 1.4;
+  min-height: 1.4em;
+}
+
+.lf-figure-value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lf-space-2);
+  min-width: 0;
+  /* Amounts are `white-space: nowrap` by design — a wrapped figure is
+     unreadable. So a figure narrower than its number spills sideways onto its
+     neighbour rather than clipping. Scrolling keeps the number intact and the
+     collision impossible. */
+  overflow-x: auto;
+  scrollbar-width: none;
+  font-family: var(--lf-font-ledger);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-primary);
+  line-height: 1.15;
+}
+
+.lf-figure[data-size="hero"] .lf-figure-value { font-size: var(--lf-text-3xl); }
+
+.lf-figure[data-size="primary"] .lf-figure-value { font-size: var(--lf-text-xl); }
+
+.lf-figure[data-size="secondary"] .lf-figure-value { font-size: var(--lf-text-lg); }
+
+.lf-figure[data-size="inline"] .lf-figure-value { font-size: var(--lf-text-base); }
+
+.lf-figure[data-tone="positive"] .lf-figure-value { color: var(--lf-status-success); }
+
+.lf-figure[data-tone="warning"] .lf-figure-value { color: var(--lf-status-warning); }
+
+.lf-figure[data-tone="critical"] .lf-figure-value { color: var(--lf-status-danger); }
+
+/* ---------- certainty ----------
+   `--lf-certainty-*` are a deliberate seam: they point at existing tokens now
+   and get repointed at `horizon` when the Meridian palette lands, so no
+   component needs touching in that phase. */
+.lf-figure[data-certainty="pending"] .lf-figure-value {
+  border-bottom: 2px dotted var(--lf-certainty-pending);
+  padding-bottom: 2px;
+  align-self: flex-start;
+}
+
+.lf-figure[data-certainty="projected"] .lf-figure-value {
+  color: var(--lf-certainty-projected);
+}
+
+/* A speculative figure must not look like a measured one. */
+.lf-figure[data-certainty="speculative"] .lf-figure-value {
+  align-self: flex-start;
+  padding: var(--lf-space-1) var(--lf-space-3);
+  border: 1px dashed var(--lf-certainty-projected);
+  border-radius: var(--lf-radius-md);
+  color: var(--lf-certainty-projected);
+}
+
+.lf-figure-flag {
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-certainty-projected);
+}
+
+/* The caveat sits with the number it qualifies, not elsewhere on the page. */
+.lf-figure-confidence,
+.lf-figure-hint {
+  font-size: var(--lf-text-xs);
+  line-height: 1.45;
+  color: var(--lf-text-tertiary);
+  max-width: 44ch;
+}
+
+.lf-figure-delta {
+  font-family: var(--lf-font-body);
+  font-size: var(--lf-text-sm);
+  white-space: nowrap;
+}
+
+/* ---------- row ---------- */
+.lf-figure-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--lf-space-6);
+  align-items: start;
+}
+
+.lf-figure-row[data-lead="true"] {
+  grid-template-columns: minmax(200px, 1.6fr) repeat(auto-fit, minmax(120px, 1fr));
+}
+
+@media (max-width: 639px) {
+  .lf-figure-row,
+.lf-figure-row[data-lead="true"] {
+    /* 160, not 120. Two columns of 143px cannot hold a `secondary` amount —
+       "KES 24,000.00" at the lg step needs ~173px — so the figure spilled into
+       its neighbour. Raising the minimum drops a 375px screen to one column
+       while a tablet still gets four. Widening the column is the right lever
+       here rather than shrinking the type: the amount is the content. */
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: var(--lf-space-4);
+  }
+
+/* A hero amount does not fit a half-width column: "KES 42, 283.81" at the
+     hero step needs ~202px and a 375px screen gives it 143px, so it spilled
+     into the figure beside it. The headline gets its own line. */
+  .lf-figure[data-size="hero"] {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ==========================================================================
+   Delta — a change indicator
+   --------------------------------------------------------------------------
+   There were two `.lf-delta` definitions: a filled pill in dashboard.css keyed
+   off `--up`/`--down` modifier classes, and a plain tone-coloured span in
+   analytics.css keyed off `data-tone`. Same class name, two conventions, and
+   whichever stylesheet loaded last decided what both looked like — which is
+   how the analytics deltas ended up wearing the dashboard's pill.
+
+   One definition, `data-tone` (matching `.lf-figure[data-tone]`), and no fill:
+   a delta now sits beside a value inside `<Figure>`, where a filled pill next
+   to a hero amount competes with the number it is annotating.
+   ========================================================================== */
+.lf-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--lf-text-secondary);
+}
+
+.lf-delta-suffix {
+  font-weight: var(--lf-weight-regular);
+  color: var(--lf-text-secondary);
+}
+
+.lf-delta[data-tone="good"] { color: var(--lf-status-success); }
+
+.lf-delta[data-tone="bad"] { color: var(--lf-status-danger); }
+
+/* ==========================================================================
+   Milestones — a record, not a trophy cabinet
+   --------------------------------------------------------------------------
+   Deliberately quiet: no colour, no fill, no badge. These are dated facts, and
+   the date carries as much weight as the figure. Anything that made them look
+   like awards would put this page in the business of congratulating people
+   about their debt.
+   ========================================================================== */
+.lf-milestones ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+}
+
+.lf-milestones li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-3);
+}
+
+.lf-milestone-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-bg-sunken);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-milestone-title {
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+}

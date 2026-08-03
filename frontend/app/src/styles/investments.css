@@ -1,0 +1,194 @@
+/* ==========================================================================
+   Investments
+   --------------------------------------------------------------------------
+   The four headline figures are visually separated because they mean genuinely
+   different things — paper gain, booked gain, income, and cost. Blurring them
+   is how people come to believe they have money they haven't made.
+   ========================================================================== */
+
+.lf-portfolio-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-5);
+}
+
+/* Unrealised movement is coloured, but never the sole signal — the sign is
+   always printed. Sits as the hero figure's `delta`, so it cannot stretch. */
+.lf-portfolio-change {
+  font-size: var(--lf-text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-status-danger-text);
+}
+
+.lf-portfolio-change[data-up] {
+  color: var(--lf-status-success-text);
+}
+
+/* `.lf-portfolio-value` and the `dt`/`dd` pair were this page's own labelled
+   number, down to a duplicate of the same `--lf-text-3xl` comment the debt
+   stylesheet carried. Both are `Figure` now; only the separating rule is left. */
+.lf-portfolio-metrics {
+  padding-top: var(--lf-space-4);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+/* An incomplete total presented as complete is a lie of omission. */
+.lf-portfolio-caveat {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-status-warning-bg);
+  color: var(--lf-status-warning-text);
+  font-size: var(--lf-text-sm);
+  line-height: 1.5;
+}
+
+.lf-portfolio-caveat svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ---------- allocation ---------- */
+.lf-allocation-title {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-md);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-snug);
+  margin-bottom: var(--lf-space-3);
+}
+
+/* One ordered bar, largest first. Length is the encoding; the ramp only shows
+   where one segment ends and the next begins. See AllocationChart.tsx for why
+   this replaced a donut. */
+.lf-alloc-bar {
+  display: flex;
+  height: 14px;
+  border-radius: var(--lf-radius-full);
+  overflow: hidden;
+  /* Segments meet edge to edge, so a hairline is what separates two adjacent
+     ramp steps structurally rather than relying on their colour difference
+     alone — which is also what keeps the smallest slivers visible. */
+  gap: 1px;
+  background: var(--lf-border-subtle);
+}
+
+.lf-alloc-seg {
+  min-width: 2px;
+  background: var(--lf-ramp-1);
+}
+
+.lf-alloc-seg[data-rank="2"], .lf-alloc-swatch[data-rank="2"] { background: var(--lf-ramp-2); }
+.lf-alloc-seg[data-rank="3"], .lf-alloc-swatch[data-rank="3"] { background: var(--lf-ramp-3); }
+.lf-alloc-seg[data-rank="4"], .lf-alloc-swatch[data-rank="4"] { background: var(--lf-ramp-4); }
+.lf-alloc-seg[data-rank="5"], .lf-alloc-swatch[data-rank="5"] { background: var(--lf-ramp-5); }
+.lf-alloc-seg[data-rank="6"], .lf-alloc-swatch[data-rank="6"] { background: var(--lf-ramp-6); }
+
+.lf-alloc-list {
+  list-style: none;
+  margin: var(--lf-space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+
+.lf-alloc-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-alloc-swatch {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: var(--lf-ramp-1);
+}
+
+.lf-alloc-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lf-alloc-pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-secondary);
+}
+
+/* The exact figure the percentage is a rounding of. */
+.lf-alloc-value {
+  font-family: var(--lf-font-ledger);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* ---------- holdings ---------- */
+/* Which position is dragging the portfolio's valuation date back. Tertiary and
+   on its own line: it qualifies the amount above it without competing with it. */
+.lf-holding-stale {
+  display: block;
+  font-family: var(--lf-font-body);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-certainty-projected);
+}
+
+.lf-holding-gain {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--lf-space-2);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-status-danger-text);
+}
+
+.lf-holding-gain[data-up] {
+  color: var(--lf-status-success-text);
+}
+
+.lf-holding-gain-pct {
+  /* De-emphasised by the size step alone. The 0.75 opacity that used to be here
+     took the gain colours to 4.38:1 and the loss colour to 4.1:1 on white —
+     both under AA — because neither has 0.75 of headroom to give above the
+     4.5:1 floor. This is the same defect base.css documents on
+     `.lf-amount-cents`: opacity is the wrong instrument for de-emphasis when
+     the base colour is already near the floor. */
+  font-size: var(--lf-text-xs);
+}
+
+.lf-performance-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+
+/* No responsive block: the metric column count and the narrow-screen hero rule
+   both come from `.lf-figure-row` now, which handles them identically on every
+   page that shows a row of figures. This file's `max-width: 767px` was also the
+   last off-scale breakpoint it carried. */
+
+/* Liability accounts that exist but owe nothing — shown on the debt page so
+ * adding an account produces visible feedback even before it has a balance. */
+.lf-debt-tracked {
+  list-style: none;
+  margin: var(--lf-space-3) 0;
+  padding: 0;
+  display: grid;
+  gap: var(--lf-space-3);
+}
+.lf-debt-tracked > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  padding-bottom: var(--lf-space-3);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+.lf-debt-tracked > li:last-child { border-bottom: 0; padding-bottom: 0; }

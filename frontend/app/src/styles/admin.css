@@ -1,0 +1,847 @@
+/* Platform administration workspace.
+ *
+ * Built entirely on the existing design tokens, so dark mode, contrast and
+ * spacing come for free and stay consistent with the customer app. The one
+ * deliberate divergence is the navigation rail, which is always the inverse
+ * surface: an operator with both apps open must be able to tell at a glance
+ * which one they are about to act in, because actions here affect somebody
+ * else's account.
+ */
+
+.lf-admin {
+  display: grid;
+  grid-template-columns: 232px 1fr;
+  min-height: 100vh;
+  background: var(--lf-bg-app);
+}
+
+/* ------------------------------------------------------------------- rail */
+.lf-admin-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+  padding: var(--lf-space-5) var(--lf-space-3);
+  /* Solid colour on the element, wash on a pseudo-element — deliberately not
+     one `background` shorthand carrying both.
+
+     axe-core's contrast algorithm skips any ancestor that has a
+     `background-image`, gradients included, and keeps walking up. With the
+     wash on the element itself it walked straight past the rail to the light
+     page background behind it and reported the rail's white text as 1.05:1 —
+     against a colour that is never visible behind it. The text actually
+     measures ~12:1. Splitting the two means the rail advertises a solid
+     background the checker can read, so the real ratio is the one that gets
+     verified, and the console keeps the wash.
+
+     The wash: enough to stop the rail reading as a flat black column; not
+     enough to compete with the exception panel, which is the only thing here
+     allowed to shout. */
+  background-color: var(--lf-bg-inverse);
+  color: var(--lf-text-inverse);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  border-inline-end: 1px solid color-mix(in srgb, var(--lf-text-inverse) 12%, transparent);
+}
+
+.lf-admin-rail::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    120% 60% at 0% 0%,
+    color-mix(in srgb, var(--lf-action-primary) 14%, transparent),
+    transparent 62%
+  );
+}
+
+/* The rail's own children sit above the wash. Without this they would be
+   painted under it, since the pseudo-element is a later sibling in paint
+   order. */
+.lf-admin-rail > * {
+  position: relative;
+  z-index: 1;
+}
+
+.lf-admin-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  padding: 0 var(--lf-space-2) var(--lf-space-2);
+  font-size: var(--lf-text-sm);
+  letter-spacing: 0.01em;
+}
+
+.lf-admin-brand svg {
+  color: var(--lf-action-primary);
+}
+.lf-admin-brand strong { font-weight: 600; }
+
+.lf-admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+  flex: 1;
+}
+
+.lf-admin-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.lf-admin-nav-group-label {
+  padding: 0 var(--lf-space-3) var(--lf-space-1);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--lf-text-inverse) 50%, transparent);
+}
+
+/* Compact by design — 32px rows are the operator default this console is built
+   around — but never below the 24px AA floor, and the whole row is the target. */
+.lf-admin-nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  min-height: 34px;
+  padding: var(--lf-space-1) var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  color: inherit;
+  opacity: 0.72;
+  text-decoration: none;
+  font-size: var(--lf-text-sm);
+  transition:
+    background var(--lf-duration-fast) var(--lf-ease-out),
+    opacity var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+/* Raw `rgb(255 255 255 / 8%)` assumed the rail is always dark. It is —
+   `--lf-bg-inverse` inverts with the theme — so hardcoding white was a latent
+   bug waiting for a light operator theme, as well as a token bypass. */
+.lf-admin-nav-link:hover {
+  opacity: 1;
+  background: color-mix(in srgb, var(--lf-text-inverse) 8%, transparent);
+}
+.lf-admin-nav-link:focus-visible {
+  outline: 2px solid var(--lf-fog-000);
+  outline-offset: 2px;
+}
+.lf-admin-nav-link--active {
+  opacity: 1;
+  background: color-mix(in srgb, var(--lf-text-inverse) 13%, transparent);
+  font-weight: var(--lf-weight-medium);
+}
+
+/* The active marker is the console's accent, so "where am I" is answered in
+   signal amber — the one hue this product reserves for the control room. */
+.lf-admin-nav-link--active::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: 50%;
+  width: 3px;
+  height: 16px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-action-primary);
+  transform: translateY(-50%);
+}
+
+.lf-admin-nav-link--active svg {
+  color: var(--lf-action-primary);
+}
+
+.lf-admin-nav-count {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--lf-status-danger);
+  color: var(--lf-paper-000);
+  font-size: var(--lf-text-xs);
+  text-align: center;
+}
+
+.lf-admin-identity {
+  border-top: 1px solid rgb(255 255 255 / 14%);
+  padding-top: var(--lf-space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+  align-items: flex-start;
+}
+.lf-admin-identity-email {
+  font-size: var(--lf-text-xs);
+  opacity: 0.75;
+  word-break: break-all;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------- main */
+.lf-admin-main { display: flex; flex-direction: column; min-width: 0; }
+
+.lf-admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3) var(--lf-space-5);
+  border-bottom: 1px solid var(--lf-border-subtle);
+  background: var(--lf-bg-surface);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.lf-admin-search {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  min-width: 240px;
+  border: 1px solid var(--lf-border-default);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-app);
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-sm);
+  cursor: pointer;
+}
+.lf-admin-search kbd {
+  margin-left: auto;
+  font-size: var(--lf-text-xs);
+  border: 1px solid var(--lf-border-default);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.lf-admin-exit { font-size: var(--lf-text-sm); color: var(--lf-text-link); }
+
+.lf-admin-content { padding: var(--lf-space-5); max-width: 1400px; width: 100%; }
+
+.lf-admin-page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--lf-space-4);
+  flex-wrap: wrap;
+}
+
+.lf-admin-page-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+  min-width: 0;
+}
+
+.lf-admin-page-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lf-space-3);
+  flex-wrap: wrap;
+}
+
+/* The count chip. Ledger face and tabular figures because it *is* a figure —
+   "140" set in the body face beside a duospace title looks like a footnote,
+   not a fact about the estate. */
+.lf-admin-page-meta {
+  font-family: var(--lf-font-ledger);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+  padding: 2px var(--lf-space-2);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-bg-surface);
+  white-space: nowrap;
+}
+
+/* One sentence, and measured like one: unbounded, a description under a wide
+   header stretches to 1400px and reads worse than no description. */
+.lf-admin-page-desc {
+  max-width: 64ch;
+}
+
+.lf-admin-page-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+}
+
+/* Filters above a table, matching the customer app's transaction toolbar.
+   The table's own chrome (.lf-table-wrap) is the card; wrapping it in another
+   Card drew a frame inside a frame on every list page in the console. */
+.lf-admin-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--lf-space-3);
+  flex-wrap: wrap;
+}
+
+/* A filter is a control, not a column: full-width selects above a 1400px
+   table read as broken layout, not as generous. */
+.lf-admin-toolbar .lf-field {
+  flex: 0 1 220px;
+  min-width: 160px;
+}
+
+.lf-admin-toolbar .lf-admin-toolbar-search {
+  flex: 1 1 320px;
+}
+
+.lf-admin-toolbar-search .lf-field {
+  width: 100%;
+  flex: none;
+}
+
+/* ------------------------------------------------------------- components */
+.lf-admin-kpi-value {
+  font-size: var(--lf-text-3xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  color: var(--lf-text-primary);
+}
+.lf-admin-kpi-value--success { color: var(--lf-verdant-600); }
+.lf-admin-kpi-value--warning { color: var(--lf-amber-700); }
+.lf-admin-kpi-value--danger { color: var(--lf-carmine-600); }
+
+.lf-admin-breakdown { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--lf-space-3); }
+.lf-admin-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  font-size: var(--lf-text-sm);
+}
+.lf-admin-breakdown-key { font-weight: 500; }
+.lf-admin-breakdown-value { font-variant-numeric: tabular-nums; }
+.lf-admin-breakdown-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--lf-action-primary);
+  margin: 4px 0 2px;
+  min-width: 2px;
+}
+
+.lf-admin-kv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  font-size: var(--lf-text-sm);
+}
+.lf-admin-kv > span:first-child { color: var(--lf-text-secondary); }
+
+.lf-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-2);
+  margin-top: var(--lf-space-3);
+}
+
+/* The plan editor's feature checklist — two readable columns rather than one
+   19-row scroll. */
+.lf-admin-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--lf-space-1) var(--lf-space-4);
+  margin-top: var(--lf-space-2);
+}
+
+/* ------------------------------------------------- tenant detail pieces */
+.lf-admin-backlink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-1);
+  min-height: var(--lf-space-6);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+  text-decoration: none;
+  width: fit-content;
+}
+.lf-admin-backlink:hover {
+  color: var(--lf-text-primary);
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .lf-admin-backlink {
+    min-height: var(--lf-touch-target);
+  }
+}
+
+/* Separated from the routine actions by a rule and its own label — severity
+   must never be carried by button colour alone. */
+.lf-admin-danger-zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+  margin-top: var(--lf-space-4);
+  padding-top: var(--lf-space-4);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+/* A small embedded table for supporting records inside a card — lighter than
+   the full Table component, which brings its own card chrome. */
+.lf-admin-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--lf-text-sm);
+}
+.lf-admin-mini-table th {
+  padding: var(--lf-space-2) var(--lf-space-2);
+  text-align: start;
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-secondary);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+.lf-admin-mini-table td {
+  padding: var(--lf-space-2) var(--lf-space-2);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+.lf-admin-mini-table tr:last-child td {
+  border-bottom: 0;
+}
+/* th carries its own text-align, so the amount column needs the heavier
+   selector for both cells and header to align on the same edge. */
+.lf-admin-mini-table th.lf-admin-mini-amount,
+.lf-admin-mini-table td.lf-admin-mini-amount {
+  text-align: end;
+}
+.lf-admin-mini-table td.lf-admin-mini-amount {
+  font-family: var(--lf-font-ledger);
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  padding-top: var(--lf-space-3);
+  margin-top: var(--lf-space-3);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+.lf-admin-dialog-description {
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+  margin: 0 0 var(--lf-space-3);
+}
+.lf-admin-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--lf-space-2);
+  margin-top: var(--lf-space-4);
+}
+
+.lf-admin-member-list,
+.lf-admin-trial-list,
+.lf-admin-integrations,
+.lf-admin-alert-list,
+.lf-admin-forecast {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--lf-space-3);
+}
+.lf-admin-member-list > li,
+.lf-admin-trial-list > li,
+.lf-admin-integrations > li,
+.lf-admin-alert-list > li,
+.lf-admin-forecast > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  font-size: var(--lf-text-sm);
+}
+.lf-admin-alert-list > li > div { display: grid; gap: 2px; }
+.lf-admin-forecast > li { font-variant-numeric: tabular-nums; }
+
+.lf-admin-changes { list-style: none; margin: 0; padding: 0; font-size: var(--lf-text-xs); }
+.lf-admin-changes code { font-size: inherit; }
+
+/* 24px floor, 44px on touch — the same target fix as `.lf-section-link`. */
+.lf-admin-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--lf-space-6);
+  color: var(--lf-text-link);
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .lf-admin-link {
+    min-height: var(--lf-touch-target);
+  }
+}
+
+.lf-admin-palette-list { list-style: none; margin: var(--lf-space-3) 0 0; padding: 0; display: grid; gap: 2px; }
+.lf-admin-palette-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  width: 100%;
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border: 0;
+  border-radius: var(--lf-radius-md);
+  background: transparent;
+  color: var(--lf-text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.lf-admin-palette-item:hover { background: var(--lf-bg-sunken); }
+.lf-admin-palette-empty {
+  padding: var(--lf-space-3);
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-admin-denied {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--lf-space-3);
+  text-align: center;
+  color: var(--lf-text-secondary);
+  padding: var(--lf-space-6);
+}
+
+/* ------------------------------------------------------------ responsive */
+@media (max-width: 900px) {
+  .lf-admin { grid-template-columns: 1fr; }
+  .lf-admin-rail {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--lf-space-4);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--lf-space-2) var(--lf-space-3);
+  }
+  /* A horizontal scroller with no visible scrollbar reads as a complete list,
+     so the destinations past the fold are never looked for. */
+  .lf-admin-rail::after {
+    content: "";
+    position: sticky;
+    right: 0;
+    flex: 0 0 var(--lf-space-6);
+    align-self: stretch;
+    margin-left: calc(var(--lf-space-6) * -1);
+    background: linear-gradient(to right, transparent, var(--lf-bg-inverse));
+    pointer-events: none;
+  }
+  .lf-admin-nav {
+    flex-direction: row;
+    flex: 1;
+    gap: var(--lf-space-1);
+    /* The rail is the scroller; the nav inside it must not create a second
+       one, or the two fight and neither reaches its end. */
+    overflow: visible;
+  }
+  /* Hiding the labels here left eleven unlabelled 24px icons in a horizontal
+     scroller — below the 44px target this file already defines, and with no
+     way to tell Invoices from Recovery except by guessing the glyph. Keeping
+     the labels costs horizontal scrolling, which is the lesser problem: a
+     scrollable row of named destinations can at least be read. */
+  .lf-admin-nav-link {
+    min-height: var(--lf-touch-target);
+    gap: var(--lf-space-2);
+    padding: var(--lf-space-2) var(--lf-space-3);
+    white-space: nowrap;
+    scroll-snap-align: start;
+  }
+  .lf-admin-identity { border: 0; padding: 0; }
+  .lf-admin-identity-email { display: none; }
+  .lf-admin-content { padding: var(--lf-space-4) var(--lf-space-3); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-admin-nav-link { transition: none; }
+}
+
+/* ------------------------------------------------------------- settings */
+.lf-admin-settings-list {
+  display: grid;
+  gap: var(--lf-space-4);
+  margin-top: var(--lf-space-4);
+}
+.lf-admin-setting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--lf-space-4);
+  align-items: start;
+  padding-bottom: var(--lf-space-4);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+.lf-admin-setting:last-child { border-bottom: 0; padding-bottom: 0; }
+.lf-admin-setting-label { display: grid; gap: 2px; }
+.lf-admin-setting-control {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  flex-wrap: wrap;
+}
+.lf-admin-setting-control > :first-child { flex: 0 0 auto; }
+
+.lf-admin-policy { margin: var(--lf-space-3) 0 0; }
+.lf-admin-policy dt {
+  font-weight: 600;
+  font-size: var(--lf-text-sm);
+  margin-top: var(--lf-space-3);
+}
+.lf-admin-policy dd {
+  margin: 2px 0 0;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+@media (max-width: 900px) {
+  .lf-admin-setting { grid-template-columns: 1fr; }
+}
+
+/* The attention strip. Deliberately at the top and deliberately empty on a
+ * good day — "nothing is wrong" is the most useful reading a console can give. */
+.lf-admin-attention {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--lf-space-2);
+}
+.lf-admin-attention > li {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  font-size: var(--lf-text-sm);
+}
+/* The exception panel is the first thing an operator reads and the first thing
+   they click, and these links were 20px tall — under the 24px floor (WCAG
+   2.5.8), on the highest-consequence control in the console. */
+.lf-admin-attention a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  color: var(--lf-text-link);
+  font-weight: 500;
+}
+.lf-admin-attention-ok { color: var(--lf-verdant-600); }
+
+/* ==========================================================================
+   Dashboard — one hero, dense supporting detail
+   --------------------------------------------------------------------------
+   Sixteen equal KPI cards asked the operator to decide what mattered on every
+   visit. It does not vary: MRR is the number, everything else is context.
+   ========================================================================== */
+.lf-admin-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(220px, 1fr);
+  gap: var(--lf-space-4);
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .lf-admin-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lf-admin-spark {
+  height: 56px;
+  margin-top: var(--lf-space-3);
+}
+
+/* Supporting figures run inline. The eye reads a row of "ARR $896 · ARPA $15"
+   as one sentence about revenue; the same values in four bordered cards read
+   as four things to evaluate separately. */
+.lf-admin-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-2) var(--lf-space-5);
+  margin: var(--lf-space-4) 0 0;
+  padding-top: var(--lf-space-3);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+.lf-admin-counts {
+  display: grid;
+  gap: var(--lf-space-2);
+  margin: var(--lf-space-3) 0 0;
+}
+
+.lf-admin-fact {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lf-space-2);
+  min-width: 0;
+}
+
+.lf-admin-counts .lf-admin-fact {
+  justify-content: space-between;
+}
+
+.lf-admin-fact dt {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  white-space: nowrap;
+}
+
+.lf-admin-fact dd {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--lf-space-2);
+  font-family: var(--lf-font-ledger);
+  font-size: var(--lf-text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-primary);
+}
+
+/* Status colour is the exception panel's job. A count that needs a second look
+   gets it here too, but only the count — never the whole row. */
+.lf-admin-fact[data-tone="warning"] dd {
+  color: var(--lf-status-warning-text);
+}
+
+.lf-admin-fact[data-tone="danger"] dd {
+  color: var(--lf-status-danger-text);
+}
+
+.lf-admin-fact-note {
+  font-family: var(--lf-font-body);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  /* The note follows a figure inline ("+300.0% vs prior full month") and the
+     two were rendering flush against each other. */
+  margin-inline-start: var(--lf-space-1);
+}
+
+.lf-admin-delta {
+  font-family: var(--lf-font-body);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+}
+
+.lf-admin-delta[data-tone="good"] {
+  color: var(--lf-status-success-text);
+}
+
+.lf-admin-delta[data-tone="bad"] {
+  color: var(--lf-status-danger-text);
+}
+
+/* ---------- sign out ---------- */
+/* The console had no way out of it before this. Placed with the operator's own
+   identity rather than in the topbar: signing out is about *who you are*, and
+   the topbar is about where you are. */
+.lf-admin-signout {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  width: 100%;
+  min-height: var(--lf-touch-target);
+  margin-top: var(--lf-space-2);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border: 1px solid color-mix(in srgb, var(--lf-text-inverse) 22%, transparent);
+  border-radius: var(--lf-radius-md);
+  background: none;
+  color: var(--lf-text-inverse);
+  font: inherit;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  cursor: pointer;
+  opacity: 0.85;
+  transition:
+    background var(--lf-duration-fast) var(--lf-ease-out),
+    opacity var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-admin-signout:hover {
+  background: color-mix(in srgb, var(--lf-text-inverse) 12%, transparent);
+  opacity: 1;
+}
+
+.lf-admin-signout:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------- illustration style preview ---------- */
+/* A visual setting whose effect you cannot see until you save it and go
+   looking is one people change once and then leave alone. */
+.lf-admin-illus-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--lf-space-3);
+  margin-top: var(--lf-space-3);
+}
+
+.lf-admin-illus-preview figure {
+  margin: 0;
+  padding: var(--lf-space-2);
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-surface);
+}
+
+.lf-admin-illus-preview figure[data-current] {
+  border-color: var(--lf-action-primary);
+}
+
+.lf-admin-illus-preview figure > div {
+  display: flex;
+  gap: var(--lf-space-2);
+  align-items: center;
+}
+
+.lf-admin-illus-preview .lf-illus-frame[data-size="spot"] .lf-illus {
+  max-width: 62px;
+}
+
+.lf-admin-illus-preview figcaption {
+  margin-top: var(--lf-space-1);
+  font-size: var(--lf-text-xs);
+  text-transform: capitalize;
+  color: var(--lf-text-tertiary);
+}
+
+.lf-admin-illus-preview figure[data-current] figcaption {
+  color: var(--lf-text-secondary);
+  font-weight: var(--lf-weight-medium);
+}
+
+/* A bare inline link in a table cell renders 16px tall — under the 24px WCAG
+   2.5.8 floor, and under the product's own 44px floor on touch. Height rather
+   than padding, so the target grows without pushing the row's other cells
+   apart. */
+.lf-admin-tenant-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--lf-space-6);
+}
+
+@media (max-width: 768px) {
+  /* Where the table stacks into cards, the row is finger-sized anyway, so the
+     link may as well fill it. 768 rather than the 900 the rail collapses at:
+     900 is off the six canonical breakpoints, and adding an eighth ad-hoc
+     width to pay for one rule is how a breakpoint scale stops meaning
+     anything. */
+  .lf-admin-tenant-link {
+    min-height: var(--lf-touch-target);
+  }
+}

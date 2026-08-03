@@ -1,0 +1,802 @@
+/* ==========================================================================
+   Landing page
+   --------------------------------------------------------------------------
+   Built entirely on the application's tokens. Nothing here introduces a colour,
+   a type step or a spacing value the product does not already use — if the
+   landing page needed its own design language to look premium, the
+   application's would not be good enough.
+
+   Mobile-first throughout, and every section is a single column until it has
+   the room to be otherwise.
+   ========================================================================== */
+.lf-landing {
+  min-height: 100vh;
+  background: var(--lf-bg-app);
+  color: var(--lf-text-primary);
+}
+
+/* One measure for the whole page, so sections cannot drift apart. */
+.lf-landing-header,
+.lf-hero,
+.lf-landing-section,
+.lf-landing-cta,
+.lf-landing-footer {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-inline: var(--lf-space-4);
+}
+
+@media (min-width: 768px) {
+  .lf-landing-header,
+  .lf-hero,
+  .lf-landing-section,
+  .lf-landing-cta,
+  .lf-landing-footer {
+    padding-inline: var(--lf-space-8);
+  }
+}
+
+/* ---------- header ---------- */
+.lf-landing-header {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-4);
+  height: 68px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  max-width: none;
+  background: color-mix(in srgb, var(--lf-bg-app) 88%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+.lf-landing-brand {
+  text-decoration: none;
+  color: inherit;
+}
+
+.lf-landing-nav {
+  display: none;
+  gap: var(--lf-space-5);
+  margin-inline-start: var(--lf-space-6);
+}
+
+@media (min-width: 768px) {
+  .lf-landing-nav {
+    display: flex;
+  }
+}
+
+.lf-landing-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--lf-touch-target);
+  color: var(--lf-text-secondary);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  text-decoration: none;
+}
+
+.lf-landing-nav a:hover {
+  color: var(--lf-text-primary);
+}
+
+.lf-landing-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  margin-inline-start: auto;
+}
+
+/* ---------- hero ---------- */
+.lf-hero {
+  display: grid;
+  gap: var(--lf-space-8);
+  padding-block: var(--lf-space-10) var(--lf-space-8);
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .lf-hero {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    padding-block: var(--lf-space-12) var(--lf-space-10);
+  }
+}
+
+.lf-hero-eyebrow {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-wider);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+  margin-bottom: var(--lf-space-3);
+}
+
+.lf-hero-title {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-3xl);
+  font-weight: var(--lf-weight-medium);
+  line-height: var(--lf-leading-display);
+  letter-spacing: var(--lf-tracking-display);
+  text-wrap: balance;
+}
+
+@media (min-width: 1024px) {
+  .lf-hero-title {
+    /* The one place the page steps outside the type scale, and it does it by
+       scaling the top step rather than inventing a value. */
+    font-size: calc(var(--lf-text-3xl) * 1.35);
+  }
+}
+
+.lf-hero-title-accent {
+  color: var(--lf-action-primary);
+}
+
+.lf-hero-sub {
+  margin-top: var(--lf-space-4);
+  max-width: 54ch;
+  font-size: var(--lf-text-md);
+  line-height: 1.6;
+  color: var(--lf-text-secondary);
+}
+
+.lf-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-3);
+  margin-top: var(--lf-space-6);
+}
+
+.lf-hero-note {
+  margin-top: var(--lf-space-4);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-hero-art {
+  display: grid;
+  place-items: center;
+}
+
+/* ---------- sections ---------- */
+.lf-landing-section {
+  padding-block: var(--lf-space-10);
+}
+
+.lf-landing-section--tight {
+  padding-block: var(--lf-space-6) var(--lf-space-10);
+}
+
+.lf-landing-head {
+  max-width: 62ch;
+  margin-bottom: var(--lf-space-8);
+}
+
+.lf-landing-eyebrow {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-wider);
+  text-transform: uppercase;
+  color: var(--lf-action-primary);
+  margin-bottom: var(--lf-space-2);
+}
+
+.lf-landing-head h2 {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-2xl);
+  font-weight: var(--lf-weight-medium);
+  line-height: var(--lf-leading-tight);
+  letter-spacing: var(--lf-tracking-tight);
+  text-wrap: balance;
+}
+
+.lf-landing-lede {
+  margin-top: var(--lf-space-3);
+  font-size: var(--lf-text-base);
+  line-height: 1.6;
+  color: var(--lf-text-secondary);
+}
+
+.lf-landing-split {
+  display: grid;
+  gap: var(--lf-space-8);
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .lf-landing-split {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  }
+}
+
+.lf-landing-points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--lf-space-2);
+}
+
+.lf-landing-points li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-2);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+
+.lf-landing-points svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--lf-status-success);
+}
+
+.lf-landing-muted {
+  margin-top: var(--lf-space-4);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* ---------- certainty specimen ---------- */
+/* The four treatments in one row, drawn by the same Figure component the app
+   uses — the strip is the argument "a settled balance and a projection never
+   look the same", made checkable on the spot. */
+.lf-landing-certainty {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1px;
+  background: var(--lf-border-subtle);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--lf-space-6);
+}
+
+.lf-landing-certainty > .lf-figure {
+  background: var(--lf-bg-surface);
+  padding: var(--lf-space-4) var(--lf-space-5);
+}
+
+/* ---------- inverse band ---------- */
+/* One section runs on the inverse surface so the page has a temperature
+   change. The custom properties are scoped rather than colours hardcoded, so
+   everything inside — including the illustration, which draws entirely from
+   tokens — recolours itself, and dark mode needs no second set of rules. */
+.lf-landing-band {
+  background: var(--lf-bg-inverse);
+  --lf-text-primary: var(--lf-text-inverse);
+  --lf-text-secondary: color-mix(in srgb, var(--lf-text-inverse) 78%, transparent);
+  --lf-text-tertiary: color-mix(in srgb, var(--lf-text-inverse) 60%, transparent);
+  --lf-bg-surface: color-mix(in srgb, var(--lf-bg-inverse) 86%, var(--lf-paper-000));
+  --lf-border-subtle: color-mix(in srgb, var(--lf-text-inverse) 14%, transparent);
+  color: var(--lf-text-primary);
+}
+
+/* The checks read as achieved facts; on the inverse surface the light-theme
+   success green has no contrast, so they take the inverse ink instead. */
+.lf-landing-band .lf-landing-points svg {
+  color: var(--lf-text-inverse);
+}
+
+.lf-landing-band .lf-landing-eyebrow {
+  color: color-mix(in srgb, var(--lf-text-inverse) 70%, transparent);
+}
+
+/* ---------- features ---------- */
+.lf-feature-grid {
+  display: grid;
+  gap: var(--lf-space-5);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.lf-feature {
+  padding: var(--lf-space-5);
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-surface);
+  transition:
+    transform var(--lf-duration-fast) var(--lf-ease-out),
+    box-shadow var(--lf-duration-fast) var(--lf-ease-out),
+    border-color var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+/* A quiet lift, not a bounce — hover states on marketing cards are the first
+   place "premium" tips into "restless". Neutralised globally by the
+   prefers-reduced-motion rule in base.css. */
+.lf-feature:hover {
+  transform: translateY(-2px);
+  border-color: var(--lf-border-strong);
+  box-shadow: var(--lf-shadow-hover);
+}
+
+.lf-feature h3 {
+  margin-top: var(--lf-space-3);
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-md);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-snug);
+}
+
+.lf-feature p {
+  margin-top: var(--lf-space-2);
+  font-size: var(--lf-text-sm);
+  line-height: 1.6;
+  color: var(--lf-text-secondary);
+}
+
+/* ---------- testimonials ---------- */
+.lf-landing-quotes {
+  display: grid;
+  gap: var(--lf-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.lf-landing-quote {
+  margin: 0;
+  padding: var(--lf-space-5);
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-surface);
+}
+
+.lf-landing-quote blockquote {
+  margin: 0;
+  font-size: var(--lf-text-base);
+  line-height: 1.6;
+}
+
+.lf-landing-quote figcaption {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--lf-space-4);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-tertiary);
+}
+
+/* Tied to the data, not to the page: it shows while any quote is flagged as a
+   sample and disappears by itself once real ones replace them. */
+.lf-landing-sample-note {
+  display: block;
+  max-width: 72ch;
+  margin-bottom: var(--lf-space-5);
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border: 1px dashed var(--lf-border-strong);
+  border-radius: var(--lf-radius-md);
+  font-size: var(--lf-text-sm);
+  line-height: 1.55;
+  color: var(--lf-text-secondary);
+}
+
+.lf-landing-quote-tag {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0 var(--lf-space-2);
+  border: 1px dashed var(--lf-border-strong);
+  border-radius: var(--lf-radius-full);
+  font-size: var(--lf-text-xs);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+}
+
+/* Marked as unfinished on purpose — see LandingPage.tsx. */
+.lf-landing-quote-empty {
+  padding: var(--lf-space-8);
+  border: 1px dashed var(--lf-border-strong);
+  border-radius: var(--lf-radius-lg);
+  text-align: center;
+  color: var(--lf-text-tertiary);
+}
+
+.lf-landing-quote-empty p:first-child {
+  font-size: var(--lf-text-md);
+  color: var(--lf-text-secondary);
+}
+
+.lf-landing-quote-note {
+  max-width: 60ch;
+  margin: var(--lf-space-2) auto 0;
+  font-size: var(--lf-text-xs);
+  line-height: 1.5;
+}
+
+/* ---------- pricing ---------- */
+.lf-price-grid {
+  display: grid;
+  gap: var(--lf-space-4);
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  align-items: start;
+}
+
+.lf-price-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-5);
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-surface);
+}
+
+.lf-price-card[data-featured] {
+  border-color: var(--lf-action-primary);
+  box-shadow: var(--lf-shadow-raised);
+}
+
+.lf-price-badge {
+  position: absolute;
+  top: calc(-1 * var(--lf-space-3));
+  inset-inline-start: var(--lf-space-5);
+  padding: 2px var(--lf-space-2);
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-action-primary);
+  color: var(--lf-action-primary-text);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+}
+
+.lf-price-card h3 {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-md);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-snug);
+}
+
+.lf-price-amount {
+  font-family: var(--lf-font-ledger);
+  font-size: var(--lf-text-2xl);
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+/* What this tier adds over the previous card. */
+.lf-price-adds-label {
+  margin-top: var(--lf-space-3);
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+}
+
+.lf-price-adds {
+  list-style: none;
+  margin: var(--lf-space-2) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--lf-space-1);
+}
+
+.lf-price-adds li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-2);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+
+.lf-price-adds svg {
+  flex-shrink: 0;
+  margin-top: 4px;
+  color: var(--lf-status-success);
+}
+
+.lf-price-period {
+  font-family: var(--lf-font-body);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-regular);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-price-pitch {
+  font-size: var(--lf-text-sm);
+  line-height: 1.55;
+  color: var(--lf-text-secondary);
+  min-height: 3.1em;
+}
+
+.lf-price-limits {
+  list-style: none;
+  margin: 0;
+  padding: var(--lf-space-3) 0;
+  border-top: 1px solid var(--lf-border-subtle);
+  display: grid;
+  gap: var(--lf-space-2);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+
+.lf-price-limits li {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+}
+
+.lf-price-limits li[data-off] {
+  color: var(--lf-text-tertiary);
+}
+
+.lf-price-card .lf-btn {
+  margin-top: auto;
+  justify-content: center;
+}
+
+/* ---------- FAQ ---------- */
+.lf-faq {
+  display: grid;
+  gap: var(--lf-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  /* Answers keep a readable measure inside their column; the grid does the
+     rest. Single-column at 76ch left half the page empty at desktop widths. */
+  align-items: start;
+}
+
+.lf-faq details {
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-surface);
+}
+
+.lf-faq summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-3) var(--lf-space-4);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  cursor: pointer;
+}
+
+.lf-faq summary:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: -2px;
+  border-radius: var(--lf-radius-md);
+}
+
+/* Chromium hides a closed `details`' content with `content-visibility` rather
+   than `display: none`, so the answer's box survives at its intrinsic size —
+   the text vanishes but a 60px gap does not, and the collapsed list ends up
+   with holes in it. Hiding it outright is the only thing that collapses the
+   row properly. */
+.lf-faq details:not([open]) p {
+  display: none;
+}
+
+.lf-faq p {
+  padding: 0 var(--lf-space-4) var(--lf-space-4);
+  margin: 0;
+  font-size: var(--lf-text-sm);
+  line-height: 1.65;
+  color: var(--lf-text-secondary);
+}
+
+/* ---------- closing CTA ---------- */
+.lf-landing-cta {
+  display: grid;
+  justify-items: center;
+  gap: var(--lf-space-3);
+  padding-block: var(--lf-space-10);
+  text-align: center;
+}
+
+.lf-landing-cta h2 {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-2xl);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-tight);
+  text-wrap: balance;
+}
+
+.lf-landing-cta p {
+  color: var(--lf-text-secondary);
+}
+
+.lf-landing-cta .lf-btn {
+  margin-top: var(--lf-space-2);
+}
+
+/* ---------- footer ---------- */
+.lf-landing-footer {
+  display: grid;
+  gap: var(--lf-space-6);
+  padding-block: var(--lf-space-8);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+@media (min-width: 768px) {
+  .lf-landing-footer {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+}
+
+.lf-landing-footer-brand p {
+  margin-top: var(--lf-space-2);
+  max-width: 40ch;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-landing-footer nav {
+  display: flex;
+  gap: var(--lf-space-8);
+}
+
+.lf-landing-footer nav div {
+  display: flex;
+  flex-direction: column;
+}
+
+.lf-landing-footer nav h2 {
+  margin-bottom: var(--lf-space-2);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+}
+
+.lf-landing-footer nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--lf-touch-target);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+  text-decoration: none;
+}
+
+.lf-landing-footer nav a:hover {
+  color: var(--lf-text-primary);
+  text-decoration: underline;
+}
+
+.lf-landing-copyright {
+  grid-column: 1 / -1;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* ==========================================================================
+   Application preview
+   --------------------------------------------------------------------------
+   A real screenshot of the Overview screen, generated by
+   scripts/capture_preview.py — see AppPreview.tsx for why it stopped being a
+   token-built abstraction. Two shots, one per theme, swapped here rather than
+   with <picture> so the site's own theme toggle wins over the OS preference.
+   ========================================================================== */
+.lf-preview {
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-surface);
+  box-shadow: var(--lf-shadow-hover);
+  overflow: hidden;
+}
+
+.lf-preview-chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border-bottom: 1px solid var(--lf-border-subtle);
+  background: var(--lf-bg-sunken);
+}
+
+.lf-preview-chrome span {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-border-strong);
+  opacity: 0.6;
+}
+
+/* Intrinsic width/height are on the element, so the box is reserved before the
+   image arrives and the hero does not shift under the reader. */
+.lf-preview-shot {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Light is the default; dark takes over on the OS preference, and either
+   explicit choice on the root overrides both — in both directions, which is
+   the reason for the four rules rather than two. */
+.lf-preview-shot--dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .lf-preview-shot--light {
+    display: none;
+  }
+  .lf-preview-shot--dark {
+    display: block;
+  }
+}
+
+:root[data-theme="light"] .lf-preview-shot--light {
+  display: block;
+}
+:root[data-theme="light"] .lf-preview-shot--dark {
+  display: none;
+}
+:root[data-theme="dark"] .lf-preview-shot--light {
+  display: none;
+}
+:root[data-theme="dark"] .lf-preview-shot--dark {
+  display: block;
+}
+
+/* ==========================================================================
+   Full-page states — 404, 500, maintenance, offline
+   --------------------------------------------------------------------------
+   One layout for all four. They differ only in what they say, and four
+   separate treatments would drift — always in the same direction, with the
+   rarely-seen page ending up the one that looks unfinished.
+   ========================================================================== */
+.lf-status-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--lf-bg-app);
+}
+
+.lf-status-header {
+  padding: var(--lf-space-5) var(--lf-space-4);
+}
+
+.lf-status-header a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.lf-status-body {
+  flex: 1;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-6) var(--lf-space-4) var(--lf-space-12);
+  text-align: center;
+}
+
+/* Small and quiet: the status number is for the support conversation, not for
+   the person reading it. The sentence underneath is what they need. */
+.lf-status-code {
+  font-family: var(--lf-font-ledger);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-status-body h1 {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-2xl);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-tight);
+  text-wrap: balance;
+}
+
+.lf-status-text {
+  max-width: 52ch;
+  font-size: var(--lf-text-base);
+  line-height: 1.6;
+  color: var(--lf-text-secondary);
+}
+
+.lf-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--lf-space-3);
+  margin-top: var(--lf-space-3);
+}

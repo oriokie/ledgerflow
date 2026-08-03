@@ -1,0 +1,898 @@
+/* ==========================================================================
+   LedgerFlow components. Everything references semantic tokens only —
+   retheme by swapping tokens.css blocks, never by editing this file.
+   Mobile-first: base styles are the phone layout; min-width queries add the
+   rail/topbar shell at md (768px) and lg (1024px).
+   ========================================================================== */
+
+/* ==========================================================================
+   App shell
+   --------------------------------------------------------------------------
+   Mobile:   topbar + content + bottom tab bar
+   Desktop:  left rail + topbar + content (rail replaces tab bar at lg)
+   ========================================================================== */
+.lf-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.lf-content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--lf-content-max);
+  margin: 0 auto;
+  padding: var(--lf-space-4) var(--lf-space-4)
+    calc(var(--lf-tabbar-height) + var(--lf-space-8));
+}
+
+@media (min-width: 768px) {
+  .lf-content {
+    padding: var(--lf-space-6) var(--lf-space-8) var(--lf-space-12);
+  }
+}
+
+@media (min-width: 1024px) {
+  .lf-shell {
+    flex-direction: row;
+  }
+
+  .lf-shell-main {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* ---------- topbar ---------- */
+.lf-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  height: var(--lf-topbar-height);
+  padding: 0 var(--lf-space-4);
+  background: var(--lf-bg-surface);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+.lf-topbar-spacer {
+  flex: 1;
+}
+
+/* workspace switcher — multi-tenancy is a first-class product concept */
+.lf-workspace-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-1) var(--lf-space-3);
+  border: 0;
+  border-radius: var(--lf-radius-md);
+  background: transparent;
+  font-weight: var(--lf-weight-semibold);
+  cursor: pointer;
+}
+
+.lf-workspace-switcher:hover {
+  background: var(--lf-bg-sunken);
+}
+
+.lf-workspace-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--lf-radius-sm);
+  background: var(--lf-action-primary);
+  color: var(--lf-action-primary-text);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-bold);
+}
+
+.lf-kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--lf-border-default);
+  border-bottom-width: 2px;
+  border-radius: var(--lf-radius-sm);
+  background: var(--lf-bg-surface);
+  font-family: var(--lf-font-ledger);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-secondary);
+}
+
+/* ---------- side rail (desktop) ---------- */
+.lf-rail {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .lf-rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lf-space-1);
+    width: var(--lf-rail-width);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    padding: var(--lf-space-4) var(--lf-space-3);
+    background: var(--lf-bg-surface);
+    border-right: 1px solid var(--lf-border-subtle);
+  }
+}
+
+.lf-rail-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-2) var(--lf-space-3) var(--lf-space-4);
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-bold);
+  font-size: var(--lf-text-md);
+  letter-spacing: var(--lf-tracking-tight);
+  color: var(--lf-text-primary);
+  text-decoration: none;
+}
+
+.lf-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  color: var(--lf-text-secondary);
+  font-weight: var(--lf-weight-medium);
+  text-decoration: none;
+  transition: background var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-nav-item:hover {
+  background: var(--lf-bg-sunken);
+  color: var(--lf-text-primary);
+}
+
+.lf-nav-item[aria-current="page"] {
+  background: var(--lf-selection-bg);
+  color: var(--lf-text-link);
+}
+
+.lf-nav-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* ---------- bottom tab bar (mobile) ---------- */
+.lf-tabbar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  height: calc(var(--lf-tabbar-height) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--lf-bg-surface);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+.lf-tabbar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  text-decoration: none;
+}
+
+.lf-tabbar-item[aria-current="page"] {
+  color: var(--lf-text-link);
+}
+
+@media (min-width: 1024px) {
+  .lf-tabbar {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Buttons — min 44px touch targets throughout
+   ========================================================================== */
+.lf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lf-space-2);
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-2) var(--lf-space-5);
+  border: 1px solid transparent;
+  border-radius: var(--lf-radius-md);
+  font-weight: var(--lf-weight-semibold);
+  font-size: var(--lf-text-sm);
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background var(--lf-duration-fast) var(--lf-ease-out),
+    transform var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-btn:active {
+  transform: scale(0.98);
+}
+
+.lf-btn--primary {
+  background: var(--lf-action-primary);
+  color: var(--lf-action-primary-text);
+}
+
+.lf-btn--primary:hover {
+  background: var(--lf-action-primary-hover);
+}
+
+.lf-btn--secondary {
+  background: var(--lf-action-secondary-bg);
+  border-color: var(--lf-action-secondary-border);
+  color: var(--lf-text-primary);
+}
+
+.lf-btn--secondary:hover {
+  background: var(--lf-bg-sunken);
+}
+
+.lf-btn--ghost {
+  background: transparent;
+  color: var(--lf-text-secondary);
+}
+
+.lf-btn--ghost:hover {
+  background: var(--lf-bg-sunken);
+  color: var(--lf-text-primary);
+}
+
+.lf-btn--danger {
+  background: var(--lf-status-danger);
+  color: #fff;
+}
+
+.lf-btn--danger:hover {
+  background: var(--lf-carmine-700);
+}
+
+.lf-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   Forms
+   ========================================================================== */
+.lf-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+
+.lf-label {
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+}
+
+.lf-hint {
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+
+.lf-input,
+.lf-select {
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border: 1px solid var(--lf-border-default);
+  border-radius: var(--lf-radius-sm);
+  background: var(--lf-bg-surface);
+  transition: border-color var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-input:hover,
+.lf-select:hover {
+  border-color: var(--lf-border-strong);
+}
+
+.lf-input:focus-visible,
+.lf-select:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 0;
+  border-color: var(--lf-focus-ring);
+}
+
+.lf-input::placeholder {
+  color: var(--lf-text-tertiary);
+}
+
+/* amount input: the ledger face, right-aligned like a ledger column */
+.lf-input--amount {
+  font-family: var(--lf-font-ledger);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.lf-field--invalid .lf-input,
+.lf-field--invalid .lf-select {
+  border-color: var(--lf-status-danger);
+}
+
+.lf-error {
+  font-size: var(--lf-text-sm);
+  color: var(--lf-status-danger-text);
+}
+
+/* segmented control — expense / income / transfer */
+.lf-segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+}
+
+.lf-segmented input {
+  position: absolute;
+  opacity: 0;
+}
+
+.lf-segmented label {
+  min-height: calc(var(--lf-touch-target) - 6px);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--lf-space-4);
+  border-radius: calc(var(--lf-radius-md) - 3px);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-secondary);
+  cursor: pointer;
+}
+
+.lf-segmented input:checked + label {
+  background: var(--lf-bg-surface);
+  color: var(--lf-text-primary);
+  box-shadow: var(--lf-shadow-raised);
+}
+
+.lf-segmented input:focus-visible + label {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+/* switch */
+.lf-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 26px;
+}
+
+.lf-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.lf-switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-ink-150);
+  transition: background var(--lf-duration-base) var(--lf-ease-out);
+}
+
+.lf-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--lf-radius-full);
+  background: #fff;
+  box-shadow: var(--lf-shadow-raised);
+  transition: transform var(--lf-duration-base) var(--lf-ease-out);
+}
+
+.lf-switch input:checked + .lf-switch-track {
+  background: var(--lf-action-primary);
+}
+
+.lf-switch input:checked + .lf-switch-track::after {
+  transform: translateX(18px);
+}
+
+.lf-switch input:focus-visible + .lf-switch-track {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Cards
+   ========================================================================== */
+.lf-card {
+  background: var(--lf-bg-surface);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-lg);
+  box-shadow: var(--lf-shadow-raised);
+  padding: var(--lf-space-5);
+}
+
+.lf-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-4);
+}
+
+/* stat card: eyebrow, hero amount, delta */
+.lf-stat-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-1);
+  margin-top: var(--lf-space-1);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+}
+
+.lf-stat-delta--up { color: var(--lf-status-success-text); }
+.lf-stat-delta--down { color: var(--lf-text-secondary); }
+
+/* responsive card grids */
+.lf-grid {
+  display: grid;
+  gap: var(--lf-space-4);
+}
+
+@media (min-width: 640px) {
+  .lf-grid--2 { grid-template-columns: repeat(2, 1fr); }
+  .lf-grid--3 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1024px) {
+  .lf-grid--3 { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ==========================================================================
+   Badges — transaction/status vocabulary
+   ========================================================================== */
+.lf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-1);
+  padding: 2px var(--lf-space-2);
+  border-radius: var(--lf-radius-full);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+.lf-badge--success { background: var(--lf-status-success-bg); color: var(--lf-status-success-text); }
+.lf-badge--danger  { background: var(--lf-status-danger-bg);  color: var(--lf-status-danger-text); }
+.lf-badge--warning { background: var(--lf-status-warning-bg); color: var(--lf-status-warning-text); }
+.lf-badge--neutral { background: var(--lf-status-neutral-bg); color: var(--lf-status-neutral-text); }
+
+/* ==========================================================================
+   Tables — the ledger table
+   --------------------------------------------------------------------------
+   Amount + balance columns are right-aligned ledger columns. On mobile the
+   table body reflows to stacked rows (headers hidden, cells labeled by
+   data-label) — no horizontal scrolling for the primary use case.
+   ========================================================================== */
+.lf-table-wrap {
+  background: var(--lf-bg-surface);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-lg);
+  box-shadow: var(--lf-shadow-raised);
+  overflow: hidden;
+}
+
+.lf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--lf-text-sm);
+}
+
+.lf-table th {
+  padding: var(--lf-space-3) var(--lf-space-4);
+  text-align: start; /* logical: correct in RTL */
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-secondary);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+.lf-table td {
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border-bottom: 1px solid var(--lf-border-subtle);
+  vertical-align: middle;
+}
+
+.lf-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.lf-table tbody tr:hover {
+  background: var(--lf-bg-sunken);
+}
+
+.lf-table .lf-col-amount,
+.lf-table .lf-col-balance {
+  text-align: end; /* logical: ledger columns hug the reading end */
+}
+
+.lf-table .lf-col-balance {
+  color: var(--lf-text-secondary);
+}
+
+.lf-cell-primary {
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+}
+
+.lf-cell-meta {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* mobile reflow: stacked ledger rows */
+@media (max-width: 767px) {
+  .lf-table--responsive thead {
+    display: none;
+  }
+
+  .lf-table--responsive tbody tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--lf-space-1) var(--lf-space-3);
+    padding: var(--lf-space-3) var(--lf-space-4);
+    border-bottom: 1px solid var(--lf-border-subtle);
+  }
+
+  .lf-table--responsive td {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+
+  .lf-table--responsive .lf-col-amount {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .lf-table--responsive .lf-col-hide-mobile {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Budget meter — over-budget is the one place carmine meets money
+   ========================================================================== */
+.lf-meter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+
+.lf-meter-track {
+  height: 8px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-bg-sunken);
+  overflow: hidden;
+}
+
+.lf-meter-fill {
+  height: 100%;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-action-primary);
+  transition: width var(--lf-duration-base) var(--lf-ease-out);
+}
+
+.lf-meter--over .lf-meter-fill {
+  background: var(--lf-status-danger);
+}
+
+.lf-meter-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--lf-space-3);
+  font-size: var(--lf-text-sm);
+}
+
+/* ==========================================================================
+   Modal / drawer
+   ========================================================================== */
+.lf-modal[open] {
+  border: 0;
+  border-radius: var(--lf-radius-xl);
+  padding: var(--lf-space-6);
+  width: min(480px, calc(100vw - var(--lf-space-8)));
+  background: var(--lf-bg-surface);
+  color: var(--lf-text-primary);
+  box-shadow: var(--lf-shadow-overlay);
+}
+
+.lf-modal::backdrop {
+  background: rgba(21, 25, 40, 0.45);
+}
+
+/* ==========================================================================
+   Toast
+   ========================================================================== */
+.lf-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-inverse);
+  color: var(--lf-text-inverse);
+  box-shadow: var(--lf-shadow-overlay);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+}
+
+/* ==========================================================================
+   Empty state — an invitation to act
+   ========================================================================== */
+.lf-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-12) var(--lf-space-6);
+  text-align: center;
+}
+
+.lf-empty h3 {
+  font-size: var(--lf-text-md);
+}
+
+.lf-empty p {
+  color: var(--lf-text-secondary);
+  max-width: 36ch;
+}
+
+/* ==========================================================================
+   Skeleton loading
+   ========================================================================== */
+.lf-skeleton {
+  border-radius: var(--lf-radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--lf-bg-sunken) 25%,
+    var(--lf-border-subtle) 50%,
+    var(--lf-bg-sunken) 75%
+  );
+  background-size: 200% 100%;
+  animation: lf-shimmer 1.4s infinite;
+}
+
+@keyframes lf-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ==========================================================================
+   Page header
+   ========================================================================== */
+.lf-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-6);
+}
+
+/* ==========================================================================
+   Bar chart — CSS-only categorical bars for "spending by category" etc.
+   Each row: label | bar | ledger amount. Bar widths are proportional to
+   value/max — the verification script checks that arithmetic. Bars are
+   decorative reinforcement of the visible amounts, so the data is never
+   locked inside a graphic.
+   ========================================================================== */
+.lf-bars {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+}
+
+.lf-bars li {
+  display: grid;
+  grid-template-columns: minmax(90px, 130px) 1fr auto;
+  align-items: center;
+  gap: var(--lf-space-3);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-bar-track {
+  height: 10px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-bg-sunken);
+  overflow: hidden;
+}
+
+.lf-bar-fill {
+  height: 100%;
+  border-radius: var(--lf-radius-full);
+}
+
+.lf-bar-fill--1 { background: var(--lf-chart-1); }
+.lf-bar-fill--2 { background: var(--lf-chart-2); }
+.lf-bar-fill--3 { background: var(--lf-chart-3); }
+.lf-bar-fill--4 { background: var(--lf-chart-4); }
+.lf-bar-fill--5 { background: var(--lf-chart-5); }
+
+/* ==========================================================================
+   Command palette (⌘K) — a working use of .lf-modal via <dialog>.
+   Native dialog gives focus containment and Esc-to-close for free.
+   ========================================================================== */
+.lf-cmdk[open] {
+  margin-top: 12vh;
+  padding: var(--lf-space-3);
+}
+
+.lf-cmdk .lf-input {
+  width: 100%;
+}
+
+.lf-cmdk-list {
+  list-style: none;
+  margin: var(--lf-space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.lf-cmdk-list a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  color: var(--lf-text-primary);
+  text-decoration: none;
+}
+
+.lf-cmdk-list a:hover,
+.lf-cmdk-list a:focus-visible {
+  background: var(--lf-selection-bg);
+}
+
+.lf-cmdk-empty {
+  padding: var(--lf-space-4);
+  color: var(--lf-text-secondary);
+  font-size: var(--lf-text-sm);
+}
+
+/* ==========================================================================
+   Progressive disclosure — styled <details>/<summary>.
+   Native semantics: keyboard, screen readers, and no-JS all work for free.
+   Used for "how is this calculated?", "show the math", and collapsed
+   sections like recent activity.
+   ========================================================================== */
+.lf-disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  min-height: var(--lf-touch-target);
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-secondary);
+  border-radius: var(--lf-radius-sm);
+}
+
+.lf-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.lf-disclosure > summary::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-right: 1.8px solid currentColor;
+  border-bottom: 1.8px solid currentColor;
+  transform: rotate(-45deg); /* chevron pointing right */
+  transition: transform var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-disclosure[open] > summary::before {
+  transform: rotate(45deg); /* pointing down */
+}
+
+.lf-disclosure > summary:hover {
+  color: var(--lf-text-primary);
+}
+
+.lf-disclosure-body {
+  padding: var(--lf-space-3) 0 var(--lf-space-1) var(--lf-space-5);
+}
+
+/* math rows inside a disclosure: label left, ledger amount right */
+.lf-math {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-math li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--lf-space-4);
+}
+
+.lf-math li.lf-math-result {
+  border-top: 1px solid var(--lf-border-default);
+  padding-top: var(--lf-space-2);
+  font-weight: var(--lf-weight-semibold);
+}
+
+/* ==========================================================================
+   Insight card — one finding, one severity, at most ONE action.
+   Severity reuses status tokens (no new colors): attention = carmine,
+   soon = amber, good = verdant. Positive insights carry no action —
+   good news doesn't nag.
+   ========================================================================== */
+.lf-insight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+  border-inline-start: 3px solid var(--lf-border-strong);
+}
+
+.lf-insight--attention { border-inline-start-color: var(--lf-status-danger); }
+.lf-insight--soon { border-inline-start-color: var(--lf-status-warning); }
+.lf-insight--good { border-inline-start-color: var(--lf-status-success); }
+
+.lf-insight-title {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-base);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-tight);
+}
+
+.lf-insight-body {
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+
+.lf-insight-actions {
+  display: flex;
+  gap: var(--lf-space-2);
+  flex-wrap: wrap;
+}

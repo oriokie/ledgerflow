@@ -1,0 +1,552 @@
+/* ==========================================================================
+   LedgerFlow Design Tokens
+   --------------------------------------------------------------------------
+   The single source of truth. Framework-agnostic: plain CSS custom
+   properties, consumable by any future React/Vue app or by server-rendered
+   templates unchanged.
+
+   Naming: --lf-{group}-{name}[-{variant}]. Semantic tokens (what a thing IS
+   FOR) sit on top of primitive tokens (raw values); components reference
+   semantics only, so retheming = swapping one block.
+
+   Money semantics — the one opinion this system encodes:
+     money-in   -> verdant   (earning is the highlighted event)
+     money-out  -> ink       (spending is normal life, NOT an error)
+     transfer   -> muted ink (moving your own money is neutral)
+     carmine is reserved for genuinely wrong states: errors, over-budget,
+     destructive actions. A grocery run never deserves the same color as
+     a failed payment.
+   ========================================================================== */
+
+:root {
+  /* ---------- primitives: colour — "Meridian" ----------
+     Warm neutrals, not the blue-black the category defaults to: money is a
+     paper-and-ledger domain, and warm greys read as document rather than
+     device. Four hues, each with exactly one job (see the semantic block
+     below), plus `horizon` reserved entirely for the future.
+
+     Every value here is contrast-verified by scripts/verify_palette.py, which
+     parses this file and gates CI. Change a value and the check re-runs
+     against the real pairings. */
+  --lf-ink-900: #1a1917; /* warm graphite — text, dark surfaces */
+  --lf-ink-700: #3d3b37;
+  --lf-ink-500: #6b6862; /* secondary text on light */
+  --lf-ink-400: #5c5a54; /* tertiary text — clears AA on the sunken surface */
+  --lf-ink-300: #a8a49c; /* borders only — NOT text */
+  --lf-ink-150: #dcd9d2;
+  --lf-ink-075: #edebe6;
+
+  --lf-paper-000: #ffffff;
+  --lf-paper-050: #faf9f7; /* app background, light */
+  --lf-paper-100: #f2f1ed;
+
+  /* Interaction. Never data, never status. */
+  --lf-meridian-700: #09525f;
+  --lf-meridian-600: #0e6c7a; /* primary */
+  --lf-meridian-500: #17879a; /* focus ring */
+  --lf-meridian-100: #e2f0f2;
+
+  /* Money in, and success. */
+  --lf-jade-700: #0a5b3d;
+  --lf-jade-600: #0d7350;
+  --lf-jade-100: #ddf0e6;
+
+  /* Genuinely wrong: errors, over-budget, destructive. Never spending. */
+  --lf-vermilion-700: #9e3520;
+  --lf-vermilion-600: #bc4227;
+  --lf-vermilion-100: #fbe7e0;
+
+  /* Needs attention, pending, unreconciled. */
+  --lf-ochre-700: #7c4e0a;
+  --lf-ochre-600: #9a6209;
+  --lf-ochre-100: #fbefd6;
+
+  /* The future only — projections, forecasts, anything not yet settled.
+     Nothing that has actually happened may use this hue. */
+  --lf-horizon-700: #3e3c63;
+  --lf-horizon-600: #514f7d;
+  --lf-horizon-100: #e9e8f1;
+
+  /* ---------- deprecated primitive aliases ----------
+     The old names, retained so this palette swap touches exactly one file.
+     86 references to these live across the stylesheets and components; Phase 4
+     migrates them screen by screen as each feature stylesheet is retired.
+     Nothing new should reference these. */
+  --lf-fog-000: var(--lf-paper-000);
+  --lf-fog-050: var(--lf-paper-050);
+  --lf-fog-100: var(--lf-paper-100);
+  --lf-iris-700: var(--lf-meridian-700);
+  --lf-iris-600: var(--lf-meridian-600);
+  --lf-iris-500: var(--lf-meridian-500);
+  --lf-iris-100: var(--lf-meridian-100);
+  --lf-verdant-700: var(--lf-jade-700);
+  --lf-verdant-600: var(--lf-jade-600);
+  --lf-verdant-100: var(--lf-jade-100);
+  --lf-carmine-700: var(--lf-vermilion-700);
+  --lf-carmine-600: var(--lf-vermilion-600);
+  --lf-carmine-100: var(--lf-vermilion-100);
+  --lf-amber-700: var(--lf-ochre-700);
+  --lf-amber-600: var(--lf-ochre-600);
+  --lf-amber-100: var(--lf-ochre-100);
+
+  /* ---------- semantic: surfaces & text ---------- */
+  --lf-bg-app: var(--lf-paper-050);
+  --lf-bg-surface: var(--lf-paper-000);
+  --lf-bg-sunken: var(--lf-paper-100);
+  --lf-bg-inverse: var(--lf-ink-900);
+
+  --lf-text-primary: var(--lf-ink-900);
+  --lf-text-secondary: var(--lf-ink-500);
+  --lf-text-tertiary: var(--lf-ink-400);
+  --lf-text-inverse: var(--lf-paper-050);
+  --lf-text-link: var(--lf-meridian-700);
+
+  --lf-border-subtle: var(--lf-ink-075);
+  --lf-border-default: var(--lf-ink-150);
+  --lf-border-strong: var(--lf-ink-300);
+  /* Card edges sit one step above `subtle`: a surface should read as a
+     distinct object against the app canvas without the border becoming a
+     drawn line you notice. Separate token so card contrast can be tuned
+     without touching dividers, inputs, or table rules. */
+  --lf-border-card: #e6e3dc;
+  --lf-border-card-hover: var(--lf-ink-150);
+
+  /* ---------- semantic: interactive ---------- */
+  --lf-action-primary: var(--lf-meridian-600);
+  --lf-action-primary-hover: var(--lf-meridian-700);
+  --lf-action-primary-text: #ffffff;
+  --lf-action-secondary-bg: var(--lf-paper-000);
+  --lf-action-secondary-border: var(--lf-ink-150);
+  --lf-focus-ring: var(--lf-meridian-500);
+  --lf-selection-bg: var(--lf-meridian-100);
+
+  /* ---------- semantic: money ---------- */
+  --lf-money-in: var(--lf-jade-600);
+  --lf-money-out: var(--lf-ink-900);
+  --lf-money-transfer: var(--lf-ink-500);
+  /* Retired. Minor units are now de-emphasized by size only — see
+     .lf-amount-cents in base.css for why opacity could not be made accessible
+     on the money palette. */
+
+  /* ---------- semantic: certainty ----------
+     How sure the product is about a number, expressed as colour. Settled
+     figures use the money/text palette above; these two cover the rest.
+
+     A deliberate seam: they point at existing tokens today and get repointed
+     at the Meridian `horizon` hue when that palette lands, so no component
+     needs touching in that phase. */
+  --lf-certainty-pending: var(--lf-status-warning);
+  --lf-certainty-projected: var(--lf-horizon-600);
+
+  /* ---------- semantic: status ---------- */
+  --lf-status-success: var(--lf-jade-600);
+  --lf-status-success-bg: var(--lf-jade-100);
+  --lf-status-success-text: var(--lf-jade-700);
+  --lf-status-danger: var(--lf-vermilion-600);
+  --lf-status-danger-bg: var(--lf-vermilion-100);
+  --lf-status-danger-text: var(--lf-vermilion-700);
+  --lf-status-warning: var(--lf-ochre-600);
+  --lf-status-warning-bg: var(--lf-ochre-100);
+  --lf-status-warning-text: var(--lf-ochre-700);
+  --lf-status-neutral-bg: var(--lf-ink-075);
+  --lf-status-neutral-text: var(--lf-ink-700);
+
+  /* ---------- semantic: charts ---------- */
+  /* Categorical ramp for data viz. Carmine is deliberately absent — it
+     stays reserved for error states, so a spending category can never be
+     confused with something being wrong. All ramp colors hold >=3:1
+     against surfaces (WCAG 1.4.11 non-text). */
+  --lf-chart-1: var(--lf-meridian-600);
+  --lf-chart-2: var(--lf-jade-600);
+  --lf-chart-3: var(--lf-ochre-600);
+  --lf-chart-4: #8a4a72; /* plum */
+  --lf-chart-5: #3d6e8c; /* slate */
+
+  /* Money semantics, in chart form. The categorical ramp above is for
+     categories; these two are for the income/expense pair, and they exist so
+     that pair can never drift back onto the status palette. Expenses are ink
+     for exactly the reason stated at the top of this file: spending is normal
+     life, and carmine is reserved for things that actually went wrong. */
+  --lf-chart-income: var(--lf-money-in);
+  --lf-chart-expense: var(--lf-ink-700);
+
+  /* Sequential ramp — for ONE ordered breakdown of a whole, never for
+     unrelated categories. The categorical ramp above asks the reader to
+     identify a slice by its colour, which is why it is capped at five and why
+     a six-colour version of it failed the CVD floor in Phase 2. A sequential
+     ramp makes a different bargain: the segments are ordered largest-first
+     along a single bar and directly labelled in the same order beneath it, so
+     colour reinforces the order rather than carrying the identity. Adjacent
+     steps therefore need to be *visibly different*, not *identifiable*.
+     Gated in verify_palette.py: adjacent ΔE >= 4 (normal vision, ~2x the JND)
+     and every step >= 3:1 against its surface. */
+  --lf-ramp-1: #04303a;
+  --lf-ramp-2: #074854;
+  --lf-ramp-3: #0b5f6d;
+  --lf-ramp-4: #0f7787;
+  --lf-ramp-5: #178f9f;
+  --lf-ramp-6: #23a0af;
+
+  /* A surface that must stay light in BOTH themes, because something other
+     than a human has to read what sits on it. A QR code is black modules on a
+     light quiet zone; render it on a dark surface and a phone camera will not
+     resolve it. This is the one place in the system where not following the
+     theme is the correct behaviour, so it gets a name that says so rather than
+     a hardcoded `#fff` that reads as an oversight. */
+  --lf-surface-scannable: #ffffff;
+  --lf-on-scannable: #000000;
+
+  /* ---------- typography ---------- */
+  /* Two faces, and the split is by *size*, not by role:
+       md (19.2px) and up  -> display, the duospace face
+       base (16px) and down -> body, the humanist grotesk
+     Ledger is the same duospace as display; it stays a separate token because
+     it answers to a different rule (every monetary amount, at any size).
+
+     Headings are duospace on purpose. The ledger column has to be duospace so
+     digits align by place value — that is not negotiable. Once one face on the
+     page is duospace, setting the headings above it in an unrelated grotesk
+     makes the ledger read as an inherited quirk of the amounts rather than the
+     product's argument. Sharing the face makes the alignment look chosen.
+
+     Prose stays humanist because duospace is slower to read at paragraph
+     length, which is the whole reason the split is drawn at `base` rather than
+     applied to everything. */
+  /* Every stack puts the metric-matched fallback (typography.css) ahead of the
+     platform one, so nothing reflows when the webfont swaps in. */
+  --lf-font-display: "Spline Sans Mono", ui-monospace, "SF Mono", "Cascadia Mono",
+    Menlo, monospace;
+  /* Body was a bare system stack: the brand had no say in the face carrying
+     most of the product's words. */
+  --lf-font-body: "Schibsted Grotesk", "Meridian Sans Fallback", -apple-system,
+    BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  /* No corrected fallback here on purpose — see typography.css. */
+  --lf-font-ledger: "Spline Sans Mono", ui-monospace, "SF Mono", "Cascadia Mono",
+    Menlo, monospace;
+
+  /* Modular scale, 1.20 ratio throughout, 16px base. rem so user font-size
+     prefs hold.
+
+     `2xl` used to be 2.488rem, which made the xl->2xl step 1.44 rather than
+     1.2 — the one gap in an otherwise uniform scale. Three stylesheets had
+     already noticed something was missing and reached for
+     `var(--lf-text-3xl, 2rem)`, a token that did not exist, so all three
+     silently rendered at the 32px fallback.
+     
+     Filling the gap resolves both: the hero step keeps its exact size under
+     its correct name (`3xl`), and every step is now 1.2 from its neighbours —
+     which is what lets the ledger-cents rule in base.css land on a real token
+     from any parent it is nested in. */
+  --lf-text-xs: 0.694rem;   /* 11.1px — table meta, eyebrows */
+  --lf-text-sm: 0.833rem;   /* 13.3px — secondary UI */
+  --lf-text-base: 1rem;     /* 16px  — body */
+  --lf-text-md: 1.2rem;     /* 19.2px — card titles */
+  --lf-text-lg: 1.44rem;    /* 23px  — section headings */
+  --lf-text-xl: 1.728rem;   /* 27.6px — page titles */
+  --lf-text-2xl: 2.0736rem; /* 33.2px — large figures */
+  --lf-text-3xl: 2.488rem;  /* 39.8px — hero balances */
+
+  --lf-leading-display: 1.05;    /* page titles only — one or two lines */
+  --lf-leading-tight: 1.15;
+  --lf-leading-base: 1.5;
+
+  /* Tracking is size-dependent, which is why there are three negative steps
+     rather than one: a duospace face set at 27.6px needs materially more
+     negative tracking than the same face at 19.2px to hold together, and a
+     single `tight` value can only be right for one of them. */
+  --lf-tracking-display: -0.035em; /* 3xl only — hero type */
+  --lf-tracking-tight: -0.02em;    /* 2xl / xl / lg, and every ledger amount */
+  --lf-tracking-snug: -0.005em;    /* md / base — card and inline titles */
+  --lf-tracking-wide: 0.12em;      /* uppercase labels, table heads, tags */
+  --lf-tracking-wider: 0.14em;     /* eyebrows */
+
+  --lf-weight-regular: 400;
+  --lf-weight-medium: 500;
+  --lf-weight-semibold: 600;
+  --lf-weight-bold: 700;
+
+  /* ---------- spacing: 4px base grid ---------- */
+  --lf-space-1: 0.25rem;  /*  4px */
+  --lf-space-2: 0.5rem;   /*  8px */
+  --lf-space-3: 0.75rem;  /* 12px */
+  --lf-space-4: 1rem;     /* 16px */
+  --lf-space-5: 1.25rem;  /* 20px */
+  --lf-space-6: 1.5rem;   /* 24px */
+  --lf-space-8: 2rem;     /* 32px */
+  --lf-space-10: 2.5rem;  /* 40px */
+  --lf-space-12: 3rem;    /* 48px */
+  --lf-space-16: 4rem;    /* 64px */
+
+  /* ---------- vertical rhythm: the one spacing contract ----------
+     Page-level spacing is expressed through these four semantic steps, not
+     ad-hoc space-N picks. Every page reads:
+
+       page title
+         └ rhythm-title    (24px)  → primary card
+              └ rhythm-section (32px)  → next section
+                   └ rhythm-card    (24px)  → cards within a section
+                        └ rhythm-field   (20px)  → controls within a form
+
+     Bigger gaps between things that differ in kind, smaller gaps between
+     things of the same kind: hierarchy carried by whitespace rather than by
+     heavier rules or louder color. Density mode scales these with the
+     spacing primitives they reference. */
+  --lf-rhythm-title: var(--lf-space-6);   /* title  → first block  */
+  --lf-rhythm-section: var(--lf-space-8); /* block  → next block   */
+  --lf-rhythm-card: var(--lf-space-6);    /* card   → sibling card */
+  --lf-rhythm-field: var(--lf-space-5);   /* field  → next field   */
+
+  /* ---------- radii: Apple-adjacent continuous curves ---------- */
+  --lf-radius-sm: 6px;   /* inputs, badges */
+  --lf-radius-md: 10px;  /* buttons, menu items */
+  --lf-radius-lg: 16px;  /* cards */
+  --lf-radius-xl: 20px;  /* modals, hero cards */
+  --lf-radius-full: 999px;
+
+  /* ---------- elevation: layered low-alpha ink ----------
+     Four steps, each a hairline contact shadow plus one soft ambient layer.
+     Depth comes from the second layer's blur, never from opacity — heavy
+     shadows read as consumer software, diffuse ones read as instrument
+     panels. `hover` is the only step reserved for interactive surfaces. */
+  --lf-shadow-sm:
+    0 1px 2px rgba(26, 25, 23, 0.05);
+  --lf-shadow-raised:
+    0 1px 2px rgba(26, 25, 23, 0.05),
+    0 3px 12px rgba(26, 25, 23, 0.04);
+  --lf-shadow-hover:
+    0 2px 4px rgba(26, 25, 23, 0.06),
+    0 10px 26px rgba(26, 25, 23, 0.07);
+  --lf-shadow-overlay:
+    0 2px 6px rgba(26, 25, 23, 0.08),
+    0 12px 32px rgba(26, 25, 23, 0.14);
+
+  /* ---------- motion ---------- */
+  --lf-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Slight overshoot for elements that *arrive* (menus, toasts, popovers). */
+  --lf-ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+  --lf-duration-fast: 120ms;
+  --lf-duration-med: 150ms; /* the hover/lift default */
+  --lf-duration-base: 200ms;
+
+  /* ---------- breakpoints ----------
+     Six, mobile-first, always `min-width`.
+
+     These are documented here rather than defined as custom properties for a
+     reason that trips people up: `@media (min-width: var(--bp-md))` does not
+     work — media queries are evaluated before custom properties resolve. A
+     `--bp-*` token would look authoritative and silently do nothing, so the
+     canonical list lives in this comment and is enforced by
+     `scripts/check_style_tokens.py` instead.
+
+       xs    480px   large phone
+       sm    640px   phone -> tablet
+       md    768px   tablet portrait
+       lg   1024px   laptop — the rail appears here
+       xl   1280px   desktop
+       2xl  1600px   ultrawide — rail stays open, content widens
+
+     The stylesheets currently use 14 distinct values, four of them off-by-one
+     pairs (639/640, 767/768, 899/900, 1023/1024) that leave a one-pixel band
+     where no rule applies. Phase 4 collapses them as each feature stylesheet
+     is retired. */
+
+  /* ---------- layout ---------- */
+  --lf-content-max: 1200px;
+  /* 216px: ~16px narrower than before. Still fits the longest label
+     ("Categories & tags") plus icon and padding without truncation, while
+     returning that width to the content column. */
+  --lf-rail-width: 216px;
+  --lf-topbar-height: 56px;
+  --lf-tabbar-height: 60px;
+  --lf-touch-target: 44px; /* minimum interactive size */
+}
+
+/* ==========================================================================
+   Dark theme — ink-based, not pure black. Same semantic names, so
+   components need zero changes. Activated by explicit user choice
+   ([data-theme="dark"]); an OS-preference block can mirror this once a
+   theme toggle persists the choice.
+   ========================================================================== */
+[data-theme="dark"] {
+  --lf-bg-app: #14130f;
+  --lf-bg-surface: #1e1d19;
+  --lf-bg-sunken: #0e0d0a;
+  --lf-bg-inverse: #f2f0ea;
+
+  --lf-text-primary: #f2f0ea;
+  --lf-text-secondary: #b5b1a6;
+  --lf-text-tertiary: #94908a;
+  --lf-text-inverse: var(--lf-ink-900);
+  --lf-text-link: #6fd0d3;
+
+  --lf-border-subtle: #26241f;
+  --lf-border-default: #33312b;
+  --lf-border-strong: #4e4b43;
+  /* Dark separates surfaces mostly by lightness, so the card edge sits just
+     above `subtle` — a heavier line here would draw boxes. */
+  --lf-border-card: #2c2a24;
+  --lf-border-card-hover: #3b3831;
+
+  /* Base and hover BOTH darker than the light-mode meridian: the white label
+     must stay >=4.5:1 in every state, so dark-mode hover deepens rather than
+     brightens. */
+  --lf-action-primary: #0e6c7a;
+  --lf-action-primary-hover: #09525f;
+  --lf-action-secondary-bg: #1e1d19;
+  --lf-action-secondary-border: #33312b;
+  --lf-focus-ring: #3fb3b8;
+  --lf-selection-bg: #12313a;
+
+  --lf-money-in: #3dbe86;
+  --lf-money-out: #f2f0ea;
+  --lf-money-transfer: #b5b1a6;
+
+  --lf-certainty-pending: #d9a343;
+  --lf-certainty-projected: #9a97d6;
+
+  --lf-status-success: #3dbe86;
+  --lf-status-success-bg: #10312a;
+  --lf-status-success-text: #7fe0c4;
+  --lf-status-danger: #e8735a;
+  --lf-status-danger-bg: #3a1c16;
+  --lf-status-danger-text: #f2a692;
+  --lf-status-warning: #d9a343;
+  --lf-status-warning-bg: #35280c;
+  --lf-status-warning-text: #ecc57e;
+  --lf-status-neutral-bg: #26241f;
+  --lf-status-neutral-text: #c9c5ba;
+
+  --lf-chart-1: #3fb3b8;
+  --lf-chart-2: #3dbe86;
+  --lf-chart-3: #d9a343;
+  --lf-chart-4: #c77fae;
+  --lf-chart-5: #6fa8cc;
+
+  /* On dark, "ink" for a chart mark is a light neutral: pure --lf-money-out
+     is the body-text colour and would read as a label, not a bar. */
+  --lf-chart-income: var(--lf-money-in);
+  --lf-chart-expense: #b5b1a6;
+
+  /* Inverted: on dark the ramp runs light-to-dark so the largest slice is the
+     most prominent, matching the light theme's intent rather than its values. */
+  --lf-ramp-1: #d2f5f7;
+  --lf-ramp-2: #a9e9ed;
+  --lf-ramp-3: #7fdce1;
+  --lf-ramp-4: #56ccd3;
+  --lf-ramp-5: #3fb3b8;
+  --lf-ramp-6: #2f9199;
+
+  --lf-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --lf-shadow-raised:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+  --lf-shadow-hover:
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 10px 26px rgba(0, 0, 0, 0.4);
+  --lf-shadow-overlay:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+/* ==========================================================================
+   Forced high contrast — `prefers-contrast: more` (and Windows High Contrast
+   via forced-colors). Borders become real lines, tertiary text is promoted
+   to secondary, and decorative elevation is dropped so structure is carried
+   by contrast alone. Semantic names are unchanged, so no component opts in.
+   ========================================================================== */
+@media (prefers-contrast: more) {
+  :root {
+    --lf-text-secondary: var(--lf-ink-700);
+    --lf-text-tertiary: var(--lf-ink-700);
+    --lf-border-subtle: var(--lf-ink-300);
+    --lf-border-card: var(--lf-ink-300);
+    --lf-border-card-hover: var(--lf-ink-500);
+    --lf-border-default: var(--lf-ink-500);
+    --lf-shadow-sm: none;
+    --lf-shadow-raised: none;
+    --lf-shadow-hover: none;
+  }
+
+  [data-theme="dark"] {
+    --lf-text-secondary: #e2e6f0;
+    --lf-text-tertiary: #c8cee0;
+    --lf-border-subtle: #5d6482;
+    --lf-border-card: #6b7295;
+    --lf-border-default: #8189a8;
+  }
+}
+
+/* ==========================================================================
+   Platform console — a deliberately different product
+   --------------------------------------------------------------------------
+   An operator with the power to suspend somebody's account must never be one
+   glance away from thinking they are in their own budget. So the console is
+   not the customer app with a different logo: it is cool slate where the
+   product is warm paper, signal amber where the product is meridian teal,
+   compact where the product is comfortable, and square where the product is
+   round.
+
+   Same token names, different semantic assignment — which is why every screen,
+   component and chart in the console inherits the identity without a single
+   component knowing the console exists. Applied by `[data-product="platform"]`
+   on <html>, set by AdminShell.
+
+   Gated by verify_palette.py as a third theme, on the same floors as the other
+   two. An unverified palette is how a control room ends up with 2:1 body text.
+   ========================================================================== */
+[data-product="platform"] {
+  --lf-bg-app: #eef1f5;
+  --lf-bg-surface: #f8fafc;
+  --lf-bg-sunken: #e3e8ef;
+  --lf-bg-inverse: #0f1620;
+
+  --lf-text-primary: #0f1620;
+  --lf-text-secondary: #3b4654;
+  --lf-text-tertiary: #5a6778;
+  --lf-text-link: #a1520a;
+
+  --lf-border-subtle: #d3dae3;
+  --lf-border-card: #c6d0db;
+  --lf-border-strong: #9fadbd;
+
+  /* Signal amber. Reserved, in this product, for "act here" — which is why the
+     console's own status colours stay on the shared scale: an operator needs
+     danger to look like danger everywhere. */
+  --lf-action-primary: #a1520a;
+  --lf-action-primary-hover: #85430a;
+  --lf-action-primary-text: #ffffff;
+  --lf-focus-ring: #b45309;
+  --lf-selection-bg: #fdf0dd;
+
+  /* Operators repeat actions dozens of times an hour; a 200ms settle that
+     feels considered on a dashboard feels like lag on the fortieth repeat. */
+  --lf-duration-fast: 60ms;
+  --lf-duration-base: 80ms;
+
+  /* Squarer, more utilitarian. A control room is not a magazine. */
+  --lf-radius-md: 6px;
+  --lf-radius-lg: 8px;
+  --lf-radius-xl: 8px;
+}
+
+[data-theme="dark"][data-product="platform"] {
+  --lf-bg-app: #0a1017;
+  --lf-bg-surface: #121a24;
+  --lf-bg-sunken: #0d141d;
+  --lf-bg-inverse: #e8eff7;
+
+  --lf-text-primary: #e8eff7;
+  --lf-text-secondary: #a8b6c6;
+  --lf-text-tertiary: #8394a6;
+  --lf-text-link: #f0a028;
+
+  --lf-border-subtle: #22303f;
+  --lf-border-card: #2d3d4f;
+  --lf-border-strong: #46596e;
+
+  --lf-action-primary: #f0a028;
+  --lf-action-primary-hover: #d98a17;
+  --lf-action-primary-text: #14100a;
+  --lf-focus-ring: #f0a028;
+  --lf-selection-bg: #2a2113;
+}

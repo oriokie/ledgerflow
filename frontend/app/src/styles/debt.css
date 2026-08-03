@@ -1,0 +1,641 @@
+/* ==========================================================================
+   Debt planner
+   --------------------------------------------------------------------------
+   The annual interest figure leads the summary because it's the one that
+   persuades: "£47 a month" is easy to absorb, "£564 a year before any of it
+   reduces what you owe" is the same fact stated so it registers.
+   ========================================================================== */
+
+.lf-debt-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-5);
+}
+
+/* `.lf-debt-total`, `.lf-debt-interest-note` and the `.lf-debt-metrics` dt/dd
+   pair were this page's private reimplementation of a labelled number — the
+   fifth in the product. They are `Figure` now, so all that survives here is
+   the rule separating the metric row from the headline. Type sizes, label
+   casing and baseline alignment come from the component. */
+.lf-debt-metrics {
+  padding-top: var(--lf-space-4);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+/* Shown when a figure could not be computed because its input was never
+   recorded. Deliberately quiet: this is an explanation and an offer, not an
+   alert — nothing has gone wrong, the terms simply aren't entered yet. */
+.lf-debt-unpriced {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding-top: var(--lf-space-4);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+.lf-debt-partial {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lf-space-1);
+  margin: 0;
+  font-size: var(--lf-text-xs);
+  line-height: 1.45;
+  color: var(--lf-text-tertiary);
+  max-width: 60ch;
+}
+
+/* ---------- alerts ---------- */
+.lf-debt-alerts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+
+.lf-debt-alerts li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+  font-size: var(--lf-text-sm);
+  line-height: 1.5;
+}
+
+/* Only `critical` gets the alarming treatment — a dashboard that flags
+   everything at the same weight gets closed. */
+.lf-debt-alerts li[data-severity="critical"] {
+  background: var(--lf-status-danger-bg);
+  color: var(--lf-status-danger-text);
+}
+
+.lf-debt-alerts li[data-severity="warning"] {
+  background: var(--lf-status-warning-bg);
+  color: var(--lf-status-warning-text);
+}
+
+.lf-debt-alerts svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lf-debt-alert-title {
+  font-weight: var(--lf-weight-semibold);
+}
+
+.lf-debt-alert-body {
+  margin-top: 2px;
+  opacity: 0.9;
+}
+
+.lf-debt-recommendation {
+  padding: var(--lf-space-4);
+  border-radius: var(--lf-radius-md);
+  border: 1px solid var(--lf-border-card);
+  background: var(--lf-bg-surface);
+}
+
+.lf-debt-rec-title {
+  font-weight: var(--lf-weight-semibold);
+  margin-bottom: 2px;
+}
+
+.lf-debt-rec-why {
+  font-size: var(--lf-text-sm);
+  line-height: 1.5;
+  color: var(--lf-text-secondary);
+}
+
+/* ---------- extra payment ---------- */
+.lf-debt-extra {
+  max-width: 420px;
+  margin-bottom: var(--lf-space-5);
+}
+
+.lf-debt-extra-result {
+  margin-top: var(--lf-space-3);
+  font-size: var(--lf-text-base);
+  color: var(--lf-text-secondary);
+}
+
+/* A plan that can't finish is the most important thing on the page when it
+   happens, so it gets full alarm treatment. */
+.lf-debt-stuck {
+  margin-top: var(--lf-space-4);
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-status-danger-bg);
+  color: var(--lf-status-danger-text);
+  font-size: var(--lf-text-sm);
+  line-height: 1.5;
+}
+
+/* ---------- strategy comparison ---------- */
+.lf-strategy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--lf-space-3);
+}
+
+.lf-strategy-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-4);
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-surface);
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--lf-duration-fast) var(--lf-ease-out),
+    background var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+@media (hover: hover) {
+  .lf-strategy-card:hover {
+    border-color: var(--lf-border-card-hover);
+  }
+}
+
+.lf-strategy-card:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+/* The selected strategy is marked — not the "best" one, because there isn't
+   one. Avalanche always wins on interest; snowball often wins on finishing. */
+.lf-strategy-card[data-active] {
+  border-color: var(--lf-action-primary);
+  background: var(--lf-selection-bg);
+}
+
+.lf-strategy-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-2);
+  color: var(--lf-action-primary);
+}
+
+.lf-strategy-name {
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-primary);
+}
+
+.lf-strategy-figures {
+  display: flex;
+  gap: var(--lf-space-4);
+  margin: var(--lf-space-1) 0 0;
+}
+
+.lf-strategy-figures dt {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-strategy-figures dd {
+  margin: 0;
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- payoff calendar ---------- */
+.lf-payoff-calendar {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+}
+
+.lf-payoff-month-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  padding-bottom: var(--lf-space-2);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+.lf-payoff-month-name {
+  font-weight: var(--lf-weight-semibold);
+}
+
+.lf-payoff-month-total {
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-secondary);
+}
+
+.lf-payoff-payments {
+  list-style: none;
+  margin: var(--lf-space-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+
+.lf-payoff-payments li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: var(--lf-space-3);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-payoff-payments li[data-clears] {
+  color: var(--lf-status-success-text);
+  font-weight: var(--lf-weight-medium);
+}
+
+.lf-payoff-cleared {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-inline-start: var(--lf-space-2);
+  font-size: var(--lf-text-xs);
+}
+
+/* The interest/principal split is the whole story of a debt — seeing that most
+   of a payment went to interest explains a balance that has barely moved. */
+.lf-payoff-split {
+  display: flex;
+  flex-direction: column;
+  text-align: end;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-payoff-interest {
+  color: var(--lf-status-danger-text);
+}
+
+.lf-payoff-amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--lf-weight-semibold);
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 767px) {
+  /* The column count and the narrow-screen hero rule now come from
+     `.lf-figure-row` in components.css, which already handles both — and
+     handles them the same way on every page that shows a row of figures. */
+
+  /* Three columns of payment detail don't fit; the split moves below. */
+  .lf-payoff-payments li {
+    grid-template-columns: 1fr auto;
+  }
+
+  .lf-payoff-split {
+    grid-column: 1 / -1;
+    text-align: start;
+    flex-direction: row;
+    gap: var(--lf-space-2);
+  }
+}
+
+/* ==========================================================================
+   Debt intelligence
+   ========================================================================== */
+
+/* ---------- stress score ---------- */
+.lf-stress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+}
+
+.lf-stress-main {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-4);
+}
+
+.lf-stress-dial {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+}
+
+.lf-stress-dial svg {
+  width: 100%;
+  height: 100%;
+}
+
+.lf-stress-track,
+.lf-stress-fill {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+
+.lf-stress-track {
+  stroke: var(--lf-bg-sunken);
+}
+
+/* Higher is better, so the good end is green — matching the health score.
+   Inverting one relative to the other would be a persistent misread. */
+.lf-stress-fill {
+  stroke: var(--lf-status-success);
+  transition: stroke-dasharray var(--lf-duration-base) var(--lf-ease-out);
+}
+
+.lf-stress-dial[data-band="moderate"] .lf-stress-fill {
+  stroke: var(--lf-status-warning);
+}
+
+.lf-stress-dial[data-band="high"] .lf-stress-fill,
+.lf-stress-dial[data-band="critical"] .lf-stress-fill {
+  stroke: var(--lf-status-danger);
+}
+
+/* A provisional score must not look like a measured one. A solid ring reading
+   100 is the most confident object on the page; drawn from under half the
+   inputs it is the least defensible number in the product. Dashing the ring
+   and muting the fill says "estimate" before the caveat below is read — and
+   the caveat may never be read. */
+.lf-stress-dial[data-provisional="true"] .lf-stress-fill {
+  stroke: var(--lf-text-tertiary);
+  stroke-dasharray: 4 5 !important;
+  opacity: 0.85;
+}
+
+.lf-stress-provisional-tag {
+  display: inline-block;
+  margin-left: var(--lf-space-2);
+  padding: 0 var(--lf-space-2);
+  border: 1px dashed var(--lf-border-strong);
+  border-radius: var(--lf-radius-full);
+  font-family: var(--lf-font-body);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+  vertical-align: middle;
+}
+
+.lf-stress-value {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--lf-font-ledger);
+  font-size: var(--lf-text-xl);
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-stress-title {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-lg);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-tight);
+}
+
+.lf-stress-provisional {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-1);
+  margin: var(--lf-space-1) 0;
+  font-size: var(--lf-text-xs);
+  line-height: 1.45;
+  color: var(--lf-text-tertiary);
+  max-width: 44ch;
+}
+
+.lf-stress-working {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+  padding-top: var(--lf-space-4);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+.lf-stress-components {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+}
+
+.lf-stress-component-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-2);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-stress-component-label {
+  font-weight: var(--lf-weight-medium);
+}
+
+.lf-stress-component-score {
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-secondary);
+}
+
+.lf-stress-bar {
+  height: 5px;
+  margin: var(--lf-space-1) 0;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-bg-sunken);
+  overflow: hidden;
+}
+
+.lf-stress-bar-fill {
+  height: 100%;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-action-primary);
+}
+
+.lf-stress-penalty {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-status-danger-text);
+}
+
+/* ---------- borrowing cost ---------- */
+.lf-borrowing-cost {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+}
+
+/* Same story as `.lf-debt-metrics`: the figures are `Figure` now, and only the
+   separating rule is this card's own. */
+.lf-borrowing-split {
+  padding-top: var(--lf-space-3);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+/* Named explicitly because paying the balance down won't reduce this part. */
+.lf-borrowing-note {
+  padding: var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-status-warning-bg);
+  color: var(--lf-status-warning-text);
+  font-size: var(--lf-text-sm);
+  line-height: 1.5;
+}
+
+/* ---------- rate signals on a debt row ---------- */
+.lf-debt-promo {
+  color: var(--lf-status-success-text);
+}
+
+.lf-debt-rate-change {
+  color: var(--lf-status-warning-text);
+}
+
+/* ---------- analytics ---------- */
+.lf-debt-analytics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-6);
+}
+
+.lf-debt-analytics-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--lf-space-4);
+  flex-wrap: wrap;
+}
+
+/* Sits beside the export button rather than filling the row, so it sizes to
+   its figures instead of stretching them. Everything else is `.lf-figure-row`. */
+.lf-debt-analytics-metrics {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lf-debt-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+
+.lf-debt-chart-title {
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-secondary);
+}
+
+/* Progressive disclosure inside the terms modal. */
+.lf-terms-advanced {
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-md);
+  padding: var(--lf-space-3);
+}
+
+.lf-terms-advanced summary {
+  cursor: pointer;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-link);
+}
+
+.lf-terms-advanced summary:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--lf-radius-sm);
+}
+
+.lf-terms-advanced > * + * {
+  margin-top: var(--lf-space-4);
+}
+
+/* ---------- simulators ---------- */
+.lf-debt-simulators {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  flex-wrap: wrap;
+  margin-top: var(--lf-space-4);
+  padding-top: var(--lf-space-4);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+.lf-consolidate-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-3);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-md);
+}
+
+.lf-consolidate-picker legend {
+  padding: 0 var(--lf-space-1);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+}
+
+/* A simulation result. Neutral by default — a verdict that shouted would
+   pressure a decision the user should weigh. */
+.lf-refi-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-4);
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+}
+
+.lf-refi-result[data-worthwhile] {
+  border-color: color-mix(in srgb, var(--lf-status-success) 40%, transparent);
+  background: var(--lf-status-success-bg);
+}
+
+.lf-refi-verdict {
+  font-weight: var(--lf-weight-semibold);
+  line-height: 1.5;
+}
+
+/* The trap consolidation adverts rely on, called out. */
+.lf-refi-caution {
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border-radius: var(--lf-radius-sm);
+  background: var(--lf-status-warning-bg);
+  color: var(--lf-status-warning-text);
+  font-size: var(--lf-text-sm);
+  line-height: 1.5;
+}
+
+.lf-refi-figures {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--lf-space-3);
+  margin: 0;
+}
+
+.lf-refi-figures dt {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  margin-bottom: 2px;
+}
+
+.lf-refi-figures dd {
+  margin: 0;
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 639px) {
+  .lf-refi-figures {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

@@ -1,0 +1,233 @@
+/* ==========================================================================
+   LedgerFlow Design Tokens
+   --------------------------------------------------------------------------
+   The single source of truth. Framework-agnostic: plain CSS custom
+   properties, consumable by any future React/Vue app or by server-rendered
+   templates unchanged.
+
+   Naming: --lf-{group}-{name}[-{variant}]. Semantic tokens (what a thing IS
+   FOR) sit on top of primitive tokens (raw values); components reference
+   semantics only, so retheming = swapping one block.
+
+   Money semantics — the one opinion this system encodes:
+     money-in   -> verdant   (earning is the highlighted event)
+     money-out  -> ink       (spending is normal life, NOT an error)
+     transfer   -> muted ink (moving your own money is neutral)
+     carmine is reserved for genuinely wrong states: errors, over-budget,
+     destructive actions. A grocery run never deserves the same color as
+     a failed payment.
+   ========================================================================== */
+
+:root {
+  /* ---------- primitives: color ---------- */
+  --lf-ink-900: #151928; /* blue-black ink — text, dark surfaces */
+  --lf-ink-700: #3a4055;
+  --lf-ink-500: #5d6478; /* secondary text on light */
+  --lf-ink-400: #656c81; /* tertiary text — darkest bg (sunken) still ≥4.5:1 */
+  --lf-ink-300: #9aa1b4; /* borders only — NOT text (2.6:1 on white) */
+  --lf-ink-150: #d8dbe4;
+  --lf-ink-075: #eceef2;
+
+  --lf-fog-000: #ffffff;
+  --lf-fog-050: #f6f7f9; /* app background, light */
+  --lf-fog-100: #f0f1f5;
+
+  --lf-iris-700: #4547c4;
+  --lf-iris-600: #5558d9; /* primary */
+  --lf-iris-500: #6d70e4;
+  --lf-iris-100: #e8e8fb;
+
+  --lf-verdant-700: #0a5f4a;
+  --lf-verdant-600: #0e7a5f; /* money-in, success */
+  --lf-verdant-100: #dcf2ea;
+
+  --lf-carmine-700: #a12f3e;
+  --lf-carmine-600: #c13a4b; /* errors, over-budget, destructive */
+  --lf-carmine-100: #fae3e6;
+
+  --lf-amber-700: #854d0e;
+  --lf-amber-600: #a16207; /* pending, warnings */
+  --lf-amber-100: #fdf0d2;
+
+  /* ---------- semantic: surfaces & text ---------- */
+  --lf-bg-app: var(--lf-fog-050);
+  --lf-bg-surface: var(--lf-fog-000);
+  --lf-bg-sunken: var(--lf-fog-100);
+  --lf-bg-inverse: var(--lf-ink-900);
+
+  --lf-text-primary: var(--lf-ink-900);
+  --lf-text-secondary: var(--lf-ink-500);
+  --lf-text-tertiary: var(--lf-ink-400);
+  --lf-text-inverse: var(--lf-fog-050);
+  --lf-text-link: var(--lf-iris-700);
+
+  --lf-border-subtle: var(--lf-ink-075);
+  --lf-border-default: var(--lf-ink-150);
+  --lf-border-strong: var(--lf-ink-300);
+
+  /* ---------- semantic: interactive ---------- */
+  --lf-action-primary: var(--lf-iris-600);
+  --lf-action-primary-hover: var(--lf-iris-700);
+  --lf-action-primary-text: #ffffff;
+  --lf-action-secondary-bg: var(--lf-fog-000);
+  --lf-action-secondary-border: var(--lf-ink-150);
+  --lf-focus-ring: var(--lf-iris-500);
+  --lf-selection-bg: var(--lf-iris-100);
+
+  /* ---------- semantic: money ---------- */
+  --lf-money-in: var(--lf-verdant-600);
+  --lf-money-out: var(--lf-ink-900);
+  --lf-money-transfer: var(--lf-ink-500);
+  --lf-money-cents-alpha: 0.62; /* minor units de-emphasized, never hidden */
+
+  /* ---------- semantic: status ---------- */
+  --lf-status-success: var(--lf-verdant-600);
+  --lf-status-success-bg: var(--lf-verdant-100);
+  --lf-status-success-text: var(--lf-verdant-700);
+  --lf-status-danger: var(--lf-carmine-600);
+  --lf-status-danger-bg: var(--lf-carmine-100);
+  --lf-status-danger-text: var(--lf-carmine-700);
+  --lf-status-warning: var(--lf-amber-600);
+  --lf-status-warning-bg: var(--lf-amber-100);
+  --lf-status-warning-text: var(--lf-amber-700);
+  --lf-status-neutral-bg: var(--lf-ink-075);
+  --lf-status-neutral-text: var(--lf-ink-700);
+
+  /* ---------- semantic: charts ---------- */
+  /* Categorical ramp for data viz. Carmine is deliberately absent — it
+     stays reserved for error states, so a spending category can never be
+     confused with something being wrong. All ramp colors hold >=3:1
+     against surfaces (WCAG 1.4.11 non-text). */
+  --lf-chart-1: var(--lf-iris-600);
+  --lf-chart-2: var(--lf-verdant-600);
+  --lf-chart-3: var(--lf-amber-600);
+  --lf-chart-4: #b0498c; /* plum */
+  --lf-chart-5: #2e7da6; /* steel */
+
+  /* ---------- typography ---------- */
+  /* Display: characterful grotesk. Body: system humanist (SF on Apple).
+     Ledger: duospace — EVERY monetary amount renders in this face. */
+  --lf-font-display: "Schibsted Grotesk", -apple-system, "SF Pro Display", "Segoe UI", sans-serif;
+  --lf-font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --lf-font-ledger: "Spline Sans Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
+
+  /* Modular scale, 1.20 ratio, 16px base. rem so user font-size prefs hold. */
+  --lf-text-xs: 0.694rem;   /* 11.1px — table meta, eyebrows */
+  --lf-text-sm: 0.833rem;   /* 13.3px — secondary UI */
+  --lf-text-base: 1rem;     /* 16px  — body */
+  --lf-text-md: 1.2rem;     /* 19.2px — card titles */
+  --lf-text-lg: 1.44rem;    /* 23px  — section headings */
+  --lf-text-xl: 1.728rem;   /* 27.6px — page titles */
+  --lf-text-2xl: 2.488rem;  /* 39.8px — hero balances */
+
+  --lf-leading-tight: 1.2;
+  --lf-leading-base: 1.5;
+  --lf-tracking-tight: -0.015em; /* display sizes */
+  --lf-tracking-wide: 0.06em;    /* eyebrows/labels, uppercase */
+
+  --lf-weight-regular: 400;
+  --lf-weight-medium: 500;
+  --lf-weight-semibold: 600;
+  --lf-weight-bold: 700;
+
+  /* ---------- spacing: 4px base grid ---------- */
+  --lf-space-1: 0.25rem;  /*  4px */
+  --lf-space-2: 0.5rem;   /*  8px */
+  --lf-space-3: 0.75rem;  /* 12px */
+  --lf-space-4: 1rem;     /* 16px */
+  --lf-space-5: 1.25rem;  /* 20px */
+  --lf-space-6: 1.5rem;   /* 24px */
+  --lf-space-8: 2rem;     /* 32px */
+  --lf-space-10: 2.5rem;  /* 40px */
+  --lf-space-12: 3rem;    /* 48px */
+  --lf-space-16: 4rem;    /* 64px */
+
+  /* ---------- radii: Apple-adjacent continuous curves ---------- */
+  --lf-radius-sm: 6px;   /* inputs, badges */
+  --lf-radius-md: 10px;  /* buttons, menu items */
+  --lf-radius-lg: 16px;  /* cards */
+  --lf-radius-xl: 20px;  /* modals, hero cards */
+  --lf-radius-full: 999px;
+
+  /* ---------- elevation: layered low-alpha ink ---------- */
+  --lf-shadow-raised:
+    0 1px 2px rgba(21, 25, 40, 0.06),
+    0 2px 8px rgba(21, 25, 40, 0.04);
+  --lf-shadow-overlay:
+    0 2px 6px rgba(21, 25, 40, 0.08),
+    0 12px 32px rgba(21, 25, 40, 0.14);
+
+  /* ---------- motion ---------- */
+  --lf-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --lf-duration-fast: 120ms;
+  --lf-duration-base: 200ms;
+
+  /* ---------- layout ---------- */
+  --lf-content-max: 1200px;
+  --lf-rail-width: 232px;
+  --lf-topbar-height: 56px;
+  --lf-tabbar-height: 60px;
+  --lf-touch-target: 44px; /* minimum interactive size */
+}
+
+/* ==========================================================================
+   Dark theme — ink-based, not pure black. Same semantic names, so
+   components need zero changes. Activated by explicit user choice
+   ([data-theme="dark"]); an OS-preference block can mirror this once a
+   theme toggle persists the choice.
+   ========================================================================== */
+[data-theme="dark"] {
+  --lf-bg-app: #101321;
+  --lf-bg-surface: #181c2e;
+  --lf-bg-sunken: #0c0e1a;
+  --lf-bg-inverse: var(--lf-fog-050);
+
+  --lf-text-primary: #eef0f6;
+  --lf-text-secondary: #a6adc2;
+  --lf-text-tertiary: #8890aa;
+  --lf-text-inverse: var(--lf-ink-900);
+  --lf-text-link: #9b9df0;
+
+  --lf-border-subtle: #232842;
+  --lf-border-default: #2e3452;
+  --lf-border-strong: #4a5170;
+
+  /* base and hover BOTH darker than light-mode iris: the white label must
+     stay >=4.5:1 in every state, so dark-mode hover deepens rather than
+     brightens */
+  --lf-action-primary: #5f62dd;
+  --lf-action-primary-hover: #5254d0;
+  --lf-action-secondary-bg: #181c2e;
+  --lf-action-secondary-border: #2e3452;
+  --lf-focus-ring: #8285ea;
+  --lf-selection-bg: #2a2d55;
+
+  --lf-money-in: #34c39a;
+  --lf-money-out: #eef0f6;
+  --lf-money-transfer: #a6adc2;
+
+  --lf-status-success: #34c39a;
+  --lf-status-success-bg: #12352b;
+  --lf-status-success-text: #7fe0c4;
+  --lf-status-danger: #e0596a;
+  --lf-status-danger-bg: #3d1a20;
+  --lf-status-danger-text: #f097a3;
+  --lf-status-warning: #d9a13b;
+  --lf-status-warning-bg: #38290c;
+  --lf-status-warning-text: #ecc57e;
+  --lf-status-neutral-bg: #232842;
+  --lf-status-neutral-text: #c5cad9;
+
+  --lf-chart-1: #6d70e4;
+  --lf-chart-2: #34c39a;
+  --lf-chart-3: #d9a13b;
+  --lf-chart-4: #d178b8;
+  --lf-chart-5: #5aa7d6;
+
+  --lf-shadow-raised:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 2px 8px rgba(0, 0, 0, 0.3);
+  --lf-shadow-overlay:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 12px 32px rgba(0, 0, 0, 0.55);
+}

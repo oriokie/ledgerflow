@@ -1,0 +1,92 @@
+import { BarChart3 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { reportsApi } from "../api/reports";
+import type { ReportFilters, ReportGroup, ReportMeta } from "../api/types";
+import { useReport, useReportCatalog } from "../hooks/useReports";
+import { Card, EmptyState, Grid, PageHeader, SegmentedControl, SkeletonCard } from "../ui";
+import { ReportCard, ReportFilterBar } from "./analytics";
+
+const GROUPS: { value: ReportGroup; label: string }[] = [
+  { value: "position", label: "Where you stand" },
+  { value: "flow", label: "Money in and out" },
+  { value: "spending", label: "Where it goes" },
+  { value: "compare", label: "Compared" },
+];
+
+/** One report, fetched independently so a slow one never blocks the rest. */
+function Report({ meta, filters }: { meta: ReportMeta; filters: ReportFilters }) {
+  const { data, isLoading } = useReport(meta.slug, filters);
+  if (isLoading && !data) return <SkeletonCard />;
+  return (
+    <ReportCard
+      meta={meta}
+      result={data}
+      exportPath={reportsApi.exportPath(meta.slug, filters)}
+    />
+  );
+}
+
+/**
+ * The reporting platform.
+ *
+ * Reports are grouped by the question they answer rather than listed
+ * alphabetically — fourteen charts on one screen is a wall, four tabs of three
+ * or four is a tool. The grouping comes from the backend catalogue, so adding
+ * a report places itself.
+ *
+ * Each report fetches independently. One heavy query then delays only its own
+ * card instead of holding the whole page.
+ */
+/** `embedded` renders this page as a tab panel inside a hub (`/plan`,
+ * `/insights`). The hub owns the <h1>, so the page must not render its own
+ * PageHeader — two page titles on one route is a broken heading outline. */
+export function ReportsPage({ embedded }: { embedded?: boolean } = {}) {
+  const [group, setGroup] = useState<ReportGroup>("position");
+  const [filters, setFilters] = useState<ReportFilters>({ period: "last_12_months" });
+
+  const { data: catalog, isLoading } = useReportCatalog();
+
+  const visible = useMemo(
+    () => (catalog ?? []).filter((report) => report.group === group),
+    [catalog, group],
+  );
+
+  return (
+    <>
+      {!embedded && (
+        <PageHeader
+          title="Reports"
+          description="Fourteen views of your money. Pick a period once and it applies to all of them."
+          actions={<ReportFilterBar filters={filters} onChange={setFilters} />}
+        />
+      )}
+
+      <div className="lf-report-groups">
+        <SegmentedControl<ReportGroup>
+          legend="Report group"
+          options={GROUPS}
+          value={group}
+          onChange={setGroup}
+        />
+      </div>
+
+      {isLoading && <SkeletonCard />}
+
+      {!isLoading && (catalog?.length ?? 0) === 0 && (
+        <Card>
+          <EmptyState
+            icon={BarChart3}
+            title="No reports available"
+            body="Reports appear once there's activity to summarise."
+          />
+        </Card>
+      )}
+
+      <Grid cols={2} gap={4}>
+        {visible.map((meta) => (
+          <Report key={meta.slug} meta={meta} filters={filters} />
+        ))}
+      </Grid>
+    </>
+  );
+}

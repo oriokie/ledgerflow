@@ -1,0 +1,34 @@
+# Internal origin — the same routing as Caddyfile, minus TLS.
+#
+# Used when nginx or Apache (or an upstream load balancer) terminates TLS on
+# the host. That front end proxies EVERYTHING to this listener, which then does
+# the one job the host server should not have to know about: which paths are
+# Django's and which are the SPA's. Routing lives in exactly one place per
+# deployment, so switching web servers can never silently change what /admin
+# or /api resolve to.
+#
+# Bound to 127.0.0.1:8080 by docker-compose.server.yml — never exposed raw.
+
+:80 {
+	encode zstd gzip
+
+	# --- Backend: API, Django's own admin, health, and Django static ---
+	@backend path /api/* /django-admin/* /healthz /healthz/ /readyz /readyz/ /static/*
+	handle @backend {
+		reverse_proxy web:8000 {
+			# Forward the terminator's scheme, don't restate our own: this hop
+			# is always plain HTTP, and overwriting the header with "http"
+			# would make Django's SECURE_SSL_REDIRECT loop every request.
+			header_up X-Forwarded-Proto {header.X-Forwarded-Proto}
+			header_up X-Forwarded-For {remote_host}
+			header_up Host {host}
+		}
+	}
+
+	# --- Frontend: the built SPA, client-side routes falling back to index ---
+	handle {
+		root * /srv/frontend
+		try_files {path} /index.html
+		file_server
+	}
+}

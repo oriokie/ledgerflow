@@ -1,0 +1,458 @@
+/* ==========================================================================
+   Cash flow calendar
+   --------------------------------------------------------------------------
+   A day-by-day projection grid. Two independent visual channels:
+
+     colour  → severity of the projected closing balance
+     icon    → the kind of movement expected
+
+   Neither is ever the sole carrier of meaning: every cell also shows the
+   balance as text and exposes a full sentence to assistive tech. Colour alone
+   would fail both WCAG and anyone reading the screen in sunlight.
+   ========================================================================== */
+
+.lf-cal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+}
+
+.lf-cal-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--lf-space-4);
+  flex-wrap: wrap;
+}
+
+/* The overdraft banner. Prominent but not alarming-red-everywhere: the alarm
+   belongs to the moment, not the container. */
+.lf-cal-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-status-danger-bg);
+  color: var(--lf-status-danger-text);
+  font-size: var(--lf-text-sm);
+  line-height: 1.5;
+}
+
+.lf-cal-alert svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ---------- grid ---------- */
+.lf-cal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lf-cal-weekdays,
+.lf-cal-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.lf-cal-weekdays span {
+  padding-bottom: var(--lf-space-1);
+  text-align: center;
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+}
+
+/* The gridcell wrapper ARIA requires, made invisible to layout. `display:
+   contents` hands the button straight back to the week's grid tracks, so the
+   role is added without a box being added. */
+.lf-cal-cellwrap {
+  display: contents;
+}
+
+.lf-cal-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 78px;
+  padding: var(--lf-space-2);
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-surface);
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--lf-duration-fast) var(--lf-ease-out),
+    box-shadow var(--lf-duration-fast) var(--lf-ease-out),
+    transform var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+@media (hover: hover) {
+  .lf-cal-cell:hover {
+    transform: translateY(-1px);
+    border-color: var(--lf-border-card-hover);
+    box-shadow: var(--lf-shadow-raised);
+  }
+}
+
+.lf-cal-cell:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+/* A pad cell is inert and carries no figures — it must never read as a real
+   day with a zero balance. */
+.lf-cal-cell--blank {
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* Today gets a ring rather than a fill, so it doesn't compete with severity. */
+.lf-cal-cell[data-today] {
+  box-shadow: inset 0 0 0 2px var(--lf-action-primary);
+}
+
+.lf-cal-daynum {
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-secondary);
+}
+
+.lf-cal-balance {
+  margin-top: auto;
+  font-size: var(--lf-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-secondary);
+}
+
+.lf-cal-dots {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--lf-status-danger);
+}
+
+.lf-cal-dots [data-in] {
+  color: var(--lf-status-success);
+}
+
+.lf-cal-more {
+  font-size: 0.625rem;
+  color: var(--lf-text-tertiary);
+}
+
+.lf-cal-warn {
+  position: absolute;
+  top: var(--lf-space-2);
+  inset-inline-end: var(--lf-space-2);
+  color: var(--lf-status-danger);
+}
+
+/* ---------- severity tints ----------
+   Kept low-saturation: a wall of red would make the genuinely negative days
+   indistinguishable from the merely busy ones. */
+.lf-cal-cell[data-tone="negative"] {
+  background: var(--lf-status-danger-bg);
+  border-color: color-mix(in srgb, var(--lf-status-danger) 40%, transparent);
+}
+
+.lf-cal-cell[data-tone="negative"] .lf-cal-balance {
+  color: var(--lf-status-danger-text);
+  font-weight: var(--lf-weight-semibold);
+}
+
+/* Early warning: the day the balance gets thin is more actionable than the day
+   it goes negative, because by then there's no time to move money. */
+.lf-cal-cell[data-tone="low"] {
+  background: var(--lf-status-warning-bg);
+  border-color: color-mix(in srgb, var(--lf-status-warning) 32%, transparent);
+}
+
+.lf-cal-cell[data-tone="inflow"] {
+  background: color-mix(in srgb, var(--lf-status-success-bg) 45%, var(--lf-bg-surface));
+}
+
+.lf-cal-cell[data-tone="outflow"] {
+  background: var(--lf-bg-sunken);
+}
+
+/* ---------- week nav ---------- */
+.lf-cal-weeknav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+}
+
+/* ---------- timeline ---------- */
+.lf-cal-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lf-cal-timeline-row {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  align-items: center;
+  gap: var(--lf-space-3);
+  width: 100%;
+  padding: var(--lf-space-3);
+  border: 0;
+  border-inline-start: 3px solid transparent;
+  border-radius: var(--lf-radius-md);
+  background: transparent;
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+  transition: background var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+@media (hover: hover) {
+  .lf-cal-timeline-row:hover {
+    background: var(--lf-bg-sunken);
+  }
+}
+
+.lf-cal-timeline-row:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: -2px;
+}
+
+.lf-cal-timeline-row[data-tone="negative"] {
+  border-inline-start-color: var(--lf-status-danger);
+  background: var(--lf-status-danger-bg);
+}
+
+.lf-cal-timeline-row[data-tone="low"] {
+  border-inline-start-color: var(--lf-status-warning);
+}
+
+.lf-cal-timeline-row[data-tone="inflow"] {
+  border-inline-start-color: var(--lf-status-success);
+}
+
+.lf-cal-timeline-date {
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-secondary);
+}
+
+.lf-cal-timeline-events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-1) var(--lf-space-2);
+  min-width: 0;
+  font-size: var(--lf-text-sm);
+}
+
+.lf-cal-timeline-event::after {
+  content: "·";
+  margin-inline-start: var(--lf-space-2);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-cal-timeline-event:last-child::after {
+  content: "";
+}
+
+.lf-cal-timeline-balance {
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-cal-timeline-empty {
+  padding: var(--lf-space-8);
+  text-align: center;
+}
+
+/* ---------- day detail ---------- */
+.lf-cal-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+}
+
+.lf-cal-detail-balances {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--lf-space-3);
+  margin: 0;
+  padding: var(--lf-space-4);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+}
+
+.lf-cal-detail-balances dt {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-cal-detail-balances dd {
+  margin: 0;
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-cal-detail-balances dd[data-negative] {
+  color: var(--lf-status-danger-text);
+}
+
+.lf-cal-detail-events {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lf-cal-detail-event {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+.lf-cal-detail-event:last-child {
+  border-bottom: 0;
+}
+
+.lf-cal-detail-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-status-danger-bg);
+  color: var(--lf-status-danger-text);
+}
+
+.lf-cal-detail-icon[data-in] {
+  background: var(--lf-status-success-bg);
+  color: var(--lf-status-success-text);
+}
+
+.lf-cal-detail-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.lf-cal-detail-name {
+  display: block;
+  font-weight: var(--lf-weight-medium);
+}
+
+.lf-cal-detail-meta {
+  display: block;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 767px) {
+  /* Seven columns on a phone leaves ~45px per cell — too tight for a balance.
+     The grid stays (a calendar without a week shape isn't a calendar) but
+     drops to the day number and severity, with detail one tap away. */
+  .lf-cal-cell {
+    min-height: 56px;
+    padding: var(--lf-space-1);
+  }
+
+  .lf-cal-balance,
+  .lf-cal-more {
+    display: none;
+  }
+
+  .lf-cal-detail-balances {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .lf-cal-timeline-row {
+    grid-template-columns: 60px 1fr;
+    row-gap: var(--lf-space-1);
+  }
+
+  .lf-cal-timeline-balance {
+    grid-column: 2;
+  }
+}
+
+/* Forced high contrast: tints lose meaning, so severity falls back to a
+   heavier border plus the always-present text and icons. */
+@media (prefers-contrast: more) {
+  .lf-cal-cell[data-tone="negative"],
+  .lf-cal-cell[data-tone="low"],
+  .lf-cal-cell[data-tone="inflow"],
+  .lf-cal-cell[data-tone="outflow"] {
+    background: var(--lf-bg-surface);
+  }
+
+  .lf-cal-cell[data-tone="negative"] {
+    border-width: 2px;
+    border-color: var(--lf-status-danger);
+  }
+
+  .lf-cal-cell[data-tone="low"] {
+    border-width: 2px;
+    border-color: var(--lf-status-warning);
+  }
+}
+
+/* --- Projection summary -------------------------------------------------- */
+.lf-cashflow-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* One plain-language sentence, so the numbers above don't have to be
+   interpreted before they mean anything. */
+.lf-cashflow-verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  margin-top: var(--lf-space-4);
+  padding-top: var(--lf-space-3);
+  border-top: 1px solid var(--lf-border-subtle);
+  color: var(--lf-text-secondary);
+}
+
+.lf-cashflow-verdict[data-tone="danger"] {
+  color: var(--lf-status-danger);
+}
+
+/* --- Long-horizon outlook ------------------------------------------------ */
+.lf-outlook {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+}
+
+.lf-outlook-chart {
+  width: 100%;
+}
+
+.lf-outlook-danger {
+  color: var(--lf-status-danger);
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-outlook-negdays {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}

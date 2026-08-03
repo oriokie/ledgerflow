@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#5f62dd" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="LedgerFlow" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      /* no-flash theme: runs before first paint; localStorage choice wins,
+         otherwise follow the OS preference */
+      (function () {
+        try {
+          var theme = localStorage.getItem("lf-theme");
+          if (!theme && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) theme = "dark";
+          if (theme === "dark") document.documentElement.dataset.theme = "dark";
+          var accent = localStorage.getItem("lf-accent");
+          if (accent) document.documentElement.dataset.accent = accent;
+          if (localStorage.getItem("lf-density") === "compact") document.documentElement.dataset.density = "compact";
+          var font = localStorage.getItem("lf-font");
+          if (font) document.documentElement.dataset.font = font;
+          var fs = localStorage.getItem("lf-fontsize");
+          if (fs) document.documentElement.dataset.fontsize = fs;
+        } catch (error) {}
+      })();
+    </script>
+    <title>LedgerFlow</title>
+    <!--
+      The Meridian faces are self-hosted — see src/styles/typography.css for
+      why. Only the two that paint above the fold are preloaded: the body
+      weight and the ledger weight. Preloading all fourteen would compete with
+      the app bundle for bandwidth to render text nobody is looking at yet.
+
+      `crossorigin` is required even same-origin: fonts are always fetched in
+      CORS mode, and without it the preload is discarded and fetched twice.
+    -->
+    <link
+      rel="preload"
+      href="/fonts/schibsted-grotesk-400-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/spline-sans-mono-500-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

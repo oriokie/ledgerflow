@@ -1,0 +1,158 @@
+/* ==========================================================================
+   LedgerFlow base layer — reset, typographic rhythm, accessibility floor,
+   and the signature ledger-amount treatment.
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--lf-font-body);
+  font-size: var(--lf-text-base);
+  line-height: var(--lf-leading-base);
+  color: var(--lf-text-primary);
+  background: var(--lf-bg-app);
+  -webkit-font-smoothing: antialiased;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* ---------- headings: display face, tight tracking ---------- */
+h1,
+h2,
+h3,
+.lf-display {
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-semibold);
+  line-height: var(--lf-leading-tight);
+  letter-spacing: var(--lf-tracking-tight);
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--lf-text-xl); }
+h2 { font-size: var(--lf-text-lg); }
+h3 { font-size: var(--lf-text-md); }
+
+a {
+  color: var(--lf-text-link);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+::selection {
+  background: var(--lf-selection-bg);
+}
+
+/* ---------- eyebrow: small uppercase label above a value/section ---------- */
+.lf-eyebrow {
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-secondary);
+}
+
+.lf-text-secondary { color: var(--lf-text-secondary); }
+.lf-text-sm { font-size: var(--lf-text-sm); }
+
+/* ==========================================================================
+   THE SIGNATURE — the ledger amount.
+   Every monetary value in the product uses .lf-amount:
+     * duospace ledger face, tabular by construction -> columns align
+     * explicit sign, never color alone (color-blind safe + the semantic
+       system: in = verdant, out = ink, transfer = muted)
+     * minor units de-emphasized (the engine stores integer cents; the UI
+       de-emphasizes but never hides them)
+   Markup:
+     <data class="lf-amount lf-amount--out" value="-86.20">
+       −$86<span class="lf-amount-cents">.20</span>
+     </data>
+   ========================================================================== */
+.lf-amount {
+  font-family: var(--lf-font-ledger);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--lf-weight-medium);
+  white-space: nowrap;
+}
+
+.lf-amount--in { color: var(--lf-money-in); }
+.lf-amount--out { color: var(--lf-money-out); }
+.lf-amount--transfer { color: var(--lf-money-transfer); }
+.lf-amount--danger { color: var(--lf-status-danger); }
+
+.lf-amount-cents {
+  opacity: var(--lf-money-cents-alpha);
+  font-size: 0.85em;
+}
+
+/* Hero balance: display-scale amount */
+.lf-amount--hero {
+  font-size: var(--lf-text-2xl);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-tight);
+}
+
+/* ---------- accessibility floor ---------- */
+:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--lf-radius-sm);
+}
+
+.lf-skip-link {
+  position: absolute;
+  inset-inline-start: var(--lf-space-4);
+  top: calc(-1 * var(--lf-space-16));
+  z-index: 100;
+  padding: var(--lf-space-2) var(--lf-space-4);
+  background: var(--lf-bg-surface);
+  border-radius: var(--lf-radius-md);
+  box-shadow: var(--lf-shadow-overlay);
+  transition: top var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-skip-link:focus-visible {
+  top: var(--lf-space-4);
+}
+
+.lf-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

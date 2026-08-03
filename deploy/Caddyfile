@@ -1,0 +1,31 @@
+# Caddy: single origin for the whole product.
+#   /api/*, /django-admin/*, /healthz, /static/*  -> Django (gunicorn)
+#   everything else (incl. the SPA's /admin console) -> React static files
+#
+# Automatic HTTPS via Let's Encrypt. {$DOMAIN}/{$ACME_EMAIL} come from .env.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# --- Backend: API, admin, health, and Django's own static (admin/DRF UI) ---
+	@backend path /api/* /django-admin/* /healthz /healthz/ /readyz /readyz/ /static/*
+	handle @backend {
+		reverse_proxy web:8000 {
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-For {remote_host}
+			header_up Host {host}
+		}
+	}
+
+	# --- Frontend: the built SPA. try_files makes client-side routes (/goals,
+	# /transactions, …) resolve to index.html so a hard refresh doesn't 404. ---
+	handle {
+		root * /srv/frontend
+		try_files {path} /index.html
+		file_server
+	}
+}

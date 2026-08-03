@@ -1,0 +1,201 @@
+/* ==========================================================================
+   AI insights — presented as warm, actionable guidance. Tone accents keep it
+   scannable; a quiet "why" line keeps it trustworthy.
+   ========================================================================== */
+
+/* tone → accent colour */
+.lf-tone-good {
+  --lf-tone: var(--lf-status-success);
+}
+.lf-tone-soon {
+  --lf-tone: var(--lf-action-primary);
+}
+.lf-tone-attention {
+  --lf-tone: var(--lf-status-danger);
+}
+.lf-tone-neutral {
+  --lf-tone: var(--lf-border-strong);
+}
+
+/* ---------- greeting ---------- */
+.lf-insights-greeting {
+  margin-bottom: var(--lf-space-5);
+}
+.lf-insights-greeting-title {
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-medium);
+  font-size: var(--lf-text-3xl);
+  letter-spacing: var(--lf-tracking-display);
+  color: var(--lf-text-primary);
+}
+.lf-insights-greeting-sub {
+  margin-top: var(--lf-space-2);
+  font-size: var(--lf-text-md);
+  color: var(--lf-text-secondary);
+  max-width: 60ch;
+  line-height: 1.5;
+}
+.lf-insights-basis {
+  margin-top: var(--lf-space-2);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-insights-section-title {
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-secondary);
+  margin: var(--lf-space-6) 0 var(--lf-space-3);
+}
+
+/* ---------- guidance card ---------- */
+.lf-guidance {
+  position: relative;
+  display: flex;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-4);
+  padding-left: var(--lf-space-5);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-surface);
+}
+.lf-guidance::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: var(--lf-space-4);
+  bottom: var(--lf-space-4);
+  width: 3px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-tone, var(--lf-border-strong));
+}
+.lf-guidance-icon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--lf-radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lf-tone, var(--lf-text-secondary));
+  background: color-mix(in srgb, var(--lf-tone, var(--lf-border-strong)) 12%, transparent);
+}
+.lf-guidance-main {
+  flex: 1;
+  min-width: 0;
+}
+.lf-guidance-title {
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-primary);
+}
+.lf-guidance-body {
+  margin-top: 2px;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+  line-height: 1.5;
+}
+.lf-guidance-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-4);
+  margin-top: var(--lf-space-3);
+  flex-wrap: wrap;
+}
+.lf-guidance-why {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* ---------- health ---------- */
+.lf-health-head {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-3);
+}
+.lf-health-band {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  padding: 4px 12px;
+  border-radius: var(--lf-radius-full);
+  font-weight: var(--lf-weight-semibold);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-tone);
+  background: color-mix(in srgb, var(--lf-tone) 12%, transparent);
+}
+.lf-health-score {
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-medium);
+  font-size: var(--lf-text-xl);
+  color: var(--lf-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.lf-health-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+.lf-health-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-2);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+.lf-health-line-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.lf-health-detail {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--lf-space-3);
+  margin-top: var(--lf-space-4);
+  padding-top: var(--lf-space-4);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+@media (min-width: 640px) {
+  .lf-health-detail {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ---------- worth a look (anomalies) ---------- */
+.lf-worth {
+  display: flex;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+.lf-worth:last-child {
+  border-bottom: 0;
+}
+.lf-worth-icon {
+  flex-shrink: 0;
+  color: var(--lf-tone, var(--lf-text-tertiary));
+  margin-top: 1px;
+}
+.lf-worth-headline {
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+  font-size: var(--lf-text-sm);
+}
+.lf-worth-body {
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+  margin-top: 1px;
+}
+
+/* ---------- suggestion ---------- */
+.lf-suggest-q {
+  color: var(--lf-text-primary);
+}
+.lf-suggest-q strong {
+  font-weight: var(--lf-weight-semibold);
+}
+.lf-suggest-meta {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  margin-top: 2px;
+}

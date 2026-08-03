@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+/* no-flash theme: runs before first paint; localStorage choice wins,
+   otherwise follow the OS preference */
+(function () {
+  try {
+    var theme = localStorage.getItem("lf-theme");
+    if (!theme && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) theme = "dark";
+    if (theme === "dark") document.documentElement.dataset.theme = "dark";
+  } catch (error) {}
+})();
+</script>
+<title>Transactions · LedgerFlow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+<a class="lf-skip-link" href="#main">Skip to content</a>
+
+<div class="lf-shell">
+  <nav class="lf-rail" aria-label="Primary">
+    <a class="lf-rail-brand" href="dashboard.html">
+      <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2" y="3" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 8h8M6 12h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      LedgerFlow
+    </a>
+    <a class="lf-nav-item" href="dashboard.html">
+      <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="11" y="3" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="11" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="11" y="11" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
+      Overview
+    </a>
+    <a class="lf-nav-item" href="transactions.html" aria-current="page">
+      <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Transactions
+    </a>
+    <a class="lf-nav-item" href="dashboard.html#budgets">
+      <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M10 6v4l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Budgets
+    </a>
+    <a class="lf-nav-item" href="dashboard.html#accounts">
+      <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="5" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3 8.5h14" stroke="currentColor" stroke-width="1.8"/></svg>
+      Accounts
+    </a>
+  </nav>
+
+  <div class="lf-shell-main">
+    <header class="lf-topbar">
+      <button class="lf-workspace-switcher" type="button" aria-haspopup="menu">
+        <span class="lf-workspace-avatar" aria-hidden="true">R</span>
+        Rivera Household
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="lf-topbar-spacer"></div>
+      <button class="lf-btn lf-btn--ghost" type="button" data-cmdk-open>Search <span class="lf-kbd">⌘K</span></button>
+      <button class="lf-btn lf-btn--ghost" type="button" id="theme-toggle" aria-pressed="false">Dark</button>
+      <a class="lf-btn lf-btn--primary" href="#add">Add transaction</a>
+    </header>
+
+    <main class="lf-content" id="main">
+      <div class="lf-page-header">
+        <div>
+          <p class="lf-eyebrow">Everyday Checking ····8891</p>
+          <h1>Transactions</h1>
+        </div>
+        <div style="display: flex; gap: var(--lf-space-2); flex-wrap: wrap;">
+          <label class="lf-visually-hidden" for="filter-account">Account</label>
+          <select class="lf-select" id="filter-account">
+            <option>Everyday Checking</option>
+            <option>High-Yield Savings</option>
+            <option>Visa ····4423</option>
+            <option>All accounts</option>
+          </select>
+          <label class="lf-visually-hidden" for="filter-period">Period</label>
+          <select class="lf-select" id="filter-period">
+            <option>July 2026</option>
+            <option>June 2026</option>
+            <option>Custom range</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- The signature: a ledger table. Amount and running balance are
+           right-aligned duospace columns; the balance after each row is real
+           arithmetic, not decoration. -->
+      <div class="lf-table-wrap" style="margin-bottom: var(--lf-space-8);">
+        <table class="lf-table lf-table--responsive">
+          <caption class="lf-visually-hidden">
+            Transactions for Everyday Checking, July 2026, newest first, with running balance
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Payee</th>
+              <th scope="col" class="lf-col-hide-mobile">Category</th>
+              <th scope="col" class="lf-col-hide-mobile">Status</th>
+              <th scope="col" class="lf-col-amount">Amount</th>
+              <th scope="col" class="lf-col-balance lf-col-hide-mobile">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="lf-cell-primary">Whole Foods Market</span><br><span class="lf-cell-meta">Jul 16</span></td>
+              <td class="lf-col-hide-mobile">Groceries</td>
+              <td class="lf-col-hide-mobile"><span class="lf-badge lf-badge--warning">Pending</span></td>
+              <td class="lf-col-amount"><data class="lf-amount lf-amount--out" value="-86.20">−$86<span class="lf-amount-cents">.20</span></data></td>
+              <td class="lf-col-balance lf-col-hide-mobile"><data class="lf-amount lf-amount--transfer" value="8420.50">$8,420<span class="lf-amount-cents">.50</span></data></td>
+            </tr>
+            <tr>
+              <td><span class="lf-cell-primary">Transfer to High-Yield Savings</span><br><span class="lf-cell-meta">Jul 15</span></td>
+              <td class="lf-col-hide-mobile">—</td>
+              <td class="lf-col-hide-mobile"><span class="lf-badge lf-badge--neutral">Posted</span></td>
+              <td class="lf-col-amount"><data class="lf-amount lf-amount--transfer" value="-500.00">⇄ −$500</data></td>
+              <td class="lf-col-balance lf-col-hide-mobile"><data class="lf-amount lf-amount--transfer" value="8506.70">$8,506<span class="lf-amount-cents">.70</span></data></td>
+            </tr>
+            <tr>
+              <td><span class="lf-cell-primary">Meridian Studio — payroll</span><br><span class="lf-cell-meta">Jul 15</span></td>
+              <td class="lf-col-hide-mobile">Salary</td>
+              <td class="lf-col-hide-mobile"><span class="lf-badge lf-badge--success">Reconciled</span></td>
+              <td class="lf-col-amount"><data class="lf-amount lf-amount--in" value="4250.00">+$4,250</data></td>
+              <td class="lf-col-balance lf-col-hide-mobile"><data class="lf-amount lf-amount--transfer" value="9006.70">$9,006<span class="lf-amount-cents">.70</span></data></td>
+            </tr>
+            <tr>
+              <td><span class="lf-cell-primary">Northside Property Co.</span><br><span class="lf-cell-meta">Jul 12</span></td>
+              <td class="lf-col-hide-mobile">Rent</td>
+              <td class="lf-col-hide-mobile"><span class="lf-badge lf-badge--success">Reconciled</span></td>
+              <td class="lf-col-amount"><data class="lf-amount lf-amount--out" value="-1850.00">−$1,850</data></td>
+              <td class="lf-col-balance lf-col-hide-mobile"><data class="lf-amount lf-amount--transfer" value="4756.70">$4,756<span class="lf-amount-cents">.70</span></data></td>
+            </tr>
+            <tr>
+              <td><span class="lf-cell-primary">Fern &amp; Filter Coffee</span><br><span class="lf-cell-meta">Jul 11</span></td>
+              <td class="lf-col-hide-mobile">Dining out</td>
+              <td class="lf-col-hide-mobile"><span class="lf-badge lf-badge--neutral">Posted</span></td>
+              <td class="lf-col-amount"><data class="lf-amount lf-amount--out" value="-4.80">−$4<span class="lf-amount-cents">.80</span></data></td>
+              <td class="lf-col-balance lf-col-hide-mobile"><data class="lf-amount lf-amount--transfer" value="6606.70">$6,606<span class="lf-amount-cents">.70</span></data></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Add transaction -->
+      <section class="lf-card" id="add" aria-labelledby="add-heading" style="max-width: 560px;">
+        <h2 id="add-heading" style="font-size: var(--lf-text-md); margin-bottom: var(--lf-space-4);">Add transaction</h2>
+
+        <form style="display: flex; flex-direction: column; gap: var(--lf-space-5);">
+          <fieldset class="lf-segmented" style="border: 0; padding: 3px;">
+            <legend class="lf-visually-hidden">Transaction type</legend>
+            <input type="radio" name="txn-type" id="type-expense" checked>
+            <label for="type-expense">Expense</label>
+            <input type="radio" name="txn-type" id="type-income">
+            <label for="type-income">Income</label>
+            <input type="radio" name="txn-type" id="type-transfer">
+            <label for="type-transfer">Transfer</label>
+          </fieldset>
+
+          <div class="lf-field">
+            <label class="lf-label" for="amount">Amount</label>
+            <input class="lf-input lf-input--amount" id="amount" name="amount" inputmode="decimal"
+                   placeholder="0.00" aria-describedby="amount-hint">
+            <p class="lf-hint" id="amount-hint">Charged in USD — the account’s currency</p>
+          </div>
+
+          <div class="lf-grid lf-grid--2">
+            <div class="lf-field">
+              <label class="lf-label" for="account">Account</label>
+              <select class="lf-select" id="account" name="account">
+                <option>Everyday Checking</option>
+                <option>High-Yield Savings</option>
+                <option>Visa ····4423</option>
+              </select>
+            </div>
+            <div class="lf-field">
+              <label class="lf-label" for="category">Category</label>
+              <select class="lf-select" id="category" name="category">
+                <option>Groceries</option>
+                <option>Dining out</option>
+                <option>Rent</option>
+                <option>Transport</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="lf-field lf-field--invalid">
+            <label class="lf-label" for="payee">Payee</label>
+            <input class="lf-input" id="payee" name="payee" value="" aria-describedby="payee-error" aria-invalid="true">
+            <p class="lf-error" id="payee-error">Enter a payee so this shows up in merchant reports.</p>
+          </div>
+
+          <div class="lf-field">
+            <label class="lf-label" for="date">Date</label>
+            <input class="lf-input" id="date" name="date" type="date" value="2026-07-17">
+          </div>
+
+          <div style="display: flex; align-items: center; gap: var(--lf-space-3);">
+            <span class="lf-switch">
+              <input type="checkbox" id="recurring" name="recurring">
+              <span class="lf-switch-track" aria-hidden="true"></span>
+            </span>
+            <label for="recurring" class="lf-text-sm">Repeats monthly</label>
+          </div>
+
+          <div style="display: flex; gap: var(--lf-space-3); justify-content: flex-end;">
+            <button class="lf-btn lf-btn--secondary" type="button">Cancel</button>
+            <button class="lf-btn lf-btn--primary" type="submit">Save transaction</button>
+          </div>
+        </form>
+      </section>
+    </main>
+  </div>
+</div>
+
+<nav class="lf-tabbar" aria-label="Primary">
+  <a class="lf-tabbar-item" href="dashboard.html">
+    <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="11" y="3" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="11" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="11" y="11" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
+    Overview
+  </a>
+  <a class="lf-tabbar-item" href="transactions.html" aria-current="page">
+    <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    Activity
+  </a>
+  <a class="lf-tabbar-item" href="dashboard.html#budgets">
+    <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M10 6v4l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    Budgets
+  </a>
+  <a class="lf-tabbar-item" href="dashboard.html#accounts">
+    <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="5" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3 8.5h14" stroke="currentColor" stroke-width="1.8"/></svg>
+    Accounts
+  </a>
+</nav>
+
+<dialog class="lf-modal lf-cmdk" id="cmdk" aria-label="Command palette">
+  <input class="lf-input" id="cmdk-input" type="search" placeholder="Search pages and actions…" aria-label="Search pages and actions">
+  <ul class="lf-cmdk-list" id="cmdk-list">
+    <li><a href="dashboard.html">Overview</a></li>
+    <li><a href="transactions.html">Transactions</a></li>
+    <li><a href="transactions.html#add">Add transaction <span class="lf-kbd">N</span></a></li>
+    <li><a href="dashboard.html#budgets">Budgets</a></li>
+    <li><a href="index.html">Design system reference</a></li>
+  </ul>
+  <p class="lf-cmdk-empty" id="cmdk-empty" hidden>No matches. Try “transactions”.</p>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>

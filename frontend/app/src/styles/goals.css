@@ -1,0 +1,526 @@
+/* ==========================================================================
+   Savings goals — motivating, visual progress. A circular progress ring, a
+   milestone checkpoint track, one-tap contributions, and a celebratory state
+   when a goal is reached.
+   ========================================================================== */
+
+/* ---------- progress ring ---------- */
+.lf-goal-ring {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  flex-shrink: 0;
+}
+
+.lf-goal-ring svg {
+  width: 100%;
+  height: 100%;
+}
+
+.lf-goal-ring-track {
+  fill: none;
+  stroke: var(--lf-bg-sunken);
+}
+
+.lf-goal-ring-arc {
+  fill: none;
+  stroke: var(--lf-action-primary);
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--lf-duration-base) var(--lf-ease-out);
+}
+
+.lf-goal-ring--met .lf-goal-ring-arc {
+  stroke: var(--lf-status-success);
+}
+
+.lf-goal-ring-tick {
+  stroke: var(--lf-bg-surface);
+  stroke-width: 2;
+}
+
+.lf-goal-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+
+.lf-goal-ring-pct {
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-medium);
+  font-size: var(--lf-text-xl);
+  letter-spacing: var(--lf-tracking-tight);
+  color: var(--lf-text-primary);
+}
+
+.lf-goal-ring-sub {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* ---------- card head layout ---------- */
+.lf-goal-head {
+  display: flex;
+  gap: var(--lf-space-4);
+  align-items: center;
+}
+
+.lf-goal-head-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.lf-goal-name {
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-medium);
+  font-size: var(--lf-text-lg);
+  color: var(--lf-text-primary);
+}
+
+.lf-goal-figures {
+  margin-top: 2px;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-goal-nudge {
+  margin-top: var(--lf-space-2);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-action-primary);
+  font-weight: var(--lf-weight-medium);
+}
+
+/* ---------- milestone track ---------- */
+.lf-goal-milestones {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  margin: var(--lf-space-5) 0 var(--lf-space-4);
+}
+
+.lf-goal-ms-line {
+  position: absolute;
+  top: 7px;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.lf-goal-ms-line {
+  background: var(--lf-bg-sunken);
+}
+
+.lf-goal-ms {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.lf-goal-ms-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-bg-surface);
+  border: 2px solid var(--lf-border-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lf-action-primary-text);
+}
+
+.lf-goal-ms[data-reached="true"] .lf-goal-ms-dot {
+  background: var(--lf-action-primary);
+  border-color: var(--lf-action-primary);
+}
+
+.lf-goal-ms[data-final="true"][data-reached="true"] .lf-goal-ms-dot {
+  background: var(--lf-status-success);
+  border-color: var(--lf-status-success);
+}
+
+.lf-goal-ms-label {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-goal-ms[data-reached="true"] .lf-goal-ms-label {
+  color: var(--lf-text-secondary);
+  font-weight: var(--lf-weight-medium);
+}
+
+/* ---------- quick-add contributions ---------- */
+.lf-goal-quickadd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lf-space-2);
+  margin-top: var(--lf-space-3);
+}
+
+.lf-goal-quickadd-form {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+}
+
+.lf-goal-quickadd-form .lf-input {
+  max-width: 130px;
+}
+
+/* ---------- celebration ---------- */
+.lf-goal-celebrate {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  margin-top: var(--lf-space-3);
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border-radius: var(--lf-radius-md);
+  background: color-mix(in srgb, var(--lf-status-success) 12%, transparent);
+  color: var(--lf-status-success);
+}
+
+.lf-goal-celebrate-title {
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-primary);
+}
+
+/* ---------- contribution history ---------- */
+.lf-goal-history-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-2) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-goal-history-item:last-child {
+  border-bottom: 0;
+}
+
+.lf-goal-summary-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ==========================================================================
+   Goal forecast panel
+   --------------------------------------------------------------------------
+   The forecast half of a goal card. Three monthly figures sit side by side
+   because they answer different questions (needed / actual / planned), and
+   collapsing them is what makes most goal trackers useless once a user falls
+   behind.
+   ========================================================================== */
+.lf-goal-forecast {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+  margin-top: var(--lf-space-4);
+  padding-top: var(--lf-space-4);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+.lf-goal-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--lf-space-3);
+  margin: 0;
+}
+
+/* One column per figure down to phones, where three cramped columns would
+   truncate the amounts. */
+@media (max-width: 519px) {
+  .lf-goal-metrics {
+    grid-template-columns: 1fr;
+    gap: var(--lf-space-2);
+  }
+}
+
+.lf-goal-metric dt {
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+  margin-bottom: 2px;
+}
+
+.lf-goal-metric dd {
+  margin: 0;
+  font-size: var(--lf-text-base);
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The gap between required and actual — the most actionable line on the card, so it gets a tinted well rather than sitting in the flow. */
+.lf-goal-shortfall {
+  padding: var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-status-warning-bg);
+  color: var(--lf-status-warning-text);
+  font-size: var(--lf-text-sm);
+  line-height: 1.5;
+}
+
+.lf-goal-eta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--lf-space-2);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-goal-eta > span:first-child {
+  color: var(--lf-text-secondary);
+}
+
+/* The completion date is a model output, not a fact, and it was rendered in
+   the same ink as the amounts beside it. `horizon` is the system's colour for
+   the future — the same one <Figure certainty="projected"> uses — so a
+   forecast reads as a forecast on this card too. The confidence band beneath
+   it already states the basis. */
+.lf-goal-eta strong {
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-certainty-projected);
+}
+
+/* Confidence is banded, never a percentage — see confidenceBand(). A heuristic
+   rendered to the point implies precision the model hasn't got. */
+.lf-goal-confidence {
+  font-size: var(--lf-text-sm);
+  line-height: 1.5;
+}
+
+.lf-goal-confidence--success {
+  color: var(--lf-status-success-text);
+}
+
+.lf-goal-confidence--warning {
+  color: var(--lf-status-warning-text);
+}
+
+.lf-goal-confidence--danger {
+  color: var(--lf-status-danger-text);
+}
+
+.lf-goal-chart {
+  margin-inline: calc(-1 * var(--lf-space-2));
+}
+
+.lf-goal-chart-caption {
+  margin-top: var(--lf-space-1);
+  text-align: center;
+}
+
+/* Kind + priority line under the goal name. Quiet: it orients, it doesn't
+   compete with the figures. */
+.lf-goal-kindline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-1);
+  margin-top: 2px;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* Only shown for Critical/High — a badge on every card would mean nothing. */
+.lf-goal-priority {
+  margin-inline-start: var(--lf-space-1);
+  padding: 1px var(--lf-space-2);
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-status-warning-bg);
+  color: var(--lf-status-warning-text);
+  font-weight: var(--lf-weight-semibold);
+}
+
+/* ==========================================================================
+   Goal recommendations
+   --------------------------------------------------------------------------
+   Suggestions derived from the user's own figures. The rationale gets more
+   room than the title, because the reason is what makes the number checkable.
+   ========================================================================== */
+.lf-goal-recs {
+  margin-bottom: var(--lf-rhythm-section);
+}
+
+.lf-goal-recs-title {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  margin-bottom: var(--lf-space-3);
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-md);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-snug);
+  color: var(--lf-text-primary);
+}
+
+.lf-goal-recs-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--lf-space-4);
+}
+
+/* A suggestion is not a commitment, and it was rendered exactly like one —
+   same fill, same border, same weight as the goals the user actually chose.
+   No fill and a dashed `horizon` edge says "this is a proposal about the
+   future" in the same vocabulary <Figure certainty="projected"> uses. */
+.lf-goal-rec {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--lf-certainty-projected);
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+}
+
+.lf-goal-rec-head {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+}
+
+.lf-goal-rec-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-selection-bg);
+  color: var(--lf-action-primary);
+}
+
+.lf-goal-rec-name {
+  font-weight: var(--lf-weight-semibold);
+  line-height: 1.25;
+}
+
+.lf-goal-rec-why {
+  font-size: var(--lf-text-sm);
+  line-height: 1.55;
+  color: var(--lf-text-secondary);
+}
+
+.lf-goal-rec-figures {
+  display: flex;
+  gap: var(--lf-space-5);
+  margin: 0;
+  padding-top: var(--lf-space-3);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+.lf-goal-rec-figures dt {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-goal-rec-figures dd {
+  margin: 0;
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Add funds: the funded / unfunded choice ---------------------------- */
+/* The two options carry different consequences for account balances, so they
+   read as cards to be chosen between rather than a radio list to skim past. */
+.lf-fund-modes {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+
+.lf-fund-mode {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: start;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3);
+  border: 1px solid var(--lf-border-default);
+  border-radius: var(--lf-radius-md);
+  cursor: pointer;
+  transition: border-color var(--lf-transition-fast), background var(--lf-transition-fast);
+}
+
+.lf-fund-mode:hover:not([data-disabled="true"]) {
+  border-color: var(--lf-border-strong);
+}
+
+.lf-fund-mode[data-selected="true"] {
+  border-color: var(--lf-action-primary);
+  background: var(--lf-selection-bg, var(--lf-bg-sunken));
+}
+
+.lf-fund-mode[data-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.lf-fund-mode > svg {
+  color: var(--lf-text-secondary);
+  margin-top: 1px;
+}
+
+.lf-fund-mode[data-selected="true"] > svg {
+  color: var(--lf-action-primary);
+}
+
+.lf-fund-mode-title {
+  display: block;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+}
+
+.lf-fund-mode-body {
+  display: block;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-secondary);
+  margin-top: 2px;
+}
+
+/* States the effect of the pending action before it's taken. */
+.lf-fund-preview {
+  padding: var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+  border: 1px solid var(--lf-border-subtle);
+}
+
+.lf-fund-preview svg {
+  vertical-align: -2px;
+  color: var(--lf-text-tertiary);
+}
+
+/* Action rows share a baseline across the row.
+   The cards size to their content, so a three-line rationale pushed its
+   "Set this up" button 21px below the two-line card beside it — measured on
+   the live page during the audit. `margin-top: auto` in a stretched grid item
+   pins every action to the bottom of the tallest card instead. */
+.lf-goal-rec > :last-child {
+  margin-top: auto;
+}
+
+/* An eyebrow, so the distinction survives greyscale, high-contrast mode and a
+   screenshot — a dashed border alone is a colour-and-style cue. */
+.lf-goal-rec-flag {
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-certainty-projected);
+}

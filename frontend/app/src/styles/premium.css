@@ -1,0 +1,124 @@
+/* ==========================================================================
+   Material — imported last. Adds depth and richness on top of the token
+   system without changing any layout: an ambient canvas wash, a glassy
+   sticky topbar, refined surface elevation, and a gradient primary action.
+
+   Everything here is a *finish*, not a structure. Remove this file and the
+   product is still complete and usable — which is the test for whether
+   something belongs in this layer.
+   ========================================================================== */
+
+/* ------------------------------------------------------------- canvas --- */
+
+/* A faint top-of-page bloom so the app never reads as a flat gray sheet.
+   Fixed attachment keeps it anchored to the viewport rather than scrolling
+   with content, so it behaves like light in the room. */
+body {
+  background:
+    radial-gradient(
+      60% 320px at 50% 0%,
+      color-mix(in srgb, var(--lf-action-primary) 5%, transparent),
+      transparent 75%
+    ),
+    var(--lf-bg-app);
+  background-attachment: fixed;
+}
+
+/* --------------------------------------------------------------- topbar --- */
+
+/* Translucent + blurred: content passing beneath stays legible as motion but
+   never competes with the controls on top. */
+.lf-topbar {
+  background: color-mix(in srgb, var(--lf-bg-surface) 82%, transparent);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  backdrop-filter: blur(10px) saturate(1.4);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+/* Browsers without backdrop-filter get the solid surface instead of a
+   washed-out translucent bar. */
+@supports not (backdrop-filter: blur(10px)) {
+  .lf-topbar {
+    background: var(--lf-bg-surface);
+  }
+}
+
+/* ------------------------------------------------------- primary action --- */
+
+/* A one-stop vertical gradient plus an inner top highlight: the button reads
+   as a lit physical surface rather than a filled rectangle. The gradient is
+   derived from the accent token, so custom accents get it automatically. */
+.lf-btn--primary {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--lf-action-primary) 92%, var(--lf-paper-000)),
+    var(--lf-action-primary)
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    var(--lf-shadow-sm);
+}
+
+.lf-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--lf-action-primary-hover) 92%, var(--lf-paper-000)),
+    var(--lf-action-primary-hover)
+  );
+}
+
+/* ---------------------------------------------------------------- rail --- */
+
+/* The rail sits fractionally behind the content plane: a hair darker than the
+   canvas, so the content column reads as the foreground without a shadow. */
+@media (min-width: 1024px) {
+  .lf-rail {
+    background: color-mix(in srgb, var(--lf-bg-surface) 92%, var(--lf-bg-app));
+  }
+}
+
+/* ------------------------------------------------------------- surfaces --- */
+
+/* Sunken wells (segmented controls, meter tracks, footers) get a hairline
+   inner shadow so they read as recessed rather than merely gray. */
+.lf-segmented,
+.lf-meter-track {
+  box-shadow: inset 0 1px 2px rgba(21, 25, 40, 0.06);
+}
+
+[data-theme="dark"] .lf-segmented,
+[data-theme="dark"] .lf-meter-track {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* ------------------------------------------------------------ page header --- */
+
+.lf-page-header .lf-eyebrow,
+.lf-dash-subtitle {
+  letter-spacing: 0.02em;
+}
+
+/* --------------------------------------------------- forced high contrast --- */
+
+/* Finishes are the first thing to go when the user asks for contrast:
+   gradients, blurs and washes all reduce edge definition. */
+@media (prefers-contrast: more) {
+  body {
+    background: var(--lf-bg-app);
+  }
+  .lf-topbar {
+    background: var(--lf-bg-surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .lf-btn--primary,
+  .lf-btn--primary:hover:not(:disabled) {
+    background: var(--lf-action-primary);
+    box-shadow: none;
+  }
+
+.lf-segmented,
+.lf-meter-track {
+    box-shadow: none;
+  }
+}

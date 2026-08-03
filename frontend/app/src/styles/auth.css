@@ -1,0 +1,240 @@
+/* ==========================================================================
+   Auth — premium split-screen shell.
+   Left: dark ink brand panel with ambient verdant glow, a faint ledger grid,
+   and a rotating famous quote on money. Right: the form, clean and focused.
+   Collapses to a single centered column under 900px.
+   ========================================================================== */
+
+.lf-auth-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(380px, 44%) minmax(0, 1fr);
+  background: var(--lf-bg-app);
+}
+
+/* ---------------------------------------------------------- brand panel --- */
+
+.lf-auth-panel {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(160deg, #10131f 0%, #151928 45%, #17233a 100%);
+  color: #f2f4f8;
+  display: flex;
+
+  /* Scoped light tokens. The panel's background is hand-tuned and theme-
+     invariant, so the theme's own inverse tokens can't be used here — in dark
+     mode they flip dark. Named-colour mixes keep the ratchet clean and give
+     the illustration (which draws entirely from tokens) light strokes instead
+     of the near-black it was drawing on navy. */
+  --lf-text-primary: color-mix(in srgb, white 95%, transparent);
+  --lf-text-secondary: color-mix(in srgb, white 74%, transparent);
+  --lf-text-tertiary: color-mix(in srgb, white 55%, transparent);
+  --lf-bg-surface: color-mix(in srgb, white 12%, transparent);
+  --lf-border-subtle: color-mix(in srgb, white 16%, transparent);
+  /* The projected hue, lifted to read on navy without losing its identity.
+     Mixed from the primitive, not from itself — a custom property that
+     references its own name is a cycle, which resolves to invalid and would
+     strip the projected figure of any colour at all. */
+  --lf-certainty-projected: color-mix(in srgb, var(--lf-horizon-600) 40%, white);
+}
+
+/* ambient light: a soft verdant bloom + a faint cool counter-glow */
+.lf-auth-panel-glow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(52% 42% at 18% 82%, rgba(14, 122, 95, 0.38), transparent 70%),
+    radial-gradient(40% 34% at 86% 12%, rgba(84, 110, 255, 0.16), transparent 70%);
+  pointer-events: none;
+}
+
+/* a whisper of ledger grid — the product's soul, at 3% */
+.lf-auth-panel-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 44px 44px;
+  /* Not a colour: inside a mask, the channel that matters is alpha, and #000
+     is simply "fully opaque here". Tokenising it would make the mask follow
+     the theme, which is exactly what it must not do. */
+  mask-image: radial-gradient(80% 80% at 50% 40%, #000 30%, transparent 100%);
+  pointer-events: none;
+}
+
+.lf-auth-panel-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(32px, 5vw, 64px);
+  width: 100%;
+}
+
+.lf-auth-panel-tagline {
+  font-size: var(--lf-text-sm);
+  color: rgba(242, 244, 248, 0.55);
+  letter-spacing: 0.01em;
+}
+
+/* ---------------------------------------------------------------- quote --- */
+
+.lf-quote {
+  margin: auto 0;
+  max-width: 26rem;
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 420ms var(--lf-ease-out),
+    transform 420ms var(--lf-ease-out);
+}
+.lf-quote[data-entering="true"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.lf-quote-text {
+  font-family: var(--lf-font-display);
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  line-height: 1.35;
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-tight);
+  color: #f7f8fb;
+  text-wrap: balance;
+}
+
+.lf-quote-author {
+  margin-top: var(--lf-space-4);
+  font-size: var(--lf-text-sm);
+  color: rgba(242, 244, 248, 0.62);
+}
+
+/* ------------------------------------------------------------ form side --- */
+
+.lf-auth-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--lf-space-8) var(--lf-space-6);
+}
+
+.lf-auth-card {
+  width: 100%;
+  max-width: 400px;
+}
+
+.lf-auth-form-card {
+  padding: var(--lf-space-7, 28px);
+  box-shadow: var(--lf-shadow-raised);
+}
+
+/* The settled/projected pair at the foot of the panel. */
+.lf-auth-specimen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--lf-space-5);
+  padding-top: var(--lf-space-4);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+.lf-auth-specimen .lf-auth-panel-tagline {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+/* brand */
+.lf-auth-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: -0.01em;
+}
+.lf-auth-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--lf-verdant-600);
+  color: #fff;
+}
+.lf-auth-brand--inverted {
+  color: #f2f4f8;
+}
+.lf-auth-brand--inverted .lf-auth-brand-mark {
+  background: rgba(255, 255, 255, 0.12);
+  color: #6fd3b4;
+}
+
+.lf-auth-mobile-brand {
+  display: none;
+  margin-bottom: var(--lf-space-5);
+}
+
+/* --------------------------------------------------------------- mobile --- */
+
+@media (max-width: 899px) {
+  .lf-auth-shell {
+    grid-template-columns: 1fr;
+  }
+  .lf-auth-panel {
+    display: none;
+  }
+  .lf-auth-mobile-brand {
+    display: flex;
+    justify-content: center;
+  }
+  .lf-auth-main {
+    padding: var(--lf-space-6) var(--lf-space-4);
+    padding-bottom: calc(var(--lf-space-6) + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ------------------------------------------------------------ logged out --- */
+
+.lf-loggedout-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--lf-radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--lf-verdant-600) 12%, transparent);
+  color: var(--lf-verdant-600);
+  margin-bottom: var(--lf-space-3);
+}
+
+/* Tap targets on the auth screens.
+ *
+ * "Forgot password?" and "Create an account" are bare inline links, so their
+ * hit area was the text box itself — 15px tall, under the 24×24 CSS px floor
+ * in WCAG 2.5.8 (Target Size, Minimum). They are also the two links most likely
+ * to be tapped on a phone by someone who is already locked out and frustrated.
+ *
+ * Padding rather than a larger font: the visual weight is deliberately
+ * secondary to the submit button, and inflating the text would compete with it.
+ * `inline-block` is required for vertical padding to affect the box at all.
+ */
+.lf-auth-shell a {
+  display: inline-block;
+  min-height: 24px;
+  padding-block: var(--lf-space-1);
+  /* Keeps the underline snug to the text despite the taller box. */
+  text-underline-offset: 2px;
+}
+
+/* The one standalone link on the sign-in form — right-aligned, on its own line,
+   and reached one-handed on a phone. Inline links inside a sentence keep their
+   natural height: forcing a 44px box around three words mid-sentence would
+   break the sentence, and they clear the 24px AA floor as they are. */
+.lf-auth-forgot {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--lf-touch-target);
+}

@@ -1,0 +1,71 @@
+from __future__ import annotations
+
+from django.urls import path
+
+from .views import (
+    AnomaliesView,
+    AutomationRuleDetailView,
+    AutomationRuleListView,
+    AutomationBulkDecisionView,
+    AutomationDecisionView,
+    AutomationQueueView,
+    AutomationScanView,
+    BriefingView,
+    MerchantProfileView,
+    CashRunwayView,
+    ForecastView,
+    HealthScoreView,
+    InsightDecisionView,
+    InsightGenerateView,
+    InsightListView,
+    LLMSettingsView,
+    AskView,
+    MilestonesView,
+    NetWorthHistoryView,
+    RecommendationsView,
+    SpendingTrendView,
+    SuggestionDecisionView,
+    SuggestionListView,
+)
+
+urlpatterns = [
+    path("llm-settings/", LLMSettingsView.as_view(), name="intel-llm-settings"),
+    path("automation/scan/", AutomationScanView.as_view(), name="intel-auto-scan"),
+    path("automation/queue/", AutomationQueueView.as_view(), name="intel-auto-queue"),
+    path("automation/bulk/", AutomationBulkDecisionView.as_view(), name="intel-auto-bulk"),
+    path(
+        "automation/<uuid:suggestion_id>/<str:decision>/",
+        AutomationDecisionView.as_view(),
+        name="intel-auto-decide",
+    ),
+    path("merchants/", MerchantProfileView.as_view(), name="intel-merchants"),
+    path("insights/", InsightListView.as_view(), name="intel-insights"),
+    path("insights/generate/", InsightGenerateView.as_view(), name="intel-insights-generate"),
+    path(
+        "insights/<uuid:insight_id>/<str:decision>/",
+        InsightDecisionView.as_view(),
+        name="intel-insight-decision",
+    ),
+    path("briefing/<str:period>/", BriefingView.as_view(), name="intel-briefing"),
+    path("suggestions/", SuggestionListView.as_view(), name="intel-suggestions"),
+    path(
+        "suggestions/<uuid:suggestion_id>/<str:decision>/",
+        SuggestionDecisionView.as_view(),
+        name="intel-suggestion-decision",
+    ),
+    path("health-score/", HealthScoreView.as_view(), name="intel-health-score"),
+    path("recommendations/", RecommendationsView.as_view(), name="intel-recommendations"),
+    path("anomalies/", AnomaliesView.as_view(), name="intel-anomalies"),
+    path("cash-runway/", CashRunwayView.as_view(), name="intel-cash-runway"),
+    path("forecast/", ForecastView.as_view(), name="intel-forecast"),
+    path("ask/", AskView.as_view(), name="intel-ask"),
+    path("milestones/", MilestonesView.as_view(), name="intel-milestones"),
+    path("net-worth-history/", NetWorthHistoryView.as_view(), name="intel-net-worth-history"),
+    path("spending-trend/", SpendingTrendView.as_view(), name="intel-spending-trend"),
+    path("automation-rules/", AutomationRuleListView.as_view(), name="intel-automation-rules"),
+    path(
+        "automation-rules/<uuid:rule_id>/",
+        AutomationRuleDetailView.as_view(),
+        name="intel-automation-rule-detail",
+    ),
+]

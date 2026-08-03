@@ -1,0 +1,130 @@
+/* ==========================================================================
+   Appearance customization — accent color + density.
+   Accents re-point the action/link/focus/selection tokens; everything built on
+   those tokens (buttons, links, active nav, meters, focus rings, the premium
+   gradient) recolors automatically. Dark theme gets lighter link/selection
+   variants per accent. Density compacts the spacing scale only — the 44px
+   touch-target token is deliberately untouched.
+   ========================================================================== */
+
+/* ------------------------------------------------------------- accents --- */
+
+:root[data-accent="verdant"] {
+  --lf-action-primary: #0e7a5f;
+  --lf-action-primary-hover: #0a5f4a;
+  --lf-focus-ring: #14a385;
+  --lf-selection-bg: #e0f2ec;
+  --lf-text-link: #0a5f4a;
+}
+:root[data-accent="ocean"] {
+  --lf-action-primary: #0369a1;
+  --lf-action-primary-hover: #075985;
+  --lf-focus-ring: #0284c7;
+  --lf-selection-bg: #e0f2fe;
+  --lf-text-link: #075985;
+}
+:root[data-accent="plum"] {
+  --lf-action-primary: #8b30d9;
+  --lf-action-primary-hover: #7625ba;
+  --lf-focus-ring: #a855f7;
+  --lf-selection-bg: #f3e8ff;
+  --lf-text-link: #7625ba;
+}
+:root[data-accent="ember"] {
+  --lf-action-primary: #c2410c;
+  --lf-action-primary-hover: #9a3412;
+  --lf-focus-ring: #ea580c;
+  --lf-selection-bg: #ffedd5;
+  --lf-text-link: #9a3412;
+}
+
+/* dark-theme variants: lighter links, translucent selection */
+[data-theme="dark"][data-accent="verdant"] {
+  --lf-action-primary: #17977a;
+  --lf-action-primary-hover: #14a385;
+  --lf-text-link: #5fd0b2;
+  --lf-selection-bg: rgba(20, 163, 133, 0.16);
+}
+[data-theme="dark"][data-accent="ocean"] {
+  --lf-action-primary: #0e7fbe;
+  --lf-action-primary-hover: #0284c7;
+  --lf-text-link: #67c3f3;
+  --lf-selection-bg: rgba(2, 132, 199, 0.16);
+}
+[data-theme="dark"][data-accent="plum"] {
+  --lf-action-primary: #9d4ae6;
+  --lf-action-primary-hover: #a855f7;
+  --lf-text-link: #cfa2f8;
+  --lf-selection-bg: rgba(168, 85, 247, 0.16);
+}
+[data-theme="dark"][data-accent="ember"] {
+  --lf-action-primary: #d3540f;
+  --lf-action-primary-hover: #ea580c;
+  --lf-text-link: #f8a56f;
+  --lf-selection-bg: rgba(234, 88, 12, 0.16);
+}
+
+/* ------------------------------------------------------------- density --- */
+
+:root[data-density="compact"] {
+  --lf-space-3: 0.625rem; /* 10px */
+  --lf-space-4: 0.875rem; /* 14px */
+  --lf-space-5: 1rem;     /* 16px */
+  --lf-space-6: 1.25rem;  /* 20px */
+  --lf-topbar-height: 52px;
+}
+
+/* ------------------------------------------------------ accent swatches --- */
+
+.lf-accent-swatches {
+  display: flex;
+  gap: var(--lf-space-2);
+}
+.lf-accent-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--lf-radius-full);
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 2px var(--lf-bg-surface);
+  transition: transform var(--lf-duration-fast) var(--lf-ease-out);
+}
+.lf-accent-swatch:hover {
+  transform: scale(1.08);
+}
+.lf-accent-swatch[aria-checked="true"] {
+  border-color: var(--lf-text-primary);
+}
+.lf-accent-swatch:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+/* --------------------------------------------------------------- fonts --- */
+
+/* Both overrides leave `--lf-font-ledger` alone on purpose. The duospace face
+   on amounts is not a stylistic preference — it is what makes a column of
+   figures align by place value, so it survives every font choice. What these
+   options change is the *other* place the duospace face appears: headings. */
+:root[data-font="system"] {
+  --lf-font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  --lf-font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+}
+:root[data-font="serif"] {
+  --lf-font-display: Georgia, "Times New Roman", "Songti SC", serif;
+  --lf-font-body: Georgia, "Times New Roman", "Songti SC", serif;
+}
+
+/* Root font-size scaling: tokens are rem-based, so text and rhythm scale
+   together — the standard accessibility approach. */
+:root[data-fontsize="small"] {
+  font-size: 93.75%; /* 15px */
+}
+:root[data-fontsize="large"] {
+  font-size: 106.25%; /* 17px */
+}
+:root[data-fontsize="xlarge"] {
+  font-size: 112.5%; /* 18px */
+}

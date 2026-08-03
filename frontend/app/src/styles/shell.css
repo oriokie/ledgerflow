@@ -1,0 +1,655 @@
+/* ==========================================================================
+   Application shell — responsive chrome that wraps every page.
+   Builds on the design-system tokens and the existing .lf-rail / .lf-topbar /
+   .lf-cmdk primitives. Desktop shows a fixed rail; below 1024px the same nav
+   is reached through a hamburger-triggered drawer.
+   ========================================================================== */
+
+/* ---------- topbar layout groups ---------- */
+.lf-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  min-width: 0;
+}
+
+/* Hamburger: only below the desktop rail breakpoint. */
+.lf-hamburger {
+  display: inline-flex;
+}
+@media (min-width: 1024px) {
+  .lf-hamburger {
+    display: none;
+  }
+}
+
+/* ---------- global search trigger (opens ⌘K palette) ---------- */
+.lf-search-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  height: 36px;
+  min-width: 0;
+  padding: 0 var(--lf-space-3);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-sm);
+  font-family: var(--lf-font-body);
+  cursor: pointer;
+  transition: border-color var(--lf-duration-fast) var(--lf-ease-out),
+    background var(--lf-duration-fast) var(--lf-ease-out);
+}
+.lf-search-trigger:hover {
+  border-color: var(--lf-border-strong);
+  background: var(--lf-bg-surface);
+}
+.lf-search-trigger:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+.lf-search-trigger-label {
+  flex: 1;
+  text-align: left;
+}
+/* On wide screens the trigger reads like a search box; on small it's icon-only. */
+@media (min-width: 768px) {
+  .lf-search-trigger {
+    width: 260px;
+  }
+}
+@media (max-width: 767px) {
+  .lf-search-trigger-label,
+  .lf-search-trigger .lf-kbd {
+    display: none;
+  }
+}
+
+.lf-kbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 1px 6px;
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-sm);
+  background: var(--lf-bg-surface);
+  color: var(--lf-text-tertiary);
+  font-family: var(--lf-font-mono);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+/* ---------- keyboard shortcut sheet (?) ---------- */
+.lf-shortcut-group + .lf-shortcut-group {
+  margin-top: var(--lf-space-5);
+}
+
+.lf-shortcut-list {
+  margin: var(--lf-space-2) 0 0;
+}
+
+.lf-shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-4);
+  min-height: 34px;
+  padding: var(--lf-space-1) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-shortcut-row:last-child {
+  border-bottom: 0;
+}
+
+.lf-shortcut-row dt {
+  color: var(--lf-text-secondary);
+}
+
+.lf-shortcut-row dd {
+  margin: 0;
+}
+
+.lf-shortcut-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-1);
+}
+
+.lf-shortcut-then {
+  margin-inline: var(--lf-space-1);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* ---------- generic dropdown menu (profile, notifications) ---------- */
+.lf-menu-anchor {
+  position: relative;
+}
+
+.lf-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 240px;
+  padding: var(--lf-space-2);
+  background: var(--lf-bg-surface);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-lg);
+  box-shadow: var(--lf-shadow-overlay);
+  animation: lf-menu-in var(--lf-duration-fast) var(--lf-ease-out);
+}
+@keyframes lf-menu-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.lf-menu-header {
+  padding: var(--lf-space-2) var(--lf-space-3) var(--lf-space-3);
+  border-bottom: 1px solid var(--lf-border-subtle);
+  margin-bottom: var(--lf-space-2);
+}
+
+.lf-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  width: 100%;
+  min-height: 40px;
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border: 0;
+  border-radius: var(--lf-radius-md);
+  background: transparent;
+  color: var(--lf-text-primary);
+  font: inherit;
+  font-size: var(--lf-text-sm);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.lf-menu-item:hover,
+.lf-menu-item:focus-visible {
+  background: var(--lf-bg-sunken);
+  outline: none;
+}
+.lf-menu-item--danger {
+  color: var(--lf-text-danger, var(--lf-carmine-600));
+}
+.lf-menu-sep {
+  height: 1px;
+  margin: var(--lf-space-2) 0;
+  background: var(--lf-border-subtle);
+}
+
+/* ---------- avatar trigger (profile) ---------- */
+.lf-avatar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-1) var(--lf-space-2);
+  border: 0;
+  border-radius: var(--lf-radius-md);
+  background: transparent;
+  cursor: pointer;
+  color: var(--lf-text-primary);
+  font: inherit;
+}
+.lf-avatar-btn:hover {
+  background: var(--lf-bg-sunken);
+}
+.lf-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-action-primary);
+  color: var(--lf-action-primary-text);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-bold);
+}
+.lf-avatar-name {
+  font-weight: var(--lf-weight-medium);
+  font-size: var(--lf-text-sm);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 639px) {
+  .lf-avatar-name {
+    display: none;
+  }
+}
+
+/* ---------- theme toggle (segmented, inside profile menu) ---------- */
+.lf-theme-toggle {
+  display: flex;
+  gap: 2px;
+  margin: var(--lf-space-1) var(--lf-space-2);
+  padding: 3px;
+  background: var(--lf-bg-sunken);
+  border-radius: var(--lf-radius-md);
+}
+.lf-theme-toggle button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 32px;
+  border: 0;
+  border-radius: var(--lf-radius-sm);
+  background: transparent;
+  color: var(--lf-text-secondary);
+  font: inherit;
+  font-size: var(--lf-text-xs);
+  cursor: pointer;
+}
+.lf-theme-toggle button[aria-pressed="true"] {
+  background: var(--lf-bg-surface);
+  color: var(--lf-text-primary);
+  box-shadow: var(--lf-shadow-sm, 0 1px 2px rgba(21, 25, 40, 0.08));
+}
+
+/* ---------- notification center panel ---------- */
+.lf-notif-panel {
+  width: min(360px, calc(100vw - var(--lf-space-6)));
+  padding: 0;
+}
+.lf-notif-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+.lf-notif-panel-title {
+  font-weight: var(--lf-weight-semibold);
+  font-size: var(--lf-text-sm);
+}
+.lf-notif-scroll {
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+}
+.lf-notif-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--lf-space-3);
+  width: 100%;
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border: 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.lf-notif-row:hover {
+  background: var(--lf-bg-sunken);
+}
+.lf-notif-row:last-child {
+  border-bottom: 0;
+}
+.lf-notif-status {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+.lf-notif-row[data-unread="true"] .lf-notif-status {
+  background: var(--lf-iris-600);
+}
+.lf-notif-row[data-severity="critical"] .lf-notif-status {
+  background: var(--lf-carmine-600);
+}
+.lf-notif-row-title {
+  display: block;
+  font-weight: var(--lf-weight-medium);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-primary);
+}
+.lf-notif-row-body {
+  display: block;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-secondary);
+  margin-top: 1px;
+}
+.lf-notif-row-time {
+  display: block;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  margin-top: 3px;
+}
+.lf-notif-panel-footer {
+  padding: var(--lf-space-2);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+.lf-notif-empty {
+  padding: var(--lf-space-8) var(--lf-space-4);
+  text-align: center;
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-sm);
+}
+
+/* ---------- mobile navigation drawer ---------- */
+.lf-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(21, 25, 40, 0.45);
+  animation: lf-fade-in var(--lf-duration-fast) var(--lf-ease-out);
+}
+@keyframes lf-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.lf-drawer {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 41;
+  width: min(280px, 82vw);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-1);
+  padding: var(--lf-space-4) var(--lf-space-3);
+  overflow-y: auto;
+  background: var(--lf-bg-surface);
+  border-right: 1px solid var(--lf-border-subtle);
+  animation: lf-drawer-in var(--lf-duration-base) var(--lf-ease-out);
+}
+@keyframes lf-drawer-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.lf-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--lf-space-2);
+}
+@media (min-width: 1024px) {
+  /* The drawer is never shown once the persistent rail is available. */
+  .lf-drawer,
+  .lf-drawer-backdrop {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-menu,
+  .lf-drawer,
+  .lf-drawer-backdrop {
+    animation: none;
+  }
+}
+
+/* ---------- command palette (⌘K) result rows ---------- */
+.lf-cmdk-group-label {
+  padding: var(--lf-space-2) var(--lf-space-3) var(--lf-space-1);
+  font-size: 0.694rem;
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide, 0.04em);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+}
+.lf-cmdk-list button {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  width: 100%;
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border: 0;
+  border-radius: var(--lf-radius-md);
+  background: transparent;
+  color: var(--lf-text-primary);
+  font: inherit;
+  font-size: var(--lf-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.lf-cmdk-list button:hover,
+.lf-cmdk-list button[aria-selected="true"] {
+  background: var(--lf-selection-bg);
+}
+.lf-cmdk-list button .lf-cmdk-hint {
+  margin-left: auto;
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-xs);
+}
+
+/* Hide an inline label on the narrowest screens (e.g. Add-transaction button). */
+@media (max-width: 639px) {
+  .lf-hide-xs {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Offline status bar
+   --------------------------------------------------------------------------
+   Absent in the common case (online, nothing queued) — see the component
+   doc comment. When present it sits above everything, including the rail,
+   because connectivity is a fact about the whole session, not one screen.
+   ========================================================================== */
+.lf-offline-bar {
+  position: sticky;
+  top: 0;
+  z-index: calc(var(--lf-z-modal, 1000) + 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lf-space-2);
+  padding: 6px var(--lf-space-4);
+  padding-top: max(6px, env(safe-area-inset-top));
+  background: var(--lf-status-warning-bg);
+  color: var(--lf-status-warning-text);
+  font-size: var(--lf-text-xs);
+  text-align: center;
+}
+
+.lf-offline-spin {
+  animation: lf-spin 1.2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-offline-spin {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   Phase 5 — the rail carries data
+   --------------------------------------------------------------------------
+   A navigation item that shows its own headline figure answers most questions
+   without navigating at all. See docs/redesign/02-strategy-ia.md §3.1.
+   ========================================================================== */
+
+/* The label takes the slack so the figure stays pinned to the trailing edge,
+   and a long workspace-specific label truncates rather than pushing it off. */
+.lf-nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lf-nav-metric {
+  flex-shrink: 0;
+  font-family: var(--lf-font-ledger);
+  font-size: var(--lf-text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-tertiary);
+}
+
+/* Reserved for a figure that wants acting on — a bill due, a suggestion
+   waiting. Never for a balance, which is just information. */
+.lf-nav-metric[data-tone="attention"] {
+  min-width: 1.25rem;
+  padding: 0 var(--lf-space-1);
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-status-warning-bg);
+  color: var(--lf-status-warning-text);
+  font-weight: var(--lf-weight-semibold);
+  text-align: center;
+}
+
+.lf-nav-item[aria-current="page"] .lf-nav-metric {
+  color: inherit;
+}
+
+/* ---------- tab panels in the Plan / Insights hubs ---------- */
+/* `tabIndex=-1` on the panel makes it programmatically focusable so switching
+   tabs can move focus into the new content; this keeps that from drawing a
+   focus ring when the move was a mouse click. */
+.lf-tabpanel {
+  margin-top: var(--lf-space-4);
+}
+
+.lf-tabpanel:focus {
+  outline: none;
+}
+
+/* ---------- the bottom bar's centre verb ---------- */
+/* A raised, filled slot, because it is doing something categorically different
+   from the four links beside it: the others change where you are, this one
+   changes what exists. */
+.lf-tabbar-add {
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  color: var(--lf-action-primary);
+}
+
+.lf-tabbar-add svg {
+  padding: 6px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-action-primary);
+  color: var(--lf-action-primary-text);
+  box-sizing: content-box;
+}
+
+/* ---------- add action sheet ---------- */
+.lf-action-sheet {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-1);
+}
+
+.lf-action-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  width: 100%;
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-3);
+  border: 0;
+  border-radius: var(--lf-radius-md);
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-action-item:hover {
+  background: var(--lf-bg-sunken);
+}
+
+.lf-action-item:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: -2px;
+}
+
+.lf-action-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+  color: var(--lf-action-primary);
+}
+
+.lf-action-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.lf-action-label {
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+}
+
+.lf-action-hint {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* ---------- pinned views ---------- */
+/* The remove control shares the row with the link rather than sitting inside
+   it: a button inside an anchor is invalid HTML and, more practically, makes
+   "unpin" a click target that also navigates. */
+.lf-pin-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.lf-pin-link {
+  flex: 1;
+  min-width: 0;
+}
+
+.lf-pin-remove {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--lf-radius-sm);
+  background: none;
+  color: var(--lf-text-tertiary);
+  cursor: pointer;
+  /* Hidden until the row is hovered or the button itself is focused, so eight
+     pins don't read as eight dismiss buttons — but never hidden from the
+     keyboard, which is why `:focus-visible` is in the selector. */
+  opacity: 0;
+  transition: opacity var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-pin-row:hover .lf-pin-remove,
+.lf-pin-remove:focus-visible {
+  opacity: 1;
+}
+
+.lf-pin-remove:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: -2px;
+}
+
+/* Touch has no hover, so the control is simply always visible there. */
+@media (hover: none) {
+  .lf-pin-remove {
+    opacity: 1;
+  }
+}

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+/* no-flash theme: runs before first paint; localStorage choice wins,
+   otherwise follow the OS preference */
+(function () {
+  try {
+    var theme = localStorage.getItem("lf-theme");
+    if (!theme && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) theme = "dark";
+    if (theme === "dark") document.documentElement.dataset.theme = "dark";
+  } catch (error) {}
+})();
+</script>
+<title>Design System · LedgerFlow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  .ds-section { margin-bottom: var(--lf-space-12); }
+  .ds-section > h2 { margin-bottom: var(--lf-space-4); }
+  .ds-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--lf-space-3); }
+  .ds-swatch { border-radius: var(--lf-radius-md); border: 1px solid var(--lf-border-subtle); overflow: hidden; }
+  .ds-swatch-chip { height: 56px; }
+  .ds-swatch-label { padding: var(--lf-space-2) var(--lf-space-3); font-size: var(--lf-text-xs); }
+  .ds-swatch-label code { font-family: var(--lf-font-ledger); color: var(--lf-text-secondary); }
+  .ds-row { display: flex; flex-wrap: wrap; gap: var(--lf-space-3); align-items: center; }
+  .ds-specimen { display: flex; flex-direction: column; gap: var(--lf-space-3); }
+</style>
+</head>
+<body>
+<a class="lf-skip-link" href="#main">Skip to content</a>
+
+<header class="lf-topbar">
+  <span style="font-family: var(--lf-font-display); font-weight: var(--lf-weight-bold);">LedgerFlow Design System</span>
+  <div class="lf-topbar-spacer"></div>
+  <a class="lf-btn lf-btn--ghost" href="dashboard.html">Dashboard demo</a>
+  <a class="lf-btn lf-btn--ghost" href="transactions.html">Transactions demo</a>
+  <button class="lf-btn lf-btn--secondary" type="button" id="theme-toggle" aria-pressed="false">Dark</button>
+</header>
+
+<main class="lf-content" id="main" style="padding-bottom: var(--lf-space-16);">
+  <div style="margin: var(--lf-space-8) 0 var(--lf-space-12); max-width: 60ch;">
+    <p class="lf-eyebrow">Foundations · v1</p>
+    <h1 style="margin-bottom: var(--lf-space-3);">Money, set like a ledger.</h1>
+    <p class="lf-text-secondary">
+      Every amount in LedgerFlow renders in a duospace ledger face — tabular,
+      sign-explicit, cents de-emphasized but never hidden. Earning is verdant.
+      Spending is ink, because spending is normal life. Carmine is reserved for
+      things that are actually wrong.
+    </p>
+  </div>
+
+  <!-- The signature specimen -->
+  <section class="ds-section" aria-labelledby="h-amounts">
+    <h2 id="h-amounts">The ledger amount</h2>
+    <div class="lf-card ds-specimen">
+      <data class="lf-amount lf-amount--out lf-amount--hero lf-display" value="31286.18">$31,286<span class="lf-amount-cents">.18</span></data>
+      <div class="ds-row" style="gap: var(--lf-space-6);">
+        <data class="lf-amount lf-amount--in" value="4250.00">+$4,250<span class="lf-amount-cents">.00</span></data>
+        <data class="lf-amount lf-amount--out" value="-86.20">−$86<span class="lf-amount-cents">.20</span></data>
+        <data class="lf-amount lf-amount--transfer" value="-500.00">⇄ $500<span class="lf-amount-cents">.00</span></data>
+        <data class="lf-amount lf-amount--danger" value="-62.00">−$62<span class="lf-amount-cents">.00</span> over</data>
+      </div>
+      <p class="lf-hint">
+        In / out / transfer / over-budget. The sign and glyph carry the meaning;
+        color reinforces it but is never the only signal.
+      </p>
+    </div>
+  </section>
+
+  <!-- Color -->
+  <section class="ds-section" aria-labelledby="h-color">
+    <h2 id="h-color">Color</h2>
+    <div class="ds-swatches">
+      <div class="ds-swatch"><div class="ds-swatch-chip" style="background: var(--lf-ink-900);"></div><div class="ds-swatch-label"><strong>Ink</strong><br><code>#151928</code> · text, dark surfaces</div></div>
+      <div class="ds-swatch"><div class="ds-swatch-chip" style="background: var(--lf-fog-050); border-bottom: 1px solid var(--lf-border-subtle);"></div><div class="ds-swatch-label"><strong>Fog</strong><br><code>#F6F7F9</code> · app background</div></div>
+      <div class="ds-swatch"><div class="ds-swatch-chip" style="background: var(--lf-iris-600);"></div><div class="ds-swatch-label"><strong>Iris</strong><br><code>#5558D9</code> · primary action, focus</div></div>
+      <div class="ds-swatch"><div class="ds-swatch-chip" style="background: var(--lf-verdant-600);"></div><div class="ds-swatch-label"><strong>Verdant</strong><br><code>#0E7A5F</code> · money-in, success</div></div>
+      <div class="ds-swatch"><div class="ds-swatch-chip" style="background: var(--lf-carmine-600);"></div><div class="ds-swatch-label"><strong>Carmine</strong><br><code>#C13A4B</code> · errors, over-budget only</div></div>
+      <div class="ds-swatch"><div class="ds-swatch-chip" style="background: var(--lf-amber-600);"></div><div class="ds-swatch-label"><strong>Amber</strong><br><code>#A16207</code> · pending, warnings</div></div>
+    </div>
+  </section>
+
+  <!-- Type -->
+  <section class="ds-section" aria-labelledby="h-type">
+    <h2 id="h-type">Typography</h2>
+    <div class="lf-card ds-specimen">
+      <p style="font-size: var(--lf-text-2xl); font-family: var(--lf-font-display); font-weight: var(--lf-weight-semibold); letter-spacing: var(--lf-tracking-tight);">Schibsted Grotesk — display</p>
+      <p style="font-size: var(--lf-text-md);">System humanist for interface text: labels, body, paragraphs. Zero load cost, native feel on every platform.</p>
+      <p class="lf-amount" style="font-size: var(--lf-text-md);">Spline Sans Mono 0123456789 — the ledger face</p>
+      <p class="lf-hint">Scale: 11.1 / 13.3 / 16 / 19.2 / 23 / 27.6 / 39.8 px (1.20 ratio, rem-based so user font-size preferences hold).</p>
+    </div>
+  </section>
+
+  <!-- Buttons -->
+  <section class="ds-section" aria-labelledby="h-buttons">
+    <h2 id="h-buttons">Buttons</h2>
+    <div class="lf-card ds-row">
+      <button class="lf-btn lf-btn--primary" type="button">Add transaction</button>
+      <button class="lf-btn lf-btn--secondary" type="button">Export CSV</button>
+      <button class="lf-btn lf-btn--ghost" type="button">Cancel</button>
+      <button class="lf-btn lf-btn--danger" type="button">Void transaction</button>
+      <button class="lf-btn lf-btn--primary" type="button" disabled>Saving…</button>
+    </div>
+  </section>
+
+  <!-- Badges -->
+  <section class="ds-section" aria-labelledby="h-badges">
+    <h2 id="h-badges">Status badges</h2>
+    <div class="lf-card ds-row">
+      <span class="lf-badge lf-badge--success">Reconciled</span>
+      <span class="lf-badge lf-badge--neutral">Posted</span>
+      <span class="lf-badge lf-badge--warning">Pending</span>
+      <span class="lf-badge lf-badge--danger">Over budget</span>
+    </div>
+  </section>
+
+  <!-- Form controls -->
+  <section class="ds-section" aria-labelledby="h-forms">
+    <h2 id="h-forms">Form controls</h2>
+    <div class="lf-card ds-specimen" style="max-width: 480px;">
+      <div class="lf-field">
+        <label class="lf-label" for="ds-amount">Amount</label>
+        <input class="lf-input lf-input--amount" id="ds-amount" inputmode="decimal" placeholder="0.00">
+      </div>
+      <div class="lf-field lf-field--invalid">
+        <label class="lf-label" for="ds-payee">Payee</label>
+        <input class="lf-input" id="ds-payee" aria-invalid="true" aria-describedby="ds-payee-err">
+        <p class="lf-error" id="ds-payee-err">Enter a payee so this shows up in merchant reports.</p>
+      </div>
+      <fieldset class="lf-segmented" style="border: 0; padding: 3px; align-self: flex-start;">
+        <legend class="lf-visually-hidden">Transaction type</legend>
+        <input type="radio" name="ds-type" id="ds-type-e" checked><label for="ds-type-e">Expense</label>
+        <input type="radio" name="ds-type" id="ds-type-i"><label for="ds-type-i">Income</label>
+        <input type="radio" name="ds-type" id="ds-type-t"><label for="ds-type-t">Transfer</label>
+      </fieldset>
+      <div class="ds-row">
+        <span class="lf-switch">
+          <input type="checkbox" id="ds-switch" checked>
+          <span class="lf-switch-track" aria-hidden="true"></span>
+        </span>
+        <label for="ds-switch" class="lf-text-sm">Repeats monthly</label>
+      </div>
+    </div>
+  </section>
+
+  <!-- Charts -->
+  <section class="ds-section" aria-labelledby="h-charts">
+    <h2 id="h-charts">Charts</h2>
+    <div class="lf-card" style="max-width: 560px;">
+      <ul class="lf-bars">
+        <li data-value="1850.00">
+          <span class="lf-cell-primary">Rent</span>
+          <span class="lf-bar-track"><span class="lf-bar-fill lf-bar-fill--1" style="width: 100%;"></span></span>
+          <data class="lf-amount lf-amount--out" value="1850.00">$1,850</data>
+        </li>
+        <li data-value="486.20">
+          <span class="lf-cell-primary">Groceries</span>
+          <span class="lf-bar-track"><span class="lf-bar-fill lf-bar-fill--2" style="width: 26.3%;"></span></span>
+          <data class="lf-amount lf-amount--out" value="486.20">$486<span class="lf-amount-cents">.20</span></data>
+        </li>
+        <li data-value="412.00">
+          <span class="lf-cell-primary">Dining out</span>
+          <span class="lf-bar-track"><span class="lf-bar-fill lf-bar-fill--3" style="width: 22.3%;"></span></span>
+          <data class="lf-amount lf-amount--out" value="412.00">$412</data>
+        </li>
+      </ul>
+      <p class="lf-hint" style="margin-top: var(--lf-space-4);">
+        Categorical ramp: iris, verdant, amber, plum, steel. Carmine is deliberately
+        absent — a spending category can never look like an error. Amounts stay
+        visible as text; bars only reinforce them.
+      </p>
+    </div>
+  </section>
+
+  <!-- Command palette -->
+  <section class="ds-section" aria-labelledby="h-cmdk">
+    <h2 id="h-cmdk">Command palette</h2>
+    <div class="lf-card ds-row">
+      <button class="lf-btn lf-btn--secondary" type="button" data-cmdk-open>Open command palette <span class="lf-kbd">⌘K</span></button>
+      <p class="lf-hint">Built on the modal primitive (native <code>&lt;dialog&gt;</code>): focus containment and Esc-to-close for free.</p>
+    </div>
+  </section>
+
+  <!-- Insights & disclosure -->
+  <section class="ds-section" aria-labelledby="h-insights">
+    <h2 id="h-insights">Insights &amp; progressive disclosure</h2>
+    <div class="lf-card lf-insight lf-insight--attention" style="max-width: 480px;">
+      <h3 class="lf-insight-title">
+        <span class="lf-badge lf-badge--danger">Over budget</span>
+        Dining out is <data class="lf-amount lf-amount--danger" value="62.00">$62</data> over
+      </h3>
+      <p class="lf-insight-body">One finding, one severity, at most one action. Positive insights carry none — good news doesn’t nag.</p>
+      <details class="lf-disclosure">
+        <summary>Show the math</summary>
+        <div class="lf-disclosure-body">
+          <ul class="lf-math">
+            <li><span>Spent</span><data class="lf-amount lf-amount--out" value="412.00">$412<span class="lf-amount-cents">.00</span></data></li>
+            <li class="lf-math-result"><span>Limit</span><data class="lf-amount lf-amount--transfer" value="350.00">$350<span class="lf-amount-cents">.00</span></data></li>
+          </ul>
+        </div>
+      </details>
+      <div class="lf-insight-actions">
+        <button class="lf-btn lf-btn--primary" type="button">Move $62 from Groceries</button>
+      </div>
+    </div>
+    <p class="lf-hint" style="margin-top: var(--lf-space-3); max-width: 60ch;">
+      Disclosure is a styled native <code>&lt;details&gt;</code> — keyboard, screen readers
+      and no-JS behavior come for free. Every derived number on the dashboard opens
+      to show its own arithmetic.
+    </p>
+  </section>
+
+  <!-- Feedback -->
+  <section class="ds-section" aria-labelledby="h-feedback">
+    <h2 id="h-feedback">Feedback</h2>
+    <div class="ds-specimen">
+      <div class="lf-toast" role="status">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="m5 8 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Transaction saved
+      </div>
+      <div class="lf-card lf-empty" style="max-width: 480px;">
+        <h3>No transactions yet</h3>
+        <p>Add your first expense, income or transfer and your running balance starts here.</p>
+        <button class="lf-btn lf-btn--primary" type="button">Add transaction</button>
+      </div>
+      <div class="lf-card ds-specimen" style="max-width: 480px;" aria-hidden="true">
+        <div class="lf-skeleton" style="height: 14px; width: 40%;"></div>
+        <div class="lf-skeleton" style="height: 32px; width: 65%;"></div>
+        <div class="lf-skeleton" style="height: 14px; width: 55%;"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog class="lf-modal lf-cmdk" id="cmdk" aria-label="Command palette">
+  <input class="lf-input" id="cmdk-input" type="search" placeholder="Search pages and actions…" aria-label="Search pages and actions">
+  <ul class="lf-cmdk-list" id="cmdk-list">
+    <li><a href="dashboard.html">Overview</a></li>
+    <li><a href="transactions.html">Transactions</a></li>
+    <li><a href="transactions.html#add">Add transaction <span class="lf-kbd">N</span></a></li>
+    <li><a href="dashboard.html#budgets">Budgets</a></li>
+    <li><a href="index.html">Design system reference</a></li>
+  </ul>
+  <p class="lf-cmdk-empty" id="cmdk-empty" hidden>No matches. Try “transactions”.</p>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>

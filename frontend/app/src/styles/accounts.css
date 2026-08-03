@@ -1,0 +1,221 @@
+/* ---------- master / detail layout ---------- */
+.lf-acct-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--lf-space-4);
+}
+@media (min-width: 900px) {
+  .lf-acct-layout {
+    grid-template-columns: minmax(300px, 360px) 1fr;
+    align-items: start;
+  }
+}
+
+/* ---------- account list (master) ---------- */
+.lf-acct-group + .lf-acct-group {
+  margin-top: var(--lf-space-4);
+}
+
+.lf-acct-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  padding: 0 var(--lf-space-2) var(--lf-space-2);
+}
+
+.lf-acct-group-label {
+  font-size: 0.694rem;
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide, 0.04em);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+}
+
+.lf-acct-group-total {
+  font-size: var(--lf-text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-secondary);
+}
+
+.lf-acct-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  width: 100%;
+  padding: var(--lf-space-3);
+  border: 0;
+  border-radius: var(--lf-radius-md);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+
+.lf-acct-item:hover {
+  background: var(--lf-bg-sunken);
+}
+
+.lf-acct-item[aria-current="true"] {
+  background: var(--lf-selection-bg);
+  border-left-color: var(--lf-action-primary);
+}
+
+.lf-acct-item:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: -2px;
+}
+
+.lf-acct-item-main {
+  flex: 1;
+  min-width: 0;
+  /* The name and meta are <span>s. Without a block formatting context here
+     they lay out inline on one line, `min-width: 0` has nothing to act on, and
+     the name's ellipsis can never fire — so a long account name runs straight
+     through its type label and into the balance. */
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.lf-acct-item-name {
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lf-acct-item-meta {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  margin-top: 1px;
+}
+
+.lf-acct-item-balance {
+  font-size: var(--lf-text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------- create-modal live preview ----------
+   Shows the row the new account will become, updating as the form is filled.
+   Sunken rather than raised: it's a reflection of the form, not a control. */
+.lf-acct-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-4);
+  border: 1px dashed var(--lf-border-default);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-sunken);
+}
+
+.lf-acct-preview-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.lf-acct-preview-name {
+  display: block;
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The placeholder name is visibly provisional until the user types. */
+.lf-acct-preview-name:empty::before {
+  content: "Account name";
+  color: var(--lf-text-tertiary);
+}
+
+.lf-acct-preview-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+/* ---------- account-type icon badge ---------- */
+.lf-acct-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--lf-radius-md);
+  background: color-mix(in srgb, var(--lf-iris-600) 12%, transparent);
+  color: var(--lf-iris-600);
+}
+
+.lf-acct-icon--liability {
+  background: color-mix(in srgb, var(--lf-carmine-600) 12%, transparent);
+  color: var(--lf-carmine-600);
+}
+
+.lf-acct-icon--lg {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--lf-radius-lg);
+}
+
+/* ---------- detail header ---------- */
+.lf-acct-detail-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-3);
+}
+
+.lf-acct-detail-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.lf-acct-detail-name {
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-medium);
+  font-size: var(--lf-text-xl);
+  letter-spacing: var(--lf-tracking-tight);
+  color: var(--lf-text-primary);
+}
+
+.lf-acct-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  margin-top: 3px;
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-sm);
+}
+
+/* prev/next account stepper */
+.lf-acct-nav {
+  display: inline-flex;
+  gap: 2px;
+}
+
+/* Back-to-list affordance — only meaningful when the columns are stacked. */
+.lf-acct-back {
+  display: none;
+}
+@media (max-width: 899px) {
+  .lf-acct-back {
+    display: inline-flex;
+  }
+}
+
+/* Mobile: show one column at a time; desktop shows both side by side. */
+@media (max-width: 899px) {
+  .lf-acct-layout[data-mobile-view="list"] .lf-acct-detail-col {
+    display: none;
+  }
+  .lf-acct-layout[data-mobile-view="detail"] .lf-acct-list-col {
+    display: none;
+  }
+}

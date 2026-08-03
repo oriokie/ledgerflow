@@ -1,0 +1,212 @@
+/* ==========================================================================
+   Motion — micro-interactions, entrances, and feedback.
+   --------------------------------------------------------------------------
+   Imported after responsive.css. Three rules govern everything here:
+
+     1. Motion means meaning. Something moves because it arrived, departed, changed state, or can be acted on. Nothing moves for decoration.
+     2. Motion is fast. 120–200ms. Anything slower is felt as lag on the
+        tenth repetition, and a finance app is used daily.
+     3. Motion is compositor-only. Transform and opacity exclusively — never
+        width/top/margin — so every animation holds 60fps and costs no layout.
+
+   Every animation is neutralized by the global prefers-reduced-motion rule in
+   base.css, so motion is always opt-out.
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- toasts --- */
+
+.lf-toast-viewport {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(var(--lf-space-6) + env(safe-area-inset-bottom, 0px));
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lf-space-2);
+  pointer-events: none;
+  padding-inline: var(--lf-space-4);
+}
+@media (max-width: 1023px) {
+  /* clear the mobile tab bar */
+  .lf-toast-viewport {
+    bottom: calc(var(--lf-tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--lf-space-4));
+  }
+}
+
+.lf-toast--enter {
+  animation: lf-toast-in var(--lf-duration-base) var(--lf-ease-entrance);
+}
+@keyframes lf-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ------------------------------------------------------------- entrances --- */
+
+/* Pages announce themselves with a single, quick fade-up on the header — one
+   subtle cue per navigation, never a parade of staggered cards. */
+.lf-page-header,
+.lf-dash-header {
+  animation: lf-fade-up var(--lf-duration-base) var(--lf-ease-out);
+}
+@keyframes lf-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modals rise gently instead of popping: 98% → 100%, which reads as the
+   dialog coming forward rather than growing. */
+.lf-modal[open] {
+  animation: lf-modal-in var(--lf-duration-base) var(--lf-ease-entrance);
+}
+@keyframes lf-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.lf-modal[open]::backdrop {
+  animation: lf-backdrop-in var(--lf-duration-base) var(--lf-ease-out);
+}
+@keyframes lf-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+to {
+    opacity: 1;
+  }
+}
+
+/* Dropdowns and popovers: fade with a short downward slide, so the panel
+   feels hinged to the control that opened it. */
+.lf-menu {
+  animation: lf-pop-in var(--lf-duration-fast) var(--lf-ease-entrance);
+  transform-origin: top;
+}
+@keyframes lf-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+
+to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* --------------------------------------------------------- press feedback --- */
+
+/* Buttons and interactive chips acknowledge the press itself. */
+.lf-btn:active:not(:disabled),
+button.lf-chip:active {
+  transform: scale(0.98);
+}
+
+.lf-btn,
+button.lf-chip {
+  transition:
+    background var(--lf-duration-fast) var(--lf-ease-out),
+    border-color var(--lf-duration-fast) var(--lf-ease-out),
+    box-shadow var(--lf-duration-fast) var(--lf-ease-out),
+    color var(--lf-duration-fast) var(--lf-ease-out),
+    transform var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+/* The primary action is the one thing allowed to grow slightly under the
+   cursor — a 1.5% scale, below conscious notice but felt as responsiveness. */
+@media (hover: hover) {
+  .lf-btn--primary:hover:not(:disabled) {
+    transform: scale(1.015);
+  }
+  .lf-btn--primary:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+}
+
+/* ---------------------------------------------------------- hover lift --- */
+
+/* Only genuinely interactive surfaces lift: link cards, clickable rows, and
+   cards explicitly marked interactive. Static information cards stay still —
+   motion means "you can act here". */
+.lf-settings-linkcard,
+button.lf-cat-row,
+.lf-guidance {
+  transition:
+    transform var(--lf-duration-med) var(--lf-ease-out),
+    box-shadow var(--lf-duration-med) var(--lf-ease-out),
+    border-color var(--lf-duration-med) var(--lf-ease-out),
+    background var(--lf-duration-med) var(--lf-ease-out);
+}
+@media (hover: hover) {
+  .lf-settings-linkcard:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--lf-shadow-raised);
+  }
+}
+
+/* Row-level hover affordance for tappable list rows that lacked one. */
+@media (hover: hover) {
+  .lf-sub-row:hover,
+  .lf-bill-row:hover,
+  .lf-worth:hover {
+    background: color-mix(in srgb, var(--lf-bg-sunken) 55%, transparent);
+  }
+}
+
+.lf-sub-row,
+.lf-bill-row,
+.lf-worth {
+  border-radius: var(--lf-radius-md);
+  padding-inline: var(--lf-space-2);
+  margin-inline: calc(-1 * var(--lf-space-2));
+  transition: background var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+/* ------------------------------------------------------------ live values --- */
+
+/* Meters/bars/rings already transition; make sure new fills share the timing. */
+.lf-cat-bar-fill {
+  transition: width var(--lf-duration-base) var(--lf-ease-out);
+}
+/* -------------------------------------------------------- reduced motion --- */
+
+/* base.css already zeroes durations globally. These are the cases where the
+   *end state* also has to be corrected, because the element's resting style
+   assumes an animation ran. */
+@media (prefers-reduced-motion: reduce) {
+  .lf-menu,
+.lf-drawer,
+.lf-drawer-backdrop,
+.lf-modal[open] {
+    animation: none;
+  }
+  .lf-nav-item::before {
+    transform: translateY(-50%) scaleY(1);
+  }
+  .lf-btn--primary:hover:not(:disabled) {
+    transform: none;
+  }
+}

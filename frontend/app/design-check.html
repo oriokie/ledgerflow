@@ -1,0 +1,556 @@
+<!doctype html>
+<!--
+  Visual harness for the design system. Loads the real stylesheets in the real
+  import order from main.tsx and renders representative markup for every
+  refined component, so CSS changes can be reviewed without booting the API.
+  Open directly, or drive it with design-check.mjs.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LedgerFlow — design check</title>
+    <link rel="stylesheet" href="./src/styles/tokens.css" />
+    <link rel="stylesheet" href="./src/styles/appearance.css" />
+    <link rel="stylesheet" href="./src/styles/base.css" />
+    <link rel="stylesheet" href="./src/styles/components.css" />
+    <link rel="stylesheet" href="./src/styles/app.css" />
+    <link rel="stylesheet" href="./src/styles/auth.css" />
+    <link rel="stylesheet" href="./src/styles/ui.css" />
+    <link rel="stylesheet" href="./src/styles/shell.css" />
+    <link rel="stylesheet" href="./src/styles/dashboard.css" />
+    <link rel="stylesheet" href="./src/styles/accounts.css" />
+    <link rel="stylesheet" href="./src/styles/transactions.css" />
+    <link rel="stylesheet" href="./src/styles/budgets.css" />
+    <link rel="stylesheet" href="./src/styles/goals.css" />
+    <link rel="stylesheet" href="./src/styles/billing.css" />
+    <link rel="stylesheet" href="./src/styles/analytics.css" />
+    <link rel="stylesheet" href="./src/styles/insights.css" />
+    <link rel="stylesheet" href="./src/styles/settings.css" />
+    <link rel="stylesheet" href="./src/styles/responsive.css" />
+    <link rel="stylesheet" href="./src/styles/polish.css" />
+    <link rel="stylesheet" href="./src/styles/coach.css" />
+    <link rel="stylesheet" href="./src/styles/investments.css" />
+    <link rel="stylesheet" href="./src/styles/debt.css" />
+    <link rel="stylesheet" href="./src/styles/premium.css" />
+  </head>
+  <body>
+    <div class="lf-shell">
+      <!-- ---------- rail ---------- -->
+      <nav class="lf-rail" aria-label="Primary">
+        <a class="lf-rail-brand" href="#">
+          <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <rect x="2" y="3" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.8" />
+            <path d="M6 8h8M6 12h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
+          LedgerFlow
+        </a>
+        <div class="lf-rail-section">
+          <p class="lf-rail-section-label">Money</p>
+          <a class="lf-nav-item" aria-current="page" href="#"><span class="lf-nav-icon">▦</span>Overview</a>
+          <a class="lf-nav-item" href="#"><span class="lf-nav-icon">⇄</span>Transactions</a>
+          <a class="lf-nav-item" href="#"><span class="lf-nav-icon">▤</span>Accounts</a>
+          <a class="lf-nav-item" href="#"><span class="lf-nav-icon">◱</span>Categories</a>
+        </div>
+        <div class="lf-rail-section">
+          <p class="lf-rail-section-label">Planning</p>
+          <a class="lf-nav-item" href="#"><span class="lf-nav-icon">◷</span>Budgets</a>
+          <a class="lf-nav-item" href="#"><span class="lf-nav-icon">◎</span>Goals</a>
+        </div>
+      </nav>
+
+      <div class="lf-shell-main">
+        <header class="lf-topbar">
+          <div class="lf-topbar-left"><strong>Rivera Household</strong></div>
+          <div class="lf-topbar-spacer"></div>
+          <button class="lf-search-trigger">
+            <span aria-hidden="true">⌕</span>
+            <span class="lf-search-trigger-label">Search…</span>
+            <kbd class="lf-kbd">⌘K</kbd>
+          </button>
+          <button class="lf-btn lf-btn--primary">Add transaction</button>
+        </header>
+
+        <main class="lf-content">
+          <!-- ---------- page header hierarchy ---------- -->
+          <div class="lf-page-header">
+            <div>
+              <p class="lf-eyebrow">12 accounts · USD</p>
+              <h1 class="lf-heading lf-heading--1">Accounts</h1>
+              <p class="lf-page-header-desc">Everything you hold, and everything you owe.</p>
+            </div>
+            <div class="lf-page-header-actions">
+              <button class="lf-btn lf-btn--secondary">New wallet</button>
+              <button class="lf-btn lf-btn--primary">New account</button>
+            </div>
+          </div>
+
+          <!-- ---------- cards: prominence ladder ---------- -->
+          <div class="lf-card lf-card--primary" style="margin-bottom: var(--lf-rhythm-section)">
+            <div class="lf-card-header">
+              <div>
+                <p class="lf-eyebrow">Net worth</p>
+                <p class="lf-card-title">Across all accounts</p>
+              </div>
+              <span class="lf-badge lf-badge--success">+4.2%</span>
+            </div>
+            <data class="lf-amount lf-amount--hero lf-display">$48,210<span class="lf-amount-cents">.44</span></data>
+          </div>
+
+          <div class="lf-grid lf-grid--3 lf-gap-6" style="margin-bottom: var(--lf-rhythm-section)">
+            <div class="lf-card">
+              <p class="lf-eyebrow">Income</p>
+              <data class="lf-amount lf-amount--in">$6,500<span class="lf-amount-cents">.00</span></data>
+            </div>
+            <div class="lf-card lf-card--interactive">
+              <p class="lf-eyebrow">Spending (interactive)</p>
+              <data class="lf-amount lf-amount--out">$3,182<span class="lf-amount-cents">.19</span></data>
+            </div>
+            <div class="lf-card lf-card--quiet">
+              <p class="lf-eyebrow">Transfers (quiet)</p>
+              <data class="lf-amount lf-amount--transfer">$900<span class="lf-amount-cents">.00</span></data>
+            </div>
+          </div>
+
+          <!-- ---------- buttons ---------- -->
+          <h2 class="lf-section-title">Buttons</h2>
+          <div class="lf-card" style="margin-bottom: var(--lf-rhythm-section)">
+            <div class="lf-inline lf-gap-3">
+              <button class="lf-btn lf-btn--primary">Primary</button>
+              <button class="lf-btn lf-btn--secondary">Secondary</button>
+              <button class="lf-btn lf-btn--ghost">Ghost</button>
+              <button class="lf-btn lf-btn--danger">Danger</button>
+              <button class="lf-btn lf-btn--danger-quiet">Quiet danger</button>
+              <button class="lf-btn lf-btn--primary" disabled>Disabled</button>
+              <button class="lf-btn lf-btn--primary is-loading">Loading</button>
+            </div>
+          </div>
+
+          <!-- ---------- forms ---------- -->
+          <h2 class="lf-section-title">Form states</h2>
+          <div class="lf-card" style="margin-bottom: var(--lf-rhythm-section)">
+            <div class="lf-form-stack">
+              <div class="lf-field-row">
+                <div class="lf-field">
+                  <label class="lf-label" for="f1">Account name<span style="color: var(--lf-status-danger)">*</span></label>
+                  <input class="lf-input" id="f1" value="Everyday Checking" />
+                  <p class="lf-hint">What you call it day to day.</p>
+                </div>
+                <div class="lf-field">
+                  <label class="lf-label" for="f2">Currency</label>
+                  <select class="lf-select" id="f2"><option>USD — US Dollar</option></select>
+                  <p class="lf-hint">Fixed once set.</p>
+                </div>
+              </div>
+              <div class="lf-field lf-field--invalid">
+                <label class="lf-label" for="f3">Last 4 digits</label>
+                <input class="lf-input" id="f3" value="12" aria-invalid="true" />
+                <p class="lf-error">Four digits, or leave blank.</p>
+              </div>
+              <div class="lf-field lf-field--valid">
+                <label class="lf-label" for="f4">Workspace name<span class="lf-label-optional">Optional</span></label>
+                <input class="lf-input" id="f4" value="Rivera Household" />
+                <p class="lf-success-text">Available.</p>
+              </div>
+              <div class="lf-field">
+                <label class="lf-label" for="f5">Amount</label>
+                <span class="lf-input-wrap">
+                  <span class="lf-input-affix lf-input-affix--lead">$</span>
+                  <input class="lf-input lf-input--has-lead lf-input--amount" id="f5" value="1,240.00" />
+                </span>
+              </div>
+              <div class="lf-field">
+                <label class="lf-label" for="f6">Disabled</label>
+                <input class="lf-input" id="f6" value="Locked after creation" disabled />
+              </div>
+            </div>
+          </div>
+
+          <!-- ---------- table ---------- -->
+          <h2 class="lf-section-title">Ledger table</h2>
+          <div class="lf-table-wrap" style="margin-bottom: var(--lf-rhythm-section)">
+            <table class="lf-table">
+              <thead>
+                <tr>
+                  <th scope="col" class="lf-col-select"><input type="checkbox" /></th>
+                  <th scope="col">Transaction</th>
+                  <th scope="col">Category</th>
+                  <th scope="col" class="lf-col-amount">Amount</th>
+                  <th scope="col" class="lf-col-actions"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-selected="true">
+                  <td class="lf-col-select"><input type="checkbox" checked /></td>
+                  <td><span class="lf-cell-primary">Whole Foods</span><br /><span class="lf-cell-meta">12 Jul · Everyday Checking</span></td>
+                  <td><span class="lf-cell-meta">Groceries</span></td>
+                  <td class="lf-col-amount"><data class="lf-amount lf-amount--out">−$86<span class="lf-amount-cents">.20</span></data></td>
+                  <td class="lf-col-actions"><span class="lf-table-row-actions"><button class="lf-btn lf-btn--ghost lf-btn--sm">Edit</button></span></td>
+                </tr>
+                <tr>
+                  <td class="lf-col-select"><input type="checkbox" /></td>
+                  <td><span class="lf-cell-primary">Payroll</span><br /><span class="lf-cell-meta">10 Jul · Everyday Checking</span></td>
+                  <td><span class="lf-cell-meta">Salary</span></td>
+                  <td class="lf-col-amount"><data class="lf-amount lf-amount--in">$3,250<span class="lf-amount-cents">.00</span></data></td>
+                  <td class="lf-col-actions"><span class="lf-table-row-actions"><button class="lf-btn lf-btn--ghost lf-btn--sm">Edit</button></span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ---------- empty state ---------- -->
+          <h2 class="lf-section-title">Empty state</h2>
+          <div class="lf-card" style="margin-bottom: var(--lf-rhythm-section)">
+            <div class="lf-empty">
+              <div class="lf-empty-art" aria-hidden="true">
+                <span class="lf-empty-ring lf-empty-ring--outer"></span>
+                <span class="lf-empty-ring lf-empty-ring--inner"></span>
+                <span class="lf-empty-icon">◎</span>
+              </div>
+              <h3>Set your first savings goal</h3>
+              <p>Name what you're saving for, set a target, and watch progress fill up as you contribute.</p>
+              <div class="lf-empty-actions">
+                <button class="lf-btn lf-btn--primary">Create a goal</button>
+                <button class="lf-btn lf-btn--secondary">See an example</button>
+              </div>
+              <ul class="lf-empty-tips">
+                <li>Give a goal a target date and LedgerFlow works out the monthly pace.</li>
+                <li>Contribute from any account — the goal tracks the total, not the source.</li>
+                <li>Milestones mark 25 / 50 / 75% so long saves stay motivating.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- ---------- reports ---------- -->
+          <h2 class="lf-section-title">Reporting platform</h2>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--lf-space-4);margin-bottom:var(--lf-rhythm-section)">
+            <div class="lf-card">
+              <div class="lf-card-head"><h3 class="lf-card-title">Cash flow</h3><span class="lf-report-export">⤓</span></div>
+              <div class="lf-report">
+                <dl class="lf-report-totals">
+                  <div><dt>Inflow</dt><dd>$4,000.00</dd></div>
+                  <div><dt>Outflow</dt><dd>$1,240.00</dd></div>
+                  <div><dt>Net</dt><dd>$2,760.00</dd></div>
+                </dl>
+                <p class="lf-report-caveat">⚠ This month isn't over yet, so it's not directly comparable.</p>
+                <div style="height:120px;background:var(--lf-bg-sunken);border-radius:var(--lf-radius-md);display:grid;place-items:center;color:var(--lf-text-tertiary);font-size:var(--lf-text-xs)">bar chart</div>
+              </div>
+            </div>
+            <div class="lf-card">
+              <div class="lf-card-head"><h3 class="lf-card-title">Financial health</h3><span class="lf-report-export">⤓</span></div>
+              <div class="lf-report">
+                <div class="lf-report-score"><span class="lf-report-score-value">78</span><span class="lf-text-tertiary lf-text-xs">out of 100</span></div>
+                <dl class="lf-report-totals">
+                  <div><dt>Savings rate</dt><dd>18%</dd></div>
+                  <div><dt>Runway</dt><dd>4.2 mo</dd></div>
+                </dl>
+              </div>
+            </div>
+            <div class="lf-card" style="grid-column:1/-1">
+              <div class="lf-card-head"><h3 class="lf-card-title">Merchants</h3><span class="lf-report-export">⤓</span></div>
+              <div class="lf-table-wrap">
+                <table class="lf-table lf-report-table">
+                  <thead><tr><th>Label</th><th class="lf-col-amount">Amount</th><th class="lf-col-amount">Count</th></tr></thead>
+                  <tbody>
+                    <tr data-clickable><td>Corner Shop</td><td class="lf-col-amount">$412.00</td><td class="lf-col-amount">14</td></tr>
+                    <tr data-clickable><td>Broadband Co</td><td class="lf-col-amount">$126.00</td><td class="lf-col-amount">3</td></tr>
+                    <tr data-clickable><td>Coffee House</td><td class="lf-col-amount">−$48.50</td><td class="lf-col-amount">9</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ---------- debt ---------- -->
+          <h2 class="lf-section-title">Debt planner</h2>
+          <div class="lf-card lf-card--primary" style="margin-bottom: var(--lf-rhythm-section)">
+            <section class="lf-debt-summary">
+              <div>
+                <span class="lf-text-tertiary lf-text-xs">Total owed</span>
+                <p class="lf-debt-total">$14,280.00</p>
+                <p class="lf-debt-interest-note">Interest is costing about <strong>$2,614.00 a year</strong> at these balances.</p>
+              </div>
+              <dl class="lf-debt-metrics">
+                <div><dt>Monthly minimums</dt><dd>$385.00</dd></div>
+                <div><dt>Average rate</dt><dd>18.3%</dd></div>
+                <div><dt>Debts</dt><dd>3</dd></div>
+                <div><dt>Most expensive</dt><dd class="lf-debt-highest">Store card · 27.9%</dd></div>
+              </dl>
+              <ul class="lf-debt-alerts">
+                <li data-severity="critical">⚠<div><p class="lf-debt-alert-title">Store card is growing despite payments</p><p class="lf-debt-alert-body">Interest is about 47 USD a month but the minimum is only 25.</p></div></li>
+                <li data-severity="warning">▾<div><p class="lf-debt-alert-title">Interest is costing about 2,614 USD a year</p><p class="lf-debt-alert-body">That's 218 a month before any of it reduces what you owe.</p></div></li>
+              </ul>
+              <div class="lf-debt-recommendation">
+                <p class="lf-debt-rec-title">Target Store card first</p>
+                <p class="lf-debt-rec-why">Paying highest-rate first would cost about 412 USD less in interest than smallest-balance first.</p>
+              </div>
+            </section>
+          </div>
+
+          <div class="lf-card" style="margin-bottom: var(--lf-rhythm-section)">
+            <div class="lf-strategy-grid">
+              <button class="lf-strategy-card" data-active>
+                <span class="lf-strategy-head"><span class="lf-strategy-name">Highest rate first</span>✓</span>
+                <span class="lf-text-tertiary lf-text-xs">Costs the least in interest.</span>
+                <dl class="lf-strategy-figures">
+                  <div><dt>Debt free in</dt><dd>2y 8m</dd></div>
+                  <div><dt>Interest</dt><dd>$1,990.22</dd></div>
+                </dl>
+                <span class="lf-text-tertiary lf-text-xs">First clears Store card in 1y 2m</span>
+              </button>
+              <button class="lf-strategy-card">
+                <span class="lf-strategy-head"><span class="lf-strategy-name">Smallest balance first</span></span>
+                <span class="lf-text-tertiary lf-text-xs">Clears individual debts sooner.</span>
+                <dl class="lf-strategy-figures">
+                  <div><dt>Debt free in</dt><dd>2y 9m</dd></div>
+                  <div><dt>Interest</dt><dd>$2,140.36</dd></div>
+                </dl>
+                <span class="lf-text-tertiary lf-text-xs">First clears Store card in 4 mo</span>
+              </button>
+              <button class="lf-strategy-card">
+                <span class="lf-strategy-head"><span class="lf-strategy-name">Your own order</span></span>
+                <span class="lf-text-tertiary lf-text-xs">Whatever order you've set.</span>
+                <dl class="lf-strategy-figures">
+                  <div><dt>Debt free in</dt><dd>2y 9m</dd></div>
+                  <div><dt>Interest</dt><dd>$2,140.36</dd></div>
+                </dl>
+              </button>
+            </div>
+          </div>
+
+          <div class="lf-card" style="margin-bottom: var(--lf-rhythm-section)">
+            <ol class="lf-payoff-calendar">
+              <li class="lf-payoff-month">
+                <div class="lf-payoff-month-head"><span class="lf-payoff-month-name">March 2026</span><span class="lf-payoff-month-total">$585.00</span></div>
+                <ul class="lf-payoff-payments">
+                  <li><span class="lf-payoff-debt">Store card</span><span class="lf-payoff-split"><span class="lf-payoff-interest">$47.00 interest</span><span class="lf-payoff-principal">$278.00 off the balance</span></span><span class="lf-payoff-amount">$325.00</span></li>
+                  <li><span class="lf-payoff-debt">Visa</span><span class="lf-payoff-split"><span class="lf-payoff-interest">$96.00 interest</span><span class="lf-payoff-principal">$64.00 off the balance</span></span><span class="lf-payoff-amount">$160.00</span></li>
+                  <li data-clears><span class="lf-payoff-debt">Car loan<span class="lf-payoff-cleared">🎉 paid off</span></span><span class="lf-payoff-split"><span class="lf-payoff-interest">$4.00 interest</span><span class="lf-payoff-principal">$96.00 off the balance</span></span><span class="lf-payoff-amount">$100.00</span></li>
+                </ul>
+              </li>
+            </ol>
+          </div>
+
+          <!-- ---------- portfolio ---------- -->
+          <h2 class="lf-section-title">Portfolio</h2>
+          <div class="lf-card lf-card--primary" style="margin-bottom: var(--lf-rhythm-section)">
+            <section class="lf-portfolio-summary">
+              <div class="lf-portfolio-headline">
+                <span class="lf-text-tertiary lf-text-xs">Market value</span>
+                <p class="lf-portfolio-value">$7,500.00</p>
+                <p class="lf-portfolio-change" data-up>+$2,500.00 (+50%) unrealised</p>
+              </div>
+              <dl class="lf-portfolio-metrics">
+                <div><dt>Cost basis</dt><dd>$5,000.00</dd></div>
+                <div><dt>Realised gains</dt><dd>$300.00</dd></div>
+                <div><dt>Dividends</dt><dd>$120.00</dd></div>
+                <div><dt>Total return</dt><dd>$2,920.00</dd></div>
+              </dl>
+              <p class="lf-portfolio-caveat">⚠ <span>1 of 4 holdings has no price yet, so this total is partial.</span></p>
+            </section>
+          </div>
+
+          <div class="lf-table-wrap" style="margin-bottom: var(--lf-rhythm-section)">
+            <table class="lf-table lf-holdings-table">
+              <thead><tr>
+                <th>Holding</th><th class="lf-col-amount">Units</th>
+                <th class="lf-col-amount">Cost</th><th class="lf-col-amount">Value</th>
+                <th class="lf-col-amount">Gain</th>
+              </tr></thead>
+              <tbody>
+                <tr>
+                  <td><span class="lf-cell-primary">ACME</span><br /><span class="lf-cell-meta">Acme Inc · Brokerage</span></td>
+                  <td class="lf-col-amount">10</td>
+                  <td class="lf-col-amount">$500.00</td>
+                  <td class="lf-col-amount">$750.00</td>
+                  <td class="lf-col-amount"><span class="lf-holding-gain" data-up>+$250.00 <span class="lf-holding-gain-pct">+50%</span></span></td>
+                </tr>
+                <tr>
+                  <td><span class="lf-cell-primary">BTC</span><br /><span class="lf-cell-meta">Bitcoin · Brokerage</span></td>
+                  <td class="lf-col-amount">0.0523</td>
+                  <td class="lf-col-amount">$2,000.00</td>
+                  <td class="lf-col-amount">$1,600.00</td>
+                  <td class="lf-col-amount"><span class="lf-holding-gain">-$400.00 <span class="lf-holding-gain-pct">-20%</span></span></td>
+                </tr>
+                <tr>
+                  <td><span class="lf-cell-primary">PRIV</span><br /><span class="lf-cell-meta">Private stake · Brokerage</span></td>
+                  <td class="lf-col-amount">100</td>
+                  <td class="lf-col-amount">$2,500.00</td>
+                  <td class="lf-col-amount"><span class="lf-text-tertiary lf-text-sm">Not priced</span></td>
+                  <td class="lf-col-amount"><span class="lf-text-tertiary lf-text-sm">—</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ---------- coach ---------- -->
+          <h2 class="lf-section-title">AI coach</h2>
+          <div class="lf-card" style="margin-bottom: var(--lf-rhythm-section)">
+            <section class="lf-briefing">
+              <header class="lf-briefing-head">
+                <p class="lf-briefing-eyebrow">✦ Your briefing</p>
+              </header>
+              <h2 class="lf-briefing-headline">Balance projected to go negative on 20 Jun</h2>
+              <p class="lf-briefing-summary">1 thing needs attention now: Balance projected to go negative on 20 Jun. 2 worth a look: Over budget on Groceries; Dining is up 62%.</p>
+              <dl class="lf-briefing-metrics">
+                <div data-tone="critical"><dt>Needs attention</dt><dd>1</dd></div>
+                <div data-tone="warning"><dt>Worth a look</dt><dd>2</dd></div>
+                <div data-tone="opportunity"><dt>Opportunities</dt><dd>3</dd></div>
+                <div><dt>Kept from income</dt><dd>18%</dd></div>
+              </dl>
+            </section>
+          </div>
+
+          <div class="lf-coach-feed" style="margin-bottom: var(--lf-rhythm-section)">
+            <article class="lf-insight" data-severity="critical">
+              <div class="lf-insight-head">
+                <span class="lf-insight-icon">⚠</span>
+                <div class="lf-insight-heading">
+                  <p class="lf-insight-kind">Cash flow<span class="lf-insight-severity">Needs attention</span></p>
+                  <h3 class="lf-insight-title">Balance projected to go negative on 20 Jun</h3>
+                </div>
+                <div class="lf-insight-actions">
+                  <button class="lf-btn lf-btn--ghost lf-iconbtn">🔖</button>
+                  <button class="lf-btn lf-btn--ghost lf-iconbtn">✕</button>
+                </div>
+              </div>
+              <p class="lf-insight-body">Based on your scheduled income and bills, your balance is projected to reach USD -120 on 20 Jun.</p>
+              <div class="lf-insight-foot">
+                <a class="lf-btn lf-btn--secondary lf-btn--sm" href="#">Open cash flow</a>
+                <button class="lf-insight-why-toggle">Why am I seeing this? ⌄</button>
+              </div>
+            </article>
+
+            <article class="lf-insight" data-severity="warning">
+              <div class="lf-insight-head">
+                <span class="lf-insight-icon">▲</span>
+                <div class="lf-insight-heading">
+                  <p class="lf-insight-kind">Over budget<span class="lf-insight-severity">Worth a look</span></p>
+                  <h3 class="lf-insight-title">Over budget on Groceries</h3>
+                </div>
+                <div class="lf-insight-actions">
+                  <button class="lf-btn lf-btn--ghost lf-iconbtn">🔖</button>
+                  <button class="lf-btn lf-btn--ghost lf-iconbtn">✕</button>
+                </div>
+              </div>
+              <p class="lf-insight-body">You've spent USD 412 against a USD 350 limit — USD 62 over.</p>
+              <div class="lf-insight-foot">
+                <a class="lf-btn lf-btn--secondary lf-btn--sm" href="#">See transactions</a>
+                <button class="lf-insight-why-toggle">Why am I seeing this? ⌄</button>
+              </div>
+              <div class="lf-insight-why">
+                <p>Your Groceries budget line is set to USD 350 for this period, and transactions categorised to it total USD 412.</p>
+                <dl class="lf-insight-evidence">
+                  <div><dt>Budget limit</dt><dd>$350.00</dd></div>
+                  <div><dt>Spent</dt><dd>$412.00</dd></div>
+                  <div><dt>Over by</dt><dd>$62.00</dd></div>
+                </dl>
+                <span class="lf-text-tertiary lf-text-xs">Generated by RuleBasedCoach (rule v1.0).</span>
+              </div>
+            </article>
+
+            <article class="lf-insight" data-severity="opportunity">
+              <div class="lf-insight-head">
+                <span class="lf-insight-icon">◎</span>
+                <div class="lf-insight-heading">
+                  <p class="lf-insight-kind">Subscriptions<span class="lf-insight-severity">Opportunity</span></p>
+                  <h3 class="lf-insight-title">7 recurring charges, USD 892 a year</h3>
+                </div>
+                <div class="lf-insight-actions">
+                  <button class="lf-btn lf-btn--ghost lf-iconbtn">🔖</button>
+                  <button class="lf-btn lf-btn--ghost lf-iconbtn">✕</button>
+                </div>
+              </div>
+              <p class="lf-insight-body">Your largest is Streaming at USD 144 a year. Worth a look for anything you've stopped using.</p>
+              <div class="lf-insight-foot">
+                <a class="lf-btn lf-btn--secondary lf-btn--sm" href="#">Review subscriptions</a>
+                <button class="lf-insight-why-toggle">Why am I seeing this? ⌄</button>
+              </div>
+            </article>
+          </div>
+
+          <!-- ---------- danger zone ---------- -->
+          <h2 class="lf-section-title">Settings</h2>
+          <section class="lf-settings-section">
+            <div class="lf-settings-section-head">
+              <div>
+                <h2 class="lf-settings-section-title">Data &amp; privacy</h2>
+                <p class="lf-settings-section-desc">Take a copy of everything in this workspace.</p>
+              </div>
+            </div>
+            <div class="lf-settings-section-body">
+              <div class="lf-settings-row">
+                <div class="lf-settings-row-label">
+                  <span class="lf-settings-row-title">Export data</span>
+                  <p class="lf-settings-row-desc">Download all of this workspace's data as JSON.</p>
+                </div>
+                <div class="lf-settings-row-control"><button class="lf-btn lf-btn--secondary">Export</button></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="lf-danger-zone">
+            <div class="lf-danger-zone-head">
+              <span aria-hidden="true">⚠</span>
+              <div>
+                <h2 class="lf-danger-zone-title">Danger zone</h2>
+                <p class="lf-danger-zone-desc">Irreversible actions that affect everyone in this workspace.</p>
+              </div>
+            </div>
+            <div class="lf-danger-zone-body">
+              <div class="lf-settings-advanced" data-open="true">
+                <button class="lf-settings-advanced-toggle">Close this workspace</button>
+                <div class="lf-settings-advanced-body">
+                  <div class="lf-banner">Closing removes this workspace for everyone.</div>
+                  <div><button class="lf-btn lf-btn--danger">Close workspace</button></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <!-- ---------- modal (rendered inline, open) ---------- -->
+    <dialog class="lf-modal lf-modal--structured" id="demo-modal" style="width: min(600px, calc(100vw - var(--lf-space-8)))">
+      <div class="lf-modal-head">
+        <div>
+          <h2 class="lf-modal-title">New account</h2>
+          <p class="lf-modal-desc">Accounts hold your money. Everything else builds on them.</p>
+        </div>
+        <button class="lf-btn lf-btn--ghost lf-iconbtn">✕</button>
+      </div>
+      <div class="lf-modal-body">
+        <div class="lf-form-stack">
+          <div class="lf-acct-preview">
+            <span class="lf-acct-icon lf-acct-icon--lg">▤</span>
+            <div class="lf-acct-preview-text">
+              <span class="lf-acct-preview-name">Everyday Checking</span>
+              <span class="lf-acct-preview-meta">Checking · ••4321</span>
+            </div>
+            <data class="lf-amount">$0<span class="lf-amount-cents">.00</span></data>
+          </div>
+          <div class="lf-field">
+            <label class="lf-label" for="m1">Account name</label>
+            <input class="lf-input" id="m1" value="Everyday Checking" />
+            <p class="lf-hint">What you call it day to day.</p>
+          </div>
+          <div class="lf-field-row">
+            <div class="lf-field">
+              <label class="lf-label" for="m2">Account type</label>
+              <select class="lf-select" id="m2"><option>Checking</option></select>
+            </div>
+            <div class="lf-field">
+              <label class="lf-label" for="m3">Currency</label>
+              <select class="lf-select" id="m3"><option>USD — US Dollar</option></select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="lf-modal-footer">
+        <div class="lf-modal-footer-start"><button class="lf-btn lf-btn--secondary">Cancel</button></div>
+        <div class="lf-modal-footer-end"><button class="lf-btn lf-btn--primary">Create account</button></div>
+      </div>
+    </dialog>
+  </body>
+</html>

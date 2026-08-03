@@ -1,0 +1,155 @@
+# Self-contained single-server production stack, driven by deploy/provision.sh.
+#
+# Unlike docker-compose.prod.yml (a bare web/worker/beat for a local prod-like
+# sanity check), this file is a complete, runnable server deployment: it adds
+# Postgres, Redis, and a Caddy reverse proxy that auto-provisions Let's Encrypt
+# TLS. Every secret comes from the generated .env (never hard-coded here).
+#
+# Scaling past one box: point DATABASE_URL/REDIS_URL at managed services and
+# drop the db/redis services, or move to an orchestrator. The app services are
+# stateless and scale horizontally as-is.
+
+x-app-build: &app-build
+  build:
+    context: ..
+    args: {REQUIREMENTS_FILE: requirements/production.txt}
+  env_file: ../.env
+  restart: unless-stopped
+  depends_on:
+    # `required: false` skips the dependency when the bundled-db profile is
+    # off (external database) instead of refusing to start the stack.
+    db: {condition: service_healthy, required: false}
+    redis: {condition: service_healthy}
+
+services:
+  db:
+    image: postgres:16-alpine
+    # Behind a profile so `setup.sh` can point DATABASE_URL at a managed
+    # Postgres instead — without this file insisting on running its own.
+    profiles: ["bundled-db"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ledgerflow}
+      POSTGRES_USER: ${POSTGRES_USER:-ledgerflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ledgerflow}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+    volumes: ["redisdata:/data"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    <<: *app-build
+    # entrypoint.sh runs migrations + collectstatic before gunicorn starts
+    environment:
+      RUN_MIGRATIONS: "true"
+      COLLECT_STATIC: "true"
+    command:
+      ["gunicorn", "config.wsgi:application",
+       "--bind", "0.0.0.0:8000", "--workers", "4", "--timeout", "30",
+       "--access-logfile", "-", "--error-logfile", "-"]
+    # Readiness, not liveness: this decides whether the container is fit to
+    # receive traffic. Liveness (/healthz) checks nothing external on purpose —
+    # a database outage must not make Docker restart every replica at once.
+    # start_period covers migrations + collectstatic in entrypoint.sh.
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/readyz/', timeout=5).status==200 else 1)\""]
+      interval: 15s
+      timeout: 6s
+      retries: 3
+      start_period: 60s
+    volumes:
+      - staticfiles:/app/staticfiles
+      - media:/app/media
+    expose: ["8000"]
+
+  worker:
+    <<: *app-build
+    command: ["celery", "-A", "config", "worker", "-l", "info", "--concurrency=4"]
+    volumes:
+      - media:/app/media
+
+  beat:
+    <<: *app-build
+    # exactly one beat scheduler per deployment (see docs/DEPLOYMENT.md)
+    command: ["celery", "-A", "config", "beat", "-l", "info"]
+
+  caddy:
+    image: caddy:2-alpine
+    # Behind a profile: with nginx or Apache terminating TLS on the host,
+    # starting Caddy too would mean two servers binding 80/443 and one of them
+    # failing in a way that looks like a certificate problem.
+    profiles: ["caddy"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN must be set in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL must be set in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - staticfiles:/srv/staticfiles:ro
+      - frontend:/srv/frontend:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - web
+      - frontend
+
+  caddy_internal:
+    # The plain-HTTP twin of `caddy`, for deployments where nginx, Apache or an
+    # upstream load balancer terminates TLS on the host. It exists because the
+    # host web server used to proxy straight to gunicorn — which has no
+    # published port and no idea the SPA exists, so nginx and Apache setups
+    # got connection-refused, and would have got a JSON 404 for the app even
+    # with a port. All path routing stays in one Caddyfile per deployment.
+    image: caddy:2-alpine
+    profiles: ["internal"]
+    restart: unless-stopped
+    ports:
+      # Loopback only: the host web server is the only intended client, and
+      # binding wider would expose the app with TLS and HSTS assumptions unmet.
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./Caddyfile.internal:/etc/caddy/Caddyfile:ro
+      - staticfiles:/srv/staticfiles:ro
+      - frontend:/srv/frontend:ro
+    depends_on:
+      - web
+      - frontend
+
+  frontend:
+    # Builds the SPA to static files and publishes them into the shared
+    # `frontend` volume that Caddy serves. Exits/idles after publishing; the
+    # assets persist in the volume. Rebuild with `up -d --build frontend` to
+    # ship a new frontend version.
+    build:
+      context: ..
+      dockerfile: deploy/frontend.Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+    volumes:
+      - frontend:/srv/frontend
+    restart: "no"
+
+volumes:
+  pgdata:
+  redisdata:
+  staticfiles:
+  media:
+  frontend:
+  caddydata:
+  caddyconfig:

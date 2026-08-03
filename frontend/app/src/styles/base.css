@@ -1,0 +1,243 @@
+/* ==========================================================================
+   LedgerFlow base layer — reset, typographic rhythm, accessibility floor, and the signature ledger-amount treatment.
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--lf-font-body);
+  font-size: var(--lf-text-base);
+  line-height: var(--lf-leading-base);
+  color: var(--lf-text-primary);
+  background: var(--lf-bg-app);
+  -webkit-font-smoothing: antialiased;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* ---------- headings: duospace display face ----------
+
+   Weight 500, not 600. A duospace face carries more ink per character than a
+   grotesk at the same nominal weight — its stems are drawn to fill a fixed
+   advance — so 600 here reads as the 700 it replaced. 500 gives headings the
+   same optical weight the grotesk had at 600.
+
+   Tracking steps down with size (see tokens.css). h1 and h2 are one scale step
+   apart, which is not enough separation to justify different tracking — both
+   sit in the same optical band. Only `md` and below step up to `snug`, and
+   only `3xl` hero type gets `display`. */
+h1,
+h2,
+h3,
+.lf-display {
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-medium);
+  line-height: var(--lf-leading-tight);
+  letter-spacing: var(--lf-tracking-tight);
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--lf-text-xl); }
+
+h2 { font-size: var(--lf-text-lg); }
+
+h3 {
+  font-size: var(--lf-text-md);
+  letter-spacing: var(--lf-tracking-snug);
+}
+
+/* The Heading component's level classes. Kept here (rather than as inline
+   styles on the component) so contextual rules — e.g. a page title inside
+   .lf-page-header — can raise the size without an !important war. */
+.lf-heading {
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-medium);
+  line-height: var(--lf-leading-tight);
+  letter-spacing: var(--lf-tracking-tight);
+  margin: 0;
+}
+
+.lf-heading--1 { font-size: var(--lf-text-xl); }
+
+.lf-heading--2 { font-size: var(--lf-text-lg); }
+
+.lf-heading--3 {
+  font-size: var(--lf-text-md);
+  letter-spacing: var(--lf-tracking-snug);
+}
+
+a {
+  color: var(--lf-text-link);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+::selection {
+  background: var(--lf-selection-bg);
+}
+
+/* ---------- eyebrow: small uppercase label above a value/section ----------
+   Display face as well. The eyebrow sits directly above a heading, so a
+   different face there puts a seam through the middle of the header block —
+   which is precisely where the pair is meant to read as one unit. */
+.lf-eyebrow {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-wider);
+  text-transform: uppercase;
+  color: var(--lf-text-secondary);
+}
+
+.lf-text-secondary { color: var(--lf-text-secondary); }
+
+.lf-text-sm { font-size: var(--lf-text-sm); }
+
+/* ==========================================================================
+   THE SIGNATURE — the ledger amount.
+   Every monetary value in the product uses .lf-amount:
+     * duospace ledger face, tabular by construction -> columns align
+     * explicit sign, never color alone (color-blind safe + the semantic
+       system: in = verdant, out = ink, transfer = muted)
+     * minor units de-emphasized (the engine stores integer cents; the UI
+       de-emphasizes but never hides them)
+   Markup:
+     <data class="lf-amount lf-amount--out" value="-86.20">
+       −$86<span class="lf-amount-cents">.20</span>
+     </data>
+   ========================================================================== */
+.lf-amount {
+  font-family: var(--lf-font-ledger);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--lf-weight-medium);
+  white-space: nowrap;
+}
+
+.lf-amount--in { color: var(--lf-money-in); }
+
+.lf-amount--out { color: var(--lf-money-out); }
+
+.lf-amount--transfer { color: var(--lf-money-transfer); }
+
+/* De-emphasis is carried by the size step alone, deliberately not by opacity.
+   Two of the three money colours have under 1.0 of contrast headroom above the
+   WCAG AA 4.5:1 floor (verdant-600 is 5.29:1 on white, ink-500 5.23:1), so any
+   alpha low enough to read as "de-emphasised" also drops them below AA — at
+   0.85 income cents measured 3.98:1. Opacity is the wrong instrument when the
+   base colour has no room to give. */
+.lf-amount-cents {
+  /* Exactly one step down the 1.20 modular scale (1 / 1.2 = 0.8333), floored
+     at the smallest token.
+
+     The previous 0.85em was an arbitrary ratio, so cents landed *between*
+     token steps and every amount size spawned a size that existed nowhere
+     else: 9.44 / 11.33 / 13.60 / 19.58 / 33.84px. Five of the nine distinct
+     font sizes on the Accounts page came from this one declaration, and the
+     9.44px was the only sub-legible text in the product.
+
+     This is the single sanctioned relative font size in the system, and it
+     earns the exception on three counts: it cannot compound (cents contain no
+     nested sized text), 1/1.2 maps every token exactly onto the token below
+     it, and `max()` guarantees it can never render below `--lf-text-xs`
+     however small the parent gets. See docs/redesign/03-design-system.md §3.1. */
+  font-size: max(var(--lf-text-xs), 0.8333em);
+}
+
+/* Hero balance: display-scale amount */
+.lf-amount--hero {
+  font-size: var(--lf-text-3xl);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-tight);
+}
+
+/* ---------- accessibility floor ---------- */
+:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--lf-radius-sm);
+}
+
+.lf-skip-link {
+  position: absolute;
+  inset-inline-start: var(--lf-space-4);
+  top: calc(-1 * var(--lf-space-16));
+  z-index: 100;
+  padding: var(--lf-space-2) var(--lf-space-4);
+  background: var(--lf-bg-surface);
+  border-radius: var(--lf-radius-md);
+  box-shadow: var(--lf-shadow-overlay);
+  transition: top var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-skip-link:focus-visible {
+  top: var(--lf-space-4);
+}
+
+.lf-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+*::before,
+*::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ==========================================================================
+   Checkboxes and radios — target size
+   --------------------------------------------------------------------------
+   A native checkbox renders at roughly 13x13px, which is half the 24px WCAG
+   2.5.8 (AA) minimum and a third of this system's own `--lf-touch-target`.
+   The route audit found them across the transactions ledger, the coach feed
+   and the admin tables — every bulk-selection surface in the product, which is
+   exactly where someone is aiming repeatedly and at speed.
+
+   `accent-color` keeps the native control (and with it the platform's own
+   focus, keyboard and high-contrast behaviour) rather than rebuilding it out
+   of a styled span, which is how checkboxes usually lose their semantics.
+   ========================================================================== */
+input[type="checkbox"],
+input[type="radio"] {
+  /* Exactly the 2.5.8 floor. Not `--lf-touch-target`: a 44px checkbox in a
+     dense ledger row reads as a button and costs the row height that makes a
+     long ledger scannable. 24px is the smallest size that is defensible, and
+     the wrapping <label> extends the clickable area beyond the box. */
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  accent-color: var(--lf-action-primary);
+  cursor: pointer;
+}

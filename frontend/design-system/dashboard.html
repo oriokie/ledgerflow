@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+/* no-flash theme: runs before first paint; localStorage choice wins,
+   otherwise follow the OS preference */
+(function () {
+  try {
+    var theme = localStorage.getItem("lf-theme");
+    if (!theme && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) theme = "dark";
+    if (theme === "dark") document.documentElement.dataset.theme = "dark";
+  } catch (error) {}
+})();
+</script>
+<title>Overview · LedgerFlow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;600;700&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="components.css">
+</head>
+<body>
+<a class="lf-skip-link" href="#main">Skip to content</a>
+
+<div class="lf-shell">
+  <!-- Side rail (desktop) -->
+  <nav class="lf-rail" aria-label="Primary">
+    <a class="lf-rail-brand" href="dashboard.html">
+      <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2" y="3" width="16" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M6 8h8M6 12h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      LedgerFlow
+    </a>
+    <a class="lf-nav-item" href="dashboard.html" aria-current="page">
+      <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="11" y="3" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="11" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="11" y="11" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
+      Overview
+    </a>
+    <a class="lf-nav-item" href="transactions.html">
+      <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Transactions
+    </a>
+    <a class="lf-nav-item" href="#month">
+      <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M10 6v4l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      Budgets
+    </a>
+    <a class="lf-nav-item" href="#accounts">
+      <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="5" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3 8.5h14" stroke="currentColor" stroke-width="1.8"/></svg>
+      Accounts
+    </a>
+  </nav>
+
+  <div class="lf-shell-main">
+    <!-- Topbar -->
+    <header class="lf-topbar">
+      <button class="lf-workspace-switcher" type="button" aria-haspopup="menu">
+        <span class="lf-workspace-avatar" aria-hidden="true">R</span>
+        Rivera Household
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="lf-topbar-spacer"></div>
+      <button class="lf-btn lf-btn--ghost" type="button" data-cmdk-open>Search <span class="lf-kbd">⌘K</span></button>
+      <button class="lf-btn lf-btn--ghost" type="button" id="theme-toggle" aria-pressed="false">Dark</button>
+      <a class="lf-btn lf-btn--primary" href="transactions.html#add">Add transaction</a>
+    </header>
+
+    <main class="lf-content" id="main">
+      <div class="lf-page-header">
+        <div>
+          <p class="lf-eyebrow">July 2026 · 14 days left</p>
+          <h1>Overview</h1>
+        </div>
+      </div>
+
+      <!-- ============ Tier 1: Can I spend? ============ -->
+      <section class="lf-grid lf-grid--3" aria-labelledby="sts-heading" style="margin-bottom: var(--lf-space-8);">
+        <h2 id="sts-heading" class="lf-visually-hidden">Safe to spend</h2>
+
+        <div class="lf-card" style="grid-column: span 2;">
+          <p class="lf-eyebrow">Safe to spend · until Aug 1</p>
+          <data class="lf-amount lf-amount--out lf-amount--hero lf-display" data-sts="result" value="5122.38">$5,122<span class="lf-amount-cents">.38</span></data>
+          <p class="lf-hint" style="margin-top: var(--lf-space-1);">
+            Everyday Checking, after upcoming bills and what’s still budgeted.
+          </p>
+          <details class="lf-disclosure" style="margin-top: var(--lf-space-3);">
+            <summary>How this is calculated</summary>
+            <div class="lf-disclosure-body">
+              <ul class="lf-math">
+                <li><span>Everyday Checking balance</span>
+                  <data class="lf-amount lf-amount--out" data-sts="start" value="8420.50">$8,420<span class="lf-amount-cents">.50</span></data></li>
+                <li><span>− Rent, posts Aug 1</span>
+                  <data class="lf-amount lf-amount--transfer" data-sts="minus" value="1850.00">$1,850<span class="lf-amount-cents">.00</span></data></li>
+                <li><span>− Visa payment, closes Jul 28</span>
+                  <data class="lf-amount lf-amount--transfer" data-sts="minus" value="1284.32">$1,284<span class="lf-amount-cents">.32</span></data></li>
+                <li><span>− Budgeted essentials remaining</span>
+                  <data class="lf-amount lf-amount--transfer" data-sts="minus" value="163.80">$163<span class="lf-amount-cents">.80</span></data></li>
+                <li class="lf-math-result"><span>Safe to spend</span>
+                  <data class="lf-amount lf-amount--out" value="5122.38">$5,122<span class="lf-amount-cents">.38</span></data></li>
+              </ul>
+              <p class="lf-hint" style="margin-top: var(--lf-space-3);">Recalculates as transactions post.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="lf-card" id="accounts">
+          <p class="lf-eyebrow">Net worth</p>
+          <data class="lf-amount lf-amount--out lf-amount--hero lf-display" value="31286.18">$31,286<span class="lf-amount-cents">.18</span></data>
+          <p class="lf-stat-delta lf-stat-delta--up">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 9.5v-7M3 5.5 6 2.5l3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <data class="lf-amount lf-amount--in" value="2154.30">+$2,154<span class="lf-amount-cents">.30</span></data>
+            <span class="lf-text-secondary">this month</span>
+          </p>
+          <details class="lf-disclosure" style="margin-top: var(--lf-space-3);">
+            <summary>By account</summary>
+            <div class="lf-disclosure-body">
+              <ul class="lf-math">
+                <li><span>Assets — Checking, Savings, Cash</span>
+                  <data class="lf-amount lf-amount--out" value="32570.50">$32,570<span class="lf-amount-cents">.50</span></data></li>
+                <li><span>− Visa ····4423 owed</span>
+                  <data class="lf-amount lf-amount--transfer" value="1284.32">$1,284<span class="lf-amount-cents">.32</span></data></li>
+                <li class="lf-math-result"><span>Net worth</span>
+                  <data class="lf-amount lf-amount--out" value="31286.18">$31,286<span class="lf-amount-cents">.18</span></data></li>
+              </ul>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- ============ Tier 2: What needs my attention? ============ -->
+      <section aria-labelledby="insights-heading" style="margin-bottom: var(--lf-space-8);">
+        <h2 id="insights-heading" style="font-size: var(--lf-text-lg); margin-bottom: var(--lf-space-4);">Needs your attention</h2>
+        <div class="lf-grid lf-grid--3">
+
+          <article class="lf-card lf-insight lf-insight--attention">
+            <h3 class="lf-insight-title">
+              <span class="lf-badge lf-badge--danger">Over budget</span>
+              Dining out is <data class="lf-amount lf-amount--danger" value="62.00">$62</data> over
+            </h3>
+            <p class="lf-insight-body">
+              13 days left in July. Groceries has
+              <data class="lf-amount lf-amount--out" value="163.80">$163<span class="lf-amount-cents">.80</span></data>
+              unspent — moving part of it covers the gap without changing your month’s total.
+            </p>
+            <details class="lf-disclosure">
+              <summary>Show the math</summary>
+              <div class="lf-disclosure-body">
+                <ul class="lf-math">
+                  <li><span>Dining out spent</span><data class="lf-amount lf-amount--out" value="412.00">$412<span class="lf-amount-cents">.00</span></data></li>
+                  <li><span>Dining out limit</span><data class="lf-amount lf-amount--transfer" value="350.00">$350<span class="lf-amount-cents">.00</span></data></li>
+                  <li><span>After moving $62: Groceries limit</span><data class="lf-amount lf-amount--transfer" value="588.00">$588<span class="lf-amount-cents">.00</span></data></li>
+                  <li class="lf-math-result"><span>Groceries remaining after move</span><data class="lf-amount lf-amount--out" value="101.80">$101<span class="lf-amount-cents">.80</span></data></li>
+                </ul>
+              </div>
+            </details>
+            <div class="lf-insight-actions">
+              <button class="lf-btn lf-btn--primary" type="button" data-insight-action>Move $62 from Groceries</button>
+            </div>
+          </article>
+
+          <article class="lf-card lf-insight lf-insight--soon">
+            <h3 class="lf-insight-title">
+              <span class="lf-badge lf-badge--warning">Due soon</span>
+              Visa statement closes Jul 28
+            </h3>
+            <p class="lf-insight-body">
+              Balance is
+              <data class="lf-amount lf-amount--out" value="1284.32">$1,284<span class="lf-amount-cents">.32</span></data>.
+              Paying in full avoids interest; Safe to spend already reserves it.
+            </p>
+            <details class="lf-disclosure">
+              <summary>What scheduling does</summary>
+              <div class="lf-disclosure-body">
+                <p class="lf-hint">
+                  Creates a one-time transfer of
+                  <data class="lf-amount lf-amount--transfer" value="1284.32">$1,284<span class="lf-amount-cents">.32</span></data>
+                  from Everyday Checking to Visa ····4423 on Jul 27. You can change or cancel it any time before it posts.
+                </p>
+              </div>
+            </details>
+            <div class="lf-insight-actions">
+              <button class="lf-btn lf-btn--secondary" type="button" data-insight-action>Schedule payment</button>
+            </div>
+          </article>
+
+          <article class="lf-card lf-insight lf-insight--good">
+            <h3 class="lf-insight-title">
+              <span class="lf-badge lf-badge--success">On track</span>
+              On pace to save <data class="lf-amount lf-amount--in" value="650.00">$650</data> this month
+            </h3>
+            <p class="lf-insight-body">
+              <data class="lf-amount lf-amount--transfer" value="500.00">$500</data> already moved to
+              High-Yield Savings, with a projected
+              <data class="lf-amount lf-amount--in" value="150.00">$150</data> surplus to follow.
+            </p>
+            <details class="lf-disclosure">
+              <summary>Show the math</summary>
+              <div class="lf-disclosure-body">
+                <ul class="lf-math">
+                  <li><span>Income this month</span><data class="lf-amount lf-amount--in" value="4250.00">+$4,250<span class="lf-amount-cents">.00</span></data></li>
+                  <li><span>− Spending so far</span><data class="lf-amount lf-amount--transfer" value="2912.50">$2,912<span class="lf-amount-cents">.50</span></data></li>
+                  <li class="lf-math-result"><span>Cash surplus so far</span><data class="lf-amount lf-amount--out" value="1337.50">$1,337<span class="lf-amount-cents">.50</span></data></li>
+                </ul>
+                <p class="lf-hint" style="margin-top: var(--lf-space-3);">Transfers to savings aren’t counted as spending.</p>
+              </div>
+            </details>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============ Tier 3: How am I doing? ============ -->
+      <section id="month" aria-labelledby="month-heading" style="margin-bottom: var(--lf-space-8);">
+        <h2 id="month-heading" style="font-size: var(--lf-text-lg); margin-bottom: var(--lf-space-4);">This month</h2>
+        <div class="lf-grid lf-grid--2">
+
+          <section class="lf-card" aria-labelledby="budgets-heading">
+            <div class="lf-card-header">
+              <h3 id="budgets-heading" style="font-size: var(--lf-text-md);">Budgets</h3>
+              <a class="lf-text-sm" href="#month">All budgets</a>
+            </div>
+
+            <div class="lf-meter" style="margin-bottom: var(--lf-space-5);">
+              <div class="lf-meter-row">
+                <span class="lf-cell-primary">Groceries</span>
+                <span>
+                  <data class="lf-amount lf-amount--out" value="486.20">$486<span class="lf-amount-cents">.20</span></data>
+                  <span class="lf-text-secondary"> of </span>
+                  <data class="lf-amount lf-amount--transfer" value="650.00">$650</data>
+                </span>
+              </div>
+              <div class="lf-meter-track" role="meter" aria-valuenow="74.8" aria-valuemin="0" aria-valuemax="100" aria-label="Groceries budget: 74.8% used">
+                <div class="lf-meter-fill" style="width: 74.8%;"></div>
+              </div>
+              <p class="lf-hint">
+                <data class="lf-amount lf-amount--transfer" value="163.80">$163<span class="lf-amount-cents">.80</span></data>
+                left · 14 days remaining
+              </p>
+            </div>
+
+            <div class="lf-meter">
+              <div class="lf-meter-row">
+                <span class="lf-cell-primary">Dining out</span>
+                <span>
+                  <data class="lf-amount lf-amount--danger" value="412.00">$412</data>
+                  <span class="lf-text-secondary"> of </span>
+                  <data class="lf-amount lf-amount--transfer" value="350.00">$350</data>
+                </span>
+              </div>
+              <div class="lf-meter-track lf-meter--over" role="meter" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100" aria-label="Dining out budget: over by $62">
+                <div class="lf-meter-fill" style="width: 100%;"></div>
+              </div>
+              <p class="lf-hint">
+                <span class="lf-badge lf-badge--danger">Over budget</span>
+                <data class="lf-amount lf-amount--danger" value="62.00">$62</data>
+                over — see the fix above
+              </p>
+            </div>
+          </section>
+
+          <section class="lf-card" aria-labelledby="spending-heading">
+            <div class="lf-card-header">
+              <h3 id="spending-heading" style="font-size: var(--lf-text-md);">Spending by category</h3>
+              <span class="lf-text-sm lf-text-secondary">
+                <data class="lf-amount lf-amount--out" value="2912.50">$2,912<span class="lf-amount-cents">.50</span></data> so far
+              </span>
+            </div>
+            <ul class="lf-bars">
+              <li data-value="1850.00">
+                <span class="lf-cell-primary">Rent</span>
+                <span class="lf-bar-track"><span class="lf-bar-fill lf-bar-fill--1" style="width: 100%;"></span></span>
+                <data class="lf-amount lf-amount--out" value="1850.00">$1,850</data>
+              </li>
+              <li data-value="486.20">
+                <span class="lf-cell-primary">Groceries</span>
+                <span class="lf-bar-track"><span class="lf-bar-fill lf-bar-fill--2" style="width: 26.3%;"></span></span>
+                <data class="lf-amount lf-amount--out" value="486.20">$486<span class="lf-amount-cents">.20</span></data>
+              </li>
+              <li data-value="412.00">
+                <span class="lf-cell-primary">Dining out</span>
+                <span class="lf-bar-track"><span class="lf-bar-fill lf-bar-fill--3" style="width: 22.3%;"></span></span>
+                <data class="lf-amount lf-amount--out" value="412.00">$412</data>
+              </li>
+              <li data-value="164.30">
+                <span class="lf-cell-primary">Transport</span>
+                <span class="lf-bar-track"><span class="lf-bar-fill lf-bar-fill--4" style="width: 8.9%;"></span></span>
+                <data class="lf-amount lf-amount--out" value="164.30">$164<span class="lf-amount-cents">.30</span></data>
+              </li>
+            </ul>
+            <p class="lf-hint" style="margin-top: var(--lf-space-4);">Transfers excluded — moving money isn’t spending.</p>
+          </section>
+        </div>
+      </section>
+
+      <!-- ============ Tier 4: What happened? (collapsed) ============ -->
+      <details class="lf-card lf-disclosure" aria-label="Recent activity">
+        <summary>Recent activity — five latest across accounts</summary>
+        <div class="lf-disclosure-body" style="padding-inline-start: 0;">
+          <table class="lf-table">
+            <caption class="lf-visually-hidden">Five most recent transactions across all accounts</caption>
+            <thead class="lf-visually-hidden">
+              <tr><th scope="col">Payee</th><th scope="col">Amount</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="lf-cell-primary">Whole Foods Market</span><br><span class="lf-cell-meta">Groceries · Checking · Jul 16</span></td>
+                <td class="lf-col-amount"><data class="lf-amount lf-amount--out" value="-86.20">−$86<span class="lf-amount-cents">.20</span></data></td>
+              </tr>
+              <tr>
+                <td><span class="lf-cell-primary">Transfer to Savings</span><br><span class="lf-cell-meta">Transfer · Jul 15</span></td>
+                <td class="lf-col-amount"><data class="lf-amount lf-amount--transfer" value="-500.00">⇄ $500</data></td>
+              </tr>
+              <tr>
+                <td><span class="lf-cell-primary">Meridian Studio — payroll</span><br><span class="lf-cell-meta">Salary · Checking · Jul 15</span></td>
+                <td class="lf-col-amount"><data class="lf-amount lf-amount--in" value="4250.00">+$4,250</data></td>
+              </tr>
+              <tr>
+                <td><span class="lf-cell-primary">Northside Property Co.</span><br><span class="lf-cell-meta">Rent · Checking · Jul 12</span></td>
+                <td class="lf-col-amount"><data class="lf-amount lf-amount--out" value="-1850.00">−$1,850</data></td>
+              </tr>
+              <tr>
+                <td><span class="lf-cell-primary">Fern &amp; Filter Coffee</span><br><span class="lf-cell-meta">Dining out · Visa ····4423 · Jul 11</span></td>
+                <td class="lf-col-amount"><data class="lf-amount lf-amount--out" value="-4.80">−$4<span class="lf-amount-cents">.80</span></data></td>
+              </tr>
+            </tbody>
+          </table>
+          <p style="margin-top: var(--lf-space-4);"><a href="transactions.html">View all transactions</a></p>
+        </div>
+      </details>
+    </main>
+  </div>
+</div>
+
+<!-- Bottom tab bar (mobile) -->
+<nav class="lf-tabbar" aria-label="Primary">
+  <a class="lf-tabbar-item" href="dashboard.html" aria-current="page">
+    <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="3" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="11" y="3" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="11" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="11" y="11" width="6" height="6" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>
+    Overview
+  </a>
+  <a class="lf-tabbar-item" href="transactions.html">
+    <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 6h12M4 10h12M4 14h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    Activity
+  </a>
+  <a class="lf-tabbar-item" href="#month">
+    <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M10 6v4l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    Budgets
+  </a>
+  <a class="lf-tabbar-item" href="#accounts">
+    <svg class="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="3" y="5" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.8"/><path d="M3 8.5h14" stroke="currentColor" stroke-width="1.8"/></svg>
+    Accounts
+  </a>
+</nav>
+
+<dialog class="lf-modal lf-cmdk" id="cmdk" aria-label="Command palette">
+  <input class="lf-input" id="cmdk-input" type="search" placeholder="Search pages and actions…" aria-label="Search pages and actions">
+  <ul class="lf-cmdk-list" id="cmdk-list">
+    <li><a href="dashboard.html">Overview</a></li>
+    <li><a href="transactions.html">Transactions</a></li>
+    <li><a href="transactions.html#add">Add transaction <span class="lf-kbd">N</span></a></li>
+    <li><a href="dashboard.html#month">Budgets</a></li>
+    <li><a href="index.html">Design system reference</a></li>
+  </ul>
+  <p class="lf-cmdk-empty" id="cmdk-empty" hidden>No matches. Try “transactions”.</p>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>

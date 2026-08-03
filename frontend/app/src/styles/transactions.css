@@ -1,0 +1,369 @@
+/* ==========================================================================
+   Transaction management — search, filtering, selection + bulk editing, and
+   receipt handling. Builds on .lf-table and reuses the dashboard row patterns.
+   ========================================================================== */
+
+/* ---------- toolbar ---------- */
+.lf-txn-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lf-space-2);
+  margin-bottom: var(--lf-space-3);
+}
+
+/* search box with a leading icon and a trailing clear button */
+.lf-search-box {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  flex: 1;
+  min-width: 220px;
+  height: 40px;
+  padding: 0 var(--lf-space-3);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-surface);
+  color: var(--lf-text-tertiary);
+}
+
+/* 40px is comfortable for a mouse and under the product's 44px touch floor.
+
+   The floor goes on the *input*, not the box: a 44px box has a 42px content
+   area once its 1px borders are taken out, so stretching the input inside a
+   44px box leaves the actual target 2px short. Sizing the input and letting
+   the box grow around it means the number the audit measures is the number
+   that was set. */
+@media (max-width: 768px) {
+  .lf-search-box {
+    height: auto;
+  }
+
+  .lf-search-box input {
+    min-height: var(--lf-touch-target);
+  }
+}
+
+.lf-search-box:focus-within {
+  border-color: var(--lf-action-primary);
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: -1px;
+}
+
+/* `align-self: stretch` is the whole fix.
+
+   The box is 40px and looks like the control; the input inside it sized to its
+   own 22px line box, so the actual hit target was half the height of the thing
+   the user is aiming at — under the WCAG 2.5.8 24px floor while looking
+   perfectly fine. Stretching the input makes the target and the affordance the
+   same rectangle, which is what the user already assumed. */
+.lf-search-box input {
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  border: 0;
+  background: transparent;
+  color: var(--lf-text-primary);
+  font: inherit;
+  font-size: var(--lf-text-sm);
+}
+
+.lf-search-box input:focus {
+  outline: none;
+}
+
+.lf-search-clear {
+  display: inline-flex;
+  border: 0;
+  background: transparent;
+  color: var(--lf-text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--lf-radius-full);
+}
+
+.lf-search-clear:hover {
+  color: var(--lf-text-primary);
+  background: var(--lf-bg-sunken);
+}
+
+.lf-filter-toggle-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-action-primary);
+  color: var(--lf-action-primary-text);
+  font-size: 0.68rem;
+  font-weight: var(--lf-weight-bold);
+}
+
+/* ---------- filter panel ---------- */
+.lf-filter-panel {
+  padding: var(--lf-space-4);
+  margin-bottom: var(--lf-space-3);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-surface);
+}
+
+.lf-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--lf-space-3);
+}
+@media (min-width: 640px) {
+  .lf-filter-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1024px) {
+  .lf-filter-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.lf-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--lf-space-2);
+  margin-top: var(--lf-space-4);
+}
+
+/* active filter chips */
+.lf-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lf-space-2);
+  margin-bottom: var(--lf-space-3);
+}
+
+.lf-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-bg-sunken);
+  border: 1px solid var(--lf-border-subtle);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-secondary);
+}
+
+.lf-filter-chip button {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--lf-text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--lf-radius-full);
+}
+
+.lf-filter-chip button:hover {
+  color: var(--lf-text-primary);
+  background: var(--lf-bg-surface);
+}
+
+.lf-filter-clear-all {
+  border: 0;
+  background: transparent;
+  color: var(--lf-text-link);
+  font: inherit;
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  cursor: pointer;
+}
+
+.lf-filter-clear-all:hover {
+  text-decoration: underline;
+}
+
+/* ---------- bulk action bar ---------- */
+.lf-bulk-bar {
+  position: sticky;
+  top: calc(var(--lf-topbar-height) + var(--lf-space-2));
+  z-index: 15;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  margin-bottom: var(--lf-space-3);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-action-primary);
+  color: var(--lf-action-primary-text);
+  box-shadow: var(--lf-shadow-overlay);
+}
+
+.lf-bulk-count {
+  font-weight: var(--lf-weight-semibold);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-bulk-spacer {
+  flex: 1;
+}
+
+.lf-bulk-bar select {
+  height: 34px;
+  border-radius: var(--lf-radius-md);
+  border: 0;
+  padding: 0 var(--lf-space-2);
+  font: inherit;
+  font-size: var(--lf-text-sm);
+}
+
+.lf-bulk-bar .lf-btn {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--lf-action-primary-text);
+  border-color: transparent;
+}
+
+.lf-bulk-bar .lf-btn:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+/* ---------- selectable transactions table ---------- */
+.lf-txn-check {
+  width: 40px;
+  text-align: center;
+}
+
+.lf-txn-check input {
+  accent-color: var(--lf-action-primary);
+  cursor: pointer;
+}
+
+/* Selection reads as a state, not a hover: tinted fill plus an accent marker
+   on the leading edge, matching the shared Table treatment. */
+.lf-txn-table tbody tr[data-selected="true"] {
+  background: var(--lf-selection-bg);
+  box-shadow: inset 3px 0 0 0 var(--lf-action-primary);
+}
+
+/* The inline category select sits inside a dense row — it shouldn't carry the
+   full form-control chrome until the user reaches for it. */
+.lf-txn-cat-select {
+  min-height: 34px;
+  padding-block: var(--lf-space-1);
+  border-color: transparent;
+  background-color: transparent;
+  box-shadow: none;
+  color: var(--lf-text-secondary);
+}
+
+.lf-txn-cat-select:hover:not(:disabled) {
+  border-color: var(--lf-border-default);
+  background-color: var(--lf-bg-surface);
+}
+
+.lf-txn-cat-select {
+  max-width: 190px;
+  height: 32px;
+}
+
+/* mobile reflow: stack the row, keep checkbox + amount on the first line */
+@media (max-width: 767px) {
+  .lf-txn-table thead {
+    display: none;
+  }
+  .lf-txn-table tbody tr {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--lf-space-1) var(--lf-space-3);
+    padding: var(--lf-space-3) var(--lf-space-4);
+  }
+  .lf-txn-table td {
+    display: block;
+    padding: 0;
+    border: 0;
+  }
+  .lf-txn-table td.lf-txn-cat {
+    grid-column: 2 / -1;
+  }
+  .lf-txn-cat-select {
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
+/* ---------- receipt manager ---------- */
+.lf-receipt-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-5);
+  border: 1.5px dashed var(--lf-border-strong);
+  border-radius: var(--lf-radius-lg);
+  color: var(--lf-text-tertiary);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--lf-duration-fast) var(--lf-ease-out),
+    background var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-receipt-drop:hover,
+.lf-receipt-drop[data-drag="true"] {
+  border-color: var(--lf-action-primary);
+  background: var(--lf-selection-bg);
+  color: var(--lf-text-secondary);
+}
+
+.lf-receipt-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-surface);
+}
+
+.lf-receipt-thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: var(--lf-radius-sm);
+  background: var(--lf-bg-sunken);
+  color: var(--lf-text-secondary);
+}
+
+.lf-receipt-main {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ==========================================================================
+   Certainty in the ledger
+   --------------------------------------------------------------------------
+   A pending row is a charge the bank has seen but not cleared, so its amount
+   can still change. Rendering it identically to a reconciled figure asks the
+   reader to treat an estimate as a fact — the same mistake the Debt score
+   made. The dotted rule is the same signal `<Figure certainty="pending">`
+   uses, so the two surfaces teach each other.
+   ========================================================================== */
+.lf-txn-table tr[data-certainty="pending"] .lf-amount {
+  border-bottom: 2px dotted var(--lf-certainty-pending);
+  padding-bottom: 1px;
+}
+
+.lf-txn-pending {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--lf-text-xs);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-certainty-pending);
+}

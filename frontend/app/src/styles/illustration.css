@@ -1,0 +1,204 @@
+/* ==========================================================================
+   Illustration system
+   --------------------------------------------------------------------------
+   Sizing and motion only. Everything about how an illustration *looks* —
+   lighting, palette, perspective, depth — lives in ClayScene.tsx, so that a
+   new illustration cannot drift from the others by accident.
+
+   The sizes are named for where they are used, not how big they are. `spot` is
+   the ceiling inside the application: dashboards, tables and financial screens
+   stay data-focused, and artwork there is an accent rather than a subject.
+   ========================================================================== */
+.lf-illus-frame {
+  display: grid;
+  place-items: center;
+  width: 100%;
+}
+
+.lf-illus {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.lf-illus-frame[data-size="hero"] .lf-illus {
+  max-width: 560px;
+}
+
+.lf-illus-frame[data-size="panel"] .lf-illus {
+  max-width: 300px;
+}
+
+.lf-illus-frame[data-size="spot"] .lf-illus {
+  max-width: 132px;
+}
+
+/* Gentle float — the "subtle depth" the language asks for, kept to a few
+   pixels so it reads as air rather than animation. Only the background chips
+   move; the subject stays put, because a drifting subject is a distraction on
+   a page someone is trying to read. */
+@keyframes lf-illus-drift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.lf-illus-chips {
+  animation: lf-illus-drift 7s var(--lf-ease-out) infinite;
+  transform-origin: center;
+}
+
+/* base.css zeroes durations globally; this is one of the cases where the
+   animation must not merely finish instantly but never run — an infinite
+   loop with a zero duration still schedules work every frame. */
+@media (prefers-reduced-motion: reduce) {
+  .lf-illus-chips {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   The motion set
+   --------------------------------------------------------------------------
+   Every keyframe below has **0% and 100% identical**. That is a correctness
+   requirement, not a stylistic one.
+
+   `base.css` neutralises motion globally by forcing `animation-duration` to
+   0.01ms and `animation-iteration-count` to 1, which lands every animation on
+   its *end* state. A one-way "money flies away" animation would therefore
+   leave a reduced-motion user looking at an empty frame — every note parked at
+   its off-screen destination. Because each animation returns to its origin,
+   the end state and the resting composition are the same drawing.
+
+   The `animation: none` block at the bottom is still needed on top of that: an
+   infinite loop with a near-zero duration finishes instantly but keeps
+   scheduling work every frame forever.
+   ========================================================================== */
+@keyframes lf-motion-travel {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  45% {
+    transform: translate(9px, -7px) scale(0.94);
+    opacity: 0.75;
+  }
+  70% {
+    transform: translate(4px, -3px) scale(0.98);
+    opacity: 0.9;
+  }
+}
+
+/* The trail flows. `stroke-dashoffset` is the one property that makes a line
+   look like it is moving without moving the line, so direction of travel reads
+   while the drawing stays exactly where it was composed. */
+@keyframes lf-motion-flow {
+  0% {
+    stroke-dashoffset: 20;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes lf-motion-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes lf-motion-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes lf-motion-turn {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* `transform-box: fill-box` so every transform-origin below is the element's
+   own centre rather than the SVG viewport's — without it a rotation swings the
+   element across the whole frame instead of spinning in place. */
+.lf-illus--motion .lf-motion-travel,
+.lf-illus--motion .lf-motion-bob,
+.lf-illus--motion .lf-motion-pulse,
+.lf-illus--motion .lf-motion-turn {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.lf-illus--motion .lf-motion-travel {
+  animation: lf-motion-travel 5.5s var(--lf-ease-out) infinite;
+}
+
+.lf-illus--motion .lf-motion-trail {
+  animation: lf-motion-flow 1.6s linear infinite;
+}
+
+.lf-illus--motion .lf-motion-bob {
+  animation: lf-motion-bob 4.5s var(--lf-ease-out) infinite;
+}
+
+.lf-illus--motion .lf-motion-pulse {
+  animation: lf-motion-pulse 3.2s var(--lf-ease-out) infinite;
+}
+
+/* Slow enough to read as "being worked on" rather than "loading". */
+.lf-illus--motion .lf-motion-turn {
+  animation: lf-motion-turn 14s linear infinite;
+}
+
+/* A spot illustration is 132px wide and sits inside data screens. Motion at
+   that size is peripheral movement beside numbers someone is reading, which is
+   exactly what the illustration brief rules out. The drawing keeps its trail;
+   it just stops moving. */
+.lf-illus-frame[data-size="spot"]:not([data-animate]) .lf-illus--motion * {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-illus--motion .lf-motion-travel,
+  .lf-illus--motion .lf-motion-trail,
+  .lf-illus--motion .lf-motion-bob,
+  .lf-illus--motion .lf-motion-pulse,
+  .lf-illus--motion .lf-motion-turn {
+    animation: none;
+  }
+}
+
+/* The auth panel is a dark surface, so the illustration's own light neutrals
+   need the panel's palette rather than the app's. */
+.lf-auth-illus {
+  margin-bottom: var(--lf-space-6);
+}
+
+.lf-auth-illus .lf-illus {
+  max-width: 216px;
+}
+
+/* Line art scales its strokes with the drawing, which is what keeps the
+   proportions right — at spot size a 3.4-unit stroke lands near 1px, which is
+   thin but legible. `vector-effect: non-scaling-stroke` was tried here and is
+   exactly wrong: it would hold the stroke at 3.4 *screen* pixels, so the
+   smallest illustration would carry the heaviest line in the product. */

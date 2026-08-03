@@ -1,0 +1,10 @@
+-r test.txt
+# Drives scripts/audit_routes.py, scripts/a11y_audit.py and scripts/ui_smoke.py.
+# The latter two predate this entry and were unrunnable without it.
+playwright==1.62.0
+django-extensions==4.1
+ruff==0.15.22
+black==26.5.1
+isort==8.0.1
+pre-commit
+ipython

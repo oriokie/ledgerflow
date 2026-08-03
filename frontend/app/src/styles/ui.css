@@ -1,0 +1,315 @@
+/* ==========================================================================
+   UI library support styles
+   --------------------------------------------------------------------------
+   Small additions the typed React component layer (src/ui/) needs but the
+   original component sheet didn't cover: a spinner, layout primitives
+   (Stack/Inline), button size/loading modifiers, and table sort affordances.
+   Everything references existing tokens — no new design decisions, just the
+   glue the components compose against.
+   ========================================================================== */
+
+/* ---------- Spinner ---------- */
+.lf-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--lf-radius-full);
+  animation: lf-spin 0.6s linear infinite;
+  vertical-align: -0.125em;
+}
+
+.lf-spinner--sm { width: 0.85em; height: 0.85em; border-width: 2px; }
+.lf-spinner--lg { width: 1.5em; height: 1.5em; border-width: 3px; }
+
+@keyframes lf-spin {
+  to { transform: rotate(360deg); }
+}
+
+.lf-center {
+  display: grid;
+  place-items: center;
+}
+
+/* ---------- Button size + state modifiers ---------- */
+.lf-btn--sm {
+  padding: var(--lf-space-1) var(--lf-space-3);
+  font-size: var(--lf-text-sm);
+  border-radius: var(--lf-radius-sm);
+}
+
+.lf-btn--lg {
+  padding: var(--lf-space-3) var(--lf-space-6);
+  font-size: var(--lf-text-md);
+}
+
+.lf-btn--block {
+  width: 100%;
+  justify-content: center;
+}
+
+.lf-btn.is-loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.lf-btn.is-loading > * {
+  visibility: hidden;
+}
+
+.lf-btn.is-loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--lf-radius-full);
+  color: var(--lf-action-primary-text);
+  visibility: visible;
+  animation: lf-spin 0.6s linear infinite;
+}
+
+.lf-btn--secondary.is-loading::after,
+.lf-btn--ghost.is-loading::after {
+  color: var(--lf-text-primary);
+}
+
+/* ---------- Layout primitives (Stack / Inline) ---------- */
+.lf-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.lf-inline {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.lf-inline--nowrap { flex-wrap: nowrap; }
+.lf-inline--between { justify-content: space-between; }
+.lf-inline--end { justify-content: flex-end; }
+.lf-inline--center { justify-content: center; }
+.lf-inline--start-top { align-items: flex-start; }
+
+/* gap steps map to the spacing scale */
+.lf-gap-1 { gap: var(--lf-space-1); }
+.lf-gap-2 { gap: var(--lf-space-2); }
+.lf-gap-3 { gap: var(--lf-space-3); }
+.lf-gap-4 { gap: var(--lf-space-4); }
+.lf-gap-5 { gap: var(--lf-space-5); }
+.lf-gap-6 { gap: var(--lf-space-6); }
+.lf-gap-8 { gap: var(--lf-space-8); }
+
+/* ---------- Grid column helpers (only the ones not already in components.css) ---------- */
+.lf-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.lf-grid--auto { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+@media (max-width: 720px) {
+  .lf-grid--4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Table sort affordance ---------- */
+.lf-th-sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.lf-th-sortable:hover {
+  color: var(--lf-text-primary);
+}
+
+.lf-sort-caret {
+  display: inline-block;
+  margin-left: 4px;
+  opacity: 0.5;
+  font-size: var(--lf-text-xs);
+}
+
+.lf-th-sortable[aria-sort="ascending"] .lf-sort-caret,
+.lf-th-sortable[aria-sort="descending"] .lf-sort-caret {
+  opacity: 1;
+}
+
+/* ---------- Divider ---------- */
+.lf-divider {
+  border: 0;
+  border-top: 1px solid var(--lf-border-subtle);
+  margin: var(--lf-space-4) 0;
+}
+
+/* ---------- Text helpers used by Text/Heading (only the new ones) ---------- */
+.lf-text-primary { color: var(--lf-text-primary); }
+.lf-text-tertiary { color: var(--lf-text-tertiary); }
+.lf-text-xs { font-size: var(--lf-text-xs); }
+.lf-text-md { font-size: var(--lf-text-md); }
+
+/* ---------- In-page tabs (distinct from the mobile .lf-tabbar bottom nav) ---------- */
+.lf-tabs {
+  display: flex;
+  gap: var(--lf-space-1);
+  border-bottom: 1px solid var(--lf-border-subtle);
+  margin-bottom: var(--lf-space-5);
+}
+
+.lf-tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  /* 38px before Phase 5, which nobody noticed while tabs were a secondary
+     control on two screens. They are the primary navigation *inside* Plan and
+     Insights now, so they take the touch floor — the same fix the segmented
+     control needed in 4.1, for the same reason. WCAG 2.5.5. */
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  margin-bottom: -1px;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-secondary);
+  cursor: pointer;
+  transition: color var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-tab:hover {
+  color: var(--lf-text-primary);
+}
+
+.lf-tab[aria-selected="true"] {
+  color: var(--lf-text-primary);
+  border-bottom-color: var(--lf-action-primary);
+}
+
+.lf-tab:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--lf-radius-sm);
+}
+
+/* ---------- Password input (show/hide toggle) ---------- */
+.lf-password-wrap {
+  position: relative;
+}
+
+.lf-password-wrap .lf-input {
+  /* Full width first: inside the wrap div the input no longer stretches with
+     the field the way a bare input does, so it shrank to its ~20ch default
+     while the toggle pinned to the wrap's far edge — every auth screen showed
+     a short password box with an orphaned eye floating beside it. */
+  width: 100%;
+  /* room for the reveal toggle so text never slides under it */
+  padding-right: 44px;
+}
+
+.lf-password-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  /* 40px was under the 44px touch floor on its narrow axis, on the control
+     someone reaches for one-handed while typing a password on a phone. It is a
+     standalone button, not a link inside a sentence, so it takes the full
+     target (WCAG 2.5.5). */
+  width: var(--lf-touch-target);
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  color: var(--lf-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--lf-radius-sm);
+}
+
+.lf-password-toggle:hover {
+  color: var(--lf-text-secondary);
+}
+
+.lf-password-toggle:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: -2px;
+}
+
+/* ---------- Auth divider ("or") ---------- */
+.lf-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+}
+
+.lf-auth-divider::before,
+.lf-auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--lf-border-subtle);
+}
+
+/* ---------- Password strength meter ---------- */
+.lf-strength {
+  display: flex;
+  gap: 4px;
+}
+
+.lf-strength-seg {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-border-subtle);
+  transition: background var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-strength-seg[data-on="weak"] { background: var(--lf-carmine-600); }
+.lf-strength-seg[data-on="fair"] { background: var(--lf-amber-600); }
+.lf-strength-seg[data-on="good"] { background: var(--lf-iris-600); }
+.lf-strength-seg[data-on="strong"] { background: var(--lf-verdant-600); }
+
+/* ---------- Social auth buttons ---------- */
+.lf-social-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lf-space-2);
+  width: 100%;
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-2) var(--lf-space-4);
+  border: 1px solid var(--lf-action-secondary-border);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-action-secondary-bg);
+  color: var(--lf-text-primary);
+  font-size: var(--lf-text-base);
+  font-weight: var(--lf-weight-medium);
+  font-family: var(--lf-font-body);
+  cursor: pointer;
+  transition: background var(--lf-duration-fast) var(--lf-ease-out), border-color var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-social-btn:hover {
+  background: var(--lf-bg-sunken);
+  border-color: var(--lf-border-strong);
+}
+
+.lf-social-btn:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+.lf-social-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

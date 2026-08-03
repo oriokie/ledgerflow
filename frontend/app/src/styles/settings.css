@@ -1,0 +1,440 @@
+/* ==========================================================================
+   Settings — a grouped, two-pane area. A sticky section nav on the left, panels
+   on the right, built from reusable section/row primitives. Advanced options
+   live behind a disclosure so the default view stays calm.
+   ========================================================================== */
+
+.lf-settings-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: var(--lf-space-6);
+  align-items: start;
+}
+@media (max-width: 768px) {
+  .lf-settings-layout {
+    grid-template-columns: 1fr;
+    gap: var(--lf-space-4);
+  }
+}
+
+/* ---------- nav ---------- */
+.lf-settings-nav {
+  position: sticky;
+  top: var(--lf-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-5);
+}
+@media (max-width: 768px) {
+  .lf-settings-nav {
+    position: static;
+    flex-direction: row;
+    gap: var(--lf-space-4);
+    overflow-x: auto;
+    padding-bottom: var(--lf-space-2);
+  }
+  .lf-settings-nav-group {
+    flex-shrink: 0;
+  }
+}
+.lf-settings-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lf-settings-nav-group-label {
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide, 0.04em);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+  padding: 0 var(--lf-space-3);
+  margin-bottom: var(--lf-space-1);
+}
+.lf-settings-nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  color: var(--lf-text-secondary);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--lf-duration-fast) var(--lf-ease-out), color var(--lf-duration-fast) var(--lf-ease-out);
+}
+.lf-settings-nav-link:hover {
+  background: var(--lf-bg-sunken);
+  color: var(--lf-text-primary);
+}
+.lf-settings-nav-link.is-active {
+  background: var(--lf-selection-bg, var(--lf-bg-sunken));
+  color: var(--lf-action-primary);
+}
+
+/* ---------- panels / sections ---------- */
+.lf-settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-5);
+  min-width: 0;
+  /* Panels stop at a readable width instead of stretching to whatever the
+     viewport gives them. A settings row is a short label and a small control;
+     at 1280px the unbounded version put a toggle a full 900px from the text it
+     belonged to, with nothing in between. Left-aligned to the nav column
+     rather than centred, so the two panes read as one surface. */
+  max-width: 720px;
+}
+.lf-settings-section {
+  padding: var(--lf-space-5);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-surface);
+}
+.lf-settings-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-4);
+}
+.lf-settings-section-title {
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-medium);
+  font-size: var(--lf-text-md);
+  color: var(--lf-text-primary);
+}
+.lf-settings-section-desc {
+  margin-top: 2px;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+  max-width: 60ch;
+}
+/* One grid per section, not one per row.
+   `.lf-settings-row` was `display: flex; justify-content: space-between`, which
+   right-aligns every control but lets the boundary between label and control
+   fall wherever each row's own content ends. Six rows, six different
+   boundaries, and the eye has nothing to travel down. The section owns the
+   columns now and rows are `display: contents`, so every label and every
+   control in a panel shares one pair of tracks. */
+.lf-settings-section-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 320px);
+  align-items: center;
+  gap: var(--lf-space-4);
+}
+
+/* Anything that is not a row — a banner, a save status, the advanced
+   disclosure — spans the whole width rather than being trapped in column 1. */
+.lf-settings-section-body > *:not(.lf-settings-row-label):not(.lf-settings-row-control) {
+  grid-column: 1 / -1;
+}
+
+/* ---------- row ---------- */
+/* The row box is dissolved so its two halves become items of the section grid.
+   Without this each row would be its own formatting context and the shared
+   column boundary above would be impossible. */
+.lf-settings-row {
+  display: contents;
+}
+.lf-settings-row-label {
+  min-width: 0;
+}
+.lf-settings-row-title {
+  display: block;
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+  font-size: var(--lf-text-sm);
+}
+.lf-settings-row-desc {
+  margin-top: 2px;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  max-width: 52ch;
+}
+.lf-settings-row-control {
+  min-width: 0;
+  /* Flush right, as before — the shared boundary comes from the track, not
+     from where the control happens to start. */
+  justify-self: end;
+}
+
+/* One column below the row breakpoint: label above its control, everything
+   full width. `display: contents` keeps working — the items simply stack. */
+@media (max-width: 640px) {
+  .lf-settings-section-body {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    gap: var(--lf-space-3);
+  }
+  .lf-settings-row-control {
+    justify-self: stretch;
+    margin-bottom: var(--lf-space-2);
+  }
+}
+
+/* ---------- advanced disclosure ---------- */
+.lf-settings-advanced {
+  border-top: 1px solid var(--lf-border-subtle);
+  padding-top: var(--lf-space-3);
+}
+.lf-settings-advanced-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-secondary);
+}
+.lf-settings-advanced-toggle:hover {
+  color: var(--lf-text-primary);
+}
+.lf-settings-advanced-chevron {
+  transition: transform var(--lf-duration-fast) var(--lf-ease-out);
+}
+.lf-settings-advanced[data-open="true"] .lf-settings-advanced-chevron {
+  transform: rotate(180deg);
+}
+.lf-settings-advanced-body {
+  margin-top: var(--lf-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+}
+
+/* ---------- danger zone ----------
+   Irreversible actions, separated from everything above by real distance and
+   a restrained carmine outline. The accent lives in the border and the header
+   only: a fully red panel becomes wallpaper, and a warning you stop seeing is
+   not a warning. The alarm is spent at the moment of action — on the
+   destructive button itself — not on the container. */
+.lf-danger-zone {
+  margin-top: var(--lf-rhythm-section);
+  border: 1px solid color-mix(in srgb, var(--lf-status-danger) 32%, transparent);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-surface);
+  overflow: hidden;
+}
+
+.lf-danger-zone-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-4) var(--lf-space-5);
+  background: color-mix(in srgb, var(--lf-status-danger-bg) 55%, var(--lf-bg-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--lf-status-danger) 22%, transparent);
+  color: var(--lf-status-danger-text);
+}
+
+.lf-danger-zone-title {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-base);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-snug);
+  color: var(--lf-status-danger-text);
+}
+
+.lf-danger-zone-desc {
+  margin-top: 2px;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+  max-width: 60ch;
+}
+
+.lf-danger-zone-body {
+  padding: var(--lf-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+}
+
+/* The disclosure inside the zone doesn't need its own top rule — the zone's
+   header already separates it from what came before. */
+.lf-danger-zone .lf-settings-advanced {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.lf-danger-zone .lf-settings-advanced-toggle {
+  color: var(--lf-status-danger-text);
+  font-weight: var(--lf-weight-semibold);
+}
+
+/* a quiet card link (workspace → members/billing) */
+.lf-settings-linkcard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-md);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color var(--lf-duration-fast) var(--lf-ease-out), background var(--lf-duration-fast) var(--lf-ease-out);
+}
+.lf-settings-linkcard:hover {
+  border-color: var(--lf-border-strong);
+  background: var(--lf-bg-sunken);
+}
+
+/* ---------- LLM provider list ----------
+   A reference table, not a picker: LLM setup is an environment concern, so
+   this shows what to set rather than letting a workspace member set it. */
+.lf-llm-presets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lf-llm-presets li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  flex-wrap: wrap;
+  padding: var(--lf-space-3) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+.lf-llm-presets li:last-child {
+  border-bottom: 0;
+}
+
+/* The active provider is marked so an operator can confirm at a glance that
+   what they set is what took effect. */
+.lf-llm-presets li[data-current] {
+  padding-inline: var(--lf-space-3);
+  margin-inline: calc(-1 * var(--lf-space-3));
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-selection-bg);
+}
+
+.lf-llm-preset-main {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  flex-wrap: wrap;
+}
+
+.lf-llm-preset-id {
+  padding: 1px var(--lf-space-2);
+  border-radius: var(--lf-radius-sm);
+  background: var(--lf-bg-sunken);
+  font-family: var(--lf-font-mono, monospace);
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-secondary);
+}
+
+.lf-llm-preset-label {
+  font-weight: var(--lf-weight-medium);
+}
+
+.lf-llm-preset-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+}
+
+.lf-push-toggle-error {
+  margin-top: var(--lf-space-2);
+}
+
+/* Per-type notification preferences. A table because the two switches per row
+ * are genuinely a matrix — alert type against delivery channel — and a list of
+ * paired toggles would lose the column headings that explain what each does. */
+.lf-notif-prefs { display: grid; gap: var(--lf-space-3); margin-top: var(--lf-space-4); }
+
+.lf-notif-table { width: 100%; border-collapse: collapse; margin-top: var(--lf-space-3); }
+.lf-notif-table th[scope="col"] {
+  text-align: center;
+  font-size: var(--lf-text-xs);
+  font-weight: 600;
+  color: var(--lf-text-secondary);
+  padding-bottom: var(--lf-space-2);
+}
+.lf-notif-table th[scope="col"]:first-child { text-align: start; }
+.lf-notif-table th[scope="row"] {
+  text-align: start;
+  font-weight: 400;
+  font-size: var(--lf-text-sm);
+  padding: var(--lf-space-2) 0;
+}
+.lf-notif-table td { text-align: center; padding: var(--lf-space-2) 0; }
+.lf-notif-table tbody tr { border-top: 1px solid var(--lf-border-subtle); }
+
+/* ---------- MFA enrolment ---------- */
+/* Deliberately light in dark mode too — see `--lf-surface-scannable`. A phone
+   camera is the reader here, not a person, and it cannot resolve black modules
+   on a dark background. */
+.lf-qr-plate {
+  display: inline-block;
+  width: fit-content;
+  padding: var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-surface-scannable);
+  color: var(--lf-on-scannable);
+}
+
+/* ---------- autosave status ---------- */
+/* Reserves its line whether or not it has anything to say, so confirming a save
+   never nudges the panel above it. A layout that jumps at the moment of
+   confirmation undermines the confirmation. */
+.lf-save-status {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  min-height: 1.5rem;
+  margin: 0;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-save-status[data-state="saved"] {
+  color: var(--lf-status-success-text);
+}
+
+.lf-save-status[data-state="error"] {
+  color: var(--lf-status-danger-text);
+}
+
+.lf-save-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-link);
+  text-decoration: underline;
+}
+
+/* Two controls sharing one settings row. Wraps rather than shrinking below a
+   legible width. */
+.lf-settings-field-pair {
+  display: flex;
+  gap: var(--lf-space-3);
+  flex-wrap: wrap;
+}
+
+.lf-settings-field-pair > * {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+/* A value the panel shows but does not let you change. */
+.lf-settings-readonly {
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}

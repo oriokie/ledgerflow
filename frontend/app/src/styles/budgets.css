@@ -1,0 +1,141 @@
+/* ==========================================================================
+   Budgeting — spending vs. limits. A three-state progress bar (under / near /
+   over) with a "pace marker" showing how far through the period we are, plus
+   per-line rows with inline limit editing.
+   ========================================================================== */
+
+/* ---------- progress bar ---------- */
+.lf-budget-track {
+  position: relative;
+  height: 10px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-bg-sunken);
+}
+
+.lf-budget-track--lg {
+  height: 14px;
+}
+
+.lf-budget-fill {
+  height: 100%;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-status-success);
+  transition: width var(--lf-duration-base) var(--lf-ease-out);
+}
+
+.lf-budget-fill[data-state="warning"] {
+  background: var(--lf-status-warning);
+}
+
+.lf-budget-fill[data-state="over"] {
+  background: var(--lf-status-danger);
+}
+
+/* the vertical "you are here in the period" marker */
+.lf-budget-pace {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--lf-text-secondary);
+  opacity: 0.5;
+}
+
+.lf-budget-pace::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-text-secondary);
+}
+
+.lf-budget-pace-note {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  margin-top: var(--lf-space-3);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+
+.lf-budget-pace-note[data-tone="over"] {
+  color: var(--lf-status-danger);
+}
+
+/* ---------- line rows ---------- */
+.lf-budget-line {
+  padding: var(--lf-space-4) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+.lf-budget-line:last-child {
+  border-bottom: 0;
+}
+
+.lf-budget-line-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-2);
+}
+
+.lf-budget-line-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+}
+
+.lf-budget-line-figures {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+  white-space: nowrap;
+}
+
+.lf-budget-line-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin-top: var(--lf-space-2);
+}
+
+.lf-budget-line-status {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-budget-line-status[data-tone="over"] {
+  color: var(--lf-status-danger);
+  font-weight: var(--lf-weight-medium);
+}
+
+.lf-budget-line-status[data-tone="warning"] {
+  color: var(--lf-status-warning);
+  font-weight: var(--lf-weight-medium);
+}
+
+.lf-budget-line-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* inline limit editor */
+.lf-budget-edit {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  margin-top: var(--lf-space-2);
+}
+
+.lf-budget-edit .lf-input {
+  max-width: 140px;
+}

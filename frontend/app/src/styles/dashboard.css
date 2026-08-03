@@ -1,0 +1,514 @@
+/* ==========================================================================
+   Dashboard — the overview surface. Layers on the design system: hero stats,
+   proportion bars, progressive-disclosure toggles, and compact preview lists.
+   Everything below is dashboard-specific; shared primitives live elsewhere.
+   ========================================================================== */
+
+/* ---------- header: greeting + period control + quick actions ---------- */
+/* Mobile-first: the narrow layout is the default and `sm` (640px) restores the
+   wide one. Written the other way round it needed a `max-width: 639px` query,
+   which is one of the off-by-one breakpoints the system is retiring — 639 and
+   640 leave a one-pixel band where neither rule applies. */
+.lf-dash-header {
+  display: flex;
+  /* The range control is a qualifier, not a headline: below the title on a
+     narrow screen rather than wrapping to its own full-width row above the
+     fold. */
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-4);
+}
+.lf-dash-greeting {
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-medium);
+  /* 39.8px wrapped to two lines at 375px, costing ~90px before a single
+     number appeared. One step down fits "Good evening, Amina" on one line. */
+  font-size: var(--lf-text-xl);
+  letter-spacing: var(--lf-tracking-tight);
+  color: var(--lf-text-primary);
+  line-height: 1.1;
+}
+.lf-dash-subtitle {
+  /* The period is already named in the control directly beneath it. */
+  display: none;
+  margin-top: 2px;
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-sm);
+}
+
+@media (min-width: 640px) {
+  .lf-dash-header {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--lf-space-4);
+    margin-bottom: var(--lf-space-6);
+  }
+  .lf-dash-greeting {
+    font-size: var(--lf-text-3xl);
+  }
+  .lf-dash-subtitle {
+    display: block;
+  }
+}
+.lf-dash-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lf-space-2);
+}
+
+/* Section title with an optional trailing link/action. */
+.lf-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-3);
+}
+/* A card- or section-header link.
+   
+   These rendered ~20px tall, under the WCAG 2.5.8 24px floor and well under the
+   product's own 44px touch floor. Note that raising them to 24px *alone* would
+   have made the ratchet worse rather than better: they would have left the
+   `target-aa` count and immediately joined `target-project`, which is the
+   stricter of the two. Both floors or neither.
+
+   Height rather than padding, so the target grows without moving the header's
+   baseline alignment or the card's internal rhythm. */
+.lf-section-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--lf-space-6);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-link);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .lf-section-link {
+    min-height: var(--lf-touch-target);
+  }
+}
+.lf-section-link:hover {
+  text-decoration: underline;
+}
+
+/* The delta chip moved to components.css — it had two competing definitions. */
+
+/* ---------- hero net-worth card: figure + inline sparkline ---------- */
+/* `.lf-hero-figure` lived here — retired by <Figure size="hero">, which owns
+   the label, the amount, the delta and the alignment contract. */
+.lf-spark {
+  width: 100%;
+  height: 96px;
+  margin-top: var(--lf-space-3);
+}
+
+/* ---------- stat tiles (income / spending / net) ---------- */
+.lf-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide, 0.04em);
+  text-transform: uppercase;
+}
+
+/* ---------- category proportion bars ---------- */
+.lf-catbar-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+}
+.lf-catbar-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px var(--lf-space-3);
+  align-items: center;
+}
+.lf-catbar-name {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  min-width: 0;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-primary);
+}
+.lf-catbar-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lf-catbar-swatch {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+.lf-catbar-value {
+  font-size: var(--lf-text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-primary);
+  text-align: right;
+}
+.lf-catbar-pct {
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-xs);
+  margin-left: 6px;
+}
+.lf-catbar-track {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-bg-sunken);
+  overflow: hidden;
+}
+.lf-catbar-fill {
+  height: 100%;
+  border-radius: var(--lf-radius-full);
+  transition: width var(--lf-duration-base) var(--lf-ease-out);
+}
+
+/* ---------- progressive-disclosure toggle ---------- */
+.lf-disclosure-toggle {
+  display: inline-flex;
+  align-items: center;
+  /* Same 20px target as the section links above, same fix — and it needs the
+     mobile floor for the same reason: 24px alone just moves it from the AA
+     count into the stricter project one. */
+  min-height: var(--lf-space-6);
+  gap: 4px;
+  margin-top: var(--lf-space-3);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--lf-text-link);
+  font: inherit;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  cursor: pointer;
+}
+@media (max-width: 768px) {
+  .lf-disclosure-toggle {
+    min-height: var(--lf-touch-target);
+  }
+}
+
+.lf-disclosure-toggle:hover {
+  text-decoration: underline;
+}
+.lf-disclosure-panel {
+  margin-top: var(--lf-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+}
+
+/* ---------- compact preview rows (bills, activity) ---------- */
+.lf-row-list {
+  display: flex;
+  flex-direction: column;
+}
+.lf-row-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+.lf-row-item:last-child {
+  border-bottom: 0;
+}
+.lf-row-main {
+  flex: 1;
+  min-width: 0;
+}
+.lf-row-title {
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lf-row-sub {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  margin-top: 1px;
+}
+.lf-row-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Due-date pill for bills. */
+.lf-due-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: var(--lf-radius-full);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  background: var(--lf-bg-sunken);
+  color: var(--lf-text-secondary);
+}
+.lf-due-pill--soon {
+  background: color-mix(in srgb, var(--lf-status-warning) 16%, transparent);
+  color: var(--lf-status-warning);
+}
+.lf-due-pill--overdue {
+  background: color-mix(in srgb, var(--lf-status-danger) 16%, transparent);
+  color: var(--lf-status-danger);
+}
+
+/* ---------- responsive 2fr / 1fr split ---------- */
+.lf-dash-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--lf-space-4);
+}
+@media (min-width: 900px) {
+  .lf-dash-split {
+    grid-template-columns: 3fr 2fr;
+  }
+}
+
+.lf-dash-section {
+  margin-bottom: var(--lf-space-8);
+}
+
+/* Chart wrapper that keeps a healthy aspect ratio and never overflows. */
+.lf-chart-tall {
+  width: 100%;
+  height: 280px;
+}
+@media (max-width: 640px) {
+  .lf-chart-tall {
+    height: 220px;
+  }
+}
+
+/* Custom recharts tooltip surface. */
+.lf-chart-tip {
+  background: var(--lf-bg-surface);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-md);
+  box-shadow: var(--lf-shadow-overlay);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  font-size: var(--lf-text-xs);
+}
+.lf-chart-tip-label {
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-primary);
+  margin-bottom: 2px;
+}
+.lf-chart-tip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lf-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.lf-chart-tip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Getting Started — first-run onboarding checklist (empty workspace)
+   ========================================================================== */
+.lf-onboard {
+  max-width: 640px;
+  margin: var(--lf-space-4) auto 0;
+  padding: var(--lf-space-6);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-surface);
+  box-shadow: var(--lf-shadow-raised);
+}
+.lf-onboard-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-4);
+}
+
+.lf-onboard-head-main {
+  min-width: 0;
+}
+
+/* Progress: a track plus a stated count. The words carry the meaning, the bar
+   just makes it glanceable — nobody should have to measure a bar to know how
+   far through setup they are. */
+.lf-onboard-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-5);
+}
+
+.lf-onboard-progress-track {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-bg-sunken);
+  overflow: hidden;
+}
+
+.lf-onboard-progress-fill {
+  height: 100%;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-action-primary);
+  transition: width var(--lf-duration-base) var(--lf-ease-out);
+}
+
+.lf-onboard-progress-label {
+  flex-shrink: 0;
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-secondary);
+}
+
+.lf-onboard-title {
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-medium);
+  font-size: var(--lf-text-xl);
+  letter-spacing: var(--lf-tracking-tight);
+  color: var(--lf-text-primary);
+}
+.lf-onboard-sub {
+  margin-top: var(--lf-space-1);
+  color: var(--lf-text-secondary);
+  font-size: var(--lf-text-sm);
+}
+.lf-onboard-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-1);
+}
+.lf-onboard-step {
+  display: flex;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+}
+.lf-onboard-step[data-current="true"] {
+  background: var(--lf-bg-sunken);
+}
+.lf-onboard-marker {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--lf-radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  background: var(--lf-bg-surface);
+  border: 1.5px solid var(--lf-border-strong);
+  color: var(--lf-text-secondary);
+}
+.lf-onboard-step[data-done="true"] .lf-onboard-marker {
+  background: var(--lf-status-success);
+  border-color: var(--lf-status-success);
+  color: #fff;
+}
+.lf-onboard-step[data-current="true"] .lf-onboard-marker {
+  border-color: var(--lf-action-primary);
+  color: var(--lf-action-primary);
+}
+.lf-onboard-step-main {
+  min-width: 0;
+}
+.lf-onboard-step-title {
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-primary);
+}
+.lf-onboard-step[data-done="true"] .lf-onboard-step-title {
+  color: var(--lf-text-secondary);
+}
+.lf-onboard-step-body {
+  margin-top: 2px;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+.lf-onboard-cta {
+  margin-top: var(--lf-space-3);
+}
+
+.lf-onboard-cta-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-4);
+  flex-wrap: wrap;
+  margin-top: var(--lf-space-3);
+}
+.lf-onboard-cta-row .lf-onboard-cta {
+  margin-top: 0;
+}
+.lf-onboard-secondary {
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+
+/* ==========================================================================
+   Quick Add
+   ========================================================================== */
+.lf-quickadd-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-3);
+  color: var(--lf-status-success-text);
+}
+
+.lf-quickadd-confirmation svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.lf-quickadd-fix-link {
+  color: var(--lf-text-link);
+  text-decoration: underline;
+  font: inherit;
+}
+
+/* ==========================================================================
+   Receipt scan / confirm
+   ========================================================================== */
+.lf-receipt-unreadable {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-2);
+  color: var(--lf-status-warning-text);
+}
+
+.lf-receipt-actions {
+  display: flex;
+  gap: var(--lf-space-2);
+  justify-content: flex-end;
+}
+
+@media (max-width: 639px) {
+  .lf-receipt-actions {
+    flex-direction: column-reverse;
+  }
+
+  .lf-receipt-actions button {
+    width: 100%;
+  }
+}

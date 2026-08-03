@@ -1,0 +1,78 @@
+# Local development stack. `docker compose up` gets a working environment
+# with zero host-level Python/Postgres/Redis installs required.
+#
+# Production does NOT use this file — see docker-compose.prod.yml, which uses
+# the same Dockerfile's `production.txt` deps and gunicorn instead of runserver.
+
+x-django-env: &django-env
+  DJANGO_SETTINGS_MODULE: config.settings.development
+  DJANGO_SECRET_KEY: dev-secret-key-change-me
+  DJANGO_DEBUG: "true"
+  DJANGO_ALLOWED_HOSTS: "*"
+  DATABASE_URL: postgres://ledgerflow:ledgerflow@db:5432/ledgerflow
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+  RUN_MIGRATIONS: "true"
+  COLLECT_STATIC: "false"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ledgerflow
+      POSTGRES_USER: ledgerflow
+      POSTGRES_PASSWORD: ledgerflow
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledgerflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      args: {REQUIREMENTS_FILE: requirements/development.txt}
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    environment: *django-env
+    ports: ["8000:8000"]
+    volumes: ["./:/app"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  worker:
+    build:
+      context: .
+      args: {REQUIREMENTS_FILE: requirements/development.txt}
+    command: ["celery", "-A", "config", "worker", "-l", "info"]
+    environment: *django-env
+    volumes: ["./:/app"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  beat:
+    build:
+      context: .
+      args: {REQUIREMENTS_FILE: requirements/development.txt}
+    command: ["celery", "-A", "config", "beat", "-l", "info"]
+    environment: *django-env
+    volumes: ["./:/app"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+volumes:
+  pgdata:

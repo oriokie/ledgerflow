@@ -1,0 +1,492 @@
+/* ==========================================================================
+   AI coach
+   --------------------------------------------------------------------------
+   An insight feed and its narrative briefing. Severity drives a single accent
+   edge rather than a filled card: the backend reserves `critical` for things
+   with a deadline, and the UI has to honour that restraint or the distinction
+   stops meaning anything.
+   ========================================================================== */
+
+.lf-coach-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-rhythm-section);
+}
+
+.lf-coach-feed-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--lf-space-4);
+}
+
+.lf-coach-feed-head .lf-section-title {
+  margin-bottom: 0;
+}
+
+.lf-coach-feed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+}
+
+/* ---------- briefing ---------- */
+.lf-briefing {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+}
+
+.lf-briefing-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  flex-wrap: wrap;
+}
+
+.lf-briefing-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-1);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-action-primary);
+}
+
+.lf-briefing-headline {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-xl);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-tight);
+  line-height: 1.25;
+}
+
+.lf-briefing-summary {
+  font-size: var(--lf-text-base);
+  line-height: 1.6;
+  color: var(--lf-text-secondary);
+  max-width: 70ch;
+}
+
+/* The counts the narrator wrote from. Prose is easy to skim past; these give
+   the reader something concrete to anchor on. */
+.lf-briefing-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-5);
+  margin: 0;
+  padding-top: var(--lf-space-3);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+.lf-briefing-metrics dt {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-briefing-metrics dd {
+  margin: 0;
+  font-size: var(--lf-text-lg);
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-briefing-metrics [data-tone="critical"] dd {
+  color: var(--lf-status-danger-text);
+}
+.lf-briefing-metrics [data-tone="warning"] dd {
+  color: var(--lf-status-warning-text);
+}
+.lf-briefing-metrics [data-tone="opportunity"] dd {
+  color: var(--lf-status-success-text);
+}
+
+/* ---------- insight card ---------- */
+.lf-insight {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-4);
+  padding-inline-start: var(--lf-space-5);
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-surface);
+  box-shadow: var(--lf-shadow-sm);
+}
+
+/* Severity is one accent edge, not a filled card. `critical` earns a slightly
+   heavier bar and a tinted icon — nothing more. */
+.lf-insight::before {
+  content: "";
+  position: absolute;
+  inset-block: var(--lf-space-4);
+  inset-inline-start: 0;
+  width: 3px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-border-default);
+}
+
+.lf-insight[data-severity="critical"]::before {
+  inset-block: var(--lf-space-3);
+  width: 4px;
+  background: var(--lf-status-danger);
+}
+.lf-insight[data-severity="warning"]::before {
+  background: var(--lf-status-warning);
+}
+.lf-insight[data-severity="opportunity"]::before {
+  background: var(--lf-status-success);
+}
+.lf-insight[data-severity="info"]::before {
+  background: var(--lf-border-strong);
+}
+
+.lf-insight-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-3);
+}
+
+.lf-insight-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+  color: var(--lf-text-secondary);
+}
+
+.lf-insight[data-severity="critical"] .lf-insight-icon {
+  background: var(--lf-status-danger-bg);
+  color: var(--lf-status-danger-text);
+}
+.lf-insight[data-severity="warning"] .lf-insight-icon {
+  background: var(--lf-status-warning-bg);
+  color: var(--lf-status-warning-text);
+}
+.lf-insight[data-severity="opportunity"] .lf-insight-icon {
+  background: var(--lf-status-success-bg);
+  color: var(--lf-status-success-text);
+}
+
+.lf-insight-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.lf-insight-kind {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+}
+
+.lf-insight-severity {
+  font-weight: var(--lf-weight-regular);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.lf-insight-severity::before {
+  content: "·";
+  margin-inline-end: var(--lf-space-2);
+}
+
+.lf-insight-title {
+  margin-top: 2px;
+  font-size: var(--lf-text-base);
+  font-weight: var(--lf-weight-semibold);
+  line-height: 1.35;
+}
+
+.lf-insight-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.lf-insight-body {
+  font-size: var(--lf-text-sm);
+  line-height: 1.55;
+  color: var(--lf-text-secondary);
+  max-width: 68ch;
+}
+
+.lf-insight-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  flex-wrap: wrap;
+  margin-top: var(--lf-space-1);
+}
+
+/* "Why am I seeing this?" is a first-class control, not a tooltip — a user who
+   can check one claim will believe the next. */
+.lf-insight-why-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-1);
+  /* `padding: 0` left a 152x20 target — under the 24px WCAG 2.5.8 floor, and
+     repeated once per insight card, so it was the single largest source of
+     small targets in the product (24 of 58 findings). The disclosure is the
+     affordance that makes an automated insight trustworthy; it should not be
+     the hardest thing on the card to hit. */
+  min-height: var(--lf-touch-target);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-link);
+  cursor: pointer;
+}
+
+.lf-insight-why-toggle:hover {
+  text-decoration: underline;
+}
+
+.lf-insight-why-toggle:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--lf-radius-sm);
+}
+
+.lf-insight-why-toggle svg {
+  transition: transform var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-insight-why-toggle svg[data-open] {
+  transform: rotate(180deg);
+}
+
+.lf-insight-why {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+  margin-top: var(--lf-space-2);
+  padding: var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+  font-size: var(--lf-text-sm);
+  line-height: 1.55;
+  color: var(--lf-text-secondary);
+  animation: lf-why-in var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+@keyframes lf-why-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-insight-why {
+    animation: none;
+  }
+}
+
+.lf-insight-evidence {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--lf-space-3);
+  margin: 0;
+}
+
+.lf-insight-evidence dt {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-insight-evidence dd {
+  margin: 0;
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-primary);
+}
+
+/* ---------- compact (dashboard) ---------- */
+.lf-insight--compact {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3);
+  padding-inline-start: var(--lf-space-4);
+  box-shadow: none;
+}
+
+.lf-insight--compact::before {
+  inset-block: var(--lf-space-3);
+}
+
+.lf-insight--compact .lf-insight-title {
+  margin-top: 0;
+  font-size: var(--lf-text-sm);
+}
+
+.lf-insight--compact .lf-insight-body {
+  font-size: var(--lf-text-xs);
+  margin-top: 2px;
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 639px) {
+  .lf-insight {
+    padding: var(--lf-space-3);
+    padding-inline-start: var(--lf-space-4);
+  }
+
+  .lf-briefing-metrics {
+    gap: var(--lf-space-4);
+  }
+
+  .lf-briefing-headline {
+    font-size: var(--lf-text-lg);
+  }
+}
+
+/* Forced high contrast: the accent edge is decorative, so severity falls back
+   to the label text that is always present in the card head. */
+@media (prefers-contrast: more) {
+  .lf-insight {
+    border-width: 2px;
+  }
+
+  .lf-insight[data-severity="critical"] {
+    border-color: var(--lf-status-danger);
+  }
+}
+
+/* ==========================================================================
+   Automation review queue
+   --------------------------------------------------------------------------
+   Everything here is a proposal awaiting a decision, so the visual weight sits
+   on the reasoning and the two actions rather than on the detector's name.
+   ========================================================================== */
+
+.lf-suggestion-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+
+.lf-suggestion {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-lg);
+  background: var(--lf-bg-surface);
+}
+
+.lf-suggestion-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+  color: var(--lf-text-secondary);
+}
+
+/* Duplicates and refunds touch money that may be wrong, so they read warmer
+   than a category suggestion — without shouting, since both are advisory. */
+.lf-suggestion[data-kind="duplicate"] .lf-suggestion-icon,
+.lf-suggestion[data-kind="refund"] .lf-suggestion-icon {
+  background: var(--lf-status-warning-bg);
+  color: var(--lf-status-warning-text);
+}
+
+.lf-suggestion[data-kind="transfer"] .lf-suggestion-icon,
+.lf-suggestion[data-kind="income"] .lf-suggestion-icon {
+  background: var(--lf-selection-bg);
+  color: var(--lf-action-primary);
+}
+
+.lf-suggestion-body {
+  min-width: 0;
+}
+
+.lf-suggestion-kind {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+}
+
+/* Banded, never a percentage: a calibrated estimate rendered to the point
+   implies precision it doesn't have. */
+.lf-suggestion-confidence {
+  font-weight: var(--lf-weight-regular);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.lf-suggestion-confidence::before {
+  content: "·";
+  margin-inline-end: var(--lf-space-2);
+}
+
+.lf-suggestion-reason {
+  margin-top: 2px;
+  font-size: var(--lf-text-sm);
+  line-height: 1.5;
+  color: var(--lf-text-primary);
+}
+
+.lf-suggestion-actions {
+  display: flex;
+  gap: var(--lf-space-2);
+  flex-shrink: 0;
+}
+
+/* Appears only with a selection — an always-present toolbar of disabled
+   buttons is clutter. */
+.lf-suggestion-bulk {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-3);
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-selection-bg);
+  position: sticky;
+  top: var(--lf-space-3);
+  z-index: 1;
+}
+
+@media (max-width: 639px) {
+  /* The actions drop below the reason rather than squeezing it to nothing. */
+  .lf-suggestion {
+    grid-template-columns: auto auto 1fr;
+    row-gap: var(--lf-space-2);
+  }
+
+  .lf-suggestion-actions {
+    grid-column: 2 / -1;
+  }
+}
