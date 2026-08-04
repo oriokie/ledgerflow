@@ -31,6 +31,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
 
 from apps.common.rls import bind_db_tenant
+from apps.tenancy.models import Tenant
 
 
 class Command(BaseCommand):
@@ -144,18 +145,40 @@ class Command(BaseCommand):
 
         # Needs at least one row somewhere, or "zero visible" proves nothing:
         # an empty table looks identical to a perfectly filtered one.
+        #
+        # The search has to run *bound to a tenant*. Counting with nothing bound
+        # is the fail-closed case — every policy returns zero rows, exactly as
+        # designed — so an unbound search reports a busy database as empty and
+        # skips this check on precisely the deployments where it matters most.
+        # That is what it did on the first server to run with isolation on.
+        #
+        # `tenancy_tenant` carries no policy of its own (it is the registry used
+        # to resolve a tenant in the first place), so it can be read here to
+        # find one.
+        tenant_ids = list(Tenant.objects.values_list("id", flat=True)[:20])
         probe = None
-        for table in protected:
-            with connection.cursor() as cur:
-                cur.execute(f"SELECT count(*) FROM {table}")  # noqa: S608 - name from pg_class
-                if cur.fetchone()[0]:
-                    probe = table
-                    break
+        for tenant_id in tenant_ids:
+            with transaction.atomic():
+                bind_db_tenant(tenant_id)
+                for table in protected:
+                    with connection.cursor() as cur:
+                        cur.execute(f"SELECT count(*) FROM {table}")  # noqa: S608 - name from pg_class
+                        if cur.fetchone()[0]:
+                            probe = table
+                            break
+                transaction.set_rollback(True)
+            if probe:
+                break
 
         if probe is None:
+            detail = (
+                "no workspaces exist yet"
+                if not tenant_ids
+                else f"{len(tenant_ids)} workspace(s) exist but hold no rows yet"
+            )
             self.stdout.write(
-                "  (every tenant table is empty — a read-back would pass vacuously, "
-                "so it was skipped; re-run once there is data)"
+                f"  (nothing to read back — {detail}, so the check would pass "
+                "vacuously; re-run once there is data)"
             )
             return
 
