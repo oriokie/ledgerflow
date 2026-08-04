@@ -20,7 +20,8 @@ from rest_framework.views import APIView
 
 from apps.common.api_base import TenantScopedAPIView
 from apps.intelligence import advisor
-from apps.projections import adapters, decisions
+from apps.projections import adapters
+from apps.projections.api.advisor_views import dispatch_decision
 from apps.projections.api.serializers import DECISION_SERIALIZERS
 from apps.projections.api.views import PLANNING, _position_error
 from apps.projections.calculators import CalculatorError
@@ -170,10 +171,18 @@ class AskView(TenantScopedAPIView, APIView):
         except adapters.NoPositionError as exc:
             return _position_error(exc)
 
+        # The same dispatcher the form endpoints use, workspace assumptions
+        # included — an answer that differed by the door it came through would
+        # make "understood as" a lie.
+        from apps.projections import services as projection_services
+
+        assumptions = projection_services.to_engine_assumptions(
+            projection_services.ensure_default_assumption_set()
+        )
         kwargs = dict(payload.validated_data)
         kwargs.pop("explain", None)
         try:
-            decision = getattr(decisions, func_name)(position=position, **kwargs)
+            decision = dispatch_decision(func_name, position=position, assumptions=assumptions, kwargs=kwargs)
         except CalculatorError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 

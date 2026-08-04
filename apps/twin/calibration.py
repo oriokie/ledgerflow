@@ -270,7 +270,11 @@ def forecast_next_month(*, twin: DigitalTwin, as_of: date | None = None) -> list
         return []
 
     current = _month_start(as_of)
-    complete = [r for r in statement.rows if r.period_start < current]
+    # Complete months *with activity*. `cashflow_statement` emits a row for
+    # every month in its window whether or not anything happened, so a sparse
+    # history medians against a wall of zeros and forecasts nothing — the same
+    # trap `parameters._monthly_flows` already steps around, in a third place.
+    complete = [r for r in statement.rows if r.period_start < current and (r.inflow_minor or r.outflow_minor)]
     if len(complete) < 2:
         return []
 

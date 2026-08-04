@@ -36,6 +36,27 @@ from .serializers import (
 from .views import PLANNING, _position_error, _projection_out
 
 
+def dispatch_decision(func_name: str, *, position, assumptions, kwargs: dict):
+    """Call one decision evaluator with the workspace's assumptions when it
+    takes them.
+
+    `inspect.signature` rather than `__code__.co_varnames`: co_varnames lists
+    locals as well as parameters, so an evaluator that ever gains a local
+    named `assumptions` would silently start receiving a keyword it does not
+    accept and 500. The signature is the contract; the locals are not.
+
+    This is the single dispatch point for both the form endpoints and the
+    conversational ask — which is what guarantees the same question gets the
+    same answer whichever way it arrives.
+    """
+    import inspect
+
+    func = getattr(decisions, func_name)
+    if "assumptions" in inspect.signature(func).parameters:
+        kwargs = {**kwargs, "assumptions": assumptions}
+    return func(position=position, **kwargs)
+
+
 def _context(months: int | None = None):
     """The three things every Phase 2 endpoint needs: the household's position,
     the workspace's assumptions, and a horizon."""
@@ -263,12 +284,8 @@ class DecisionView(TenantScopedAPIView, APIView):
 
         kwargs = dict(s.validated_data)
         explain = kwargs.pop("explain", True)
-        func = getattr(decisions, func_name)
-        if "assumptions" in func.__code__.co_varnames:
-            kwargs["assumptions"] = assumptions
-
         try:
-            decision = func(position=position, **kwargs)
+            decision = dispatch_decision(func_name, position=position, assumptions=assumptions, kwargs=kwargs)
         except CalculatorError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 

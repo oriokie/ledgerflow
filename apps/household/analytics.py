@@ -30,12 +30,26 @@ from datetime import date
 from django.db.models import Sum
 from django.utils import timezone
 
+from apps.common.tenant_context import require_current_tenant_id
 from apps.finance.models import AccountType
 from apps.ledger.models import AccountBalance
 from apps.tenancy.models import Membership
 
 from . import visibility
 from .models import AccountSharing, Dependant, HouseholdProfile
+
+
+def _household_memberships():
+    """This workspace's memberships, and only this workspace's.
+
+    `Membership` is exempt from the tenant-scoped manager and from RLS by
+    design (workspace discovery happens before a tenant is bound), so it is
+    one of the very few models where a query must scope itself. Iterating it
+    bare listed every member of every workspace on the platform — with display
+    names derived from their email addresses — to anyone who opened the
+    household summary.
+    """
+    return Membership.objects.filter(tenant_id=require_current_tenant_id()).select_related("user")
 
 
 @dataclass(frozen=True)
@@ -109,7 +123,7 @@ def combined_position(*, as_of: date | None = None) -> CombinedPosition:
     members = []
     current = visibility.current_membership()
     profiles = {p.membership_id: p for p in HouseholdProfile.objects.all()}
-    for membership in Membership.objects.all():
+    for membership in _household_memberships():
         profile = profiles.get(membership.id)
         owned_visible = AccountSharing.objects.filter(
             owner_id=membership.id, financial_account_id__in=visible
@@ -189,7 +203,7 @@ def expense_split() -> ExpenseSplit:
     profiles = {p.membership_id: p for p in HouseholdProfile.objects.all()}
     per_member = []
     shares_known = True
-    for membership in Membership.objects.all():
+    for membership in _household_memberships():
         profile = profiles.get(membership.id)
         share = (
             float(profile.contribution_share) if profile and profile.contribution_share is not None else None
@@ -248,11 +262,20 @@ def coverage() -> HouseholdCoverage:
     from apps.finance import selectors as finance_selectors
 
     currency = finance_selectors._dominant_liquid_currency() or "USD"
-    statement = finance_selectors.cashflow_statement(months=6)
+    statement = finance_selectors.cashflow_statement(months=7)
     monthly_expenses = 0
     if statement and statement.rows:
-        outflows = sorted(r.outflow_minor for r in statement.rows)
-        monthly_expenses = outflows[len(outflows) // 2]
+        # Complete months with activity only. The statement pads its window
+        # with empty rows and includes the in-progress month; a median over
+        # either understates spending and overstates the runway.
+        from django.utils import timezone as _tz
+
+        current = _tz.localdate().replace(day=1)
+        outflows = sorted(
+            r.outflow_minor for r in statement.rows if r.period_start < current and r.outflow_minor > 0
+        )
+        if outflows:
+            monthly_expenses = outflows[len(outflows) // 2]
 
     liquid_types = {AccountType.CHECKING, AccountType.SAVINGS, AccountType.CASH}
     every = visibility.all_account_ids()
@@ -311,21 +334,27 @@ def dependant_events(*, as_of: date | None = None) -> list[dict]:
             continue
         support_years = None
         if dependant.support_until_year:
-            support_years = max(0, dependant.support_until_year - as_of.year)
+            # Floor of one: support ending *this* year still costs something
+            # this year. The compiler treats the year count the same way.
+            support_years = max(1, dependant.support_until_year - as_of.year)
         out.append(
             {
                 "kind": "new_child" if dependant.relationship == "child" else "caring_for_parent",
                 "label": dependant.name,
                 "params": {
                     "monthly_cost_minor": dependant.monthly_cost_minor,
+                    # `is not None`, not truthiness: a support window that has
+                    # nearly closed must not fall through to the compiler's
+                    # 18-year default — that projected a dependant whose
+                    # support ends this year as eighteen more years of cost.
                     **(
                         {"support_years": support_years}
-                        if dependant.relationship == "child" and support_years
+                        if dependant.relationship == "child" and support_years is not None
                         else {}
                     ),
                     **(
                         {"years": support_years}
-                        if dependant.relationship != "child" and support_years
+                        if dependant.relationship != "child" and support_years is not None
                         else {}
                     ),
                 },

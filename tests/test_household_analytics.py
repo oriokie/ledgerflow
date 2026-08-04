@@ -286,3 +286,22 @@ def test_dependants_do_not_leak_across_tenants(household):
 
     with tenant_scope(uuid.uuid4()):
         assert Dependant.objects.count() == 0
+
+
+def test_support_ending_this_year_does_not_default_to_eighteen_more(household):
+    """The truthiness regression: `support_years` of zero fell through to the
+    compiler's 18-year default, so the dependant whose support was *ending* was
+    the one projected as costing the longest."""
+    from django.utils import timezone
+
+    tenant, ama, _boro, _ama_m, _boro_m = household
+    with tenant_scope(tenant.id, actor_id=ama.id):
+        Dependant.objects.create(
+            name="Nearly grown",
+            relationship=RelationshipKind.CHILD,
+            monthly_cost_minor=80_000,
+            support_until_year=timezone.localdate().year,
+        )
+        events = analytics.dependant_events()
+
+    assert events[0]["params"]["support_years"] == 1

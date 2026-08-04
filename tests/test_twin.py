@@ -471,3 +471,20 @@ def test_an_unreachable_model_falls_back_silently(monkeypatch):
     routing = conversation.route("Can I retire at 60?")
     assert routing.slug == "retire"
     assert not routing.llm_used
+
+
+def test_a_sparse_history_does_not_forecast_zero(tenant):
+    """The empty-month trap, third appearance: `cashflow_statement` pads its
+    window with zero rows, so three active months inside a twelve-month window
+    used to median against nine zeros and predict the household spends nothing.
+    A wrong forecast then scores as a huge error — punishing the twin for our
+    own padding."""
+    with tenant_scope(tenant):
+        _seed(months=3, spend=300_000)
+        twin = params.build()
+        made = calibration.forecast_next_month(twin=twin)
+
+        spend = next(m for m in made if m.kind == ForecastKind.MONTHLY_SPEND)
+        # The forecast must be in the neighbourhood of what the household
+        # actually spends, not dragged toward zero by empty padding months.
+        assert spend.predicted_minor > 200_000

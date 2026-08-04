@@ -181,6 +181,64 @@ def _account_response(account: FinancialAccount, status_code: int = status.HTTP_
 
 
 # ------------------------------------------------------------------ accounts
+# ---------------------------------------------------------------------------
+# Household member-visibility perimeter.
+#
+# `apps.household.visibility` decides which accounts the acting member may see
+# and touch inside a shared workspace. That module existed before this edge
+# did — Phase 3 enforced it in the household analytics and nowhere the user
+# actually looks, which made a "private" account private on the summary page
+# and fully visible in the accounts list. The perimeter belongs here, at the
+# HTTP boundary, so the finance domain stays independent of household while
+# every itemised surface applies the workspace's policy.
+#
+# The read rule is uniform on purpose: an account the member may not see
+# behaves exactly like an account that does not exist — same 404, same "not
+# found", including as a transfer leg or a counter account. Anything softer
+# (a 403, a redacted row) confirms the account exists, which is the leak.
+# ---------------------------------------------------------------------------
+def _visible_accounts():
+    """`FinancialAccount` queryset narrowed to what the acting member may see."""
+    from apps.household.visibility import restrict_accounts
+
+    return restrict_accounts(FinancialAccount.objects.all())
+
+
+def _member_visible_ids():
+    """Visible account ids, or None when no member filtering applies."""
+    from apps.household.visibility import visible_account_ids
+
+    return visible_account_ids()
+
+
+def _txn_account_visible(txn) -> bool:
+    """Whether the transaction's account is one the member may see. A txn
+    reached by id must not confirm a private account's activity exists."""
+    allowed = _member_visible_ids()
+    return allowed is None or txn.financial_account_id in allowed
+
+
+def _member_write_block(account_id) -> Response | None:
+    """A 403 explaining why the write is refused, or None to proceed.
+
+    Only reachable for accounts the member can *see* — invisible ones already
+    404ed at resolution — so the message can safely acknowledge the account
+    exists and say who controls it.
+    """
+    from apps.household.visibility import can_write_account, needs_approval
+
+    if account_id is None or can_write_account(account_id):
+        return None
+    if needs_approval(account_id):
+        detail = (
+            "This account's owner requires approval for changes. Propose it "
+            "through the household change-request flow instead of editing directly."
+        )
+    else:
+        detail = "This account is read-only to you; only its owner can change it."
+    return Response({"detail": detail}, status=status.HTTP_403_FORBIDDEN)
+
+
 class AccountView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     permission_classes = [IsTenantMember]
     serializer_class = FinancialAccountSerializer
@@ -188,7 +246,7 @@ class AccountView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     def get(self, request):
         """Active accounts by default. `?include_archived=1` returns closed
         accounts too, for the settings surface where a user reopens one."""
-        qs = FinancialAccount.objects.select_related("ledger_account__balance")
+        qs = _visible_accounts().select_related("ledger_account__balance")
         if request.query_params.get("include_archived") not in ("1", "true"):
             qs = qs.filter(archived_at__isnull=True)
         data = [_account_payload(a) for a in qs]
@@ -226,10 +284,12 @@ class AccountDetailView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     serializer_class = FinancialAccountUpdateSerializer
 
     def _get(self, account_id) -> FinancialAccount:
-        return get_object_or_404(FinancialAccount, pk=account_id)
+        return get_object_or_404(_visible_accounts(), pk=account_id)
 
     def patch(self, request, account_id):
         account = self._get(account_id)
+        if (blocked := _member_write_block(account.id)) is not None:
+            return blocked
         s = FinancialAccountUpdateSerializer(data=request.data, partial=True)
         s.is_valid(raise_exception=True)
         account = services.update_financial_account(financial_account=account, **s.validated_data)
@@ -237,6 +297,8 @@ class AccountDetailView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
 
     def delete(self, request, account_id):
         account = self._get(account_id)
+        if (blocked := _member_write_block(account.id)) is not None:
+            return blocked
         services.archive_financial_account(financial_account=account)
         return _account_response(account)
 
@@ -246,7 +308,9 @@ class AccountUnarchiveView(WriteRequiresMemberMixin, TenantScopedAPIView, APIVie
     serializer_class = FinancialAccountSerializer
 
     def post(self, request, account_id):
-        account = get_object_or_404(FinancialAccount, pk=account_id)
+        account = get_object_or_404(_visible_accounts(), pk=account_id)
+        if (blocked := _member_write_block(account.id)) is not None:
+            return blocked
         services.unarchive_financial_account(financial_account=account)
         return _account_response(account)
 
@@ -257,7 +321,7 @@ class AccountStatementView(TenantScopedAPIView, APIView):
     serializer_class = StatementQuerySerializer
 
     def get(self, request, account_id):
-        account = FinancialAccount.objects.filter(id=account_id).first()
+        account = _visible_accounts().filter(id=account_id).first()
         if account is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         q = StatementQuerySerializer(data=request.query_params)
@@ -385,8 +449,14 @@ class TransactionView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
 
     def get(self, request):
         account_id = request.query_params.get("account_id")
-        account = FinancialAccount.objects.filter(id=account_id).first() if account_id else None
+        account = _visible_accounts().filter(id=account_id).first() if account_id else None
         txns = selectors.list_transactions(financial_account=account, filters=_parse_txn_filters(request))
+        # A private account's activity must not surface through the unfiltered
+        # ledger. The account-scoped path is already covered by the resolution
+        # above; this covers the "all transactions" page.
+        allowed = _member_visible_ids()
+        if allowed is not None:
+            txns = txns.filter(financial_account_id__in=allowed)
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(txns, request, view=self)
         return paginator.get_paginated_response([_txn_out(t) for t in page])
@@ -395,10 +465,12 @@ class TransactionView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
         s = TransactionCreateSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         v = s.validated_data
-        account = FinancialAccount.objects.filter(id=v["financial_account_id"]).first()
+        account = _visible_accounts().filter(id=v["financial_account_id"]).first()
         category = Category.objects.filter(id=v["category_id"]).first()
         if account is None or category is None:
             return Response({"detail": "account or category not found"}, status=status.HTTP_400_BAD_REQUEST)
+        if (blocked := _member_write_block(account.id)) is not None:
+            return blocked
         fn = services.record_expense if v["type"] == "expense" else services.record_income
         try:
             txn = fn(
@@ -448,14 +520,16 @@ class TransactionDetailView(WriteRequiresMemberMixin, TenantScopedAPIView, APIVi
             .select_related("category", "counter_account", "payee")
             .first()
         )
-        if txn is None:
+        if txn is None or not _txn_account_visible(txn):
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(_txn_out(txn))
 
     def patch(self, request, txn_id):
         txn = Transaction.objects.filter(id=txn_id).first()
-        if txn is None:
+        if txn is None or not _txn_account_visible(txn):
             return Response(status=status.HTTP_404_NOT_FOUND)
+        if (blocked := _member_write_block(txn.financial_account_id)) is not None:
+            return blocked
         s = TransactionUpdateSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         v = s.validated_data
@@ -488,8 +562,10 @@ class TransactionVoidView(TenantScopedAPIView, APIView):
 
     def post(self, request, txn_id):
         txn = Transaction.objects.filter(id=txn_id).first()
-        if txn is None:
+        if txn is None or not _txn_account_visible(txn):
             return Response(status=status.HTTP_404_NOT_FOUND)
+        if (blocked := _member_write_block(txn.financial_account_id)) is not None:
+            return blocked
         try:
             services.void_transaction(txn=txn)
         except services.FinanceError as exc:
@@ -542,10 +618,15 @@ class TransferView(TenantScopedAPIView, APIView):
         s = TransferCreateSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         v = s.validated_data
-        from_account = FinancialAccount.objects.filter(id=v["from_account_id"]).first()
-        to_account = FinancialAccount.objects.filter(id=v["to_account_id"]).first()
+        from_account = _visible_accounts().filter(id=v["from_account_id"]).first()
+        to_account = _visible_accounts().filter(id=v["to_account_id"]).first()
         if from_account is None or to_account is None:
             return Response({"detail": "account not found"}, status=status.HTTP_400_BAD_REQUEST)
+        # Both legs move money, so both need to be writable — a transfer out of
+        # a read-only account is exactly the write its policy exists to stop.
+        for leg in (from_account, to_account):
+            if (blocked := _member_write_block(leg.id)) is not None:
+                return blocked
         try:
             out_txn, in_txn = services.record_transfer(
                 from_account=from_account,
@@ -573,9 +654,9 @@ class RecurringView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
         s = RecurringCreateSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         v = s.validated_data
-        account = FinancialAccount.objects.filter(id=v["financial_account_id"]).first()
+        account = _visible_accounts().filter(id=v["financial_account_id"]).first()
         counter = (
-            FinancialAccount.objects.filter(id=v["counter_account_id"]).first()
+            _visible_accounts().filter(id=v["counter_account_id"]).first()
             if v.get("counter_account_id")
             else None
         )
@@ -775,7 +856,7 @@ class WalletAccountAssignmentView(TenantScopedAPIView, APIView):
         s = WalletAssignAccountSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         v = s.validated_data
-        account = FinancialAccount.objects.filter(id=v["financial_account_id"]).first()
+        account = _visible_accounts().filter(id=v["financial_account_id"]).first()
         if account is None:
             return Response({"detail": "account not found"}, status=status.HTTP_400_BAD_REQUEST)
         wallet = None
@@ -859,7 +940,7 @@ class ReconciliationView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="account_reconciliation")
     def get(self, request, account_id):
-        account = FinancialAccount.objects.filter(id=account_id).first()
+        account = _visible_accounts().filter(id=account_id).first()
         if account is None:
             return Response({"detail": "Account not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1151,7 +1232,7 @@ class BillView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
         payee = Payee.objects.filter(id=v["payee_id"]).first() if v.get("payee_id") else None
         category = Category.objects.filter(id=v["category_id"]).first() if v.get("category_id") else None
         autopay = (
-            FinancialAccount.objects.filter(id=v["autopay_account_id"]).first()
+            _visible_accounts().filter(id=v["autopay_account_id"]).first()
             if v.get("autopay_account_id")
             else None
         )
@@ -1212,9 +1293,7 @@ class BillPayView(TenantScopedAPIView, APIView):
         s.is_valid(raise_exception=True)
         v = s.validated_data
         from_account = (
-            FinancialAccount.objects.filter(id=v["from_account_id"]).first()
-            if v.get("from_account_id")
-            else None
+            _visible_accounts().filter(id=v["from_account_id"]).first() if v.get("from_account_id") else None
         )
         try:
             bill, txn = bills_service.mark_bill_paid(
@@ -1248,7 +1327,7 @@ class TransactionExportView(TenantScopedAPIView, APIView):
         from django.http import StreamingHttpResponse
 
         account_id = request.query_params.get("account_id")
-        account = FinancialAccount.objects.filter(id=account_id).first() if account_id else None
+        account = _visible_accounts().filter(id=account_id).first() if account_id else None
         # Evaluate under the request's tenant/RLS context now (the generator
         # below would otherwise lazily hit the DB after context teardown).
         rows = list(
@@ -1323,7 +1402,7 @@ class TransactionImportView(TenantScopedAPIView, APIView):
         from .. import import_csv
 
         account_id = request.data.get("account_id")
-        account = FinancialAccount.objects.filter(id=account_id).first() if account_id else None
+        account = _visible_accounts().filter(id=account_id).first() if account_id else None
         if account is None:
             return Response(
                 {"detail": "account_id is required and must exist"},
@@ -1551,7 +1630,7 @@ class QuickAddView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     @extend_schema(operation_id="finance_quick_add", request=QuickAddSerializer)
     def post(self, request):
         from .. import quick_add as quick_add_service
-        from ..models import Category, FinancialAccount
+        from ..models import Category
 
         s = QuickAddSerializer(data=request.data)
         s.is_valid(raise_exception=True)
@@ -1559,7 +1638,7 @@ class QuickAddView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
 
         account = None
         if v.get("financial_account_id"):
-            account = FinancialAccount.objects.filter(id=v["financial_account_id"]).first()
+            account = _visible_accounts().filter(id=v["financial_account_id"]).first()
         category = None
         if v.get("category_id"):
             category = Category.objects.filter(id=v["category_id"]).first()

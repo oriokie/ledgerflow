@@ -427,3 +427,53 @@ def test_expensive_rent_favours_buying():
         - next(f for f in dear.because if f.label == "Net worth after renting").amount_minor
     )
     assert dear_gap > cheap_gap
+
+
+def test_the_existing_portfolio_is_not_rerated_by_the_expected_return():
+    """The regression: the invest leg used to swap the global return assumption
+    for the expected one, re-rating the household's *existing* portfolio rather
+    than just the money being decided about. With a large portfolio and a small
+    monthly amount, the answer was dominated by the re-rating — expected above
+    base flattered investing, expected below base flattered the debt, and the
+    distortion scaled with wealth instead of with the decision.
+
+    Pinned by asymmetry: for a household with a huge portfolio and a tiny
+    decision, the answer must not swing wildly with the expected return the
+    way a whole-portfolio re-rating would make it."""
+    rich = position(
+        investment_minor=100_000_000,
+        debts=(
+            DebtPosition(label="Loan", balance_minor=500_000, annual_rate=0.10, monthly_payment_minor=20_000),
+        ),
+    )
+    low = dec.debt_or_invest(position=rich, monthly_amount_minor=5_000, expected_return=0.02, months=120)
+    high = dec.debt_or_invest(position=rich, monthly_amount_minor=5_000, expected_return=0.12, months=120)
+
+    def gap(decision):
+        return next(f for f in decision.because if f.label == "Difference").amount_minor
+
+    # A 10-point swing in expected return, applied to a 5,000/month decision
+    # over 10 years, moves the outcome by at most a few hundred thousand minor
+    # units. The old whole-portfolio re-rating moved it by tens of millions.
+    assert gap(low) < 5_000_000
+    assert gap(high) < 5_000_000
+
+
+def test_how_much_house_scales_to_high_incomes():
+    """The search ceiling regression: a fixed upper bound of ten million major
+    units silently capped the answer for anyone whose income could carry more.
+    The bound is now derived from the annuity closed form, so the answer scales
+    with the income rather than with a constant somebody chose."""
+    high_earner = position(
+        monthly_net_income_minor=100_000_000,  # 1,000,000.00 a month
+        liquid_minor=500_000_000,
+        monthly_expenses_minor=30_000_000,
+    )
+    decision = dec.how_much_house(position=high_earner, annual_rate=0.09)
+    price = next(f for f in decision.because if f.label == "Price you can carry").amount_minor
+    deposit = next(f for f in decision.because if f.label == "Deposit assumed").amount_minor
+    # The affordable loan alone (price - deposit) must exceed the old cap.
+    assert price - deposit > 1_000_000_000
+    # ...and the payment at that price still respects the housing guide.
+    payment = next(f for f in decision.because if f.label == "Monthly payment at that price")
+    assert payment.amount_minor <= high_earner.monthly_net_income_minor * dec.HOUSING_CEILING

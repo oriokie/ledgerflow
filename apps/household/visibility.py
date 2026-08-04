@@ -32,7 +32,7 @@ import uuid
 
 from django.db.models import Q, QuerySet
 
-from apps.common.tenant_context import get_current_actor_id
+from apps.common.tenant_context import get_current_actor_id, require_current_tenant_id
 from apps.tenancy.models import Membership
 
 from .models import (
@@ -44,15 +44,23 @@ from .models import (
 
 
 def current_membership() -> Membership | None:
-    """The acting member of the ambient tenant, or None.
+    """The acting member **of the ambient tenant**, or None.
 
     None is not an error: background work runs without an actor, and the
     callers below treat that as "assume the least".
+
+    The tenant filter is load-bearing, not belt-and-braces. `Membership` is
+    deliberately exempt from the tenant-scoped manager and from RLS — a user
+    has to find their workspaces before any tenant is bound — so a bare
+    `.filter(user_id=...)` returns rows from *every* workspace the user
+    belongs to, and `.first()` picks one arbitrarily. Ownership comparisons
+    made against the wrong workspace's membership id made a member's own
+    private accounts invisible to them, which is how this line got its test.
     """
     actor_id = get_current_actor_id()
     if actor_id is None:
         return None
-    return Membership.objects.filter(user_id=actor_id).first()
+    return Membership.objects.filter(user_id=actor_id, tenant_id=require_current_tenant_id()).first()
 
 
 def is_single_member_workspace() -> bool:
@@ -62,8 +70,13 @@ def is_single_member_workspace() -> bool:
     a label somebody chose and the member count is the fact. A "household"
     workspace with one member behaves as personal until the partner joins,
     which is exactly the adoption path this has to survive.
+
+    Counted **within the ambient tenant** — see `current_membership` for why
+    that has to be said out loud. An unscoped count here counted the entire
+    platform's memberships, which made every personal workspace on any real
+    deployment look shared and switched member filtering on for all of them.
     """
-    return Membership.objects.count() <= 1
+    return Membership.objects.filter(tenant_id=require_current_tenant_id()).count() <= 1
 
 
 def visible_account_ids() -> set[uuid.UUID] | None:

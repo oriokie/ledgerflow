@@ -317,7 +317,17 @@ def _max_affordable_price(
     if budget <= 0:
         return 0
 
-    low, high = deposit_minor, deposit_minor + 1_000_000_000
+    # Upper bound from the annuity closed form — the principal a level payment
+    # of `budget` sustains, plus slack for the integer rounding the real
+    # schedule applies. A fixed ceiling sat here before (deposit + 1e9 minor,
+    # i.e. ten million in major units), which quietly capped the answer for
+    # any income large enough to carry more than that: the one group whose
+    # "price that clears every test" was materially understated was high
+    # earners, precisely the people most likely to ask.
+    i = calc.monthly_rate(annual_rate)
+    n = years * 12
+    sustainable = budget * n if i == 0 else budget * (1 - (1 + i) ** -n) / i
+    low, high = deposit_minor, deposit_minor + int(sustainable * 1.01) + 1_000
     for _ in range(60):
         mid = (low + high) // 2
         if mid <= deposit_minor:
@@ -450,19 +460,65 @@ def debt_or_invest(
         )
         for d in position.debts
     )
-    debt_leg = project(position=replace(position, debts=faster), assumptions=base, events=[], months=months)
-    invest_leg = project(
-        position=position,
-        assumptions=replace(base, annual_investment_return=expected_return),
-        events=[
+
+    # Two fairness rules, each of which existed to fix a real distortion:
+    #
+    # 1. **Only the decided-about money earns the expected return.** The first
+    #    version swapped `annual_investment_return` globally, which re-rated
+    #    the household's *existing* portfolio — a large portfolio asking about
+    #    a small overpayment got an answer dominated by the re-rating, and the
+    #    distortion scaled with wealth rather than with the decision. The
+    #    monthly amount is carried as its own asset tranche instead.
+    #
+    # 2. **Both legs spend the same money every month, forever.** Once a debt
+    #    clears, the payment that serviced it is freed — and a leg that lets
+    #    freed cash idle at the cash rate while the other leg compounds loses
+    #    for reasons that have nothing to do with the question. So each leg
+    #    redirects the freed payment into the same investment vehicle the
+    #    moment its debt clears: the comparison is "avalanche then invest"
+    #    against "invest alongside the minimums", which is the choice people
+    #    are actually weighing.
+    def _payoff_month(payment_minor: int) -> int | None:
+        try:
+            return calc.amortise(
+                principal_minor=highest.balance_minor,
+                annual_rate=highest.annual_rate,
+                months=calc.MAX_HORIZON_MONTHS,
+                payment_minor=payment_minor,
+                with_schedule=False,
+            ).actual_months
+        except calc.CalculatorError:
+            return None  # the payment never clears it; nothing to redirect
+
+    def _invested(label: str, start: int, monthly: int) -> list[CompiledEvent]:
+        return [
             CompiledEvent(
-                label="Invest instead",
-                start_month=1,
-                monthly_investment_delta_minor=monthly_amount_minor,
+                label=label,
+                start_month=month,
+                one_off_cash_minor=-monthly,
+                asset_delta_minor=monthly,
+                asset_annual_growth=expected_return,
             )
-        ],
-        months=months,
+            for month in range(start, months + 1)
+        ]
+
+    boosted_payment = highest.monthly_payment_minor + monthly_amount_minor
+    debt_events: list[CompiledEvent] = []
+    cleared_boosted = _payoff_month(boosted_payment)
+    if cleared_boosted is not None and cleared_boosted < months:
+        debt_events = _invested("Freed payment, invested", cleared_boosted + 1, boosted_payment)
+
+    invest_events = _invested("Invest instead", 1, monthly_amount_minor)
+    cleared_minimum = _payoff_month(highest.monthly_payment_minor)
+    if cleared_minimum is not None and cleared_minimum < months:
+        invest_events += _invested(
+            "Freed minimum, invested", cleared_minimum + 1, highest.monthly_payment_minor
+        )
+
+    debt_leg = project(
+        position=replace(position, debts=faster), assumptions=base, events=debt_events, months=months
     )
+    invest_leg = project(position=position, assumptions=base, events=invest_events, months=months)
 
     difference = debt_leg.closing_net_worth_minor - invest_leg.closing_net_worth_minor
     debt_wins = difference > 0
@@ -527,6 +583,10 @@ def debt_or_invest(
         assumptions=[
             f"Both legs run the same engine over {months} months; only the destination differs.",
             "The extra goes to the highest-rate debt, which is where each shilling buys most.",
+            f"Only the money being decided about earns the {expected_return:.1%}; your existing "
+            "portfolio keeps the standard return assumption in both legs.",
+            "When a debt clears, the payment it freed is invested rather than left idle, in "
+            "both legs — so the comparison is about ordering, not about one leg wasting cash.",
             "Investment returns are assumed steady — see the simulation for what varying them does.",
         ],
     )

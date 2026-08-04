@@ -195,3 +195,32 @@ def test_one_tenants_forecasts_are_invisible_to_another(tenant_context):
     other = MembershipFactory()
     other_client = _bearer_client(other.user, tenant_id=other.tenant_id)
     assert other_client.get(f"{BASE}/calibration/").data["total_scored"] == 0
+
+
+def test_ask_and_the_form_agree_even_under_custom_assumptions(tenant_context):
+    """The regression that motivated the shared dispatcher: /twin/ask/ used to
+    call the evaluator without the workspace's assumption set, so a workspace
+    that had customised its inflation view got one answer from the form and a
+    different one from the same question asked in words. "Understood as" was
+    true and the figures still differed."""
+    _, client = tenant_context
+    _account(client)
+    # Make the workspace's assumptions deliberately unusual.
+    client.patch("/api/v1/projections/assumptions/", {"annual_inflation": "0.1500"}, format="json")
+
+    form = client.post(
+        "/api/v1/projections/questions/afford-mortgage/",
+        {"property_price_minor": 3_000_000, "deposit_minor": 600_000, "annual_rate": 0.09, "explain": False},
+        format="json",
+    ).data
+    asked = client.post(
+        f"{BASE}/ask/",
+        {"question": "Can I afford this house at 30,000 with a 6,000 deposit at 9%?", "use_llm": False},
+        format="json",
+    ).data
+
+    assert asked["answered"] is True
+    assert asked["verdict"] == form["verdict"]
+    form_figures = {f["label"]: f["amount_minor"] for f in form["because"]}
+    asked_figures = {f["label"]: f["amount_minor"] for f in asked["because"]}
+    assert form_figures == asked_figures
