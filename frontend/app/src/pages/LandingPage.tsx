@@ -7,6 +7,7 @@ import { AuthBrand } from "../components/auth/AuthLayout";
 import { Illustration } from "../ui/illustration";
 import { Figure } from "../ui";
 import { AppPreview } from "./landing/AppPreview";
+import { AdvisorShowcase } from "./landing/AdvisorShowcase";
 import { FAQ, FEATURES, TESTIMONIALS } from "./landing/marketingCopy";
 
 /**
@@ -32,6 +33,7 @@ export function LandingPage() {
         <Preview />
         <Features />
         <Intelligence />
+        <AdvisorShowcase />
         <Testimonials />
         <Pricing />
         <Faq />
@@ -84,14 +86,14 @@ function Hero() {
         </p>
         <div className="lf-hero-actions">
           <Link className="lf-btn lf-btn--primary" to="/register">
-            Create your workspace
+            Start your free week
             <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
           </Link>
           <a className="lf-btn lf-btn--secondary" href="#preview">
             See how it looks
           </a>
         </div>
-        <p className="lf-hero-note">Free plan, no card, no time limit. Export everything, always.</p>
+        <p className="lf-hero-note">Seven days free — no card asked for. Export everything, always.</p>
       </div>
 
       <div className="lf-hero-art">
@@ -255,8 +257,8 @@ function Pricing() {
     <section className="lf-landing-section" id="pricing">
       <SectionHead
         eyebrow="Pricing"
-        title="Free is a plan, not a trial"
-        body="Reconciliation, the audit trail, two-factor authentication and data export are on every tier. The paid tiers add scale and the planning tools — never the ability to keep or leave with your books."
+        title="Two plans, one question"
+        body="Do you want the product to think with you, or just keep the books? Every new workspace starts with seven days free on Basic — no card asked for. Reconciliation, the audit trail, two-factor authentication and data export are on both plans; leaving with your books is never a paid feature."
       />
 
       {monthly.length === 0 ? (

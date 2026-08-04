@@ -150,6 +150,16 @@ class Command(BaseCommand):
             )
 
         user, tenant = self._resolve_tenant(options["email"])
+
+        # Demo seeding is operator activity, not customer activity, and it
+        # must not be refused by the tenant's own trial wall. A demo tenant
+        # whose trial lapsed gets an active subscription instead — which is
+        # also what makes the seeded workspace representative of a paying one.
+        from apps.billing.models import Subscription, SubscriptionStatus
+
+        Subscription.objects.filter(tenant_id=tenant.id).exclude(
+            status=SubscriptionStatus.ACTIVE
+        ).update(status=SubscriptionStatus.ACTIVE, trial_end=None)
         today = timezone.localdate()
         start = self._resolve_start(options["start"], today)
         if start > today:
