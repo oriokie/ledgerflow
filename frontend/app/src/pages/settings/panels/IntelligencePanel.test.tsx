@@ -15,6 +15,15 @@ vi.mock("../../../lib/AuthContext", () => ({
   useAuth: () => ({ activeWorkspace: { role: authRole(), tenant: { id: "t1" } } }),
 }));
 
+const getAISettings = vi.fn();
+const setAISettings = vi.fn();
+vi.mock("../../../api/tenancy", () => ({
+  tenancyApi: {
+    getAISettings: (...a: unknown[]) => getAISettings(...a),
+    setAISettings: (...a: unknown[]) => setAISettings(...a),
+  },
+}));
+
 import { IntelligencePanel } from "./IntelligencePanel";
 
 const BASE: LLMSettings = {
@@ -61,15 +70,22 @@ function renderPanel(overrides: Partial<LLMSettings> = {}, isLoading = false) {
 beforeEach(() => {
   vi.clearAllMocks();
   authRole.mockReturnValue("owner");
+  // The panel loads the workspace's override on mount, so every test needs
+  // this to resolve — "inheriting" is the right default for the ones that are
+  // not about the override at all.
+  getAISettings.mockResolvedValue({ provider: "", model: "", base_url: "", api_key_set: false });
+  setAISettings.mockResolvedValue({ provider: "", model: "", base_url: "", api_key_set: false });
 });
 
 describe("IntelligencePanel", () => {
-  it("explains why provider/model stays deployment-level, now that a real toggle sits above it", () => {
-    // A user seeing one working switch might reasonably expect the rest of
-    // the panel to be editable too — this is the one sentence stopping that
-    // assumption from turning into a support ticket.
+  it("says the reported provider is the deployment's, and points at the override", () => {
+    // These fields report the operator's configuration and are not editable
+    // here. That used to be the end of the story; now a workspace can choose
+    // its own model further down, so the sentence has to send the reader
+    // there rather than telling them it is impossible.
     renderPanel();
-    expect(screen.getByText(/set once for the whole deployment, not per workspace/i)).toBeInTheDocument();
+    expect(screen.getByText(/these are the deployment's defaults/i)).toBeInTheDocument();
+    expect(screen.getByText(/point itself somewhere else/i)).toBeInTheDocument();
   });
 
   it("shows the workspace AI switch in its actual on/off state", () => {
@@ -172,5 +188,84 @@ describe("IntelligencePanel", () => {
   it("renders a skeleton while loading", () => {
     const { container } = renderPanel({}, true);
     expect(container.querySelector(".lf-skeleton")).toBeInTheDocument();
+  });
+});
+
+describe("IntelligencePanel — this workspace's model", () => {
+  const inherited = { provider: "", model: "", base_url: "", api_key_set: false };
+
+  beforeEach(() => {
+    settings.mockReturnValue({ data: BASE, isLoading: false });
+    authRole.mockReturnValue("owner");
+    getAISettings.mockResolvedValue(inherited);
+    setAISettings.mockResolvedValue({ ...inherited, provider: "ollama", model: "llama3.2" });
+  });
+
+  it("reports that the workspace is inheriting when it has chosen nothing", async () => {
+    render(<IntelligencePanel />);
+    expect(await screen.findByText("Using the deployment's")).toBeInTheDocument();
+  });
+
+  it("shows the workspace's own provider once one is set", async () => {
+    getAISettings.mockResolvedValue({ ...inherited, provider: "ollama", model: "llama3.2" });
+    render(<IntelligencePanel />);
+    expect(await screen.findByText("Own — ollama")).toBeInTheDocument();
+  });
+
+  it("is hidden from a member who is not the owner", async () => {
+    // The server refuses too; this keeps the UI from offering a control that
+    // would only 403 — choosing where the household's data goes is the
+    // owner's call, not each member's.
+    authRole.mockReturnValue("member");
+    render(<IntelligencePanel />);
+    await waitFor(() => expect(getAISettings).not.toHaveBeenCalled());
+    expect(screen.queryByText("This workspace's model")).not.toBeInTheDocument();
+  });
+
+  it("saves the chosen provider and model", async () => {
+    const user = userEvent.setup();
+    render(<IntelligencePanel />);
+    await screen.findByText("Using the deployment's");
+
+    await user.type(screen.getByLabelText("Model"), "llama3.2");
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+
+    await waitFor(() => expect(setAISettings).toHaveBeenCalled());
+    expect(setAISettings.mock.calls[0][1]).toMatchObject({ model: "llama3.2" });
+  });
+
+  it("omits the key entirely when the field was left alone", async () => {
+    // Sending "" would wipe a working key every time an unrelated field is
+    // saved; absent means "leave it".
+    const user = userEvent.setup();
+    render(<IntelligencePanel />);
+    await screen.findByText("Using the deployment's");
+
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    await waitFor(() => expect(setAISettings).toHaveBeenCalled());
+    expect(setAISettings.mock.calls[0][1]).not.toHaveProperty("api_key");
+  });
+
+  it("clears everything back to the deployment's settings", async () => {
+    getAISettings.mockResolvedValue({ ...inherited, provider: "ollama" });
+    setAISettings.mockResolvedValue(inherited);
+    const user = userEvent.setup();
+    render(<IntelligencePanel />);
+    await screen.findByText("Own — ollama");
+
+    await user.click(screen.getByRole("button", { name: /use the deployment's/i }));
+    await waitFor(() => expect(setAISettings).toHaveBeenCalled());
+    expect(setAISettings.mock.calls[0][1]).toEqual({
+      provider: "",
+      model: "",
+      base_url: "",
+      api_key: "",
+    });
+  });
+
+  it("does not break the page when the override cannot be read", async () => {
+    getAISettings.mockRejectedValue(new Error("nope"));
+    render(<IntelligencePanel />);
+    expect(await screen.findByText("This workspace's model")).toBeInTheDocument();
   });
 });

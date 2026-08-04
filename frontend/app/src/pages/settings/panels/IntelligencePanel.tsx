@@ -1,20 +1,23 @@
 import { AlertCircle, CheckCircle2, ExternalLink, HardDrive, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ApiError } from "../../../api/client";
+import { tenancyApi } from "../../../api/tenancy";
+import type { WorkspaceAISettings } from "../../../api/types";
 import { useLLMSettings, useSetTenantAiEnabled } from "../../../hooks/useCoach";
 import { useAuth } from "../../../lib/AuthContext";
-import { Badge, Banner, Skeleton, Switch, Text } from "../../../ui";
+import { Badge, Banner, Button, Input, Select, Skeleton, Switch, Text } from "../../../ui";
 import { SettingsRow, SettingsSection } from "../components";
 
 /**
- * AI configuration — read-only by design.
+ * AI configuration.
  *
- * LLM setup lives in environment variables, not in the database, and this panel
- * reports it rather than editing it. That's deliberate: a workspace member
- * changing the model endpoint would be deciding, on everyone else's behalf,
- * where the household's financial data gets sent. That belongs to whoever
- * deploys the instance.
+ * Two halves, and the split is the point. What the *deployment* provides is
+ * reported, not edited — it is the operator's cost and vendor decision. What
+ * this *workspace* chooses instead is editable, but only by an owner: picking
+ * where the household's financial data gets sent is decided for everyone in
+ * the household, so it is not a per-member preference.
  *
- * The panel's real job is to answer "I turned it on, why is nothing
+ * The panel's other job is to answer "I turned it on, why is nothing
  * happening?" — the most common and most silent failure mode here.
  */
 export function IntelligencePanel() {
@@ -126,11 +129,12 @@ export function IntelligencePanel() {
         </SettingsRow>
 
         <Text tone="tertiary" size="xs">
-          Provider, model and API key are set once for the whole deployment, not per workspace —
-          a member picking where the household's data gets sent would be deciding that for
-          everyone else on this account.
+          These are the deployment's defaults. This workspace can point itself somewhere else
+          below — an owner's decision, because it settles where everyone's data goes.
         </Text>
       </SettingsSection>
+
+      <WorkspaceModelSection />
 
       <SettingsSection
         title="What the AI is used for"
@@ -197,5 +201,164 @@ export function IntelligencePanel() {
         </Text>
       </SettingsSection>
     </>
+  );
+}
+
+/**
+ * The workspace's own model, editable by its owner.
+ *
+ * Blank means inherit — the deployment's provider and key apply. Filling this
+ * in points *this household* somewhere else: a model on their own hardware, or
+ * their own account with a vendor whose quota they would rather spend.
+ *
+ * Owner-only, matching the server. The reasoning is the same one recorded on
+ * `Tenant.ai_enabled`: choosing the destination for a household's finances is
+ * decided for everyone in the household, so it is not each member's to change.
+ */
+function WorkspaceModelSection() {
+  const { activeWorkspace } = useAuth();
+  const { data: settings } = useLLMSettings();
+  const tenantId = activeWorkspace?.tenant.id;
+  const isOwner = activeWorkspace?.role === "owner";
+
+  const [current, setCurrent] = useState<WorkspaceAISettings | null>(null);
+  const [provider, setProvider] = useState("");
+  const [model, setModel] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!tenantId || !isOwner) return;
+    let cancelled = false;
+    tenancyApi
+      .getAISettings(tenantId)
+      .then((data) => {
+        if (cancelled) return;
+        setCurrent(data);
+        setProvider(data.provider);
+        setModel(data.model);
+        setBaseUrl(data.base_url);
+      })
+      .catch(() => {
+        /* Inheriting is the default; a failed read must not block the page. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId, isOwner]);
+
+  if (!isOwner || !tenantId) return null;
+
+  const save = async (next?: { clear: boolean }) => {
+    setSaving(true);
+    setError(null);
+    setSaved(false);
+    try {
+      const payload = next?.clear
+        ? { provider: "", model: "", base_url: "", api_key: "" }
+        : {
+            provider,
+            model,
+            base_url: baseUrl,
+            // Absent leaves the stored key alone; only a typed value replaces it.
+            ...(apiKey ? { api_key: apiKey } : {}),
+          };
+      const data = await tenancyApi.setAISettings(tenantId, payload);
+      setCurrent(data);
+      setProvider(data.provider);
+      setModel(data.model);
+      setBaseUrl(data.base_url);
+      setApiKey("");
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Couldn't save that — try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inheriting = !current?.provider;
+
+  return (
+    <SettingsSection
+      title="This workspace's model"
+      description="Optional. Leave it empty to use whatever the deployment provides. Set it to send this workspace's requests to a different provider — including one running on your own machine, which never sends anything outside it."
+    >
+      <SettingsRow
+        title="Currently"
+        description="Which configuration this workspace's AI requests actually use."
+      >
+        <Badge tone={inheriting ? "neutral" : "success"}>
+          {inheriting ? "Using the deployment's" : `Own — ${current?.provider}`}
+        </Badge>
+      </SettingsRow>
+
+      <SettingsRow title="Provider" description="Leave blank to inherit.">
+        <Select
+          label="Provider"
+          value={provider}
+          onChange={(e) => setProvider(e.target.value)}
+          options={[
+            { value: "", label: "Use the deployment's" },
+            ...(settings?.presets ?? []).map((p) => ({ value: p.id, label: p.label })),
+          ]}
+        />
+      </SettingsRow>
+
+      <SettingsRow title="Model" description="Blank uses the provider's default.">
+        <Input
+          label="Model"
+          value={model}
+          placeholder="e.g. llama3.2"
+          onChange={(e) => setModel(e.target.value)}
+        />
+      </SettingsRow>
+
+      <SettingsRow
+        title="Base URL"
+        description="Only for a self-hosted or unlisted endpoint. Blank uses the provider's own."
+      >
+        <Input
+          label="Base URL"
+          value={baseUrl}
+          placeholder="http://localhost:11434/v1"
+          onChange={(e) => setBaseUrl(e.target.value)}
+        />
+      </SettingsRow>
+
+      <SettingsRow
+        title="API key"
+        description={
+          current?.api_key_set
+            ? "A key is stored. Type a new one to replace it — it is never shown again."
+            : "Not needed for a local model."
+        }
+      >
+        <Input
+          label="API key"
+          type="password"
+          value={apiKey}
+          placeholder={current?.api_key_set ? "Stored — type to replace" : ""}
+          onChange={(e) => setApiKey(e.target.value)}
+        />
+      </SettingsRow>
+
+      {error && <Banner tone="danger">{error}</Banner>}
+      {saved && !error && <Banner tone="success">Saved. New requests use it immediately.</Banner>}
+
+      <div style={{ display: "flex", gap: "var(--lf-space-2)" }}>
+        <Button variant="primary" loading={saving} onClick={() => save()}>
+          Save
+        </Button>
+        {!inheriting && (
+          <Button variant="ghost" disabled={saving} onClick={() => save({ clear: true })}>
+            Use the deployment's
+          </Button>
+        )}
+      </div>
+    </SettingsSection>
   );
 }

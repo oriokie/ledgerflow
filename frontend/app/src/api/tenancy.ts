@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { Workspace } from "./types";
+import type { Workspace, WorkspaceAISettings, WorkspaceAISettingsInput } from "./types";
 
 export const tenancyApi = {
   /** A user's workspaces span tenants by definition, so this call never
@@ -20,6 +20,12 @@ export const tenancyApi = {
       payload,
       { skipTenant: true },
     ),
+  /** The workspace's own model choice. Owner-only server-side; the key is
+   *  write-only, so `api_key_set` is all that ever comes back about it. */
+  getAISettings: (tenantId: string) =>
+    api.get<WorkspaceAISettings>(`/tenancy/workspaces/${tenantId}/ai/`, { skipTenant: true }),
+  setAISettings: (tenantId: string, payload: WorkspaceAISettingsInput) =>
+    api.put<WorkspaceAISettings>(`/tenancy/workspaces/${tenantId}/ai/`, payload, { skipTenant: true }),
   exportWorkspace: (tenantId: string) =>
     api.get<Record<string, unknown>>(`/tenancy/workspaces/${tenantId}/export/`, { skipTenant: true }),
   closeWorkspace: (tenantId: string) =>

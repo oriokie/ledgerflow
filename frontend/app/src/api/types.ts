@@ -1267,3 +1267,21 @@ export interface PushSubscriptionKeys {
   p256dh: string;
   auth: string;
 }
+
+/** A workspace's own model choice. Blank fields mean "inherit" — the
+ *  deployment's configuration applies. The API key is write-only, so only
+ *  whether one is set ever comes back. */
+export interface WorkspaceAISettings {
+  provider: string;
+  model: string;
+  base_url: string;
+  api_key_set: boolean;
+}
+
+export interface WorkspaceAISettingsInput {
+  provider?: string;
+  model?: string;
+  base_url?: string;
+  /** Omit to leave the stored key untouched; "" removes it. */
+  api_key?: string;
+}
