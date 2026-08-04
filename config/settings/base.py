@@ -88,6 +88,10 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.common.middleware.RequestIDMiddleware",
     "apps.common.middleware.RequestLoggingMiddleware",
+    # Outermost of the three so it stamps the response on the way back out,
+    # whatever produced it — including DRF error responses and anything an
+    # inner middleware short-circuits.
+    "apps.common.middleware.NoStoreAPIMiddleware",
     # NOTE: tenant resolution is NOT Django middleware — see apps/common/api_base.py
     # for why it must happen at the DRF layer (after JWT auth resolves request.user).
 ]
