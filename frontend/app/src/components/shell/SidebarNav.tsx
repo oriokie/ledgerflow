@@ -4,7 +4,8 @@ import { useRoutePrefetch } from "../../hooks/useRoutePrefetch";
 import { usePinnedViews } from "../../lib/pinnedViews";
 import { metricFor, useRailMetrics } from "../../hooks/useRailMetrics";
 import { useFlag } from "../../lib/featureFlags";
-import { NAV_SECTIONS } from "./navConfig";
+import { useAuth } from "../../lib/AuthContext";
+import { NAV_SECTIONS, RECEIPT_SCAN_PATH } from "./navConfig";
 import { NAV_SECTIONS_V2, type NavItemV2 } from "./navConfigV2";
 
 /**
@@ -21,7 +22,21 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const prefetch = useRoutePrefetch();
   const [navV2] = useFlag("navV2");
   const metrics = useRailMetrics(navV2);
-  const sections = navV2 ? NAV_SECTIONS_V2 : NAV_SECTIONS;
+  const { user } = useAuth();
+
+  // Receipt scanning is opt-in (see UserProfile.show_receipt_scanner): most
+  // people photograph a receipt from the transaction they are already
+  // entering, so a permanent nav entry for it costs everyone else a line.
+  // Filtering here rather than in the config keeps one list of routes and lets
+  // the preference apply to whichever nav version is in play.
+  const sections = (navV2 ? NAV_SECTIONS_V2 : NAV_SECTIONS)
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => item.to !== RECEIPT_SCAN_PATH || user?.show_receipt_scanner,
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <>

@@ -87,6 +87,17 @@ class UserProfile(UUIDModel, TimeStampedModel):
     phone_verified = models.BooleanField(default=False)
     last_active_tenant_id = models.UUIDField(null=True, blank=True)
 
+    #: Whether the sidebar offers receipt scanning.
+    #:
+    #: Off by default. Scanning is a *verb* sitting in a list of nouns, it is
+    #: the one navigation entry that needs a camera, and most people photograph
+    #: a receipt from the transaction they are already entering rather than by
+    #: navigating to a scanner first. Anyone who does work that way turns it on
+    #: in Settings; everyone else stops paying for it with a permanent line of
+    #: navigation. Per user rather than per workspace: it describes how someone
+    #: works, and it should follow them between households.
+    show_receipt_scanner = models.BooleanField(default=False)
+
     def __str__(self) -> str:
         return f"profile:{self.user_id}"
 

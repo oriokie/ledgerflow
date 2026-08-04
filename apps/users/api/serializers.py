@@ -4,7 +4,7 @@ from django.contrib.auth import password_validation
 from rest_framework import serializers
 
 from ..mfa_models import TOTPDevice
-from ..models import User
+from ..models import User, UserProfile
 from ..webauthn_models import WebAuthnCredential
 
 
@@ -12,6 +12,10 @@ class UserSerializer(serializers.ModelSerializer):
     mfa_enabled = serializers.SerializerMethodField()
     passkey_count = serializers.SerializerMethodField()
     is_platform_staff = serializers.SerializerMethodField()
+    # Lives on UserProfile, surfaced here so the client reads its whole session
+    # in the one /auth/me/ call it already makes rather than a second request
+    # the shell would have to wait on before it could draw the sidebar.
+    show_receipt_scanner = serializers.BooleanField(required=False)
 
     class Meta:
         model = User
@@ -24,9 +28,29 @@ class UserSerializer(serializers.ModelSerializer):
             "mfa_enabled",
             "passkey_count",
             "is_platform_staff",
+            "show_receipt_scanner",
             "created_at",
         ]
         read_only_fields = ["id", "email", "is_verified", "created_at"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # The profile row is created on first write, so most accounts have
+        # none — read through its absence to the field's default rather than
+        # forcing a write on every read of /auth/me/.
+        profile = getattr(instance, "profile", None)
+        data["show_receipt_scanner"] = bool(profile.show_receipt_scanner) if profile else False
+        return data
+
+    def update(self, instance, validated_data):
+        show_scanner = validated_data.pop("show_receipt_scanner", None)
+        instance = super().update(instance, validated_data)
+        if show_scanner is not None:
+            profile, _ = UserProfile.objects.get_or_create(user=instance)
+            if profile.show_receipt_scanner != show_scanner:
+                profile.show_receipt_scanner = show_scanner
+                profile.save(update_fields=["show_receipt_scanner", "updated_at"])
+        return instance
 
     def get_mfa_enabled(self, obj) -> bool:
         return TOTPDevice.objects.filter(user=obj, confirmed_at__isnull=False).exists()

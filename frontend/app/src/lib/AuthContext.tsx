@@ -18,6 +18,10 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   switchWorkspace: (tenantId: string) => void;
   refreshWorkspaces: () => Promise<void>;
+  /** Re-read the signed-in user. For preferences that live on the account
+   *  rather than the device, so a change is reflected everywhere the user
+   *  object is read — the sidebar included — without a page reload. */
+  refreshUser: () => Promise<void>;
 }
 
 type LoginResult = { status: "ok" } | { status: "mfa_required"; mfaToken: string };
@@ -128,6 +132,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = "/";
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    setUser(await authApi.me());
+  }, []);
+
   const refreshWorkspaces = useCallback(async () => {
     const ws = await tenancyApi.listWorkspaces();
     setWorkspaces(ws);
@@ -150,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     switchWorkspace,
     refreshWorkspaces,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

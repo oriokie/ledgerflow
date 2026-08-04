@@ -221,6 +221,68 @@ SPECS: tuple[SettingSpec, ...] = (
         env_setting="MPESA_SHORTCODE",
         default="",
     ),
+    # --------------------------------------------------------------- email
+    # Outbound mail was environment-only, which made it the one piece of
+    # configuration an operator could not fix without a redeploy — and the one
+    # they discover is wrong at the worst moment, when an invitation or a
+    # password reset silently fails to arrive. The credentials live here on the
+    # same terms as the payment ones: encrypted, write-only through the API,
+    # and falling back to the environment when nothing is stored.
+    SettingSpec(
+        "email.host",
+        SettingKind.STRING,
+        "email",
+        "SMTP host",
+        "Overrides EMAIL_HOST. Leave every field here empty to keep using the " "environment.",
+        env_setting="EMAIL_HOST",
+        default="",
+    ),
+    SettingSpec(
+        "email.port",
+        SettingKind.INTEGER,
+        "email",
+        "SMTP port",
+        "587 for STARTTLS, 465 for implicit TLS, 25 unencrypted.",
+        env_setting="EMAIL_PORT",
+        default=587,
+    ),
+    SettingSpec(
+        "email.username",
+        SettingKind.STRING,
+        "email",
+        "SMTP username",
+        "Overrides EMAIL_HOST_USER.",
+        env_setting="EMAIL_HOST_USER",
+        default="",
+    ),
+    SettingSpec(
+        "email.password",
+        SettingKind.SECRET,
+        "email",
+        "SMTP password",
+        "Overrides EMAIL_HOST_PASSWORD. Stored encrypted, never read back.",
+        env_setting="EMAIL_HOST_PASSWORD",
+        write_only=True,
+    ),
+    SettingSpec(
+        "email.use_tls",
+        SettingKind.BOOLEAN,
+        "email",
+        "Use STARTTLS",
+        "On for port 587. Turn off only for port 465 (implicit TLS) or an " "unencrypted relay you control.",
+        env_setting="EMAIL_USE_TLS",
+        default=True,
+    ),
+    SettingSpec(
+        "email.from_address",
+        SettingKind.STRING,
+        "email",
+        "Send from",
+        "The From: address on invitations, resets and invoices. Many relays "
+        "reject mail whose sender they do not own.",
+        env_setting="DEFAULT_FROM_EMAIL",
+        default="",
+    ),
     # ------------------------------------------------------------------ ai
     SettingSpec(
         "ai.enabled",

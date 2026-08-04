@@ -10,6 +10,9 @@ import {
   type FontFamily,
   type FontSize,
 } from "../../../lib/appearance";
+import { useState } from "react";
+import { profileApi } from "../../../api/auth";
+import { useAuth } from "../../../lib/AuthContext";
 import { useFlag } from "../../../lib/featureFlags";
 import { useTheme, type Theme } from "../../../lib/useTheme";
 import { SegmentedControl, Switch, Text } from "../../../ui";
@@ -138,9 +141,43 @@ function NavigationSection() {
         />
       </SettingsRow>
 
+      <SettingsRow
+        title="Scan receipts"
+        description="Adds a camera entry to the sidebar. Off by default — most people photograph a receipt from the transaction they're already entering, and the page stays reachable at /receipts/scan either way."
+      >
+        <ReceiptScannerToggle />
+      </SettingsRow>
+
       <Text tone="tertiary" size="xs">
         Your existing links and bookmarks keep working — they redirect to the matching tab.
       </Text>
     </SettingsSection>
+  );
+}
+
+/** Persisted per user (not per device or workspace), so it follows the person
+ *  to whichever household they open next. */
+function ReceiptScannerToggle() {
+  const { user, refreshUser } = useAuth();
+  const [saving, setSaving] = useState(false);
+  const enabled = user?.show_receipt_scanner ?? false;
+
+  const toggle = async (next: boolean) => {
+    setSaving(true);
+    try {
+      await profileApi.update({ show_receipt_scanner: next });
+      await refreshUser();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Switch
+      checked={enabled}
+      disabled={saving}
+      onChange={(e) => toggle(e.target.checked)}
+      label="Scan receipts"
+    />
   );
 }

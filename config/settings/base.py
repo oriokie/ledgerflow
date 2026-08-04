@@ -288,7 +288,13 @@ AWS_S3_FILE_OVERWRITE = False
 # --------------------------------------------------------------------------
 # Email
 # --------------------------------------------------------------------------
-EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
+# Reads host/credentials from the platform settings store, falling back to the
+# EMAIL_* values below when nothing is stored — so an operator can fix a wrong
+# relay from the console instead of redeploying. Set EMAIL_BACKEND explicitly
+# to opt out (the console backend in development does exactly that).
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND", default="apps.platform_admin.email_backend.PlatformConfiguredEmailBackend"
+)
 EMAIL_HOST = env("EMAIL_HOST", default="localhost")
 EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")

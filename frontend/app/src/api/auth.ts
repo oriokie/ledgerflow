@@ -84,7 +84,7 @@ export const webauthnApi = {
 
 // ---------------------------------------------------------------- profile & MFA
 export const profileApi = {
-  update: (payload: { first_name?: string; last_name?: string }) =>
+  update: (payload: { first_name?: string; last_name?: string; show_receipt_scanner?: boolean }) =>
     api.patch<User>("/auth/me/", payload, { skipTenant: true }),
 };
 

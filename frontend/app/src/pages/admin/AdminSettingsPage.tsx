@@ -22,6 +22,7 @@ import { Illustration, ILLUSTRATION_STYLES } from "../../ui/illustration";
 const GROUP_LABELS: Record<string, string> = {
   invoicing: "Invoicing",
   payments: "Payments",
+  email: "Outbound email",
   ai: "AI",
   operations: "Operations",
 };
@@ -31,6 +32,8 @@ const GROUP_NOTES: Record<string, string> = {
     "Printed on every invoice you issue. Changing these affects documents issued from now on — already-issued invoices keep the details they were created with.",
   payments:
     "Which providers customers can pay with, and their credentials. Prefer setting secrets in the environment; use these fields only when you need to rotate a key without a deploy.",
+  email:
+    "Where invitations, password resets and invoices are sent from. Leave every field empty to keep using the environment's EMAIL_* values; anything set here overrides them from the next message, with no deploy. A broken relay fails silently, so send yourself a test after changing it.",
   ai: "AI is off unless you turn it on here. This is the first of three gates — a workspace also needs a plan that includes AI, and its owner can still opt out.",
   operations: "Thresholds the health dashboard and support tooling use.",
 };

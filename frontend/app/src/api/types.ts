@@ -12,6 +12,9 @@ export interface User {
   first_name?: string;
   last_name?: string;
   mfa_enabled?: boolean;
+  /** Whether the sidebar offers receipt scanning. Opt-in, per user, and it
+   * follows them across workspaces — see UserProfile.show_receipt_scanner. */
+  show_receipt_scanner?: boolean;
 }
 
 export interface AuthTokens {

@@ -38,6 +38,11 @@ export interface NavSection {
 
 /** Single source of truth for primary navigation — consumed by the desktop
  * rail, the mobile drawer, and the ⌘K command palette. */
+/** The one nav entry behind a per-user preference (UserProfile.show_receipt_scanner).
+ *  Exported so the sidebar filters on an identifier rather than a string it
+ *  could drift from. */
+export const RECEIPT_SCAN_PATH = "/receipts/scan";
+
 export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Money",
@@ -70,7 +75,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: "/insights", label: "Insights", icon: Lightbulb },
       { to: "/automation", label: "Automation", icon: Sparkles },
       { to: "/quick-add", label: "Quick Add", icon: Zap },
-      { to: "/receipts/scan", label: "Scan Receipt", icon: Camera },
+      { to: RECEIPT_SCAN_PATH, label: "Scan Receipt", icon: Camera },
     ],
   },
   {
