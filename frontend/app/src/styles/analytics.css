@@ -134,6 +134,14 @@
   display: flex;
   gap: var(--lf-space-2);
   flex-wrap: wrap;
+  /* Carries its own `min-width: 0` rather than inheriting one from
+     `.lf-page-header-actions > *`, which only reaches direct children: the
+     moment the header wrapped this bar and a sibling link in an `Inline`, this
+     became a grandchild, fell back to `min-width: auto` — the segmented
+     control's min-content, 418px on a 375px screen — and pushed the document
+     sideways. Shrinking here is what lets `.lf-segmented` scroll internally. */
+  min-width: 0;
+  max-width: 100%;
 }
 
 .lf-report {

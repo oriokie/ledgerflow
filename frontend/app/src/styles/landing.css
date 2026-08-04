@@ -810,12 +810,9 @@
 }
 .lf-showcase-item {
   display: grid;
-  grid-template-columns: minmax(240px, 2fr) 3fr;
+  grid-template-columns: 1fr;
   gap: var(--lf-space-6);
   align-items: center;
-}
-.lf-showcase-item[data-flip] .lf-showcase-copy {
-  order: 2;
 }
 .lf-showcase-copy h3 {
   margin: 0 0 var(--lf-space-3);
@@ -843,11 +840,13 @@
   margin: var(--lf-space-8) 0 0;
   text-align: center;
 }
-@media (max-width: 860px) {
+/* Two-up at the same width the hero and the split section go two-column, so
+   the page has one place where it stops being a single stack. */
+@media (min-width: 1024px) {
   .lf-showcase-item {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(240px, 2fr) 3fr;
   }
   .lf-showcase-item[data-flip] .lf-showcase-copy {
-    order: 0;
+    order: 2;
   }
 }

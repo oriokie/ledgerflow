@@ -157,9 +157,9 @@ class Command(BaseCommand):
         # also what makes the seeded workspace representative of a paying one.
         from apps.billing.models import Subscription, SubscriptionStatus
 
-        Subscription.objects.filter(tenant_id=tenant.id).exclude(
-            status=SubscriptionStatus.ACTIVE
-        ).update(status=SubscriptionStatus.ACTIVE, trial_end=None)
+        Subscription.objects.filter(tenant_id=tenant.id).exclude(status=SubscriptionStatus.ACTIVE).update(
+            status=SubscriptionStatus.ACTIVE, trial_end=None
+        )
         today = timezone.localdate()
         start = self._resolve_start(options["start"], today)
         if start > today:
