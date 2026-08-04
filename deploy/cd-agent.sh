@@ -66,21 +66,24 @@ running_digest() {
   docker image inspect --format '{{index .RepoDigests 0}}' "$1" 2>/dev/null || true
 }
 
-#: The digest the registry currently serves for a tag, without pulling it.
-published_digest() {
-  docker manifest inspect "$1" 2>/dev/null | sha256sum | cut -d' ' -f1
-}
-
 previous_app="$(running_digest "$APP_IMAGE")"
 previous_frontend="$(running_digest "$FRONTEND_IMAGE")"
-
-before="$(published_digest "$APP_IMAGE")$(published_digest "$FRONTEND_IMAGE")"
-[ -n "$before" ] || die "Could not reach the registry."
 
 # Compare against what is on disk rather than a remembered value: a state file
 # can disagree with reality after a manual `docker pull`, and then the agent
 # either redeploys forever or never notices a change.
-dc pull --quiet app frontend >/dev/null 2>&1 || dc pull --quiet >/dev/null 2>&1 || true
+#
+# A pull that fails is reported, not swallowed. Treating it as "nothing to do"
+# is how a CD agent goes quiet for a week: the tag not existing yet, private
+# packages the host cannot authenticate for, and a registry outage all look
+# identical from here, and all of them mean no deploys are happening.
+if ! dc pull --quiet web worker beat frontend >/dev/null 2>&1; then
+  log "Could not pull from the registry. Nothing was changed."
+  log "Usual causes: no :released tag published yet, the GHCR packages are"
+  log "private and this host has not run 'docker login ghcr.io', or a network"
+  log "problem. Retrying on the next tick."
+  exit 1
+fi
 current_app="$(running_digest "$APP_IMAGE")"
 current_frontend="$(running_digest "$FRONTEND_IMAGE")"
 

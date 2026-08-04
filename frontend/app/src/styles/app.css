@@ -128,3 +128,19 @@ tr:focus-within .lf-row-actions {
   height: 14px;
   margin: 6px 0;
 }
+
+/* Build identifier at the foot of the rail. Tertiary and small on purpose:
+   it has to be findable when someone asks "what's deployed?" and invisible
+   the rest of the time. */
+.lf-rail-version {
+  margin: var(--lf-space-4) 0 0;
+  padding: var(--lf-space-2) var(--lf-space-3) 0;
+  border-top: 1px solid var(--lf-border-subtle);
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-xs);
+  letter-spacing: var(--lf-tracking-wide);
+}
+.lf-rail-version code {
+  font-size: inherit;
+  font-variant-numeric: tabular-nums;
+}

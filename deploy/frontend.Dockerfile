@@ -17,6 +17,12 @@ RUN npm ci
 COPY frontend/app/ ./
 ARG VITE_API_BASE_URL=/api/v1
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+# The commit this bundle was built from, shown in the sidebar. Baked in rather
+# than fetched: it describes the assets you are looking at, so asking the API
+# would answer a different question — and would still answer it while the
+# frontend was stale, which is exactly when the number matters.
+ARG APP_RELEASE=dev
+ENV VITE_APP_RELEASE=${APP_RELEASE}
 RUN npm run build
 
 # The runtime "image" is just the built assets on a tiny base; the compose

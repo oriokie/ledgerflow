@@ -150,3 +150,50 @@ def test_the_installer_can_remove_what_it_installed():
 
 def test_the_installer_refuses_before_the_stack_is_configured():
     assert "No .env in $REPO_DIR" in INSTALLER.read_text()
+
+
+def test_a_failed_pull_is_reported_not_swallowed():
+    """The agent previously fell back to pulling everything and carried on
+    regardless, so an unreachable registry, a private package the host cannot
+    authenticate for, and a tag that does not exist yet were all indistinguish-
+    able from "nothing to deploy". A CD agent that goes quiet looks identical to
+    one with nothing to do."""
+    source = AGENT.read_text()
+    assert "Could not pull from the registry" in source
+    assert "docker login ghcr.io" in source, "the likeliest cause should name its own fix"
+
+
+def test_the_agent_pulls_services_that_exist():
+    """`docker compose pull app` names no service in this file — the app runs as
+    web/worker/beat — so the call always failed and fell through."""
+    source = AGENT.read_text()
+    assert "dc pull --quiet web worker beat frontend" in source
+
+
+def test_no_unreachable_registry_guard_remains():
+    """`docker manifest inspect | sha256sum` hashes empty input to a constant,
+    so the emptiness check could never fire. A guard that cannot trigger is
+    worse than none: it reads as covered."""
+    source = AGENT.read_text()
+    assert "sha256sum" not in source
+
+
+# --------------------------------------------------------------- versioning
+def test_both_images_record_the_commit_they_were_built_from():
+    source = WORKFLOW.read_text()
+    assert source.count("APP_RELEASE=${{ github.sha }}") == 2, "app and frontend both need it"
+
+
+def test_the_frontend_bakes_the_version_into_the_bundle():
+    """Fetching it would report the backend's version, and would keep reporting
+    it confidently while a stale bundle sat in front — which is exactly when
+    somebody goes looking for a version number."""
+    dockerfile = Path("deploy/frontend.Dockerfile").read_text()
+    assert "ARG APP_RELEASE" in dockerfile
+    assert "ENV VITE_APP_RELEASE" in dockerfile
+    # Baked before the build, or the bundle never sees it.
+    assert dockerfile.index("ENV VITE_APP_RELEASE") < dockerfile.index("RUN npm run build")
+
+
+def test_the_backend_keeps_its_release_for_error_reporting():
+    assert "ENV APP_RELEASE" in Path("Dockerfile").read_text()

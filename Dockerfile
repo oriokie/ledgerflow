@@ -18,10 +18,14 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /build
 COPY requirements/ requirements/
 ARG REQUIREMENTS_FILE=requirements/production.txt
+# Same commit as the frontend build; read by Sentry for release tagging.
+ARG APP_RELEASE=dev
 RUN pip install --upgrade pip && pip install -r ${REQUIREMENTS_FILE}
 
 # ---------------------------------------------------------------------------
 FROM python:${PYTHON_VERSION} AS runtime
+ARG APP_RELEASE=dev
+ENV APP_RELEASE=${APP_RELEASE}
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:$PATH"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

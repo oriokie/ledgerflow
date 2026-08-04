@@ -5,6 +5,7 @@ import { usePinnedViews } from "../../lib/pinnedViews";
 import { metricFor, useRailMetrics } from "../../hooks/useRailMetrics";
 import { useFlag } from "../../lib/featureFlags";
 import { useAuth } from "../../lib/AuthContext";
+import { AppVersion } from "./AppVersion";
 import { NAV_SECTIONS, RECEIPT_SCAN_PATH } from "./navConfig";
 import { NAV_SECTIONS_V2, type NavItemV2 } from "./navConfigV2";
 
@@ -120,6 +121,7 @@ export function BrandMark() {
         <path d="M6 8h8M6 12h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
       LedgerFlow
+      <AppVersion />
     </>
   );
 }

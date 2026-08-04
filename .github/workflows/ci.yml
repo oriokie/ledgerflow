@@ -223,7 +223,9 @@ jobs:
         with:
           context: .
           push: ${{ env.PUBLISH == 'true' }}
-          build-args: REQUIREMENTS_FILE=requirements/production.txt
+          build-args: |
+            REQUIREMENTS_FILE=requirements/production.txt
+            APP_RELEASE=${{ github.sha }}
           tags: ghcr.io/${{ github.repository }}/app:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -234,7 +236,9 @@ jobs:
           context: .
           file: deploy/frontend.Dockerfile
           push: ${{ env.PUBLISH == 'true' }}
-          build-args: VITE_API_BASE_URL=/api/v1
+          build-args: |
+            VITE_API_BASE_URL=/api/v1
+            APP_RELEASE=${{ github.sha }}
           tags: ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
