@@ -117,6 +117,23 @@ the stack's loopback-only internal origin (`127.0.0.1:8080`), which serves the
 SPA and routes `/api`, `/django-admin` and `/static` to Django — so path
 routing lives in one place regardless of which web server fronts it.
 
+### Already hosting other sites on this box?
+
+Pick **`existing`** at the web-server prompt. `setup.sh` checks ports 80/443
+before it asks anything, so if cPanel, Plesk or your own nginx already owns
+them, Caddy is withdrawn from the menu and `existing` becomes the default —
+the app binds nothing public, and you get the exact nginx / Apache /
+`.htaccess` snippet to paste into the vhost for your domain.
+
+Nothing that already serves those ports is modified, stopped or reconfigured,
+and TLS stays that server's job. On cPanel in particular, do not let this
+script write vhosts: the panel owns and regenerates them.
+
+`.htaccess` cannot use `ProxyPreserveHost` (Apache forbids the directive
+there), so the internal origin pins the public `Host` header itself. That is
+why the proxy works even though the front end rewrites `Host` to
+`127.0.0.1:8080`.
+
 ### Prerequisites
 
 - A server (any provider: DigitalOcean, Hetzner, EC2, Lightsail…) running
@@ -171,6 +188,49 @@ email), S3-compatible object storage (attachments), and OAuth. Fill them in,
 then `docker compose -f deploy/docker-compose.server.yml up -d` to apply. Until
 then, the app runs fine — email falls back to console/none and attachments use
 local disk.
+
+### Looking inside the database
+
+LedgerFlow requires **PostgreSQL** — row-level security, the append-only
+triggers and JSONB all have no MySQL equivalent — so it does not appear in
+cPanel's MySQL database list, and cannot be moved there.
+
+The bundled Postgres publishes on `127.0.0.1:5432`, loopback only. Reach it
+with an SSH tunnel rather than opening the port:
+
+```bash
+ssh -L 5432:127.0.0.1:5432 you@server     # then connect a client to localhost:5432
+```
+
+Database `ledgerflow`, user `ledgerflow`, password in `.env`
+(`POSTGRES_PASSWORD`). Or skip the tunnel entirely:
+
+```bash
+docker compose -f deploy/docker-compose.server.yml exec db psql -U ledgerflow ledgerflow
+```
+
+Answer yes to the pgweb prompt (or add `--profile pgweb`) for a browser UI on
+`127.0.0.1:8081`, reached the same way. **pgweb has no login of its own** —
+anyone who can reach the port has full SQL access, which is why it is loopback
+only and off by default. Never proxy it from a public vhost.
+
+### Verifying tenant isolation (important)
+
+```bash
+docker compose -f deploy/docker-compose.server.yml exec web \
+  python manage.py verify_tenant_isolation
+```
+
+`setup.sh` runs this after every deploy. It matters because PostgreSQL exempts
+**superuser and `BYPASSRLS` roles from every row-level security policy** —
+silently, with no error or log line. Since row-level security *is* this
+product's tenant isolation, a deployment whose `DATABASE_URL` uses a superuser
+has no isolation at all while looking completely healthy.
+
+This is easy to hit by accident: the `postgres` image creates `POSTGRES_USER`
+as a superuser. If the command reports a problem, it prints the exact SQL to
+create an ordinary role and switch to it. Take a backup first — the fix
+reassigns object ownership.
 
 ### Backups (do set this up)
 
