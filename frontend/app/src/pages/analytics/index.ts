@@ -1,5 +1,6 @@
 // Existing analytics widgets, used by AnalyticsPage.
 export { CashFlowChart } from "./CashFlowChart";
+export { FinancialIndependencePanel } from "./FinancialIndependencePanel";
 export { CashflowStatement } from "./CashflowStatement";
 export { CategoryBreakdown } from "./CategoryBreakdown";
 export { CategoryDrilldown } from "./CategoryDrilldown";

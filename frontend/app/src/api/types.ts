@@ -1321,3 +1321,28 @@ export interface SmartBudgetProposal {
   deficit: boolean;
   lines: SmartBudgetLine[];
 }
+
+/** "When does work become optional?" — the projection an advisor charges a
+ * consultation for. Spending-derived, banded, and honest about "never". */
+export interface FIBandPoint {
+  real_return: number;
+  years: number | null;
+  around_year: number | null;
+}
+
+export interface FIProjection {
+  currency: string;
+  as_of: string;
+  months_measured: number;
+  monthly_spending_minor: number;
+  monthly_savings_minor: number;
+  net_worth_minor: number;
+  fi_number_minor: number;
+  swr: number;
+  progress_pct: number;
+  band: FIBandPoint[];
+  never_at_current_pace: boolean;
+  required_monthly_for_horizon_minor: number | null;
+  horizon_years: number;
+  caveats: string[];
+}

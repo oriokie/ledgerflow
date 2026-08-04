@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { ReportFilters, ReportMeta, ReportResult } from "./types";
+import type { FIProjection, ReportFilters, ReportMeta, ReportResult } from "./types";
 
 function toQuery(filters: ReportFilters = {}): string {
   const q = new URLSearchParams();
@@ -27,4 +27,9 @@ export const reportsApi = {
   /** API path for the CSV export — fetched with auth headers, not linked. */
   exportPath: (slug: string, filters: ReportFilters = {}) =>
     `/analytics/reports/${slug}/export/?${toQuery(filters)}`,
+};
+
+export const fiApi = {
+  /** 404 with an explanation when history is too thin — surfaced as copy, not an error state. */
+  projection: () => api.get<FIProjection>("/analytics/financial-independence/"),
 };

@@ -3,8 +3,9 @@ import { useMemo, useState } from "react";
 import { reportsApi } from "../api/reports";
 import type { ReportFilters, ReportGroup, ReportMeta } from "../api/types";
 import { useReport, useReportCatalog } from "../hooks/useReports";
-import { Card, EmptyState, Grid, PageHeader, SegmentedControl, SkeletonCard } from "../ui";
-import { ReportCard, ReportFilterBar } from "./analytics";
+import { Link } from "react-router-dom";
+import { Card, EmptyState, Grid, Inline, PageHeader, SegmentedControl, SkeletonCard } from "../ui";
+import { FinancialIndependencePanel, ReportCard, ReportFilterBar } from "./analytics";
 
 const GROUPS: { value: ReportGroup; label: string }[] = [
   { value: "position", label: "Where you stand" },
@@ -57,8 +58,24 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}) {
         <PageHeader
           title="Reports"
           description="Fourteen views of your money. Pick a period once and it applies to all of them."
-          actions={<ReportFilterBar filters={filters} onChange={setFilters} />}
+          actions={
+            <Inline gap={2}>
+              <Link className="lf-section-link" to="/review">
+                Financial review
+              </Link>
+              <ReportFilterBar filters={filters} onChange={setFilters} />
+            </Inline>
+          }
         />
+      )}
+
+      {/* The advisor question, pinned above the catalog when looking at
+          position: reports describe where money went; this one says where the
+          person is going. */}
+      {group === "position" && (
+        <div className="lf-dash-section">
+          <FinancialIndependencePanel />
+        </div>
       )}
 
       <div className="lf-report-groups">

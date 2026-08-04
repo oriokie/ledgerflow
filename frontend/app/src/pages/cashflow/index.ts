@@ -5,3 +5,4 @@ export type { CalendarView, DayTone } from "./calendarUtils";
 export { CashflowOutlook } from "./CashflowOutlook";
 export { toBalanceSeries, toMonthlyRollups } from "./calendarUtils";
 export type { BalancePoint, MonthlyRollup } from "./calendarUtils";
+export { ScenarioPanel } from "./ScenarioPanel";

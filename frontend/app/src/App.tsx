@@ -13,6 +13,7 @@ import { useAuth } from "./lib/AuthContext";
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage })));
 const TransactionsPage = lazy(() => import("./pages/TransactionsPage").then((m) => ({ default: m.TransactionsPage })));
 const ReportsPage = lazy(() => import("./pages/ReportsPage").then((m) => ({ default: m.ReportsPage })));
+const ReviewPage = lazy(() => import("./pages/ReviewPage").then((m) => ({ default: m.ReviewPage })));
 const DebtPage = lazy(() => import("./pages/DebtPage").then((m) => ({ default: m.DebtPage })));
 const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage").then((m) => ({ default: m.InvestmentsPage })));
 const IncomePage = lazy(() => import("./pages/IncomePage").then((m) => ({ default: m.IncomePage })));
@@ -196,6 +197,7 @@ export default function App() {
           {/* `/insights` is the one contested name: it was the anomalies page,
               and the new IA gives it to the hub that made anomalies a tab. */}
           <Route path="/insights" element={<InsightsRoute />} />
+          <Route path="/review" element={<ReviewPage />} />
           <Route path="/automation" element={<AutomationPage />} />
           <Route path="/quick-add" element={<QuickAddPage />} />
           <Route path="/receipts/scan" element={<ReceiptScanPage />} />

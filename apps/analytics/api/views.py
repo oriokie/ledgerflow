@@ -130,3 +130,103 @@ class ReportExportView(TenantScopedAPIView, APIView):
         response = HttpResponse(buffer.getvalue(), content_type="text/csv")
         response["Content-Disposition"] = f'attachment; filename="{slug}.csv"'
         return response
+
+
+class FinancialIndependenceView(TenantScopedAPIView, APIView):
+    """The projection an advisor would charge a consultation for.
+
+    Read-only and recomputed live: the answer must move with the ledger,
+    because a spending change *is* an FI-date change and showing a stale one
+    would bury the feedback loop the number exists to create.
+    """
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.VIEWER
+    serializer_class = None  # bespoke shape below
+
+    @extend_schema(operation_id="financial_independence")
+    def get(self, request):
+        from .. import fi
+
+        try:
+            projection = fi.project()
+        except fi.NotEnoughHistoryError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(
+            {
+                "currency": projection.currency,
+                "as_of": projection.as_of,
+                "months_measured": projection.months_measured,
+                "monthly_spending_minor": projection.monthly_spending_minor,
+                "monthly_savings_minor": projection.monthly_savings_minor,
+                "net_worth_minor": projection.net_worth_minor,
+                "fi_number_minor": projection.fi_number_minor,
+                "swr": projection.swr,
+                "progress_pct": projection.progress_pct,
+                "band": [
+                    {
+                        "real_return": point.real_return,
+                        "years": point.years,
+                        "around_year": point.around_year,
+                    }
+                    for point in projection.band
+                ],
+                "never_at_current_pace": projection.never_at_current_pace,
+                "required_monthly_for_horizon_minor": projection.required_monthly_for_horizon_minor,
+                "horizon_years": fi.FALLBACK_HORIZON_YEARS,
+                "caveats": projection.caveats,
+            }
+        )
+
+
+class ScenarioPreviewView(TenantScopedAPIView, APIView):
+    """What-if modelling. POST because the scenario arrives in a body, but it
+    is a pure read — nothing is stored, and the same inputs against the same
+    ledger give the same answer."""
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.VIEWER
+    serializer_class = None
+
+    def post(self, request):
+        from .. import scenarios
+
+        def _delta(name: str) -> int:
+            raw = request.data.get(name, 0)
+            try:
+                return int(raw)
+            except (TypeError, ValueError):
+                raise ValueError(name) from None
+
+        try:
+            income = _delta("monthly_income_delta_minor")
+            expense = _delta("monthly_expense_delta_minor")
+        except ValueError as exc:
+            return Response(
+                {"detail": f"{exc} must be an integer amount in minor units."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = scenarios.preview(monthly_income_delta_minor=income, monthly_expense_delta_minor=expense)
+
+        def leg(side) -> dict:
+            return {
+                "safe_to_spend_minor": side.safe_to_spend_minor,
+                "first_negative_on": side.first_negative_on,
+                "lowest_balance_minor": side.lowest_balance_minor,
+                "fi_years": side.fi_years,
+                "fi_number_minor": side.fi_number_minor,
+            }
+
+        return Response(
+            {
+                "currency": result.currency,
+                "as_of": result.as_of,
+                "monthly_income_delta_minor": result.monthly_income_delta_minor,
+                "monthly_expense_delta_minor": result.monthly_expense_delta_minor,
+                "baseline": leg(result.baseline),
+                "scenario": leg(result.scenario),
+                "notes": result.notes,
+            }
+        )

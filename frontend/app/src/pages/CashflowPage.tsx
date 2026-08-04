@@ -15,7 +15,7 @@ import {
   SkeletonCard,
   Text,
 } from "../ui";
-import { CashflowCalendar, CashflowOutlook } from "./cashflow";
+import { CashflowCalendar, CashflowOutlook, ScenarioPanel } from "./cashflow";
 import { hasScheduledActivity, parseDay } from "./cashflow/calendarUtils";
 
 /**
@@ -237,6 +237,9 @@ export function CashflowPage({ embedded }: { embedded?: boolean } = {}) {
                 <CashflowCalendar calendar={calendar} />
               )}
             </Card>
+          </div>
+          <div className="lf-dash-section">
+            <ScenarioPanel />
           </div>
         </>
       )}

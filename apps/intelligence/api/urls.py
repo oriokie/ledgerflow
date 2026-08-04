@@ -13,6 +13,7 @@ from .views import (
     AutomationScanView,
     BriefingView,
     CashRunwayView,
+    FinancialReviewView,
     ForecastView,
     HealthScoreView,
     InsightDecisionView,
@@ -40,6 +41,7 @@ urlpatterns = [
     ),
     path("merchants/", MerchantProfileView.as_view(), name="intel-merchants"),
     path("insights/", InsightListView.as_view(), name="intel-insights"),
+    path("review/", FinancialReviewView.as_view(), name="intel-review"),
     path("insights/generate/", InsightGenerateView.as_view(), name="intel-insights-generate"),
     path(
         "insights/<uuid:insight_id>/<str:decision>/",

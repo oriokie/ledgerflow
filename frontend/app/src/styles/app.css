@@ -196,3 +196,76 @@ tr:focus-within .lf-row-actions {
 .lf-safe-amount[data-zero] {
   color: var(--lf-status-danger);
 }
+
+/* ---- financial independence ---- */
+.lf-fi-headline {
+  margin: 0;
+  font-size: var(--lf-text-xl);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-tight);
+}
+.lf-fi-band {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+.lf-fi-band th,
+.lf-fi-band td {
+  padding: var(--lf-space-1) var(--lf-space-3) var(--lf-space-1) 0;
+  text-align: start;
+}
+.lf-fi-band th {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  font-weight: var(--lf-weight-semibold);
+}
+.lf-fi-band td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- financial review ---- */
+.lf-review-figure {
+  margin: 0 0 var(--lf-space-1);
+  font-size: var(--lf-text-lg);
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.lf-review-mover {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin: var(--lf-space-1) 0;
+}
+.lf-review-mover span {
+  font-variant-numeric: tabular-nums;
+}
+.lf-review-action {
+  display: flex;
+  gap: var(--lf-space-3);
+  align-items: flex-start;
+  padding: var(--lf-space-2) 0;
+}
+
+/* ---- scenario planner ---- */
+.lf-scenario-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.lf-scenario-table th,
+.lf-scenario-table td {
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border-bottom: 1px solid var(--lf-border-subtle);
+  text-align: start;
+  font-variant-numeric: tabular-nums;
+}
+.lf-scenario-table thead th {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+}
+.lf-scenario-table td[data-changed] {
+  font-weight: var(--lf-weight-semibold);
+}

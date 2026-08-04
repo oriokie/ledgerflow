@@ -13,6 +13,7 @@ vi.mock("../hooks/useFinance", () => ({
 vi.mock("./cashflow", () => ({
   CashflowCalendar: () => <div data-testid="grid" />,
   CashflowOutlook: () => <div data-testid="outlook" />,
+  ScenarioPanel: () => <div data-testid="scenario" />,
 }));
 
 import { CashflowPage } from "./CashflowPage";

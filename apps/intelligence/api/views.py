@@ -736,3 +736,34 @@ class MerchantProfileView(TenantScopedAPIView, APIView):
                 for p in profiles
             ]
         )
+
+
+class FinancialReviewView(TenantScopedAPIView, APIView):
+    """The periodic review document. Deliberately NOT behind HasAIInsights:
+    every figure comes from deterministic selectors, no model is involved, and
+    gating the advisor's core deliverable behind an AI flag would hide the
+    product's best argument for itself from exactly the plans it should sell.
+    """
+
+    permission_classes = [IsTenantMember]
+    serializer_class = None  # bespoke composition; see apps.intelligence.review
+
+    def get(self, request):
+        from .. import review
+
+        try:
+            document = review.compose(period_raw=request.query_params.get("period"))
+        except review.ReviewError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {
+                "period": {
+                    "label": document.period.label,
+                    "start": document.period.start,
+                    "end": document.period.end,
+                },
+                "currency": document.currency,
+                "sections": document.sections,
+            }
+        )
