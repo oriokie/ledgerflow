@@ -113,6 +113,8 @@ export function WorkspacePanel() {
         </SettingsRow>
       </SettingsSection>
 
+      <AllWorkspacesSection />
+
       <SettingsSection title="Manage" description="These open in their own dedicated areas.">
         <Link className="lf-settings-linkcard" to="/members">
           <div>
@@ -173,5 +175,184 @@ export function WorkspacePanel() {
         </DangerZone>
       )}
     </>
+  );
+}
+
+/**
+ * Every workspace this account belongs to, renameable and closeable in place.
+ *
+ * The settings above describe whichever workspace you happen to be *in*, so
+ * tidying up a second one meant switching into it first, coming here, and
+ * closing it — once per workspace. An account that ended up with nine of them
+ * (a retry loop during signup created one per attempt) had no way to see that
+ * had happened, let alone fix it.
+ *
+ * Owner-only actions, matching the API: WorkspaceDetailView refuses a PATCH or
+ * DELETE from anyone else, and offering a control that only 403s is worse than
+ * not offering it.
+ */
+function AllWorkspacesSection() {
+  const { workspaces: all, activeWorkspace, refreshWorkspaces, switchWorkspace } = useAuth();
+  // Tolerates a context that has not finished loading: a settings panel is not
+  // worth crashing the whole page over, and one workspace is the same "nothing
+  // to manage here" case as none.
+  const workspaces = all ?? [];
+  const toast = useToast();
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [closingId, setClosingId] = useState<string | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (workspaces.length < 2) return null;
+
+  const rename = async (tenantId: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await tenancyApi.updateWorkspace(tenantId, { name: draftName.trim() });
+      await refreshWorkspaces();
+      setRenamingId(null);
+      toast("Workspace renamed");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Couldn't rename that workspace.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const close = async (tenantId: string) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await tenancyApi.closeWorkspace(tenantId);
+      // Closing the one you are standing in leaves the shell pointing at
+      // something that no longer exists, so that case reloads rather than
+      // trying to re-render around the hole.
+      if (tenantId === activeWorkspace?.tenant.id) {
+        window.location.href = "/";
+        return;
+      }
+      await refreshWorkspaces();
+      setClosingId(null);
+      setConfirmText("");
+      toast("Workspace closed");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Couldn't close that workspace.");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SettingsSection
+      title="All your workspaces"
+      description="Everything this account belongs to. Renaming and closing are limited to the ones you own."
+    >
+      {error && <Banner tone="danger">{error}</Banner>}
+
+      {workspaces.map((ws) => {
+        const isActive = ws.tenant.id === activeWorkspace?.tenant.id;
+        const owns = ws.role === "owner";
+        return (
+          <SettingsRow
+            key={ws.tenant.id}
+            title={ws.tenant.name}
+            description={`${ws.tenant.base_currency} · ${ws.role}${isActive ? " · currently open" : ""}`}
+          >
+            <div style={{ display: "flex", gap: "var(--lf-space-2)", flexWrap: "wrap" }}>
+              {!isActive && (
+                <Button variant="ghost" onClick={() => switchWorkspace(ws.tenant.id)}>
+                  Open
+                </Button>
+              )}
+              {owns && renamingId !== ws.tenant.id && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setRenamingId(ws.tenant.id);
+                    setDraftName(ws.tenant.name);
+                    setClosingId(null);
+                  }}
+                >
+                  Rename
+                </Button>
+              )}
+              {owns && closingId !== ws.tenant.id && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setClosingId(ws.tenant.id);
+                    setConfirmText("");
+                    setRenamingId(null);
+                  }}
+                >
+                  Close
+                </Button>
+              )}
+            </div>
+          </SettingsRow>
+        );
+      })}
+
+      {renamingId && (
+        <SettingsRow title="New name" htmlFor="ws-rename">
+          <div style={{ display: "flex", gap: "var(--lf-space-2)" }}>
+            <Input
+              id="ws-rename"
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+            />
+            <Button
+              variant="primary"
+              loading={busy}
+              disabled={!draftName.trim()}
+              onClick={() => rename(renamingId)}
+            >
+              Save
+            </Button>
+            <Button variant="ghost" onClick={() => setRenamingId(null)}>
+              Cancel
+            </Button>
+          </div>
+        </SettingsRow>
+      )}
+
+      {closingId && (
+        <>
+          <Banner tone="danger">
+            Closing removes this workspace for everyone in it and schedules its data for deletion.
+            This can't be undone from here.
+          </Banner>
+          <SettingsRow
+            title="Confirm"
+            description={`Type ${workspaces.find((w) => w.tenant.id === closingId)?.tenant.name} to confirm.`}
+            htmlFor="ws-close-confirm"
+          >
+            <div style={{ display: "flex", gap: "var(--lf-space-2)" }}>
+              <Input
+                id="ws-close-confirm"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder={workspaces.find((w) => w.tenant.id === closingId)?.tenant.name}
+              />
+              <Button
+                variant="danger"
+                loading={busy}
+                disabled={
+                  confirmText !== workspaces.find((w) => w.tenant.id === closingId)?.tenant.name
+                }
+                onClick={() => close(closingId)}
+              >
+                Close workspace
+              </Button>
+              <Button variant="ghost" onClick={() => setClosingId(null)}>
+                Cancel
+              </Button>
+            </div>
+          </SettingsRow>
+        </>
+      )}
+    </SettingsSection>
   );
 }
