@@ -34,11 +34,18 @@ export function ProtectedRoute({
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // An operator account cannot own or join a workspace, so every customer
-  // route is a dead end for it — the workspace picker would offer "create one"
-  // and the API would refuse. Send them where their account actually works.
-  // This is convenience; the service layer is the control.
-  if (user?.is_platform_staff && !location.pathname.startsWith("/admin")) {
+  // An operator account with no workspaces cannot own or join one while
+  // PLATFORM_STAFF_SEPARATE_FROM_TENANTS is on, so every customer route is a
+  // dead end: the picker would offer "create one" and the API would refuse.
+  // Send them where their account actually works.
+  //
+  // Having memberships is the evidence that separation is *off* for this
+  // deployment — the service layer is what enforces it, and it only lets a
+  // staff account hold one when the setting allows it. Redirecting on staffness
+  // alone locked the solo operator who deliberately turned separation off out
+  // of the product they had just been given access to. This is convenience;
+  // apps/platform_admin/separation.py remains the control.
+  if (user?.is_platform_staff && workspaces.length === 0 && !location.pathname.startsWith("/admin")) {
     return <Navigate to="/admin" replace />;
   }
 

@@ -32,6 +32,7 @@ function renderAt(path: string, element: React.ReactNode) {
         <Route path={path} element={element} />
         <Route path="/login" element={<div>login page</div>} />
         <Route path="/workspaces" element={<div>workspace picker</div>} />
+        <Route path="/admin" element={<div>admin console</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -80,5 +81,29 @@ describe("ProtectedRoute", () => {
 
     renderAt("/dashboard", <ProtectedRoute>dashboard</ProtectedRoute>);
     expect(screen.getByText("workspace picker")).toBeInTheDocument();
+  });
+});
+
+describe("ProtectedRoute — platform staff who also use the product", () => {
+  it("sends a staff account with no workspaces to the console", () => {
+    auth.isAuthenticated = true;
+    auth.user = { is_platform_staff: true };
+
+    renderAt("/dashboard", <ProtectedRoute>dashboard</ProtectedRoute>);
+    expect(screen.getByText("admin console")).toBeInTheDocument();
+  });
+
+  it("lets a staff account that has workspaces use them", () => {
+    // Holding a membership is only possible when the deployment turned
+    // PLATFORM_STAFF_SEPARATE_FROM_TENANTS off, which is a deliberate choice
+    // the UI must not override — a solo operator dogfooding their own install
+    // was otherwise bounced to /admin from every customer route.
+    auth.isAuthenticated = true;
+    auth.user = { is_platform_staff: true };
+    auth.activeWorkspace = { tenant: { id: "t1" } };
+    auth.workspaces = [auth.activeWorkspace];
+
+    renderAt("/dashboard", <ProtectedRoute>dashboard</ProtectedRoute>);
+    expect(screen.getByText("dashboard")).toBeInTheDocument();
   });
 });

@@ -469,6 +469,8 @@ else
 fi
 
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-$(openssl rand -hex 24)}"
+# The app never connects as the superuser — see the role creation before launch.
+APP_DB_PASSWORD="${APP_DB_PASSWORD:-$(openssl rand -hex 24)}"
 
 # ------------------------------------------------------------------ summary
 echo
@@ -513,10 +515,15 @@ WEBAUTHN_ORIGINS=https://${DOMAIN}
 $(if [ "$DB_MODE" = "external" ]; then
   echo "DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 else
-  echo "DATABASE_URL=postgres://ledgerflow:${POSTGRES_PASSWORD}@db:5432/ledgerflow"
+  # ledgerflow_app, not ledgerflow: the superuser bypasses row-level security.
+  echo "DATABASE_URL=postgres://ledgerflow_app:${APP_DB_PASSWORD}@db:5432/ledgerflow"
 fi)
 POSTGRES_USER=ledgerflow
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+# The unprivileged role the application actually connects as. Regenerating this
+# without also re-running setup.sh (which re-applies it with ALTER ROLE) locks
+# the app out of its own database.
+APP_DB_PASSWORD=${APP_DB_PASSWORD}
 POSTGRES_DB=ledgerflow
 REDIS_URL=redis://redis:6379/0
 
@@ -903,6 +910,49 @@ fi
 # hints below then behave identically for whoever copies them.
 export COMPOSE_PROFILES="${PROFILES//--profile /}"
 export COMPOSE_PROFILES="${COMPOSE_PROFILES// /,}"
+
+# The bundled database's POSTGRES_USER is a superuser, and PostgreSQL exempts
+# superusers from row-level security unconditionally and silently. Connecting
+# the app as it produces a deployment that looks completely normal and has no
+# tenant isolation whatsoever. So the app gets its own ordinary role, created
+# before anything connects.
+#
+# CREATE on the schema is deliberate: the app runs its own migrations, so it
+# needs to make tables. Owning them does not reopen the hole, because the
+# migrations mark every tenant table FORCE ROW LEVEL SECURITY, which applies
+# the policies to the owner too. NOSUPERUSER/NOBYPASSRLS is the part that
+# matters, and `verify_tenant_isolation` below proves it rather than assuming.
+if [ "$DB_MODE" = "bundled" ]; then
+  bold ""
+  bold "Preparing the application database role"
+  docker compose -f "$COMPOSE_FILE" up -d db
+  # The role has to exist before web's entrypoint opens a connection.
+  for _ in $(seq 1 30); do
+    docker compose -f "$COMPOSE_FILE" exec -T db pg_isready -U ledgerflow >/dev/null 2>&1 && break
+    sleep 1
+  done
+  docker compose -f "$COMPOSE_FILE" exec -T db \
+    psql -v ON_ERROR_STOP=1 -U ledgerflow -d ledgerflow >/dev/null <<SQLEOF
+DO \$\$ BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ledgerflow_app') THEN
+    CREATE ROLE ledgerflow_app LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB;
+  END IF;
+END \$\$;
+ALTER ROLE ledgerflow_app WITH PASSWORD '${APP_DB_PASSWORD}' NOSUPERUSER NOBYPASSRLS;
+GRANT CONNECT ON DATABASE ledgerflow TO ledgerflow_app;
+GRANT USAGE, CREATE ON SCHEMA public TO ledgerflow_app;
+-- Existing installs: the tables are already owned by the superuser, so the
+-- app role needs rights on them as well as on whatever it creates next.
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ledgerflow_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ledgerflow_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ledgerflow_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO ledgerflow_app;
+SQLEOF
+  ok "Application role ledgerflow_app is present (NOSUPERUSER, NOBYPASSRLS)."
+fi
+
 docker compose -f "$COMPOSE_FILE" up -d --build
 docker compose -f "$COMPOSE_FILE" exec -T web python manage.py migrate --no-input
 docker compose -f "$COMPOSE_FILE" exec -T web python manage.py collectstatic --no-input >/dev/null

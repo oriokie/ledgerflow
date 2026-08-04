@@ -490,3 +490,55 @@ def test_a_port_check_that_cannot_run_does_not_block_the_deploy():
     source = SETUP.read_text()
     checker = source[source.index("port_is_free() {") :][:500]
     assert "return 0" in checker.split("else")[-1], "must assume free when it cannot tell"
+
+
+# ------------------------------------------------------- unprivileged app role
+# PostgreSQL exempts superusers from row-level security unconditionally and
+# silently. The bundled database's POSTGRES_USER is one, so connecting the app
+# as it produced a deployment that looked entirely normal and had no tenant
+# isolation at all — the single most serious defect this script could ship.
+def test_the_app_does_not_connect_as_the_database_superuser():
+    source = SETUP.read_text()
+    assert "postgres://ledgerflow_app:" in source, "DATABASE_URL still uses the superuser"
+    assert "postgres://ledgerflow:${POSTGRES_PASSWORD}@db" not in source
+
+
+@pytest.mark.parametrize("attribute", ["NOSUPERUSER", "NOBYPASSRLS"])
+def test_the_app_role_cannot_bypass_row_level_security(attribute):
+    """Both are required: NOSUPERUSER alone still leaves BYPASSRLS grantable,
+    and either one being absent silently disables every policy."""
+    assert attribute in SETUP.read_text()
+
+
+def test_the_role_is_created_before_the_app_connects():
+    """web's entrypoint opens a connection as soon as it starts; a role created
+    afterwards means the first boot fails authentication."""
+    source = SETUP.read_text()
+    assert source.index("CREATE ROLE ledgerflow_app") < source.index("up -d --build")
+
+
+def test_creating_the_role_twice_is_not_an_error():
+    """setup.sh is documented as idempotent and people re-run it to deploy."""
+    source = SETUP.read_text()
+    assert "IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ledgerflow_app')" in source
+
+
+def test_an_existing_install_grants_the_role_rights_on_tables_it_does_not_own():
+    """Upgrades have tables already owned by the superuser. Without this the
+    switch-over produces permission denied on every query."""
+    source = SETUP.read_text()
+    assert "ON ALL TABLES IN SCHEMA public TO ledgerflow_app" in source
+    assert "ALTER DEFAULT PRIVILEGES" in source
+
+
+def test_the_role_password_is_generated_not_fixed():
+    source = SETUP.read_text()
+    assert 'APP_DB_PASSWORD="${APP_DB_PASSWORD:-$(openssl rand -hex 24)}"' in source
+
+
+def test_the_role_password_survives_a_rerun():
+    """Re-running must not mint a new password while the role keeps the old
+    one — that locks the app out of its own database."""
+    source = SETUP.read_text()
+    env_body = source[source.index('cat > "$ENV_FILE"') : source.index("\nENVEOF")]
+    assert "APP_DB_PASSWORD=" in env_body
