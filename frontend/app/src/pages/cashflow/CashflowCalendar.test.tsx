@@ -53,6 +53,8 @@ function makeCalendar(overrides: Partial<Calendar> = {}): Calendar {
     opening_balance_minor: 100_000,
     closing_balance_minor: 280_000,
     lowest_balance_minor: -20_000,
+    safe_to_spend_minor: 0,
+    safe_to_spend_basis: "scheduled" as const,
     lowest_balance_on: "2026-07-27",
     first_negative_on: "2026-07-27",
     negative_day_count: 1,

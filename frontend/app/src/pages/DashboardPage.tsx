@@ -39,6 +39,7 @@ import {
   NetWorthCard,
   periodRange,
   RecentActivity,
+  SafeToSpend,
   SpendingByCategory,
   TrendsCard,
   UpcomingBills,
@@ -171,6 +172,13 @@ export function DashboardPage() {
           {/* Tier 2 — this period's cash flow */}
           <div className="lf-dash-section">
             <CashFlowSummary cashFlow={primaryCashFlow} currency={primaryCurrency} />
+          </div>
+
+          {/* Tier 2a½ — the one number that answers "can I buy this?".
+              Placed above the committed strip: safe-to-spend is the day's
+              question, committed income is the month's. */}
+          <div className="lf-dash-section">
+            <SafeToSpend />
           </div>
 
           {/* Tier 2b — how much of the month is already spoken for.

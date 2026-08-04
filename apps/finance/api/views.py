@@ -1476,6 +1476,8 @@ class CashflowCalendarView(TenantScopedAPIView, APIView):
                 # The trough, not the closing balance, is what tells a user
                 # whether they survive the window.
                 "lowest_balance_minor": calendar.lowest_balance_minor,
+                "safe_to_spend_minor": calendar.safe_to_spend_minor,
+                "safe_to_spend_basis": calendar.safe_to_spend_basis,
                 "lowest_balance_on": calendar.lowest_balance_on,
                 "first_negative_on": calendar.first_negative_on,
                 "negative_day_count": calendar.negative_day_count,

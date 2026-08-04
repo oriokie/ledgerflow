@@ -9,3 +9,4 @@ export { RecentActivity } from "./RecentActivity";
 export { greeting, periodRange } from "./metrics";
 export type { PeriodKey } from "./metrics";
 export { CommittedIncomeStrip } from "./CommittedIncomeStrip";
+export { SafeToSpend } from "./SafeToSpend";

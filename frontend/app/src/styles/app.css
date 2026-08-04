@@ -184,3 +184,15 @@ tr:focus-within .lf-row-actions {
   border-bottom: none;
   font-weight: var(--lf-weight-semibold);
 }
+
+/* ---- safe to spend ---- */
+.lf-safe-amount {
+  margin: 0 0 var(--lf-space-2);
+  font-size: var(--lf-text-2xl);
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-status-success);
+}
+.lf-safe-amount[data-zero] {
+  color: var(--lf-status-danger);
+}

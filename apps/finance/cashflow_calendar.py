@@ -289,6 +289,39 @@ class CashflowCalendar:
     def negative_day_count(self) -> int:
         return sum(1 for d in self.days if d.is_negative)
 
+    # ------------------------------------------------------------ safe to spend
+    #
+    # "How much could I spend today without breaking anything?" is the question
+    # every other figure here only gestures at. The answer is the projected
+    # trough, floored at zero: money spent today lowers every later day's
+    # balance by the same amount, so the binding constraint is the lowest point
+    # of the projection, not today's balance — today's balance is exactly the
+    # number that lies, because rent hasn't happened yet.
+    #
+    # Where the everyday-spending band is available, the trough is taken from
+    # its *low* edge, so the answer means "beyond your normal habits" rather
+    # than "if you stop buying groceries" — a safe-to-spend that assumes the
+    # user stops living is a number that gets someone overdrawn. Without
+    # history to measure the band, the scheduled line is all there is, and
+    # `safe_to_spend_basis` says so, so the UI can caveat honestly.
+
+    @property
+    def safe_to_spend_minor(self) -> int:
+        floor = min(
+            (
+                d.expected_low_minor if d.expected_low_minor is not None else d.closing_minor
+                for d in self.days
+            ),
+            default=self.opening_balance_minor,
+        )
+        return max(0, floor)
+
+    @property
+    def safe_to_spend_basis(self) -> str:
+        """ "everyday" when normal unscheduled spending is already accounted
+        for; "scheduled" when only bills and templates could be projected."""
+        return "everyday" if self.everyday is not None else "scheduled"
+
 
 def _liquid_account_ids(currency: str) -> set[str]:
     """Accounts the projection runs over: active, liquid, in the target

@@ -761,3 +761,111 @@ def test_uncertainty_grows_with_the_square_root_of_the_horizon(tenant):
         ratio = width(at_60) / width(at_15)
         # sqrt(60/15) == 2. Linear growth would give 4.
         assert 1.8 < ratio < 2.2, ratio
+
+
+# =============================================================================
+# Safe to spend
+# =============================================================================
+def test_safe_to_spend_is_the_trough_not_todays_balance(tenant):
+    """500 in the bank, 400 of rent due next week: today's balance says 500,
+    and 500 is exactly the number that gets someone overdrawn. Money spent
+    today lowers every later day by the same amount, so the binding constraint
+    is the projection's lowest point."""
+    with tenant_scope(tenant):
+        account = _account("Checking", opening=500_00)
+        _recur(
+            txn_type=RecurringType.EXPENSE,
+            financial_account=account,
+            amount_minor=400_00,
+            currency="USD",
+            frequency=Frequency.MONTHLY,
+            starts_on=timezone.localdate() + timedelta(days=7),
+            memo="Rent",
+        )
+        calendar = cc.cashflow_calendar(days=30)
+
+    assert calendar.safe_to_spend_minor == 100_00
+    assert calendar.safe_to_spend_basis == "scheduled"
+
+
+def test_safe_to_spend_never_goes_below_zero(tenant):
+    """A projected overdraft means nothing extra is safe. Zero — not a
+    negative number, which would read as an instruction to un-spend."""
+    with tenant_scope(tenant):
+        account = _account("Checking", opening=100_00)
+        _recur(
+            txn_type=RecurringType.EXPENSE,
+            financial_account=account,
+            amount_minor=400_00,
+            currency="USD",
+            frequency=Frequency.MONTHLY,
+            starts_on=timezone.localdate() + timedelta(days=7),
+            memo="Rent",
+        )
+        calendar = cc.cashflow_calendar(days=30)
+
+    assert calendar.safe_to_spend_minor == 0
+
+
+def test_safe_to_spend_accounts_for_everyday_habits_when_it_can(tenant):
+    """With history, the answer means "beyond your normal spending" — a figure
+    that assumes the user stops buying groceries is a figure that overdraws
+    them. The band's low edge sits under the scheduled line, so the safe
+    figure must come in strictly lower."""
+    with tenant_scope(tenant):
+        account = _account("Checking", opening=1_000_00)
+        groceries = _category("Groceries")
+        for day in range(1, 61):
+            if day % 2 == 0:
+                _spend(account, groceries, amount=1_000, days_ago=day)
+
+        calendar = cc.cashflow_calendar(days=30)
+
+    assert calendar.safe_to_spend_basis == "everyday"
+    scheduled_trough = max(0, calendar.lowest_balance_minor)
+    assert calendar.safe_to_spend_minor < scheduled_trough
+
+
+def test_income_not_yet_arrived_cannot_be_spent_today(tenant):
+    """Payday on day 3, rent on day 10. After both land the balance sits at
+    200 — but spending 200 *today* overdraws days one and two, because the
+    salary has not arrived yet. The binding trough is the 100 in the account
+    right now. (The first draft of this test asserted 200 and the engine
+    refused: the point of the number is exactly that future income is not
+    spendable before it exists.)"""
+    with tenant_scope(tenant):
+        account = _account("Checking", opening=100_00)
+        _recur(
+            txn_type=RecurringType.INCOME,
+            financial_account=account,
+            amount_minor=500_00,
+            currency="USD",
+            frequency=Frequency.MONTHLY,
+            starts_on=timezone.localdate() + timedelta(days=3),
+            memo="Salary",
+        )
+        _recur(
+            txn_type=RecurringType.EXPENSE,
+            financial_account=account,
+            amount_minor=400_00,
+            currency="USD",
+            frequency=Frequency.MONTHLY,
+            starts_on=timezone.localdate() + timedelta(days=10),
+            memo="Rent",
+        )
+        calendar = cc.cashflow_calendar(days=25)
+
+    assert calendar.safe_to_spend_minor == 100_00
+
+
+def test_api_reports_safe_to_spend(tenant_context):
+    _, client = tenant_context
+    client.post(
+        "/api/v1/finance/accounts/",
+        {"name": "Checking", "account_type": "checking", "currency": "USD", "opening_balance_minor": 50_000},
+        format="json",
+    )
+    body = client.get("/api/v1/finance/cashflow-calendar/?days=14").data
+
+    assert body["safe_to_spend_minor"] == 50_000
+    assert body["safe_to_spend_basis"] in ("everyday", "scheduled")

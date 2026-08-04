@@ -646,6 +646,13 @@ export interface CashflowCalendar {
   lowest_balance_on: string | null;
   first_negative_on: string | null;
   negative_day_count: number;
+  /** The projected trough floored at zero: what could be spent today with
+   * every scheduled bill still covered. Money spent today lowers every later
+   * day by the same amount, so the trough — not today's balance — binds. */
+  safe_to_spend_minor: number;
+  /** "everyday" when normal unscheduled spending is already accounted for;
+   * "scheduled" when only bills and templates could be projected. */
+  safe_to_spend_basis: "everyday" | "scheduled";
   /** Basis for the band on every day. Null when there was too little history. */
   everyday: EverydaySpending | null;
   days: CashflowCalendarDay[];

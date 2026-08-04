@@ -51,6 +51,8 @@ function calendar(over: Partial<CashflowCalendar> = {}): CashflowCalendar {
     opening_balance_minor: 250_00,
     closing_balance_minor: 400_00,
     lowest_balance_minor: 120_00,
+    safe_to_spend_minor: 0,
+    safe_to_spend_basis: "scheduled" as const,
     lowest_balance_on: "2026-07-18",
     first_negative_on: null,
     negative_day_count: 0,
