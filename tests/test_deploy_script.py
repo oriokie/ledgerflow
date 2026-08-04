@@ -425,3 +425,68 @@ def test_help_survives_the_header_growing():
     result = subprocess.run(["bash", str(SETUP), "--help"], capture_output=True, text=True)
     assert result.returncode == 0
     assert "existing" in result.stdout, "--help must mention the shared-server path"
+
+
+# ------------------------------------------------- occupied ports beyond 80/443
+# The 80/443 preflight above was written after a real failure; the same class of
+# failure then recurred on the same box for 5432, because a host already running
+# Postgres for something else owns it. A bind that fails only once the rest of
+# the stack is up reads as "the deploy broke", not "one port was spoken for".
+def test_every_loopback_published_port_is_configurable():
+    """A hard-coded host port cannot be moved out of the way without editing a
+    tracked file, which is the thing a deployment must not require."""
+    compose = COMPOSE.read_text()
+    for var, default in (
+        ("POSTGRES_HOST_PORT", "5432"),
+        ("PGWEB_HOST_PORT", "8081"),
+        ("INTERNAL_HTTP_PORT", "8080"),
+    ):
+        assert f"${{{var}:-{default}}}" in compose, f"{var} is not overridable"
+
+
+@pytest.mark.parametrize("default", ["5432", "8081", "8080"])
+def test_no_host_port_is_published_as_a_bare_literal(default):
+    compose = COMPOSE.read_text()
+    assert (
+        f'"127.0.0.1:{default}:' not in compose
+    ), f"port {default} is published literally; a busy host cannot move it"
+
+
+def test_a_taken_port_is_stepped_over_rather_than_hit():
+    source = SETUP.read_text()
+    assert "pick_free_port() {" in source
+    assert "port_is_free() {" in source
+    # The picker must actually advance, or it returns the busy port forever.
+    picker = source[source.index("pick_free_port() {") :][:600]
+    assert "candidate=$((candidate + 1))" in picker
+
+
+def test_port_selection_happens_before_env_is_written():
+    """Compose interpolates the published ports out of .env. A port chosen
+    after the heredoc closes is a port compose never sees."""
+    source = SETUP.read_text()
+    env_write_end = source.index("\nENVEOF")
+    for var in ('POSTGRES_HOST_PORT="$(pick_free_port', 'INTERNAL_HTTP_PORT="$(pick_free_port'):
+        assert source.index(var) < env_write_end, f"{var} is chosen too late to be written"
+
+
+@pytest.mark.parametrize("var", ["POSTGRES_HOST_PORT", "PGWEB_HOST_PORT", "INTERNAL_HTTP_PORT"])
+def test_chosen_ports_are_persisted_for_later_compose_runs(var):
+    """Day-2 `docker compose` runs re-read .env. A port that only existed in
+    the script's memory means the next manual command binds the wrong one."""
+    source = SETUP.read_text()
+    env_body = source[source.index('cat > "$ENV_FILE"') : source.index("\nENVEOF")]
+    assert f"{var}=" in env_body
+
+
+def test_the_proxy_snippet_uses_the_port_actually_chosen():
+    """Printing 8080 while binding 8081 sends the operator to a dead upstream."""
+    source = SETUP.read_text()
+    assert 'APP_UPSTREAM="127.0.0.1:${INTERNAL_HTTP_PORT}"' in source
+
+
+def test_a_port_check_that_cannot_run_does_not_block_the_deploy():
+    """Neither ss nor netstat present is not a reason to refuse to install."""
+    source = SETUP.read_text()
+    checker = source[source.index("port_is_free() {") :][:500]
+    assert "return 0" in checker.split("else")[-1], "must assume free when it cannot tell"

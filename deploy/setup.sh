@@ -242,6 +242,41 @@ detect_port_conflict() {
   return 0
 }
 
+# True when nothing is listening on the given TCP port.
+#
+# Returns "free" when it cannot tell (no ss, no netstat) rather than blocking a
+# deployment on a check that could not run — the container bind then reports
+# the conflict the way it always did.
+port_is_free() {
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    ! ss -ltn 2>/dev/null | grep -qE ":${port}[[:space:]]"
+  elif command -v netstat >/dev/null 2>&1; then
+    ! netstat -ltn 2>/dev/null | grep -qE ":${port}[[:space:]]"
+  else
+    return 0
+  fi
+}
+
+# First free port at or after $1, giving up after 20 tries.
+#
+# Exists because a server that already runs Postgres — a different application's
+# database, or a cPanel/Plesk-managed one — makes the conventional 5432 bind
+# fail *after* the rest of the stack has already started, which reads as the
+# deploy breaking rather than as one port being spoken for.
+pick_free_port() {
+  local candidate="$1" tries=0
+  while [ "$tries" -lt 20 ]; do
+    if port_is_free "$candidate"; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+    candidate=$((candidate + 1))
+    tries=$((tries + 1))
+  done
+  printf '%s' "$1"
+}
+
 # DNS is checked before requesting a certificate because Let's Encrypt will
 # refuse anyway, and its error ("challenge failed") sends people hunting through
 # ACME logs rather than at their DNS panel where the actual problem is.
@@ -312,6 +347,16 @@ info "nginx    — let this script write and own an nginx vhost"
 info "apache   — let this script write and own an Apache vhost"
 info "none     — you terminate TLS elsewhere (a load balancer, Cloudflare)"
 ask WEB_SERVER "Which" "$_ws_default" valid_webserver_free_ports
+
+# The loopback origin the host web server proxies to. Chosen now, before .env
+# is written, because compose interpolates the published port from there.
+if [ "$WEB_SERVER" != "caddy" ]; then
+  INTERNAL_HTTP_PORT="$(pick_free_port "${INTERNAL_HTTP_PORT:-8080}")"
+  [ "$INTERNAL_HTTP_PORT" != "8080" ] && \
+    warn "Port 8080 is taken, so the internal origin uses ${INTERNAL_HTTP_PORT}."
+else
+  INTERNAL_HTTP_PORT="${INTERNAL_HTTP_PORT:-8080}"
+fi
 echo
 
 # -------------------------------------------------------------- 3. database
@@ -336,13 +381,21 @@ fi
 # bundled Postgres is reachable only from inside the compose network by
 # default, so both options below are about getting a normal client onto it.
 if [ "$DB_MODE" = "bundled" ]; then
+  # A server already running Postgres for something else owns 5432, and the
+  # bind fails only once the rest of the stack is up — so choose a port that
+  # is actually free instead of discovering the clash mid-launch.
+  POSTGRES_HOST_PORT="$(pick_free_port "${POSTGRES_HOST_PORT:-5432}")"
   info ""
-  info "The database is published on 127.0.0.1:${POSTGRES_HOST_PORT:-5432} — loopback only, so"
+  if [ "$POSTGRES_HOST_PORT" != "5432" ]; then
+    warn "Port 5432 is taken on this host, so the database is published on ${POSTGRES_HOST_PORT} instead."
+  fi
+  info "The database is published on 127.0.0.1:${POSTGRES_HOST_PORT} — loopback only, so"
   info "reach it from your laptop over SSH rather than opening it to the world:"
-  info "  ssh -L 5432:127.0.0.1:5432 $(whoami)@${DOMAIN}"
+  info "  ssh -L 5432:127.0.0.1:${POSTGRES_HOST_PORT} $(whoami)@${DOMAIN}"
   if confirm "Also run pgweb, a browser UI for the database?" n; then
     ENABLE_PGWEB=1
-    info "Browse it at localhost:8081 through:  ssh -L 8081:127.0.0.1:8081 $(whoami)@${DOMAIN}"
+    PGWEB_HOST_PORT="$(pick_free_port "${PGWEB_HOST_PORT:-8081}")"
+    info "Browse it at localhost:${PGWEB_HOST_PORT} through:  ssh -L ${PGWEB_HOST_PORT}:127.0.0.1:${PGWEB_HOST_PORT} $(whoami)@${DOMAIN}"
   else
     ENABLE_PGWEB=0
   fi
@@ -506,10 +559,14 @@ DB_PASSWORD=${DB_PASSWORD:-}
 STORAGE_MODE=${STORAGE_MODE}
 ENABLE_PGWEB=${ENABLE_PGWEB:-0}
 
-# Loopback-published ports for database access. Change these if 5432/8081 are
-# already taken on the host; nothing outside this machine can reach either.
+# Loopback-published ports. Change these if the defaults are already taken on
+# the host; nothing outside this machine can reach any of them.
+#   POSTGRES_HOST_PORT  the bundled database, for psql and desktop clients
+#   PGWEB_HOST_PORT     the optional browser database UI
+#   INTERNAL_HTTP_PORT  the origin nginx/Apache proxies to
 POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:-5432}
 PGWEB_HOST_PORT=${PGWEB_HOST_PORT:-8081}
+INTERNAL_HTTP_PORT=${INTERNAL_HTTP_PORT:-8080}
 ENVEOF
 chmod 600 "$ENV_FILE"
 ok "Wrote .env (mode 600)"
@@ -577,7 +634,7 @@ fi
 # exactly that, and every nginx/Apache deployment got connection-refused.
 # Keeping path-routing inside the stack also means the host web server is a
 # pure TLS terminator, so switching servers can never change what /admin is.
-APP_UPSTREAM="127.0.0.1:8080"
+APP_UPSTREAM="127.0.0.1:${INTERNAL_HTTP_PORT}"
 
 configure_nginx() {
   pkg_install nginx
