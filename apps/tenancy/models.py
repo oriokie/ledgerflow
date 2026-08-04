@@ -156,3 +156,57 @@ class Invitation(UUIDModel, TimestampedModel):
     @property
     def is_pending(self) -> bool:
         return self.status == InvitationStatus.PENDING and not self.is_expired
+
+
+class TenantAISettings(UUIDModel, TimestampedModel):
+    """A workspace's own choice of model.
+
+    `Tenant.ai_enabled` lets an owner decline AI. This lets them *substitute*
+    it, which is the request that follows immediately: a household that would
+    rather run a local model than send anything to a vendor, or one that has
+    its own account with a provider and would sooner spend its own quota.
+
+    Still the owner's decision, not a member's — the reasoning on
+    `Tenant.ai_enabled` applies unchanged, because choosing the destination for
+    a household's finances is a choice made for everyone in the household.
+    Enforced in apps/tenancy/api, not here.
+
+    Absent or blank means "no override": resolution falls through to the
+    platform's configuration and then the environment's. The API key is
+    encrypted with FIELD_ENCRYPTION_KEY, the same key protecting TOTP secrets,
+    and is never read back through the API — a workspace can replace its key,
+    nobody can retrieve one.
+    """
+
+    tenant = models.OneToOneField(Tenant, on_delete=models.CASCADE, related_name="ai_settings")
+    #: Blank means no override. Matches PROVIDER_PRESETS keys in apps.intelligence.llm.
+    provider = models.CharField(max_length=32, blank=True, default="")
+    model = models.CharField(max_length=120, blank=True, default="")
+    #: Only meaningful for self-hosted endpoints; presets supply the rest.
+    base_url = models.URLField(blank=True, default="")
+    encrypted_api_key = models.TextField(blank=True, default="")
+
+    class Meta:
+        verbose_name = "workspace AI settings"
+        verbose_name_plural = "workspace AI settings"
+
+    def __str__(self) -> str:
+        return f"ai:{self.tenant_id}:{self.provider or 'inherit'}"
+
+    def set_api_key(self, raw: str) -> None:
+        from apps.common.crypto import encrypt_str
+
+        self.encrypted_api_key = encrypt_str(raw) if raw else ""
+
+    @property
+    def api_key(self) -> str:
+        if not self.encrypted_api_key:
+            return ""
+        from apps.common.crypto import decrypt_str
+
+        try:
+            return decrypt_str(self.encrypted_api_key)
+        except Exception:  # noqa: BLE001
+            # A key encrypted under a rotated FIELD_ENCRYPTION_KEY is
+            # unreadable, not a reason to fail every AI call in the workspace.
+            return ""

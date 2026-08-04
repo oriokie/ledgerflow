@@ -68,3 +68,33 @@ class InvitationSerializer(serializers.ModelSerializer):
 
 class AcceptInvitationSerializer(serializers.Serializer):
     token = serializers.CharField()
+
+
+class WorkspaceAISettingsSerializer(serializers.Serializer):
+    """A workspace's model override.
+
+    The key is write-only, like every other credential in this codebase: a
+    workspace can replace its key, nobody can read one back out. `api_key_set`
+    tells the interface whether to show "replace" or "add" without disclosing
+    anything.
+    """
+
+    provider = serializers.CharField(max_length=32, allow_blank=True, required=False)
+    model = serializers.CharField(max_length=120, allow_blank=True, required=False)
+    base_url = serializers.URLField(allow_blank=True, required=False)
+    api_key = serializers.CharField(write_only=True, allow_blank=True, required=False)
+    api_key_set = serializers.SerializerMethodField()
+
+    def get_api_key_set(self, obj) -> bool:
+        return bool(getattr(obj, "encrypted_api_key", ""))
+
+    def validate_provider(self, value: str) -> str:
+        if not value:
+            return value
+        from apps.intelligence.llm import PROVIDER_PRESETS
+
+        if value not in PROVIDER_PRESETS:
+            raise serializers.ValidationError(
+                f"Unknown provider. Choose one of: {', '.join(sorted(PROVIDER_PRESETS))}."
+            )
+        return value

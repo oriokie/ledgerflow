@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .. import selectors, services
-from ..models import Invitation, InvitationStatus
+from ..models import Invitation, InvitationStatus, TenantAISettings
 from ..services import InsufficientRoleError, InvalidInvitationError, LastOwnerError, TenancyError
 from .serializers import (
     AcceptInvitationSerializer,
@@ -15,6 +15,7 @@ from .serializers import (
     CreateWorkspaceSerializer,
     InvitationSerializer,
     MemberSerializer,
+    WorkspaceAISettingsSerializer,
     WorkspaceMembershipSerializer,
 )
 
@@ -250,3 +251,65 @@ class WorkspaceExportView(WorkspaceDetailView):
         if err:
             return err
         return Response(export_workspace_data(tenant=membership.tenant))
+
+
+class WorkspaceAISettingsView(APIView):
+    """A workspace's own model choice — read and write, owner only.
+
+    `Tenant.ai_enabled` lets an owner decline AI; this lets them substitute it,
+    which is the request that follows: a household that would rather run a
+    local model than send anything to a vendor, or one that has its own
+    provider account and would sooner spend its own quota.
+
+    Owner-gated for the same reason `ai_enabled` is. Choosing where a
+    household's finances get sent is decided for everyone in the household, so
+    it is not a per-member preference — see apps/tenancy/models.TenantAISettings.
+    """
+
+    permission_classes = [IsAuthenticated]
+    throttle_scope = "write"
+    serializer_class = WorkspaceAISettingsSerializer
+
+    def _owner_membership(self, request, tenant_id):
+        from ..models import Role
+
+        membership = selectors.membership_for(user=request.user, tenant_id=tenant_id)
+        if membership is None:
+            return None, Response({"detail": "Workspace not found."}, status=status.HTTP_404_NOT_FOUND)
+        if membership.role != Role.OWNER:
+            return None, Response(
+                {"detail": "Only an owner can change where this workspace's data is sent."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return membership, None
+
+    def get(self, request, tenant_id):
+        membership, err = self._owner_membership(request, tenant_id)
+        if err:
+            return err
+        row = TenantAISettings.objects.filter(tenant=membership.tenant).first()
+        if row is None:
+            # Nothing chosen yet is a valid state, not a 404: the workspace
+            # inherits the platform's configuration.
+            return Response({"provider": "", "model": "", "base_url": "", "api_key_set": False})
+        return Response(WorkspaceAISettingsSerializer(row).data)
+
+    def put(self, request, tenant_id):
+        membership, err = self._owner_membership(request, tenant_id)
+        if err:
+            return err
+        serializer = WorkspaceAISettingsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        row, _ = TenantAISettings.objects.get_or_create(tenant=membership.tenant)
+        for field in ("provider", "model", "base_url"):
+            if field in data:
+                setattr(row, field, data[field])
+        # Absent means "leave the stored key alone"; empty string means "remove
+        # it". Conflating the two would wipe a working key on every save of an
+        # unrelated field.
+        if "api_key" in data:
+            row.set_api_key(data["api_key"])
+        row.save()
+        return Response(WorkspaceAISettingsSerializer(row).data)

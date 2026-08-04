@@ -178,23 +178,87 @@ class LLMConfig:
         return "localhost" in self.base_url or "127.0.0.1" in self.base_url
 
 
-def get_llm_config() -> LLMConfig:
-    """Resolve LLM settings, preset defaults filled in where unset."""
-    provider = getattr(settings, "LLM_PROVIDER", "custom") or "custom"
+def _platform(key: str, env_setting: str, default=None):
+    """One AI setting: console override, then environment, then default.
+
+    The console has offered provider/model/key fields since the settings store
+    was built, but nothing read them — this module went straight to Django
+    settings, so an operator could fill the form in, save it, and change
+    nothing at all. Reading through the store is what makes those fields mean
+    something.
+
+    Forgiving on failure by design: this is on the path of every coach and
+    narrative call, and a database blip should degrade to the environment's
+    configuration rather than take AI down with an exception.
+    """
+    try:
+        from apps.platform_admin.settings_store import get
+
+        value = get(key)
+        if value not in (None, ""):
+            return value
+    except Exception:  # noqa: BLE001 - see docstring
+        logger.debug("Falling back to %s for %s", env_setting, key, exc_info=True)
+    env = getattr(settings, env_setting, None)
+    return env if env not in (None, "") else default
+
+
+def get_llm_config(tenant_id=None) -> LLMConfig:
+    """Resolve LLM settings, preset defaults filled in where unset.
+
+    Three layers, narrowest first:
+
+    1. **Workspace** — the owner may point their household at a different model,
+       including one running on their own hardware. Passing `tenant_id` opts
+       into this; callers without one get the platform's answer.
+    2. **Platform** — what the operator configured in the console.
+    3. **Environment** — what the deployment shipped with.
+
+    A workspace *member* is deliberately not a layer. Choosing where a
+    household's finances get sent is a decision made for everyone in it, so it
+    belongs to the operator who chose the vendor and the owner who can decline
+    or substitute — not to whichever member opened a settings page.
+    """
+    override = _workspace_override(tenant_id) if tenant_id else None
+
+    provider = (
+        (override and override.provider) or _platform("ai.provider", "LLM_PROVIDER", "custom") or "custom"
+    )
     preset = PROVIDER_PRESETS.get(provider, PROVIDER_PRESETS["custom"])
+
+    base_url = (override and override.base_url) or getattr(settings, "LLM_BASE_URL", "") or preset.base_url
+    model = (override and override.model) or _platform("ai.model", "LLM_MODEL", "") or preset.default_model
+    api_key = (override and override.api_key) or _platform("ai.api_key", "LLM_API_KEY", "") or ""
 
     return LLMConfig(
         provider=provider,
         label=preset.label,
-        base_url=(getattr(settings, "LLM_BASE_URL", "") or preset.base_url).rstrip("/"),
+        base_url=base_url.rstrip("/"),
         wire=preset.wire,
-        model=getattr(settings, "LLM_MODEL", "") or preset.default_model,
-        api_key=getattr(settings, "LLM_API_KEY", "") or "",
+        model=model,
+        api_key=api_key,
         timeout_seconds=int(getattr(settings, "LLM_TIMEOUT_SECONDS", 20)),
         max_output_tokens=int(getattr(settings, "LLM_MAX_OUTPUT_TOKENS", 1500)),
-        enabled=bool(getattr(settings, "LLM_ENABLED", False)),
-        share_financial_context=bool(getattr(settings, "LLM_SHARE_FINANCIAL_CONTEXT", False)),
+        # The master switch stays the operator's alone: a workspace can decline
+        # AI (Tenant.ai_enabled) but cannot grant itself AI the platform has
+        # turned off, which would be a workspace overriding a cost and
+        # data-processing decision that was never theirs.
+        enabled=bool(_platform("ai.enabled", "LLM_ENABLED", False)),
+        share_financial_context=bool(
+            _platform("ai.share_financial_context", "LLM_SHARE_FINANCIAL_CONTEXT", False)
+        ),
     )
+
+
+def _workspace_override(tenant_id):
+    """The workspace's own model choice, or None when it has not made one."""
+    try:
+        from apps.tenancy.models import TenantAISettings
+
+        return TenantAISettings.objects.filter(tenant_id=tenant_id, provider__gt="").first()
+    except Exception:  # noqa: BLE001 - never fail a coach call over configuration
+        logger.debug("Could not read the workspace AI override", exc_info=True)
+        return None
 
 
 def llm_available() -> tuple[bool, str]:

@@ -3,6 +3,7 @@ from django.urls import path
 from .audit_views import WorkspaceAuditView
 from .views import (
     AcceptInvitationView,
+    WorkspaceAISettingsView,
     WorkspaceDetailView,
     WorkspaceExportView,
     WorkspaceInvitationDetailView,
@@ -33,5 +34,6 @@ urlpatterns = [
     ),
     path("workspaces/<uuid:tenant_id>/", WorkspaceDetailView.as_view(), name="workspace-detail"),
     path("workspaces/<uuid:tenant_id>/export/", WorkspaceExportView.as_view(), name="workspace-export"),
+    path("workspaces/<uuid:tenant_id>/ai/", WorkspaceAISettingsView.as_view(), name="workspace-ai-settings"),
     path("invitations/accept/", AcceptInvitationView.as_view(), name="invitation-accept"),
 ]

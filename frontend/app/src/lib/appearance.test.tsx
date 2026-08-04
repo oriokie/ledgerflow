@@ -4,6 +4,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // Same treatment as PushToggle below: the notification matrix fetches on
 // mount and needs a QueryClientProvider. These tests exercise appearance
 // controls, so the section is stubbed rather than wired up.
+// PreferencesPanel now carries the receipt-scanner switch, which reads the
+// signed-in user. These tests exercise appearance only and render the panel
+// outside an AuthProvider.
+vi.mock("./AuthContext", () => ({
+  useAuth: () => ({ user: { show_receipt_scanner: false }, refreshUser: vi.fn() }),
+}));
+vi.mock("../api/auth", () => ({ profileApi: { update: vi.fn() } }));
+
 vi.mock("../pages/settings/NotificationPreferences", () => ({
   NotificationPreferencesSection: () => null,
 }));
