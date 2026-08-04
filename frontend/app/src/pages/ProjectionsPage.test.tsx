@@ -72,6 +72,12 @@ const scenarios: Scenario[] = [
 const run = vi.fn();
 
 vi.mock("../api/projections", () => ({
+  twinApi: {
+    get: () => Promise.resolve(null),
+    calibration: () => Promise.resolve(null),
+    recordForecast: () => Promise.resolve({ scored: 0, recorded: [], detail: "" }),
+    ask: () => Promise.resolve({ answered: false, question: "", matched: null, llm_used: false }),
+  },
   advisorApi: {
     questions: () => Promise.resolve({ results: [] }),
     simulate: () => Promise.resolve(null),

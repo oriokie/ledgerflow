@@ -324,3 +324,76 @@ export const advisorApi = {
   ask: (slug: string, body: Record<string, unknown>) =>
     api.post<DecisionResult>(`/projections/questions/${slug}/`, body),
 };
+
+// ---------------------------------------------------------------------------
+// Phase 4 — the digital twin
+// ---------------------------------------------------------------------------
+export interface TwinParameter {
+  key: string;
+  label: string;
+  measured: number | null;
+  prior: number;
+  months_observed: number;
+  confidence: "none" | "weak" | "moderate" | "strong";
+  detail: string;
+  effective: number;
+  differs_from_prior: boolean;
+}
+
+export interface Twin {
+  currency: string;
+  as_of: string;
+  months_observed: number;
+  confidence: "none" | "weak" | "moderate" | "strong";
+  parameters: TwinParameter[];
+  notes: string[];
+}
+
+export interface KindAccuracy {
+  kind: string;
+  label: string;
+  samples: number;
+  median_error: number | null;
+  /** Can be "worse" — a report that can only improve is not a measurement. */
+  trend: "improving" | "steady" | "worse" | null;
+  detail: string;
+}
+
+export interface CalibrationReport {
+  as_of: string;
+  total_scored: number;
+  kinds: KindAccuracy[];
+  headline: string;
+  notes: string[];
+  overall_median_error: number | null;
+}
+
+export interface AskAnswer {
+  answered: boolean;
+  question: string;
+  matched: string | null;
+  understood_as?: string;
+  llm_used: boolean;
+  missing?: string[];
+  detail?: string;
+  available?: Record<string, string>;
+  verdict?: Verdict;
+  headline?: string;
+  confidence?: "measured" | "mixed" | "assumed";
+  because?: DecisionFinding[];
+  costs?: DecisionFinding[];
+  risks?: DecisionFinding[];
+  alternatives?: DecisionFinding[];
+  assumptions?: string[];
+  explanation?: { paragraphs: string[]; llm_used: boolean; rejected_reason: string };
+  currency?: string;
+}
+
+export const twinApi = {
+  get: () => api.get<Twin>("/twin/"),
+  calibration: () => api.get<CalibrationReport>("/twin/calibration/"),
+  recordForecast: () =>
+    api.post<{ scored: number; recorded: unknown[]; detail: string }>("/twin/calibration/", {}),
+  ask: (question: string, useLlm = true) =>
+    api.post<AskAnswer>("/twin/ask/", { question, use_llm: useLlm }),
+};

@@ -36,6 +36,7 @@ import {
 } from "./projections/ProjectionCharts";
 import { DecisionAssistant } from "./projections/DecisionAssistant";
 import { RiskAndSimulation } from "./projections/RiskAndSimulation";
+import { TwinPanel } from "./projections/TwinPanel";
 import { ScenarioBuilder } from "./projections/ScenarioBuilder";
 
 /** `SegmentedControl` is generic over a string union, so the horizon travels as
@@ -64,6 +65,7 @@ const SECTIONS = [
   { value: "projection", label: "Where this goes" },
   { value: "decisions", label: "Should I?" },
   { value: "confidence", label: "How sure" },
+  { value: "twin", label: "What it knows" },
 ] as const;
 
 type Section = (typeof SECTIONS)[number]["value"];
@@ -316,6 +318,12 @@ export function ProjectionsPage() {
       {section === "confidence" && (
         <div className="lf-section-body">
           <RiskAndSimulation months={horizon} />
+        </div>
+      )}
+
+      {section === "twin" && (
+        <div className="lf-section-body">
+          <TwinPanel />
         </div>
       )}
 

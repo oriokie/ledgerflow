@@ -67,6 +67,7 @@ LOCAL_APPS = [
     "apps.analytics",
     "apps.projections",
     "apps.household",
+    "apps.twin",
     "apps.goals",
     "apps.income",
     "apps.notifications",
