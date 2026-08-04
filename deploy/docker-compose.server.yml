@@ -10,6 +10,11 @@
 # stateless and scale horizontally as-is.
 
 x-app-build: &app-build
+  # Both, deliberately. `image:` is what a deployed server runs — CI publishes
+  # it, so `docker compose pull` fetches the exact artifact the test suite
+  # passed against, and the box never compiles anything. `build:` stays so a
+  # developer can still `up -d --build` locally against their working tree.
+  image: ${LEDGERFLOW_APP_IMAGE:-ghcr.io/oriokie/ledgerflow/app:released}
   build:
     context: ..
     args: {REQUIREMENTS_FILE: requirements/production.txt}
@@ -158,6 +163,7 @@ services:
     # `frontend` volume that Caddy serves. Exits/idles after publishing; the
     # assets persist in the volume. Rebuild with `up -d --build frontend` to
     # ship a new frontend version.
+    image: ${LEDGERFLOW_FRONTEND_IMAGE:-ghcr.io/oriokie/ledgerflow/frontend:released}
     build:
       context: ..
       dockerfile: deploy/frontend.Dockerfile

@@ -109,10 +109,13 @@ pkg_install() {
 # is how most people will run it; without </dev/tty the read would consume the
 # script's own stdin and silently accept empty answers for everything.
 ask() {
+  # The caller's default is authoritative. Every call site already folds the
+  # stored .env value in as `${VAR:-fallback}`, so re-reading $__var here only
+  # ever undid a default the caller had deliberately changed — which is exactly
+  # how a stored WEB_SERVER=caddy kept re-offering an answer the port-conflict
+  # validator refuses, looping the prompt forever for anyone pressing Enter.
   local __var="$1" question="$2" default="${3:-}" validator="${4:-}"
-  local current="${!__var:-}" answer prompt
-
-  if [ -n "$current" ]; then default="$current"; fi
+  local answer prompt
 
   if [ "$INTERACTIVE" -eq 0 ]; then
     [ -n "$default" ] || die "$__var is required in non-interactive mode."
