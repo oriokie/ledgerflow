@@ -944,14 +944,38 @@ END \$\$;
 ALTER ROLE ledgerflow_app WITH PASSWORD '${APP_DB_PASSWORD}' NOSUPERUSER NOBYPASSRLS;
 GRANT CONNECT ON DATABASE ledgerflow TO ledgerflow_app;
 GRANT USAGE, CREATE ON SCHEMA public TO ledgerflow_app;
--- Existing installs: the tables are already owned by the superuser, so the
--- app role needs rights on them as well as on whatever it creates next.
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ledgerflow_app;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ledgerflow_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ledgerflow_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO ledgerflow_app;
+
+-- Ownership, on an existing install where the superuser created everything.
+--
+-- DML grants are not enough, because the app runs its own migrations and a
+-- migration is DDL: adding a column, an index, or a foreign key to a table
+-- requires *ownership* of it, not permission to read and write its rows. The
+-- first migration after the switch-over proved it, failing on
+-- "permission denied for table tenancy_tenant" while creating a foreign key.
+--
+-- This does not give the isolation back: every tenant table is marked FORCE
+-- ROW LEVEL SECURITY by its migration, which applies the policies to the
+-- table's owner as well. NOSUPERUSER and NOBYPASSRLS above are what matter,
+-- and verify_tenant_isolation below proves the result rather than assuming it.
+DO \$\$
+DECLARE obj record;
+BEGIN
+  FOR obj IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+    EXECUTE format('ALTER TABLE public.%I OWNER TO ledgerflow_app', obj.tablename);
+  END LOOP;
+  FOR obj IN SELECT sequencename FROM pg_sequences WHERE schemaname = 'public' LOOP
+    EXECUTE format('ALTER SEQUENCE public.%I OWNER TO ledgerflow_app', obj.sequencename);
+  END LOOP;
+  FOR obj IN SELECT viewname FROM pg_views WHERE schemaname = 'public' LOOP
+    EXECUTE format('ALTER VIEW public.%I OWNER TO ledgerflow_app', obj.viewname);
+  END LOOP;
+END \$\$;
 SQLEOF
   ok "Application role ledgerflow_app is present (NOSUPERUSER, NOBYPASSRLS)."
 fi

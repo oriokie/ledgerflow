@@ -542,3 +542,41 @@ def test_the_role_password_survives_a_rerun():
     source = SETUP.read_text()
     env_body = source[source.index('cat > "$ENV_FILE"') : source.index("\nENVEOF")]
     assert "APP_DB_PASSWORD=" in env_body
+
+
+# ---------------------------------------------- migrations under the app role
+# Switching DATABASE_URL to an unprivileged role broke the very next deploy:
+# `permission denied for table tenancy_tenant`, while a migration added a
+# foreign key to it. DML grants let the app read and write rows; a migration is
+# DDL, and altering a table requires owning it.
+def test_the_app_role_owns_the_tables_it_has_to_migrate():
+    source = SETUP.read_text()
+    assert "ALTER TABLE public.%I OWNER TO ledgerflow_app" in source
+
+
+@pytest.mark.parametrize("kind", ["pg_tables", "pg_sequences", "pg_views"])
+def test_ownership_covers_every_object_kind_a_migration_touches(kind):
+    """Sequences back every id column and views are rebuilt by migrations too;
+    transferring only tables leaves the next migration failing on those."""
+    assert kind in SETUP.read_text()
+
+
+def test_ownership_transfer_runs_before_the_app_starts():
+    """web's entrypoint migrates on boot, so ownership has to be settled before
+    the stack comes up — afterwards is one failed deploy too late."""
+    source = SETUP.read_text()
+    assert source.index("OWNER TO ledgerflow_app") < source.index("up -d --build")
+
+
+def test_owning_the_tables_does_not_hand_back_rls_bypass():
+    """Postgres exempts a table's owner from its policies *unless* the table is
+    FORCE'd. The migrations do that, and this pins the pairing: if the forcing
+    ever stopped, ownership transfer would silently disable isolation."""
+    forced = list(Path("apps").glob("*/migrations/*.py"))
+    assert any(
+        "FORCE ROW LEVEL SECURITY" in p.read_text() for p in forced
+    ), "no migration forces RLS; transferring ownership would disable it"
+    source = SETUP.read_text()
+    assert "NOSUPERUSER" in source and "NOBYPASSRLS" in source
+    # And the deploy proves it rather than trusting this reasoning.
+    assert "verify_tenant_isolation" in source
