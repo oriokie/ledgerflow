@@ -12,6 +12,7 @@ import {
   PiggyBank,
   Receipt,
   RefreshCw,
+  Route,
   Settings,
   Bot,
   Sparkles,
@@ -63,6 +64,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: "/goals", label: "Goals", icon: Target },
       { to: "/investments", label: "Investments", icon: TrendingUp },
       { to: "/debt", label: "Debt", icon: TrendingDown },
+      { to: "/projections", label: "Projections", icon: Route },
     ],
   },
   {

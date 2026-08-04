@@ -63,6 +63,11 @@ TENANT_ROUTES = [
     # a real regression to hide under the slack. `/activity` is omitted for the
     # same reason — it renders exactly what `/transactions` renders.
     "/plan",
+    # The projection dashboard. Charts plus a schema-driven form, which is
+    # exactly the combination the browser-measured checks exist for: a form
+    # rendered from a backend schema has no fixed field count, so nothing but
+    # a real measurement can say whether it still fits a 375px screen.
+    "/projections",
 ]
 
 #: Routes whose content the Phase 5 flag decides, audited in their own pass with

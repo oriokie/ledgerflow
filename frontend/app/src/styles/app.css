@@ -287,3 +287,97 @@ tr:focus-within .lf-row-actions {
   color: var(--lf-text-link);
   font-weight: var(--lf-weight-semibold);
 }
+
+/* ---- projections: scenarios and the event builder ---- */
+.lf-scenario-list {
+  list-style: none;
+  margin: 0 0 var(--lf-space-4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+/* The whole row is the control. A scenario is picked far more often than it is
+   read, so the target is the row rather than a link inside it. */
+.lf-scenario-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  width: 100%;
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-surface);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.lf-scenario-pick:hover {
+  border-color: var(--lf-border-strong);
+}
+.lf-scenario-pick[aria-pressed="true"] {
+  border-color: var(--lf-accent);
+  background: var(--lf-bg-sunken);
+}
+.lf-scenario-pick-name {
+  font-weight: var(--lf-weight-medium);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lf-scenario-new {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--lf-space-2);
+}
+.lf-scenario-new > *:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.lf-scenario-actions {
+  margin-top: var(--lf-space-3);
+}
+
+.lf-event-list {
+  list-style: none;
+  margin: 0 0 var(--lf-space-4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+}
+.lf-event-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  flex-wrap: wrap;
+  padding-bottom: var(--lf-space-2);
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+.lf-event-row-main,
+.lf-event-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  min-width: 0;
+}
+.lf-scenario-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-3);
+}
+.lf-scenario-form-grid label {
+  text-transform: capitalize;
+}
+
+.lf-assumption-list {
+  margin: 0 0 var(--lf-space-3);
+  padding-inline-start: var(--lf-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-1);
+}
