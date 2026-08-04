@@ -44,7 +44,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.db import models
 
-from apps.common.models import SoftDeletableModel, TimeStampedModel, UUIDModel
+from apps.common.models import SoftDeletableModel, TenantOwnedModel
 
 
 class SharingPolicy(models.TextChoices):
@@ -202,16 +202,18 @@ class ChangeRequestStatus(models.TextChoices):
     DECLINED = "declined", "Declined"
 
 
-class ChangeRequest(UUIDModel, TimeStampedModel):
+class ChangeRequest(TenantOwnedModel):
     """A change somebody wants to make to a record they do not control.
 
     The `APPROVAL_REQUIRED` policy's teeth. Recorded rather than applied, and
     deliberately *not* soft-deletable: a declined request is part of the record
     of what was asked, and quietly removable approval history would make the
-    mechanism worth less than not having it.
+    mechanism worth less than not having it. `TenantOwnedModel` is exactly that
+    shape — the base the codebase already uses for immutable records — and it
+    also brings the tenant-scoped manager and the auto-populated `tenant_id`
+    this model originally lacked, which is why nothing could be written to it.
     """
 
-    tenant_id = models.UUIDField(db_index=True, editable=False)
     account_sharing = models.ForeignKey(
         AccountSharing, on_delete=models.CASCADE, related_name="change_requests"
     )

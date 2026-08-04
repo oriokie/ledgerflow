@@ -1,8 +1,13 @@
 import { Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../api/client";
-import type { Dependant, HouseholdSummary, SharingPolicy } from "../api/household";
-import { householdApi } from "../api/household";
+import type {
+  ChangeRequest,
+  Dependant,
+  HouseholdSummary,
+  SharingPolicy,
+} from "../api/household";
+import { changeRequestApi, householdApi } from "../api/household";
 import { formatAmount } from "../lib/money";
 import {
   Badge,
@@ -172,6 +177,83 @@ function Dependants({ items, onChanged }: { items: Dependant[]; onChanged: () =>
   );
 }
 
+
+/**
+ * The approval queue.
+ *
+ * Shown to the account's owner and the person who asked, and to nobody else —
+ * a third member learning that one partner asked another to un-hide an account
+ * would be told something that is not theirs. Declined requests stay visible:
+ * the record is the point of the mechanism.
+ */
+function Approvals({ items, onChanged }: { items: ChangeRequest[]; onChanged: () => void }) {
+  const [error, setError] = useState<string | null>(null);
+
+  const resolve = async (id: string, action: "approve" | "decline") => {
+    setError(null);
+    try {
+      if (action === "approve") await changeRequestApi.approve(id);
+      else await changeRequestApi.decline(id);
+      onChanged();
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.detail
+          : "Couldn't resolve that request.",
+      );
+    }
+  };
+
+  return (
+    <Card title="Requests">
+      {error && <Banner tone="danger">{error}</Banner>}
+      {items.length === 0 ? (
+        <Text size="sm" tone="secondary">
+          Nothing waiting. When someone asks to change an account you own, it appears here —
+          and approving it applies the change.
+        </Text>
+      ) : (
+        <ul className="lf-finding-list">
+          {items.map((r) => (
+            <li key={r.id}>
+              <div className="lf-risk-row">
+                <Text size="sm" weight="medium">
+                  {r.summary}
+                </Text>
+                <Badge
+                  tone={
+                    r.status === "approved"
+                      ? "success"
+                      : r.status === "declined"
+                        ? "neutral"
+                        : "warning"
+                  }
+                >
+                  {r.status}
+                </Badge>
+              </div>
+              {r.status === "pending" && (
+                <div className="lf-event-row-actions">
+                  <Button size="sm" onClick={() => resolve(r.id, "approve")}>
+                    Approve
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => resolve(r.id, "decline")}>
+                    Decline
+                  </Button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <Text size="xs" tone="tertiary">
+        Only the account's owner can approve — not an admin, not the workspace owner. A
+        request can change an account's name or how it is shared; it can never move money.
+      </Text>
+    </Card>
+  );
+}
+
 /**
  * The family dashboard.
  *
@@ -183,14 +265,20 @@ function Dependants({ items, onChanged }: { items: Dependant[]; onChanged: () =>
 export function HouseholdPage() {
   const [summary, setSummary] = useState<HouseholdSummary | null>(null);
   const [dependants, setDependants] = useState<Dependant[]>([]);
+  const [requests, setRequests] = useState<ChangeRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const [s, d] = await Promise.all([householdApi.summary(), householdApi.dependants()]);
+      const [s, d, r] = await Promise.all([
+        householdApi.summary(),
+        householdApi.dependants(),
+        changeRequestApi.list(),
+      ]);
       setSummary(s);
       setDependants(d.results);
+      setRequests(r.results);
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Couldn't load the household.");
@@ -271,6 +359,8 @@ export function HouseholdPage() {
           <Members summary={summary} />
           <Dependants items={dependants} onChanged={load} />
         </Grid>
+
+        <Approvals items={requests} onChanged={load} />
 
         <Card title="Shared costs">
           <Text size="sm" tone="secondary">

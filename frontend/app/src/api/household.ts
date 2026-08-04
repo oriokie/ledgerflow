@@ -94,3 +94,37 @@ export const householdApi = {
   backfill: () =>
     api.post<{ created: number; detail: string }>("/household/sharing/backfill/", {}),
 };
+
+export type ChangeRequestStatus = "pending" | "approved" | "declined";
+
+export interface ChangeRequest {
+  id: string;
+  financial_account_id: string;
+  summary: string;
+  payload: Record<string, unknown>;
+  status: ChangeRequestStatus;
+  requested_by_id: string;
+  resolved_by_id: string | null;
+  resolved_at: string | null;
+  created_at: string;
+}
+
+export const changeRequestApi = {
+  /** Only the account's owner and the requester ever see these. */
+  list: (status?: ChangeRequestStatus) =>
+    api.get<{ results: ChangeRequest[] }>(
+      `/household/change-requests/${status ? `?status=${status}` : ""}`,
+    ),
+  submit: (body: {
+    financial_account_id: string;
+    payload: Record<string, unknown>;
+    summary?: string;
+  }) => api.post<ChangeRequest>("/household/change-requests/", body),
+  approve: (id: string) =>
+    api.post<ChangeRequest & { applied: Record<string, { before: unknown; after: unknown }> }>(
+      `/household/change-requests/${id}/approve/`,
+      {},
+    ),
+  decline: (id: string) =>
+    api.post<ChangeRequest>(`/household/change-requests/${id}/decline/`, {}),
+};

@@ -31,10 +31,11 @@ from apps.finance.models import FinancialAccount
 from apps.tenancy.models import Membership, Role
 from apps.tenancy.permissions import IsTenantMember
 
-from .. import analytics, visibility
+from .. import analytics, change_requests, visibility
 from ..models import AccountSharing, Dependant, HouseholdProfile
 from .serializers import (
     AccountSharingSerializer,
+    ChangeRequestSerializer,
     DependantSerializer,
     HouseholdProfileSerializer,
 )
@@ -249,3 +250,84 @@ class SharingBackfillView(TenantScopedAPIView, APIView):
                 ),
             }
         )
+
+
+def _change_request_out(request_obj) -> dict:
+    return {
+        "id": str(request_obj.id),
+        "financial_account_id": str(request_obj.account_sharing.financial_account_id),
+        "summary": request_obj.summary,
+        "payload": request_obj.payload,
+        "status": request_obj.status,
+        "requested_by_id": str(request_obj.requested_by_id),
+        "resolved_by_id": str(request_obj.resolved_by_id) if request_obj.resolved_by_id else None,
+        "resolved_at": request_obj.resolved_at,
+        "created_at": request_obj.created_at,
+    }
+
+
+class ChangeRequestListView(TenantScopedAPIView, APIView):
+    """The approval queue: what you have been asked, and what you have asked for.
+
+    Scoped to the owner and the requester only. A workspace's approval queue is
+    not a noticeboard — a third member seeing that one partner asked another to
+    un-hide an account learns something that is not theirs.
+    """
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.VIEWER
+    serializer_class = ChangeRequestSerializer
+
+    @extend_schema(operation_id="change_request_list")
+    def get(self, request):
+        queryset = change_requests.visible_to_me()
+        wanted = request.query_params.get("status")
+        if wanted:
+            queryset = queryset.filter(status=wanted)
+        return Response({"results": [_change_request_out(r) for r in queryset]})
+
+    @extend_schema(operation_id="change_request_create")
+    def post(self, request):
+        s = ChangeRequestSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        data = s.validated_data
+        # The account has to be one the caller can see before they can ask
+        # anything about it — otherwise the endpoint confirms that a private
+        # account exists, which is the leak the whole phase exists to prevent.
+        get_object_or_404(
+            visibility.restrict_accounts(FinancialAccount.objects.all()),
+            id=data["financial_account_id"],
+        )
+        try:
+            created = change_requests.submit(
+                account_id=data["financial_account_id"],
+                payload=data["payload"],
+                summary=data.get("summary", ""),
+            )
+        except change_requests.ChangeRequestError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(_change_request_out(created), status=status.HTTP_201_CREATED)
+
+
+class ChangeRequestResolveView(TenantScopedAPIView, APIView):
+    """Approve or decline. The owner's alone, whatever anyone's role is."""
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.VIEWER
+    serializer_class = None
+
+    def _load(self, request_id):
+        return get_object_or_404(change_requests.visible_to_me(), id=request_id)
+
+    @extend_schema(operation_id="change_request_approve")
+    def post(self, request, request_id, action):
+        change_request = self._load(request_id)
+        try:
+            if action == "approve":
+                applied = change_requests.approve(change_request)
+                return Response({**_change_request_out(applied.request), "applied": applied.changes})
+            if action == "decline":
+                return Response(_change_request_out(change_requests.decline(change_request)))
+        except change_requests.ChangeRequestError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"detail": f"Unknown action {action!r}."}, status=status.HTTP_404_NOT_FOUND)

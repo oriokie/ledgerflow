@@ -33,3 +33,15 @@ class AccountSharingSerializer(serializers.Serializer):
     is_joint = serializers.BooleanField(required=False, default=False)
     #: Null means "no individual owner" — which is what a joint account is.
     owner_membership_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+class ChangeRequestSerializer(serializers.Serializer):
+    """Propose a change to an account somebody else controls.
+
+    `payload` is validated against `change_requests.REQUESTABLE` rather than
+    here, so the allow-list has exactly one home.
+    """
+
+    financial_account_id = serializers.UUIDField()
+    payload = serializers.DictField()
+    summary = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
