@@ -384,7 +384,9 @@ export function AdminDashboardPage() {
           <ul className="lf-admin-trial-list">
             {trials.map((trial) => (
               <li key={trial.tenant_id}>
-                <Link to={`/admin/tenants/${trial.tenant_id}`}>{trial.tenant_name || trial.tenant_id}</Link>
+                <Link className="lf-admin-link" to={`/admin/tenants/${trial.tenant_id}`}>
+                  {trial.tenant_name || trial.tenant_id}
+                </Link>
                 <Badge tone={trial.days_left <= 2 ? "warning" : "neutral"}>
                   {trial.days_left} day{trial.days_left === 1 ? "" : "s"} left
                 </Badge>

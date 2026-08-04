@@ -125,6 +125,16 @@ class Command(BaseCommand):
             help="ISO date to start the history from. Defaults to January 1st of the current year.",
         )
         parser.add_argument(
+            "--seed",
+            default="",
+            help=(
+                "Fixed RNG seed for reproducible data. Without it the seed is derived from the "
+                "tenant's id, which is a fresh UUID on every fresh database — fine for re-running "
+                "against one workspace, but it means two clean seeds never agree. Anything "
+                "measuring the rendered result (the route audit) needs them to."
+            ),
+        )
+        parser.add_argument(
             "--i-know-this-is-not-production",
             action="store_true",
             dest="force",
@@ -147,7 +157,11 @@ class Command(BaseCommand):
 
         # A fixed seed keeps re-runs stable: the same slot always produces the
         # same amount, so idempotency keys line up with identical postings.
-        self.rng = random.Random(f"{tenant.id}:{start}")
+        # Keyed on the tenant so two workspaces don't end up identical — which
+        # also means a fresh database, with its fresh UUID, seeds differently
+        # every time. `--seed` overrides that for callers that need two clean
+        # runs to agree.
+        self.rng = random.Random(options["seed"] or f"{tenant.id}:{start}")
 
         # One transaction for the whole run: `SET LOCAL app.current_tenant` is
         # transaction-scoped, and a half-seeded workspace is worse than none.

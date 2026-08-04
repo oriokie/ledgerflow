@@ -372,6 +372,23 @@
     padding: var(--lf-space-1);
   }
 
+  /* Seven columns inside the card's padding leave each day 40.7px wide — under
+     the 44px touch target, and the single largest source of drift in the route
+     audit, because the count of undersized targets followed the number of days
+     in whatever month was on screen (28 to 31). Reclaiming the card's inline
+     padding gives the row 343px at 375px wide, which is 45.6px per day.
+     `overflow-x` keeps a narrower phone scrolling the calendar rather than the
+     whole document, which the audit rightly treats as a defect of its own. */
+  .lf-cal-grid {
+    margin-inline: calc(-1 * var(--lf-space-4));
+    overflow-x: auto;
+  }
+
+  .lf-cal-weekdays,
+  .lf-cal-week {
+    grid-template-columns: repeat(7, minmax(44px, 1fr));
+  }
+
   .lf-cal-balance,
   .lf-cal-more {
     display: none;

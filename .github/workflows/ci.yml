@@ -163,11 +163,19 @@ jobs:
       - run: pip install -r requirements/development.txt
       - run: python -m playwright install --with-deps chromium
 
+      # The audit is a ratchet, so the workspace it measures has to be the same
+      # workspace every run. It was not: the seeder keys its RNG on the
+      # tenant's id (a fresh UUID per run) and backfills from January 1st (a
+      # window that grows daily), so the rendered page differed every time and
+      # the counts wandered — 66, 67, 69, 70 for one unchanged commit. A fixed
+      # seed and a fixed-length window make the measurement reproducible.
       - name: Migrate and seed a workspace to measure
         run: |
           python manage.py migrate
           python manage.py seed_platform_demo
-          python manage.py seed_tenant_demo
+          python manage.py seed_tenant_demo \
+            --seed route-audit \
+            --from "$(date -u -d '90 days ago' +%F)"
 
       - name: Start the stack
         run: |
