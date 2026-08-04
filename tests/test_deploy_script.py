@@ -466,7 +466,7 @@ def test_port_selection_happens_before_env_is_written():
     after the heredoc closes is a port compose never sees."""
     source = SETUP.read_text()
     env_write_end = source.index("\nENVEOF")
-    for var in ("pick_free_port POSTGRES_HOST_PORT", "pick_free_port INTERNAL_HTTP_PORT"):
+    for var in ("keep_or_pick POSTGRES_HOST_PORT", "keep_or_pick INTERNAL_HTTP_PORT"):
         assert source.index(var) < env_write_end, f"{var} is chosen too late to be written"
 
 
@@ -591,9 +591,11 @@ def _run_picker(script: str) -> subprocess.CompletedProcess:
     """Drive the real functions out of setup.sh rather than a copy of them."""
     harness = f"""
 set -euo pipefail
+warn() {{ :; }}
 eval "$(sed -n '/^PICKED_PORTS=""/,/^$/p' {SETUP})"
 eval "$(sed -n '/^port_is_free() {{/,/^}}/p' {SETUP})"
 eval "$(sed -n '/^pick_free_port() {{/,/^}}/p' {SETUP})"
+eval "$(sed -n '/^keep_or_pick() {{/,/^}}/p' {SETUP})"
 PICKED_PORTS=""
 {script}
 """
@@ -622,3 +624,44 @@ def test_a_port_this_run_claimed_counts_as_taken():
     source = SETUP.read_text()
     checker = source[source.index("port_is_free() {") :][:400]
     assert "PICKED_PORTS" in checker
+
+
+# ------------------------------------------------- ports belong to a deploy
+# A port already in .env is the deployment's, and the host proxy config names
+# it. Re-picking it because "something is listening" steps past this stack's
+# own container: INTERNAL_HTTP_PORT drifted 8080 -> 8082 -> 8091 over three
+# runs, and each move silently orphaned the .htaccess pointing at the previous
+# one, so a successful deploy took the site down.
+def test_a_port_already_in_env_is_reused_not_repicked():
+    result = _run_picker(
+        "INTERNAL_HTTP_PORT=8091\n"
+        'keep_or_pick INTERNAL_HTTP_PORT 8080 "origin"\n'
+        'echo "$INTERNAL_HTTP_PORT"'
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().endswith("8091"), "a stored port must survive a re-run"
+
+
+def test_a_kept_port_still_blocks_a_later_pick():
+    """Keeping it must also reserve it, or the next pick collides with the
+    thing the keeping was protecting."""
+    result = _run_picker(
+        "INTERNAL_HTTP_PORT=8091\n"
+        'keep_or_pick INTERNAL_HTTP_PORT 8080 "origin"\n'
+        'keep_or_pick PGWEB_HOST_PORT 8091 "browser"\n'
+        'echo "$INTERNAL_HTTP_PORT $PGWEB_HOST_PORT"'
+    )
+    kept, fresh = result.stdout.split()[-2:]
+    assert kept == "8091"
+    assert fresh != kept
+
+
+def test_a_fresh_install_still_chooses_a_free_port():
+    result = _run_picker('keep_or_pick NEW_PORT 5432 "database"\necho "$NEW_PORT"')
+    assert result.stdout.split()[-1].isdigit()
+
+
+@pytest.mark.parametrize("var", ["INTERNAL_HTTP_PORT", "POSTGRES_HOST_PORT", "PGWEB_HOST_PORT"])
+def test_every_published_port_is_stable_across_reruns(var):
+    source = SETUP.read_text()
+    assert f"keep_or_pick {var}" in source, f"{var} can still drift on a re-run"

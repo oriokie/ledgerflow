@@ -367,12 +367,41 @@ info "apache   — let this script write and own an Apache vhost"
 info "none     — you terminate TLS elsewhere (a load balancer, Cloudflare)"
 ask WEB_SERVER "Which" "$_ws_default" valid_webserver_free_ports
 
+# keep_or_pick VAR <preferred> <description>
+#
+# A port already recorded in .env is kept, not re-picked. On a re-run the only
+# thing normally holding it is this stack's own container, so "is it free?"
+# answers no and a fresh pick steps past a port that was, in every sense that
+# matters, ours. That drift is not cosmetic: INTERNAL_HTTP_PORT went
+# 8080 -> 8082 -> 8091 across three runs, and each move silently orphaned the
+# .htaccess pointing at the previous one, so a successful deploy took the site
+# down. Ports are chosen once and then belong to the deployment.
+#
+# If something else genuinely claimed the port while the stack was down, the
+# container bind fails loudly and is recoverable — much the better failure than
+# a proxy quietly aimed at nothing.
+keep_or_pick() {
+  local __var="$1" preferred="$2" what="$3"
+  if [ -n "${!__var:-}" ]; then
+    PICKED_PORTS="$PICKED_PORTS ${!__var}"
+    return 0
+  fi
+  pick_free_port "$__var" "$preferred"
+  [ "${!__var}" != "$preferred" ] && \
+    warn "Port $preferred is taken, so $what uses ${!__var}."
+  return 0
+}
+
 # The loopback origin the host web server proxies to. Chosen now, before .env
 # is written, because compose interpolates the published port from there.
 if [ "$WEB_SERVER" != "caddy" ]; then
-  pick_free_port INTERNAL_HTTP_PORT "${INTERNAL_HTTP_PORT:-8080}"
-  [ "$INTERNAL_HTTP_PORT" != "8080" ] && \
-    warn "Port 8080 is taken, so the internal origin uses ${INTERNAL_HTTP_PORT}."
+  # Remembered before the pick, because a *change* here is the dangerous case:
+  # the proxy config on the host still names the old port, and a stale upstream
+  # takes the site down silently — the web server keeps answering, it just has
+  # nothing behind it. This drifted 8080 -> 8082 -> 8091 across re-runs (each
+  # time the previous port was still held by the running container) with no
+  # indication that the .htaccess written earlier had been orphaned.
+  keep_or_pick INTERNAL_HTTP_PORT 8080 "the internal origin"
 else
   INTERNAL_HTTP_PORT="${INTERNAL_HTTP_PORT:-8080}"
 fi
@@ -403,7 +432,7 @@ if [ "$DB_MODE" = "bundled" ]; then
   # A server already running Postgres for something else owns 5432, and the
   # bind fails only once the rest of the stack is up — so choose a port that
   # is actually free instead of discovering the clash mid-launch.
-  pick_free_port POSTGRES_HOST_PORT "${POSTGRES_HOST_PORT:-5432}"
+  keep_or_pick POSTGRES_HOST_PORT 5432 "the database"
   info ""
   if [ "$POSTGRES_HOST_PORT" != "5432" ]; then
     warn "Port 5432 is taken on this host, so the database is published on ${POSTGRES_HOST_PORT} instead."
@@ -413,7 +442,7 @@ if [ "$DB_MODE" = "bundled" ]; then
   info "  ssh -L 5432:127.0.0.1:${POSTGRES_HOST_PORT} $(whoami)@${DOMAIN}"
   if confirm "Also run pgweb, a browser UI for the database?" n; then
     ENABLE_PGWEB=1
-    pick_free_port PGWEB_HOST_PORT "${PGWEB_HOST_PORT:-8081}"
+    keep_or_pick PGWEB_HOST_PORT 8081 "the database browser"
     info "Browse it at localhost:${PGWEB_HOST_PORT} through:  ssh -L ${PGWEB_HOST_PORT}:127.0.0.1:${PGWEB_HOST_PORT} $(whoami)@${DOMAIN}"
   else
     ENABLE_PGWEB=0
