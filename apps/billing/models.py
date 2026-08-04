@@ -32,6 +32,7 @@ class BillingInterval(models.TextChoices):
 
 
 class PlanTier(models.TextChoices):
+    BASIC = "basic", "Basic"
     FREE = "free", "Free"
     PLUS = "plus", "Plus"
     FAMILY = "family", "Family"

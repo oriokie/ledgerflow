@@ -7,7 +7,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin
+from apps.billing.plan_catalogue import PlanFeature
+from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin, require_feature
 from apps.finance.models import Category, FinancialAccount
 from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
@@ -49,7 +50,7 @@ def _receipt_out(r: Receipt) -> dict:
 class ReceiptUploadRequestView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     """Step one of the two-step upload: get a presigned URL to PUT to."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.RECEIPT_SCANNING)]
     serializer_class = RequestUploadSerializer
 
     def post(self, request):
@@ -74,7 +75,7 @@ class ReceiptUploadRequestView(WriteRequiresMemberMixin, TenantScopedAPIView, AP
 class ReceiptConfirmUploadView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     """Step two: confirm the PUT succeeded, which queues OCR."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.RECEIPT_SCANNING)]
     serializer_class = ConfirmUploadSerializer
 
     def post(self, request, receipt_id):
@@ -93,7 +94,7 @@ class ReceiptConfirmUploadView(WriteRequiresMemberMixin, TenantScopedAPIView, AP
 
 
 class ReceiptDetailView(TenantScopedAPIView, APIView):
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.RECEIPT_SCANNING)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -107,7 +108,7 @@ class ReceiptDetailView(TenantScopedAPIView, APIView):
 class ReceiptQueueView(TenantScopedAPIView, APIView):
     """Receipts waiting for a person to confirm their fields."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.RECEIPT_SCANNING)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -117,7 +118,7 @@ class ReceiptQueueView(TenantScopedAPIView, APIView):
 
 
 class ReceiptConfirmFieldsView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.RECEIPT_SCANNING)]
     serializer_class = ConfirmFieldsSerializer
 
     def patch(self, request, receipt_id):
@@ -147,7 +148,7 @@ class ReceiptLinkView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     """Turn a receipt into a real expense transaction, from confirmed fields
     only."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.RECEIPT_SCANNING)]
     serializer_class = LinkReceiptSerializer
 
     def post(self, request, receipt_id):
@@ -171,7 +172,7 @@ class ReceiptLinkView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
 
 
 class ReceiptDiscardView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.RECEIPT_SCANNING)]
     serializer_class = None
 
     def post(self, request, receipt_id):

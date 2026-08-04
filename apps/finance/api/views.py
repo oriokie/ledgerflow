@@ -11,7 +11,8 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin
+from apps.billing.plan_catalogue import PlanFeature
+from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin, require_feature
 from apps.common.pagination import CursorPagination
 from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
@@ -1448,7 +1449,7 @@ class CashflowCalendarView(TenantScopedAPIView, APIView):
     an empty calendar would imply a zero balance rather than an absence.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.CASHFLOW_FORECAST)]
     required_role = Role.VIEWER
     serializer_class = CashflowCalendarQuerySerializer
 
@@ -1502,7 +1503,7 @@ class CashflowCalendarView(TenantScopedAPIView, APIView):
 class CashflowDayView(TenantScopedAPIView, APIView):
     """One day's projected detail, with the running balance it inherits."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.CASHFLOW_FORECAST)]
     required_role = Role.VIEWER
     serializer_class = None
 

@@ -5,7 +5,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.api_base import TenantScopedAPIView
+from apps.billing.plan_catalogue import PlanFeature
+from apps.common.api_base import TenantScopedAPIView, require_feature
 from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
 
@@ -52,7 +53,7 @@ class ReportCatalogView(TenantScopedAPIView, APIView):
     adding a report is a backend change alone.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.ADVANCED_REPORTS)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -69,7 +70,7 @@ class ReportView(TenantScopedAPIView, APIView):
     an absence.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.ADVANCED_REPORTS)]
     required_role = Role.VIEWER
     serializer_class = ReportQuerySerializer
 
@@ -93,7 +94,7 @@ class ReportExportView(TenantScopedAPIView, APIView):
     caller may need.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.ADVANCED_REPORTS)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -140,7 +141,7 @@ class FinancialIndependenceView(TenantScopedAPIView, APIView):
     would bury the feedback loop the number exists to create.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.SMART_PLANNING)]
     required_role = Role.VIEWER
     serializer_class = None  # bespoke shape below
 
@@ -185,7 +186,7 @@ class ScenarioPreviewView(TenantScopedAPIView, APIView):
     is a pure read — nothing is stored, and the same inputs against the same
     ledger give the same answer."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.SMART_PLANNING)]
     required_role = Role.VIEWER
     serializer_class = None
 

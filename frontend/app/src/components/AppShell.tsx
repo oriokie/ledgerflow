@@ -8,6 +8,7 @@ import { MobileTabBar } from "./shell/MobileTabBar";
 import { PinViewButton } from "./shell/PinViewButton";
 import { NotificationCenter } from "./shell/NotificationCenter";
 import { OfflineIndicator } from "./shell/OfflineIndicator";
+import { PlanBanner } from "./shell/PlanBanner";
 import { RouteErrorBoundary } from "./RouteErrorBoundary";
 import { ProfileMenu } from "./shell/ProfileMenu";
 import { BrandMark, SidebarNav } from "./shell/SidebarNav";
@@ -210,6 +211,7 @@ export function AppShell() {
         </header>
 
         <main className="lf-content" id="main">
+          <PlanBanner />
           <RouteErrorBoundary key={location.pathname}>
             <Outlet />
           </RouteErrorBoundary>

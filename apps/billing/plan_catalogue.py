@@ -46,6 +46,9 @@ class PlanFeature(StrEnum):
     CASHFLOW_FORECAST = "cashflow_forecast"
 
     # --- intelligence ---------------------------------------------------
+    #: The advisor layer: smart budget suggestions, financial independence,
+    #: what-if scenarios and the periodic Financial Review.
+    SMART_PLANNING = "smart_planning"
     AI_INSIGHTS = "ai_insights"
     AI_COACH = "ai_coach"
     ANOMALY_DETECTION = "anomaly_detection"
@@ -90,7 +93,16 @@ UNIVERSAL = frozenset(
 F = PlanFeature
 
 #: What each tier adds. Cumulative — every tier includes the ones before it.
+#:
+#: The live catalogue is **basic** and **plus** — two plans, one question:
+#: "do you want the product to think with you, or just keep the books?"
+#: Basic is the honest ledger: income, expenses, manual budgets, bills,
+#: recurring and goals. Plus is everything the engine can do — investments,
+#: debt, the cash-flow projection, the advisor layer, AI, automation, the
+#: report library. The legacy tiers stay mapped so existing subscription rows
+#: keep resolving; seed_plans retires their plan rows from sale.
 TIER_FEATURES: dict[str, frozenset[PlanFeature]] = {
+    "basic": frozenset({F.BUDGETS, F.BILLS, F.RECURRING, F.GOALS}),
     # Free: a real, permanently usable personal ledger for one person. The
     # constraint is scale (accounts, seats), not capability.
     "free": frozenset({F.BUDGETS, F.BILLS}),
@@ -109,6 +121,10 @@ TIER_FEATURES: dict[str, frozenset[PlanFeature]] = {
             F.RECEIPT_SCANNING,
             F.ANOMALY_DETECTION,
             F.AI_INSIGHTS,
+            F.AI_COACH,
+            F.AUTOMATION_RULES,
+            F.SMART_PLANNING,
+            F.MULTI_MEMBER,
         }
     ),
     # Family: everything in Plus, plus the things that only matter when more
@@ -128,6 +144,7 @@ TIER_FEATURES: dict[str, frozenset[PlanFeature]] = {
             F.RECEIPT_SCANNING,
             F.ANOMALY_DETECTION,
             F.AUTOMATION_RULES,
+            F.SMART_PLANNING,
             F.AI_INSIGHTS,
             F.AI_COACH,
             F.MULTI_MEMBER,
@@ -140,6 +157,7 @@ TIER_FEATURES: dict[str, frozenset[PlanFeature]] = {
 
 #: Seats and accounts per tier. `None` means unmetered.
 TIER_LIMITS: dict[str, dict[str, int | None]] = {
+    "basic": {"max_members": 1, "max_accounts": 5},
     "free": {"max_members": 1, "max_accounts": 3},
     "plus": {"max_members": 2, "max_accounts": 25},
     "family": {"max_members": 6, "max_accounts": 100},
@@ -150,14 +168,26 @@ TIER_LIMITS: dict[str, dict[str, int | None]] = {
 #: annual equivalent is ten months' price, which is the conventional two-months-
 #: free framing and keeps the arithmetic obvious on a pricing page.
 TIER_PRICING_USD: dict[str, int] = {
+    "basic": 300,
     "free": 0,
     "plus": 700,
     "family": 1400,
     "business": 4900,
 }
 
+#: Days a new workspace may use Basic before choosing a plan. Card-free by
+#: design: a trial that demands payment details first is measuring willingness
+#: to cancel, not willingness to pay.
+TRIAL_DAYS = 7
+
+#: The tiers currently offered for sale. Everything else is legacy: kept in
+#: the maps so old subscription rows resolve, retired from the catalogue by
+#: seed_plans.
+LIVE_TIERS = ("basic", "plus")
+
 #: One sentence per tier, for the pricing page and the admin console.
 TIER_PITCH: dict[str, str] = {
+    "basic": "The honest ledger: income, expenses, budgets, bills and goals.",
     "free": "A real double-entry ledger for one person. Not a trial.",
     "plus": "Planning tools: goals, debt payoff, investments and the full report library.",
     "family": "Everything in Plus, shared — up to six people with roles and permissions.",
@@ -191,6 +221,7 @@ FEATURE_LABELS: dict[str, str] = {
     str(PlanFeature.DEBT_SCENARIOS): "Debt scenarios and stress tests",
     str(PlanFeature.INVESTMENTS): "Investment tracking",
     str(PlanFeature.CASHFLOW_FORECAST): "Day-by-day cash-flow forecast",
+    str(PlanFeature.SMART_PLANNING): "Smart budgets, FI projection, scenarios & the Financial Review",
     str(PlanFeature.AI_INSIGHTS): "AI insights",
     str(PlanFeature.AI_COACH): "AI coach",
     str(PlanFeature.ANOMALY_DETECTION): "Anomaly detection",

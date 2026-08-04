@@ -451,6 +451,12 @@ def record_expense(
     idempotency_key: str | None = None,
     tenant_metadata: dict | None = None,
 ) -> Transaction:
+    # The trial's teeth: a lapsed workspace pauses *new* postings until a plan
+    # is chosen. Reads and export stay open — see ensure_workspace_active.
+    from apps.billing.entitlements import ensure_workspace_active
+    from apps.common.tenant_context import get_current_tenant_id
+
+    ensure_workspace_active(tenant_id=get_current_tenant_id())
     if amount_minor <= 0:
         raise FinanceError("Expense amount must be positive; sign is applied by the engine.")
     if category.kind != CategoryKind.EXPENSE:
@@ -500,6 +506,12 @@ def record_income(
     idempotency_key: str | None = None,
     tenant_metadata: dict | None = None,
 ) -> Transaction:
+    # The trial's teeth: a lapsed workspace pauses *new* postings until a plan
+    # is chosen. Reads and export stay open — see ensure_workspace_active.
+    from apps.billing.entitlements import ensure_workspace_active
+    from apps.common.tenant_context import get_current_tenant_id
+
+    ensure_workspace_active(tenant_id=get_current_tenant_id())
     if amount_minor <= 0:
         raise FinanceError("Income amount must be positive.")
     if category.kind != CategoryKind.INCOME:

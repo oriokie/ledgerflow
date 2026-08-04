@@ -15,6 +15,7 @@ import logging
 from dataclasses import dataclass
 
 from django.db import OperationalError, ProgrammingError
+from django.utils import timezone
 
 from .models import Subscription, SubscriptionStatus
 
@@ -45,6 +46,16 @@ class Entitlements:
 
 UNMETERED = Entitlements(max_accounts=None, max_members=None, ai_insights=True, metered=False)
 
+#: A workspace whose trial ran out (or whose subscription lapsed) without a
+#: plan being chosen. Reading and exporting stay open — data is never held
+#: hostage — but every gated feature answers 402, and recording new activity
+#: is paused (see ensure_workspace_active). Distinct from UNMETERED on
+#: purpose: "never had billing" is a legacy deployment, "had a trial and let
+#: it end" is a customer mid-decision.
+LAPSED = Entitlements(
+    max_accounts=None, max_members=None, ai_insights=False, metered=True, features=frozenset(), tier="lapsed"
+)
+
 
 def resolve_entitlements(*, tenant_id) -> Entitlements:
     try:
@@ -55,8 +66,18 @@ def resolve_entitlements(*, tenant_id) -> Entitlements:
         # back to unmetered rather than surfacing a 500 on account creation.
         logger.warning("Entitlements unavailable for tenant %s; treating as unmetered.", tenant_id)
         return UNMETERED
-    if sub is None or sub.status not in _ENTITLED_STATUSES:
+    if sub is None:
         return UNMETERED
+    if sub.status not in _ENTITLED_STATUSES:
+        return LAPSED
+    # The trial clock is authoritative, not the status field: correctness must
+    # not depend on a scheduled job having flipped TRIALING to something else.
+    if (
+        sub.status == SubscriptionStatus.TRIALING
+        and sub.trial_end is not None
+        and sub.trial_end < timezone.now()
+    ):
+        return LAPSED
     plan = sub.plan
     # `Plan.features` is an explicit override for one-off deals; the tier map is
     # what a plan gets by default, so a new tier does not need every existing
@@ -129,6 +150,15 @@ def ensure_feature(*, tenant_id, feature, label: str = "") -> None:
     if has_feature(tenant_id=tenant_id, feature=feature):
         return
 
+    ent = resolve_entitlements(tenant_id=tenant_id)
+    if ent.tier == "lapsed":
+        # "Upgrade to Plus" to someone whose trial ended is the wrong
+        # sentence — they have no plan at all, and the message must say so.
+        raise PlanLimitExceeded(
+            "Your trial has ended — choose a plan to keep going. "
+            "Your data is untouched and always exportable."
+        )
+
     from .plan_catalogue import TIER_FEATURES
 
     cheapest = next(
@@ -157,3 +187,19 @@ def lock_tenant_for_limit_check(tenant_id) -> None:
     from apps.tenancy.models import Tenant
 
     Tenant.objects.select_for_update().filter(id=tenant_id).exists()
+
+
+def ensure_workspace_active(*, tenant_id) -> None:
+    """Raise PlanLimitExceeded when a lapsed workspace tries to record activity.
+
+    The teeth of the trial: reading, reports over existing data and export all
+    stay open, but new postings pause until a plan is chosen. Data hostage
+    situations are the line — pausing *new* work is commerce, blocking access
+    to what someone already recorded would be extortion.
+    """
+    ent = resolve_entitlements(tenant_id=tenant_id)
+    if ent.metered and ent.tier == "lapsed":
+        raise PlanLimitExceeded(
+            "Your trial has ended — choose a plan to keep recording. "
+            "Everything you've already recorded is safe and always exportable."
+        )

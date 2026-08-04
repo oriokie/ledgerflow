@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { authApi, isMfaRequired } from "../api/auth";
+import { ApiError } from "../api/client";
 import { tenancyApi } from "../api/tenancy";
 import { tenantStore, tokenStore } from "../api/tokenStore";
 import type { AuthTokens, MfaRequired, User, Workspace } from "../api/types";
@@ -50,9 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         tenantStore.setActive(ws[0].tenant.id);
         setActiveTenantId(ws[0].tenant.id);
       }
-    } catch {
-      tokenStore.clear();
-      tenantStore.clear();
+    } catch (err) {
+      // Only a definitive rejection ends the session. Clearing tokens on any
+      // failure turned every network blip during startup into a logout — the
+      // session died because the wifi did.
+      if (err instanceof ApiError && err.status === 401) {
+        tokenStore.clear();
+        tenantStore.clear();
+      }
       setUser(null);
     } finally {
       setIsLoading(false);

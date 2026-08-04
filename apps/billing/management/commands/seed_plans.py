@@ -17,6 +17,7 @@ from django.core.management.base import BaseCommand
 
 from apps.billing.models import BillingInterval, Plan
 from apps.billing.plan_catalogue import (
+    LIVE_TIERS,
     TIER_LIMITS,
     TIER_PITCH,
     TIER_PRICING_USD,
@@ -44,7 +45,18 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
         created = updated = 0
 
-        for order, (tier, monthly) in enumerate(TIER_PRICING_USD.items()):
+        # Retire plans for tiers no longer on sale. Deactivation, never
+        # deletion: existing subscriptions keep their plan row and its terms;
+        # the plan simply stops being offered to anyone new.
+        retired = Plan.objects.filter(is_active=True).exclude(tier__in=LIVE_TIERS)
+        if retired.exists():
+            names = ", ".join(sorted({p.name for p in retired}))
+            if not dry_run:
+                retired.update(is_active=False)
+            self.stdout.write(f"  - retired from sale: {names}")
+
+        live_pricing = {tier: TIER_PRICING_USD[tier] for tier in LIVE_TIERS}
+        for order, (tier, monthly) in enumerate(live_pricing.items()):
             limits = TIER_LIMITS[tier]
             features = sorted(str(f) for f in features_for(tier))
             # Note `features_for` is consulted for `ai_insights` below, but the

@@ -5,7 +5,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin
+from apps.billing.plan_catalogue import PlanFeature
+from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin, require_feature
 from apps.finance.models import FinancialAccount
 from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
@@ -65,7 +66,7 @@ def _resolve(model, pk):
 
 
 class SecurityView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
     serializer_class = SecurityCreateSerializer
 
     @extend_schema(operation_id="securities_list")
@@ -97,7 +98,7 @@ class SecurityDetailView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
     right one, because the duplicate check is case-insensitive on symbol.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
     serializer_class = SecurityUpdateSerializer
 
     def _get(self, security_id):
@@ -131,7 +132,7 @@ class SecurityDetailView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
 class HoldingsView(TenantScopedAPIView, APIView):
     """Every open position, valued at the latest available price."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -147,7 +148,7 @@ class PortfolioView(TenantScopedAPIView, APIView):
     that lost everything rather than one that doesn't exist.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -187,7 +188,7 @@ class PortfolioView(TenantScopedAPIView, APIView):
 
 
 class PortfolioHistoryView(TenantScopedAPIView, APIView):
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -210,7 +211,7 @@ class PortfolioHistoryView(TenantScopedAPIView, APIView):
 class TradeView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     """Buy or sell. The action is the final path segment."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
     serializer_class = TradeSerializer
 
     @extend_schema(operation_id="investment_trade", request=TradeSerializer)
@@ -257,7 +258,7 @@ class TradeView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
 
 
 class DividendView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
     serializer_class = DividendSerializer
 
     def post(self, request):
@@ -288,7 +289,7 @@ class DividendView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
 
 
 class SplitView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
     serializer_class = SplitSerializer
 
     def post(self, request):
@@ -318,7 +319,7 @@ class PriceView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     quotes through this same service, and nothing else in the module changes.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
     serializer_class = PriceSerializer
 
     def post(self, request):
@@ -344,7 +345,7 @@ class PriceView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
 
 
 class InvestmentTransactionsView(TenantScopedAPIView, APIView):
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -371,7 +372,7 @@ class InvestmentTransactionsView(TenantScopedAPIView, APIView):
 
 
 class DividendSummaryView(TenantScopedAPIView, APIView):
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
     required_role = Role.VIEWER
     serializer_class = None
 

@@ -269,3 +269,21 @@ tr:focus-within .lf-row-actions {
 .lf-scenario-table td[data-changed] {
   font-weight: var(--lf-weight-semibold);
 }
+
+/* ---- plan banner (trial countdown / lapsed wall) ---- */
+.lf-plan-banner {
+  margin: 0 0 var(--lf-space-4);
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  font-size: var(--lf-text-sm);
+  border: 1px solid var(--lf-border-subtle);
+  background: var(--lf-bg-sunken);
+}
+.lf-plan-banner[data-tone="lapsed"] {
+  border-color: var(--lf-status-danger);
+  background: var(--lf-status-danger-bg, var(--lf-bg-sunken));
+}
+.lf-plan-banner a {
+  color: var(--lf-text-link);
+  font-weight: var(--lf-weight-semibold);
+}

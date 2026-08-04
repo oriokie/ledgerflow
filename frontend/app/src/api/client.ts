@@ -94,8 +94,14 @@ async function refreshAccessToken(): Promise<string | null> {
         body: JSON.stringify({ refresh }),
       });
       if (!res.ok) return null;
-      const data = (await res.json()) as { access: string };
+      const data = (await res.json()) as { access: string; refresh?: string };
       tokenStore.setAccess(data.access);
+      // The backend rotates refresh tokens and blacklists the old one on every
+      // use (ROTATE_REFRESH_TOKENS + BLACKLIST_AFTER_ROTATION). Discarding the
+      // rotated token here is why every session died ~30 minutes after login:
+      // the first refresh worked and burned the stored token, the second
+      // presented the blacklisted one and was thrown out.
+      if (data.refresh) tokenStore.setTokens(data.access, data.refresh);
       return data.access;
     } catch {
       return null;

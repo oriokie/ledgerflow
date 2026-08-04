@@ -16,7 +16,8 @@ from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin
+from apps.billing.plan_catalogue import PlanFeature
+from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin, require_feature
 from apps.common.cache import cached_analytics
 from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
@@ -612,7 +613,7 @@ class AutomationScanView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
     resurrects something the user dismissed.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.AUTOMATION_RULES)]
     serializer_class = None
 
     @extend_schema(operation_id="automation_scan")
@@ -633,7 +634,7 @@ class AutomationScanView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
 class AutomationQueueView(TenantScopedAPIView, APIView):
     """The review queue, most confident first."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.AUTOMATION_RULES)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -683,7 +684,7 @@ class AutomationBulkDecisionView(WriteRequiresMemberMixin, TenantScopedAPIView, 
     """Decide many at once — a hundred suggestions one tap at a time is a queue
     nobody finishes."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.AUTOMATION_RULES)]
     serializer_class = None
 
     @extend_schema(operation_id="automation_bulk_decide")
@@ -745,7 +746,7 @@ class FinancialReviewView(TenantScopedAPIView, APIView):
     product's best argument for itself from exactly the plans it should sell.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.SMART_PLANNING)]
     serializer_class = None  # bespoke composition; see apps.intelligence.review
 
     def get(self, request):

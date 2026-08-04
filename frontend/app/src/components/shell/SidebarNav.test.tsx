@@ -8,6 +8,21 @@ vi.mock("../../hooks/useRoutePrefetch", () => ({ useRoutePrefetch: () => () => {
 vi.mock("../../hooks/useRailMetrics", () => ({ useRailMetrics: () => ({}), metricFor: () => undefined }));
 vi.mock("../../lib/featureFlags", () => ({ useFlag: () => [false, vi.fn()] }));
 vi.mock("../../lib/pinnedViews", () => ({ usePinnedViews: () => ({ pinned: [] }) }));
+vi.mock("../../hooks/useEntitlements", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../../hooks/useEntitlements")>();
+  return {
+    ...original,
+    // These tests exercise the receipt-scanner preference; the plan filter is
+    // covered by its own tests, so everything is entitled here.
+    useFeatures: () => ({
+      has: () => true,
+      lapsed: false,
+      trialing: false,
+      trialDaysLeft: null,
+      isLoading: false,
+    }),
+  };
+});
 
 import { SidebarNav } from "./SidebarNav";
 
@@ -48,5 +63,29 @@ describe("SidebarNav — receipt scanning is opt-in", () => {
     expect(screen.getByText("Quick Add")).toBeInTheDocument();
     expect(screen.getByText("Coach")).toBeInTheDocument();
     expect(screen.getByText("Settings")).toBeInTheDocument();
+  });
+});
+
+describe("SidebarNav — plan gating", () => {
+  it("a Basic sidebar simply does not offer the Plus features", async () => {
+    // A menu of doors that open onto paywalls reads as nagging, not
+    // navigation. The backend answers 402 either way; this is presentation.
+    const entitlements = await import("../../hooks/useEntitlements");
+    const basic = new Set(["budgets", "bills", "recurring", "goals"]);
+    vi.spyOn(entitlements, "useFeatures").mockReturnValue({
+      has: (feature: string) => basic.has(feature),
+      lapsed: false,
+      trialing: true,
+      trialDaysLeft: 5,
+      isLoading: false,
+    });
+    mockUser = {};
+    renderNav();
+
+    expect(screen.queryByText("Investments")).not.toBeInTheDocument();
+    expect(screen.queryByText("Debt")).not.toBeInTheDocument();
+    expect(screen.queryByText("Coach")).not.toBeInTheDocument();
+    expect(screen.getByText("Budgets")).toBeInTheDocument();
+    expect(screen.getByText("Transactions")).toBeInTheDocument();
   });
 });

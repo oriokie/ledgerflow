@@ -5,6 +5,7 @@ import { usePinnedViews } from "../../lib/pinnedViews";
 import { metricFor, useRailMetrics } from "../../hooks/useRailMetrics";
 import { useFlag } from "../../lib/featureFlags";
 import { useAuth } from "../../lib/AuthContext";
+import { FEATURE_BY_PATH, useFeatures } from "../../hooks/useEntitlements";
 import { AppVersion } from "./AppVersion";
 import { NAV_SECTIONS, RECEIPT_SCAN_PATH } from "./navConfig";
 import { NAV_SECTIONS_V2, type NavItemV2 } from "./navConfigV2";
@@ -24,18 +25,21 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const [navV2] = useFlag("navV2");
   const metrics = useRailMetrics(navV2);
   const { user } = useAuth();
+  const { has: hasFeature } = useFeatures();
 
-  // Receipt scanning is opt-in (see UserProfile.show_receipt_scanner): most
-  // people photograph a receipt from the transaction they are already
-  // entering, so a permanent nav entry for it costs everyone else a line.
-  // Filtering here rather than in the config keeps one list of routes and lets
-  // the preference apply to whichever nav version is in play.
+  // Two filters, one list of routes. Receipt scanning is a per-user
+  // preference; everything in FEATURE_BY_PATH is a plan decision — a Basic
+  // customer's sidebar simply does not offer Investments or Debt, because a
+  // menu of doors that open onto paywalls reads as nagging, not navigation.
+  // The backend enforces the same map with 402s; this is presentation.
   const sections = (navV2 ? NAV_SECTIONS_V2 : NAV_SECTIONS)
     .map((section) => ({
       ...section,
-      items: section.items.filter(
-        (item) => item.to !== RECEIPT_SCAN_PATH || user?.show_receipt_scanner,
-      ),
+      items: section.items.filter((item) => {
+        if (item.to === RECEIPT_SCAN_PATH && !user?.show_receipt_scanner) return false;
+        const needed = FEATURE_BY_PATH[item.to];
+        return !needed || hasFeature(needed);
+      }),
     }))
     .filter((section) => section.items.length > 0);
 

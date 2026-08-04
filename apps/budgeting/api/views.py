@@ -7,7 +7,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin
+from apps.billing.plan_catalogue import PlanFeature
+from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin, require_feature
 from apps.finance.models import Category
 from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
@@ -172,7 +173,7 @@ class SmartBudgetView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     the current proposal as a real budget the user then owns and edits.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.SMART_PLANNING)]
     throttle_scope = "write"
     serializer_class = None  # bespoke shapes; see _serialize
 

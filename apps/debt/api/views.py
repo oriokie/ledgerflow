@@ -5,7 +5,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin
+from apps.billing.plan_catalogue import PlanFeature
+from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin, require_feature
 from apps.finance.models import FinancialAccount
 from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
@@ -65,7 +66,7 @@ def _view_out(v) -> dict:
 class DebtListView(TenantScopedAPIView, APIView):
     """Every outstanding liability, with terms where they've been recorded."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -77,7 +78,7 @@ class DebtListView(TenantScopedAPIView, APIView):
 class DebtTermsView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     """Set or clear the repayment terms on a liability account."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     serializer_class = DebtTermsSerializer
 
     def put(self, request, account_id):
@@ -110,7 +111,7 @@ class TrackedLiabilitiesView(TenantScopedAPIView, APIView):
     to tell them apart to know whether the user's setup worked.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -126,7 +127,7 @@ class DebtSummaryView(TenantScopedAPIView, APIView):
     no debt".
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -172,7 +173,7 @@ class DebtSummaryView(TenantScopedAPIView, APIView):
 class PayoffPlanView(TenantScopedAPIView, APIView):
     """A full payoff simulation, plus how it compares to the alternatives."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = PayoffQuerySerializer
 
@@ -243,7 +244,7 @@ class ExtraPaymentCurveView(TenantScopedAPIView, APIView):
     what actually changes behaviour.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -260,7 +261,7 @@ class RateHistoryView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     a projection run last March still reflects the rate in force then.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     serializer_class = RateChangeSerializer
 
     @extend_schema(operation_id="debt_rate_history")
@@ -305,7 +306,7 @@ class OffsetAccountsView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
     interest is computed, not a transfer, so nothing posts to the ledger.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     serializer_class = OffsetAccountsSerializer
 
     def put(self, request, account_id):
@@ -328,7 +329,7 @@ class OffsetAccountsView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
 class DebtStressView(TenantScopedAPIView, APIView):
     """The Debt Stress Score with its full derivation."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -343,7 +344,7 @@ class DebtStressView(TenantScopedAPIView, APIView):
 class BorrowingCostView(TenantScopedAPIView, APIView):
     """Annual cost of carrying debt, split into interest and fees."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -375,7 +376,7 @@ class BorrowingCostView(TenantScopedAPIView, APIView):
 class RefinanceSimulationView(TenantScopedAPIView, APIView):
     """Simulate refinancing one debt. Read-only: nothing is modified."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = RefinanceSerializer
 
@@ -426,7 +427,7 @@ class RefinanceSimulationView(TenantScopedAPIView, APIView):
 class ConsolidationSimulationView(TenantScopedAPIView, APIView):
     """Simulate combining several debts. Read-only."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = ConsolidationSerializer
 
@@ -481,7 +482,7 @@ class ScenarioComparisonView(TenantScopedAPIView, APIView):
     accept a schedule rather than one flat monthly figure.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = ScenarioComparisonSerializer
 
@@ -540,7 +541,7 @@ class ScenarioComparisonView(TenantScopedAPIView, APIView):
 class DebtAnalyticsView(TenantScopedAPIView, APIView):
     """Series for the debt dashboards, all from one simulation."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -563,7 +564,7 @@ class PayoffExportView(TenantScopedAPIView, APIView):
     column of minor-unit integers is a trap for anyone who sums it.
     """
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = None
 
@@ -587,7 +588,7 @@ class PayoffPdfView(TenantScopedAPIView, APIView):
     """The payoff schedule as a printable PDF — a document to file or take to
     a lender, so it leads with the summary that makes the table meaningful."""
 
-    permission_classes = [IsTenantMember]
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
     serializer_class = None
 

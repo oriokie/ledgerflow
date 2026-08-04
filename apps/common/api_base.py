@@ -69,3 +69,31 @@ class WriteRequiresMemberMixin:
         from apps.tenancy.models import Role
 
         return Role.VIEWER if self.request.method in self._SAFE else Role.MEMBER
+
+
+def require_feature(feature):
+    """A DRF permission gating a view behind one plan feature.
+
+    Raises PlanLimitExceeded (→ 402 via the exception handler) rather than
+    returning False, so the client can render an upgrade path instead of a
+    bare "forbidden". Runs after IsTenantMember, which resolves
+    request.tenant_id. Legacy workspaces with no subscription pass — the
+    catalogue gates its customers, not self-hosted installs.
+
+    A factory rather than an attribute so the URL of the gate names the
+    feature it wants: `require_feature(PlanFeature.INVESTMENTS)` reads as the
+    commercial decision it is.
+    """
+    from rest_framework.permissions import BasePermission
+
+    class HasFeature(BasePermission):
+        def has_permission(self, request, view) -> bool:
+            from apps.billing.entitlements import ensure_feature
+
+            tenant_id = getattr(request, "tenant_id", None)
+            if tenant_id is not None:
+                ensure_feature(tenant_id=tenant_id, feature=feature)
+            return True
+
+    HasFeature.__name__ = f"HasFeature[{feature}]"
+    return HasFeature

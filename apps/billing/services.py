@@ -9,6 +9,7 @@ interface.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import timedelta
 
@@ -37,6 +38,9 @@ def list_plans(*, currency: str = "USD") -> list[Plan]:
     return list(Plan.objects.filter(is_active=True, currency=currency).order_by("sort_order", "price_minor"))
 
 
+logger = logging.getLogger("ledgerflow.billing")
+
+
 def _free_plan(currency: str) -> Plan | None:
     return (
         Plan.objects.filter(is_active=True, price_minor=0, currency=currency).order_by("sort_order").first()
@@ -50,6 +54,44 @@ def get_subscription(*, tenant_id) -> Subscription | None:
 
 def _period_end(interval: str, start) -> timezone.datetime:
     return start + (timedelta(days=365) if interval == BillingInterval.YEARLY else timedelta(days=30))
+
+
+def start_trial(*, tenant_id) -> Subscription | None:
+    """Put a brand-new workspace on the Basic trial — card-free, TRIAL_DAYS long.
+
+    Card-free by design: a trial that demands payment details first measures
+    willingness to cancel, not willingness to pay. The clock, not a stored
+    card, is what converts — entitlements stop granting the moment trial_end
+    passes (see entitlements.resolve_entitlements), so nothing here needs a
+    scheduled job to be correct.
+
+    Returns None rather than raising when no Basic plan exists: a deployment
+    that has not seeded its catalogue gets the legacy unmetered behaviour, not
+    a workspace that cannot be created.
+    """
+    from .plan_catalogue import TRIAL_DAYS
+
+    if Subscription.objects.filter(tenant_id=tenant_id).exists():
+        return None  # never restart a trial on re-entry
+
+    plan = (
+        Plan.objects.filter(is_active=True, tier="basic", interval=BillingInterval.MONTHLY)
+        .order_by("sort_order")
+        .first()
+    )
+    if plan is None:
+        logger.warning("No active Basic plan; workspace %s starts unmetered.", tenant_id)
+        return None
+
+    now = timezone.now()
+    return Subscription.objects.create(
+        tenant_id=tenant_id,
+        plan=plan,
+        status=SubscriptionStatus.TRIALING,
+        trial_end=now + timedelta(days=TRIAL_DAYS),
+        current_period_start=now,
+        current_period_end=now + timedelta(days=TRIAL_DAYS),
+    )
 
 
 # --------------------------------------------------------------------------- subscribe / change

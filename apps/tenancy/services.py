@@ -142,6 +142,18 @@ def create_workspace(
         payload={"name": name, "type": type, "owner_id": str(owner.id), "base_currency": base_currency},
     )
     _seed_default_categories(tenant=tenant, owner=owner, currency=base_currency)
+
+    # Every new workspace starts on the Basic trial — card-free, seven days.
+    # Best-effort but loud: a billing hiccup must not block someone's first
+    # minute in the product, and a workspace without a subscription simply
+    # behaves as legacy-unmetered until an operator looks.
+    try:
+        from apps.billing.services import start_trial
+
+        start_trial(tenant_id=tenant.id)
+    except Exception:  # noqa: BLE001
+        logger.exception("Could not start the trial for workspace %s", tenant.id)
+
     return tenant
 
 

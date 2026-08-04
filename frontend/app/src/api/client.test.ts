@@ -161,6 +161,23 @@ describe("request — 401 silent refresh", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it("stores the rotated refresh token, not just the access token", async () => {
+    // The backend rotates and blacklists on every refresh. Discarding the
+    // rotated token is why every session used to die ~30 minutes in: the
+    // first refresh burned the stored token, the second presented the
+    // blacklisted one, and the user was logged out mid-task.
+    vi.mocked(tokenStore.getAccess).mockReturnValue("stale");
+    vi.mocked(tokenStore.getRefresh).mockReturnValue("refresh-1");
+
+    fetchMock
+      .mockResolvedValueOnce(makeResponse(401, { detail: "expired" }))
+      .mockResolvedValueOnce(makeResponse(200, { access: "fresh", refresh: "refresh-2" }))
+      .mockResolvedValueOnce(makeResponse(200, { data: "ok" }));
+
+    await expect(api.get("/protected/")).resolves.toEqual({ data: "ok" });
+    expect(tokenStore.setTokens).toHaveBeenCalledWith("fresh", "refresh-2");
+  });
+
   it("clears the session and signals expiry when refresh is impossible", async () => {
     vi.mocked(tokenStore.getAccess).mockReturnValue("stale");
     vi.mocked(tokenStore.getRefresh).mockReturnValue(null); // no refresh token
