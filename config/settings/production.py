@@ -16,6 +16,12 @@ ALLOWED_HOSTS = [*ALLOWED_HOSTS, "localhost"]  # noqa: F405
 # which CI/CD should run before every production release.
 
 SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=True)  # noqa: F405
+# Health probes are plain HTTP by design: the container healthcheck, and any
+# load balancer or orchestrator probe, talk to the port directly rather than
+# through the TLS terminator. Redirecting them to https means the probe reads
+# a 301 instead of a 200 and calls a perfectly healthy container dead — which
+# is exactly what happened once the Host header started validating.
+SECURE_REDIRECT_EXEMPT = [r"^healthz/?$", r"^readyz/?$"]
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = env.int("DJANGO_HSTS_SECONDS", default=60 * 60 * 24 * 365)  # noqa: F405

@@ -176,3 +176,26 @@ def test_every_service_in_the_deployment_has_a_healthcheck():
     compose = pathlib.Path("deploy/docker-compose.server.yml").read_text()
     # db, redis and web must all be probed; caddy is a proxy with its own.
     assert len(re.findall(r"healthcheck:", compose)) >= 3
+
+
+def test_the_health_probes_are_exempt_from_the_https_redirect():
+    """The container healthcheck, and any orchestrator probe, reach the port
+    directly rather than through the TLS terminator — so they speak plain
+    HTTP. With SECURE_SSL_REDIRECT on and no exemption they get a 301, and a
+    probe that expects 200 declares a healthy container dead."""
+    assert "SECURE_REDIRECT_EXEMPT" in PRODUCTION_SETTINGS
+    for probe in ("healthz", "readyz"):
+        assert probe in PRODUCTION_SETTINGS[PRODUCTION_SETTINGS.index("SECURE_REDIRECT_EXEMPT") :][:200]
+
+
+def test_the_healthcheck_probe_path_matches_the_exemption():
+    """A regex that doesn't match the path the healthcheck actually requests
+    is an exemption in name only."""
+    import re as _re
+
+    exempt_line = _re.search(r"SECURE_REDIRECT_EXEMPT = \[(.*?)\]", PRODUCTION_SETTINGS, _re.S).group(1)
+    patterns = _re.findall(r'r"([^"]+)"', exempt_line)
+    compose = pathlib.Path("deploy/docker-compose.server.yml").read_text()
+    assert "/readyz/" in compose, "the compose healthcheck no longer probes /readyz/"
+    # Django matches these against the path with the leading slash stripped.
+    assert any(_re.match(p, "readyz/") for p in patterns), f"{patterns} never matches 'readyz/'"
