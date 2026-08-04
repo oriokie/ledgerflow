@@ -21,7 +21,17 @@
 			# would make Django's SECURE_SSL_REDIRECT loop every request.
 			header_up X-Forwarded-Proto {header.X-Forwarded-Proto}
 			header_up X-Forwarded-For {remote_host}
-			header_up Host {host}
+
+			# Pin the public hostname rather than forwarding whatever arrived.
+			# Apache's mod_proxy rewrites Host to the *backend* address unless
+			# ProxyPreserveHost is on — and that directive is forbidden in
+			# .htaccess, so on shared/cPanel hosting the front end simply
+			# cannot set it. Django then saw "127.0.0.1:8080", rejected it
+			# against ALLOWED_HOSTS, and returned a blank 400 on every request.
+			# This origin serves exactly one site, so the correct Host is known
+			# from configuration and never needs to be inferred from the hop.
+			header_up Host {env.DOMAIN}
+			header_up X-Forwarded-Host {env.DOMAIN}
 		}
 	}
 

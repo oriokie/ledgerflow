@@ -6,6 +6,12 @@ DEBUG = False
 
 if not ALLOWED_HOSTS:  # noqa: F405
     raise RuntimeError("DJANGO_ALLOWED_HOSTS must be set in production.")
+# Docker's own readiness healthcheck (docker-compose.server.yml) curls
+# localhost:8000 from inside the container. That port is only `expose`d, never
+# published to the host, so it's unreachable from outside the container
+# network — safe to whitelist unconditionally rather than making every
+# deployment add it to DJANGO_ALLOWED_HOSTS themselves.
+ALLOWED_HOSTS = [*ALLOWED_HOSTS, "localhost"]  # noqa: F405
 # Secret-key *strength* (length, entropy) is validated by `manage.py check --deploy`,
 # which CI/CD should run before every production release.
 

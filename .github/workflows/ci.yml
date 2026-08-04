@@ -80,16 +80,35 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 3s --health-retries 10
+    # POSTGRES_USER is a superuser — that is how the postgres image builds it —
+    # and superusers bypass row-level security unconditionally. Running the
+    # suite as one silently disabled the entire tenant-isolation mechanism the
+    # RLS tests exist to prove, so they asserted nothing and still went green.
+    # Everything below therefore connects as an ordinary role instead.
+    env:
+      DATABASE_URL: postgres://ledgerflow_app:ledgerflow_app@localhost:5432/ledgerflow
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: pip install -r requirements/test.txt
 
-      - name: Grant CREATEDB (pytest-django creates/drops the test DB)
+      # The receipt OCR tests exercise the real tesseract binary rather than a
+      # stub, so the package is a genuine test dependency; without it they fail
+      # on an empty transcription rather than skipping.
+      - name: Install tesseract (receipt OCR)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq tesseract-ocr
+
+      - name: Create the unprivileged application role
         run: |
-          PGPASSWORD=ledgerflow psql -h localhost -U ledgerflow -d ledgerflow \
-            -c "ALTER ROLE ledgerflow CREATEDB;"
+          PGPASSWORD=ledgerflow psql -h localhost -U ledgerflow -d ledgerflow <<'SQL'
+            -- NOSUPERUSER/NOBYPASSRLS are the point: they are what makes the
+            -- RLS policies actually apply. CREATEDB only so pytest-django can
+            -- create and drop the test database it owns.
+            CREATE ROLE ledgerflow_app LOGIN PASSWORD 'ledgerflow_app'
+              NOSUPERUSER NOBYPASSRLS NOCREATEROLE CREATEDB;
+            GRANT ALL ON SCHEMA public TO ledgerflow_app;
+          SQL
 
       - name: Check for missing migrations
         run: python manage.py makemigrations --check --dry-run

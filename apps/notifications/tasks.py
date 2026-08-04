@@ -106,13 +106,22 @@ def send_push_notification(self, notification_id: str) -> int:
 
     try:
         nid = _uuid.UUID(str(notification_id))
-        notification = Notification.unscoped.filter(id=nid).first()
-        if notification is None:
-            return 0
-        bind_db_tenant(notification.tenant_id)
-        with use_tenant(notification.tenant_id):
-            notification = Notification.objects.get(id=nid)
-            return push_notification(notification)
+        # One transaction around the whole read: `bind_db_tenant` issues
+        # SET LOCAL, which only survives inside a transaction and refuses to
+        # run outside one. A worker starts in autocommit, so without this the
+        # task raised RuntimeError and retried until it gave up — every push
+        # notification silently undelivered. It went unnoticed because the
+        # test suite ran as a Postgres superuser, where RLS is bypassed and
+        # the `unscoped` lookup below returned early instead of reaching the
+        # bind at all.
+        with transaction.atomic():
+            notification = Notification.unscoped.filter(id=nid).first()
+            if notification is None:
+                return 0
+            bind_db_tenant(notification.tenant_id)
+            with use_tenant(notification.tenant_id):
+                notification = Notification.objects.get(id=nid)
+                return push_notification(notification)
     except Exception as exc:
         logger.exception("push dispatch failed for notification %s", notification_id)
         raise self.retry(exc=exc) from exc

@@ -280,3 +280,148 @@ def test_selinux_bind_mounts_are_labelled():
     for mount in ("./Caddyfile:", "./Caddyfile.internal:"):
         line = next(row for row in compose.splitlines() if mount in row)
         assert line.rstrip().endswith(",z"), line
+
+
+# ------------------------------------------------- already-occupied ports 80/443
+# A box that already serves other sites (cPanel, Plesk, a hand-rolled multi-site
+# host) is the case that failed worst in practice: Caddy was offered and chosen,
+# six prompts and a written .env later `docker compose up` died on "bind:
+# address already in use", and the recovery involved understanding profiles.
+def test_port_conflicts_are_detected_before_the_first_prompt():
+    """Detection after the prompts is detection too late — the whole point is
+    to change which options are offered."""
+    source = SETUP.read_text()
+    assert "detect_port_conflict()" in source
+    detect_call = source.index("detect_port_conflict\n")
+    assert detect_call < source.index("ask WEB_SERVER"), "must run before the web server question"
+
+
+def test_caddy_is_refused_when_something_already_owns_the_ports():
+    source = SETUP.read_text()
+    validator = source[source.index("valid_webserver_free_ports() {") :][:600]
+    assert "$PORTS_IN_USE" in validator
+    assert "caddy" in validator
+    assert "return 1" in validator
+
+
+def test_a_stored_caddy_answer_is_not_reused_once_the_ports_are_taken():
+    """Re-runs pre-fill from .env. Defaulting to an answer that can no longer
+    work just reproduces the original failure on every subsequent run."""
+    source = SETUP.read_text()
+    assert '[ "$_ws_default" = caddy ] && _ws_default=existing' in source
+
+
+def test_the_existing_web_server_option_is_offered_and_handled():
+    source = SETUP.read_text()
+    assert "existing)" in source, "offered but never dispatched"
+    assert "configure_existing() {" in source
+
+
+def test_existing_mode_writes_no_web_server_config():
+    """The whole reason this mode exists: a control panel owns those vhosts and
+    regenerates them, and other people's sites share the daemon."""
+    source = SETUP.read_text()
+    body = source[source.index("configure_existing() {") : source.index('bold ""\nbold "Configuring')]
+    for destructive in ("cat > /etc", "a2ensite", "systemctl reload", "systemctl restart", "rm -f /etc"):
+        assert destructive not in body, f"configure_existing must not run: {destructive}"
+
+
+def test_existing_mode_prints_config_for_all_three_front_ends():
+    source = SETUP.read_text()
+    body = source[source.index("configure_existing() {") :][:2500]
+    assert "proxy_pass" in body, "nginx snippet missing"
+    assert "ProxyPass " in body, "Apache vhost snippet missing"
+    assert "RewriteRule" in body and "[P,L]" in body, ".htaccess snippet missing"
+
+
+def test_existing_mode_never_issues_a_certificate():
+    """TLS already terminates on the existing server. Running certbot would at
+    best duplicate its certificate and at worst disrupt a live one — and the
+    DNS pre-check would reject a Cloudflare-proxied domain outright."""
+    source = SETUP.read_text()
+    body = source[source.index("configure_existing() {") :][:2500]
+    assert "issue_certificate" not in body
+
+
+def test_existing_mode_leaves_the_firewall_alone():
+    """Whatever already answers on 80/443 publicly has working rules; touching
+    them is unnecessary risk on a box hosting other people's sites."""
+    source = SETUP.read_text()
+    assert '[ "$WEB_SERVER" != existing ]' in source
+
+
+def test_the_internal_origin_pins_the_public_host_header():
+    """Apache rewrites Host to the backend address unless ProxyPreserveHost is
+    on — and that directive is forbidden in .htaccess, so shared hosting simply
+    cannot set it. Django then rejected every request against ALLOWED_HOSTS
+    with a blank 400. The origin serves one site, so the Host is known."""
+    caddyfile = Path("deploy/Caddyfile.internal").read_text()
+    assert "header_up Host {env.DOMAIN}" in caddyfile
+    assert "header_up X-Forwarded-Host {env.DOMAIN}" in caddyfile
+
+
+def test_the_internal_caddy_is_given_the_domain_it_pins():
+    """The Caddyfile reads {env.DOMAIN}; unset, it would pin an empty Host."""
+    compose = COMPOSE.read_text()
+    internal = compose[compose.index("caddy_internal:") : compose.index("frontend:\n    # Builds")]
+    assert "DOMAIN: ${DOMAIN" in internal
+
+
+# ---------------------------------------------------------------- database access
+def test_the_bundled_database_is_reachable_for_ordinary_work():
+    """Inspecting the database is where 'did that actually save?' gets
+    answered. Container-network-only means every such question needs
+    `docker exec` gymnastics."""
+    compose = COMPOSE.read_text()
+    # Anchored on the service key at the start of a line: "  db:" also matches
+    # the `db: {condition: service_healthy}` dependency inside the shared
+    # x-app-build anchor, which would slice an empty string and pass nothing.
+    db = compose[compose.index("\n  db:\n") : compose.index("\n  redis:\n")]
+    assert "ports:" in db, "the bundled database publishes nothing"
+    assert ':5432"' in db, "nothing maps through to Postgres' port"
+
+
+@pytest.mark.parametrize("service,port", [("\n  db:\n", "5432"), ("\n  pgweb:\n", "8081")])
+def test_database_ports_are_loopback_only(service, port):
+    """0.0.0.0 would put Postgres — and pgweb, which has no authentication at
+    all — on the public internet. The SSH tunnel is the authentication."""
+    compose = COMPOSE.read_text()
+    body = compose[compose.index(service) :][:1400]
+    published = [row for row in body.splitlines() if f":{port}" in row and "-" in row]
+    assert published, f"{service} publishes no {port} line"
+    for row in published:
+        assert "127.0.0.1:" in row, f"{row.strip()} must bind loopback only"
+
+
+def test_pgweb_is_optional():
+    """A credential-free full-SQL console should not run on a box nobody is
+    actively inspecting."""
+    compose = COMPOSE.read_text()
+    pgweb = compose[compose.index("\n  pgweb:\n") :]
+    assert 'profiles: ["pgweb"]' in pgweb
+    source = SETUP.read_text()
+    assert "--profile pgweb" in source
+    assert "ENABLE_PGWEB" in source
+
+
+def test_pgweb_is_only_started_when_asked_for():
+    source = SETUP.read_text()
+    assert '[ "${ENABLE_PGWEB:-0}" -eq 1 ] && PROFILES=' in source
+
+
+def test_the_env_symlink_makes_manual_compose_commands_work():
+    """Compose interpolates ${VAR} from a .env in the compose file's own
+    directory. Without the link, every documented Day-2 `docker compose -f
+    deploy/...` command fails on a missing DOMAIN before it starts."""
+    source = SETUP.read_text()
+    assert 'ln -sf ../.env "$REPO_ROOT/deploy/.env"' in source
+
+
+def test_help_survives_the_header_growing():
+    """A fixed sed line range silently truncates --help every time a bullet is
+    added to the header, which is how it stops mentioning the newest feature."""
+    source = SETUP.read_text()
+    assert "sed -n '2,25p'" not in source
+    result = subprocess.run(["bash", str(SETUP), "--help"], capture_output=True, text=True)
+    assert result.returncode == 0
+    assert "existing" in result.stdout, "--help must mention the shared-server path"

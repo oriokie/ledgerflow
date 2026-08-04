@@ -24,6 +24,34 @@ def _client(membership):
     return _bearer_client(membership.user, tenant_id=membership.tenant_id)
 
 
+# --------------------------------------------------------------- precondition
+def test_the_test_role_cannot_bypass_row_level_security():
+    """Every RLS test below is only meaningful if the connecting role is
+    subject to RLS in the first place.
+
+    PostgreSQL exempts superusers and BYPASSRLS roles from every policy, so a
+    suite run as one asserts nothing while still going green — which is exactly
+    what happened: CI used the postgres image's POSTGRES_USER (a superuser),
+    and two isolation tests passed locally and failed there for reasons that
+    looked like flakiness. This fails first and says why, instead of leaving a
+    bare `assert 1 == 0` three tests later.
+    """
+    if connection.vendor != "postgresql":
+        pytest.skip("RLS is a PostgreSQL feature")
+    with connection.cursor() as cur:
+        cur.execute("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")
+        is_superuser, bypasses_rls = cur.fetchone()
+    assert not is_superuser, (
+        "Connected as a Postgres SUPERUSER, which bypasses every RLS policy. "
+        "The tenant-isolation tests cannot prove anything. Point DATABASE_URL "
+        "at an ordinary role (NOSUPERUSER NOBYPASSRLS)."
+    )
+    assert not bypasses_rls, (
+        "Connected as a role with BYPASSRLS. Same problem: tenant isolation "
+        "is not actually being enforced for this connection."
+    )
+
+
 def _make_account(client, name="Probe"):
     r = client.post(
         "/api/v1/finance/accounts/",

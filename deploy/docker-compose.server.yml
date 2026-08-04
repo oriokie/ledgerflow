@@ -33,6 +33,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
     volumes: ["pgdata:/var/lib/postgresql/data"]
     restart: unless-stopped
+    ports:
+      # Loopback only, and deliberately so. The bundled database is otherwise
+      # reachable only from inside the compose network, which makes routine
+      # work — psql, a dump, pointing a desktop client at it — impossible
+      # without `docker exec` gymnastics. 127.0.0.1 keeps it off every
+      # external interface: from a laptop it needs an SSH tunnel
+      #   ssh -L 5432:127.0.0.1:5432 you@server
+      # which authenticates as the server does, rather than exposing Postgres
+      # to the internet with only its password in the way.
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ledgerflow}"]
       interval: 5s
@@ -124,6 +134,10 @@ services:
     image: caddy:2-alpine
     profiles: ["internal"]
     restart: unless-stopped
+    environment:
+      # Caddyfile.internal pins the upstream Host header to this, so Django
+      # sees the public hostname no matter what the front end did to it.
+      DOMAIN: ${DOMAIN:?DOMAIN must be set in .env}
     ports:
       # Loopback only: the host web server is the only intended client, and
       # binding wider would expose the app with TLS and HSTS assumptions unmet.
@@ -149,6 +163,27 @@ services:
     volumes:
       - frontend:/srv/frontend
     restart: "no"
+
+  pgweb:
+    # Browse the database in a browser: tables, rows, ad-hoc SQL, CSV export.
+    # Behind a profile because it is a debugging convenience, not part of the
+    # application — `--profile pgweb` turns it on, and leaving it off is the
+    # right default for a box nobody is actively inspecting.
+    image: sosedoff/pgweb:latest
+    profiles: ["pgweb"]
+    restart: unless-stopped
+    environment:
+      # Same credentials the app uses; pgweb is a viewer, not a second account.
+      PGWEB_DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set in .env}
+    ports:
+      # Loopback only. pgweb has no authentication of its own — anyone who can
+      # reach the port has full read/write SQL access — so the SSH tunnel is
+      # the authentication:
+      #   ssh -L 8081:127.0.0.1:8081 you@server   then open localhost:8081
+      # Never publish this on 0.0.0.0 or proxy it from a public vhost.
+      - "127.0.0.1:${PGWEB_HOST_PORT:-8081}:8081"
+    depends_on:
+      db: {condition: service_healthy, required: false}
 
 volumes:
   pgdata:

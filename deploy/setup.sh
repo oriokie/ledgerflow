@@ -17,9 +17,17 @@
 # and database — rotating the secret key logs every user out, so it is generated
 # exactly once and never regenerated silently.
 #
+# Servers that already host something (cPanel, Plesk, your own nginx) are
+# detected before the first question: ports 80/443 are checked, Caddy is taken
+# off the menu when they are taken, and the 'existing' web server option runs
+# the stack loopback-only and prints the proxy config to paste instead.
+#
 # What it does NOT do, deliberately:
 #   * It never overwrites an existing .env without showing you the diff.
 #   * It never opens a firewall port you did not ask for.
+#   * It never edits a web server it did not install. On a box already serving
+#     other sites, it prints configuration for you to apply rather than writing
+#     into a vhost tree a control panel owns and regenerates.
 #   * It refuses to run against a domain whose DNS does not resolve to this
 #     host, because Let's Encrypt will fail anyway and the error it gives is
 #     far less clear than the one here.
@@ -37,7 +45,9 @@ for arg in "$@"; do
   case "$arg" in
     --non-interactive) INTERACTIVE=0 ;;
     --reconfigure-web) RECONFIGURE_WEB_ONLY=1 ;;
-    -h|--help) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    # Prints the header block above, however long it grows — a fixed line
+    # range silently truncates --help every time a bullet is added.
+    -h|--help) awk 'NR>1 { if (!/^#/) exit; sub(/^# ?/, ""); print }' "$0"; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -155,9 +165,23 @@ valid_email() {
 }
 
 valid_webserver() {
-  case "$1" in caddy|nginx|apache|none) return 0 ;; esac
-  warn "Choose one of: caddy, nginx, apache, none."
+  case "$1" in caddy|nginx|apache|existing|none) return 0 ;; esac
+  warn "Choose one of: caddy, nginx, apache, existing, none."
   return 1
+}
+
+# Refuses caddy once something else owns the ports it would bind. Selecting it
+# anyway produced the single worst failure this script had: six prompts, secret
+# generation and a written .env, then `docker compose up` dying on "bind:
+# address already in use" with everything already committed to disk.
+valid_webserver_free_ports() {
+  valid_webserver "$1" || return 1
+  if [ "$1" = caddy ] && [ -n "$PORTS_IN_USE" ]; then
+    warn "caddy needs ports 80 and 443, and $PORTS_IN_USE already has them."
+    warn "Stop that server first, or choose 'existing' to run behind it."
+    return 1
+  fi
+  return 0
 }
 
 valid_dbmode() {
@@ -172,10 +196,50 @@ valid_storagemode() {
   return 1
 }
 
+# A function rather than an inline case statement in the summary. There must be
+# exactly one place in this file that switches on the chosen web server —
+# a second one makes "the dispatch block" ambiguous to anything reading the
+# script, tests included. Takes the server as an argument for that reason.
+tls_summary() {
+  case "$1" in
+    caddy)    echo 'automatic (Caddy)' ;;
+    none)     echo 'terminated upstream' ;;
+    existing) echo "already handled by ${PORTS_IN_USE:-the existing server}" ;;
+    *)        echo "Let's Encrypt via certbot" ;;
+  esac
+}
+
 valid_port() {
   [[ "$1" =~ ^[0-9]+$ ]] && [ "$1" -ge 1 ] && [ "$1" -le 65535 ] && return 0
   warn "That is not a port number."
   return 1
+}
+
+# What, if anything, already owns the ports a web server needs. Answered before
+# the first question rather than at `docker compose up`, because the choice of
+# web server depends entirely on it: a box already running nginx for other
+# sites (cPanel, Plesk, a hand-rolled multi-site host) must not have those
+# ports taken over, and the only safe topology there is to sit behind it.
+#
+# Sets PORTS_IN_USE to the listening program's name, or empty when both ports
+# are free.
+detect_port_conflict() {
+  PORTS_IN_USE=""
+  local listeners=""
+  if command -v ss >/dev/null 2>&1; then
+    listeners="$(ss -ltnp 2>/dev/null | grep -E ':(80|443)[[:space:]]' || true)"
+  elif command -v netstat >/dev/null 2>&1; then
+    listeners="$(netstat -ltnp 2>/dev/null | grep -E ':(80|443)[[:space:]]' || true)"
+  else
+    return 0  # can't tell; the compose bind will report it the old way
+  fi
+  [ -z "$listeners" ] && return 0
+
+  # Names come out of ss as users:(("nginx",pid=123,fd=31)) — take the first.
+  PORTS_IN_USE="$(printf '%s\n' "$listeners" \
+    | grep -oE '"[^"]+"' | tr -d '"' | sort -u | paste -sd/ - || true)"
+  [ -z "$PORTS_IN_USE" ] && PORTS_IN_USE="another process"
+  return 0
 }
 
 # DNS is checked before requesting a certificate because Let's Encrypt will
@@ -230,11 +294,24 @@ echo
 
 # ------------------------------------------------------------ 2. web server
 bold "2. Web server"
-info "caddy  — automatic TLS, no config to maintain (recommended)"
-info "nginx  — if you already run nginx or need its module ecosystem"
-info "apache — if your organisation standardises on it"
-info "none   — you terminate TLS elsewhere (a load balancer, Cloudflare)"
-ask WEB_SERVER "Which" "${WEB_SERVER:-caddy}" valid_webserver
+detect_port_conflict
+_ws_default="${WEB_SERVER:-caddy}"
+if [ -n "$PORTS_IN_USE" ]; then
+  warn "$PORTS_IN_USE is already listening on ports 80/443."
+  info "This server is already hosting something, so LedgerFlow must sit"
+  info "behind it rather than take the ports. 'existing' does exactly that:"
+  info "the app binds nothing public, and you get the proxy config to paste."
+  echo
+  # Never silently keep a stored 'caddy' answer that can no longer work.
+  [ "$_ws_default" = caddy ] && _ws_default=existing
+fi
+info "existing — something else on this box already serves 80/443 (cPanel,"
+info "           Plesk, your own nginx). Runs loopback-only; you get a snippet."
+[ -z "$PORTS_IN_USE" ] && info "caddy    — automatic TLS, no config to maintain (recommended)"
+info "nginx    — let this script write and own an nginx vhost"
+info "apache   — let this script write and own an Apache vhost"
+info "none     — you terminate TLS elsewhere (a load balancer, Cloudflare)"
+ask WEB_SERVER "Which" "$_ws_default" valid_webserver_free_ports
 echo
 
 # -------------------------------------------------------------- 3. database
@@ -252,6 +329,25 @@ if [ "$DB_MODE" = "external" ]; then
   [ -n "${DB_PASSWORD:-}" ] || die "An external database needs its password."
   info "The user must be able to create tables; migrations enable row-level"
   info "security on every tenant table, and FORCE RLS applies it to the owner too."
+fi
+
+# Being unable to look inside the database is a real operational problem, not a
+# nicety: it is where every "did that actually save?" question is answered. The
+# bundled Postgres is reachable only from inside the compose network by
+# default, so both options below are about getting a normal client onto it.
+if [ "$DB_MODE" = "bundled" ]; then
+  info ""
+  info "The database is published on 127.0.0.1:${POSTGRES_HOST_PORT:-5432} — loopback only, so"
+  info "reach it from your laptop over SSH rather than opening it to the world:"
+  info "  ssh -L 5432:127.0.0.1:5432 $(whoami)@${DOMAIN}"
+  if confirm "Also run pgweb, a browser UI for the database?" n; then
+    ENABLE_PGWEB=1
+    info "Browse it at localhost:8081 through:  ssh -L 8081:127.0.0.1:8081 $(whoami)@${DOMAIN}"
+  else
+    ENABLE_PGWEB=0
+  fi
+else
+  ENABLE_PGWEB=0
 fi
 echo
 
@@ -329,7 +425,8 @@ info "Allowed hosts   $ALLOWED_HOSTS"
 info "Web server      $WEB_SERVER"
 info "Database        $( [ "$DB_MODE" = external ] && echo "external — $DB_HOST:$DB_PORT/$DB_NAME" || echo 'bundled Postgres 16' )"
 info "File storage    $( [ "$STORAGE_MODE" = s3 ] && echo "S3 — $AWS_STORAGE_BUCKET_NAME" || echo 'local media volume' )"
-info "TLS             $( [ "$WEB_SERVER" = caddy ] && echo 'automatic (Caddy)' || { [ "$WEB_SERVER" = none ] && echo 'terminated upstream' || echo "Let's Encrypt via certbot"; } )"
+info "TLS             $(tls_summary "$WEB_SERVER")"
+[ "${ENABLE_PGWEB:-0}" -eq 1 ] && info "Database UI     pgweb on 127.0.0.1:${PGWEB_HOST_PORT:-8081} (loopback only)"
 info "Email           ${EMAIL_HOST:-not configured}"
 info "Payments        $( [ -n "${STRIPE_SECRET_KEY:-}${MPESA_CONSUMER_KEY:-}" ] && echo configured || echo 'configure in the console' )"
 echo
@@ -407,6 +504,12 @@ DB_NAME=${DB_NAME:-}
 DB_USER=${DB_USER:-}
 DB_PASSWORD=${DB_PASSWORD:-}
 STORAGE_MODE=${STORAGE_MODE}
+ENABLE_PGWEB=${ENABLE_PGWEB:-0}
+
+# Loopback-published ports for database access. Change these if 5432/8081 are
+# already taken on the host; nothing outside this machine can reach either.
+POSTGRES_HOST_PORT=${POSTGRES_HOST_PORT:-5432}
+PGWEB_HOST_PORT=${PGWEB_HOST_PORT:-8081}
 ENVEOF
 chmod 600 "$ENV_FILE"
 ok "Wrote .env (mode 600)"
@@ -635,6 +738,51 @@ configure_caddy() {
   ok "Caddy handles TLS automatically from the compose stack"
 }
 
+# The host already runs a web server this script must not touch — a control
+# panel regenerates its vhosts, and other people's sites are on the same
+# daemon. So write nothing: print the exact config to add, and let whoever
+# owns that server apply it.
+configure_existing() {
+  ok "Leaving ${PORTS_IN_USE:-the existing web server} alone — nothing was modified."
+  info ""
+  info "The stack now listens on ${APP_UPSTREAM} (loopback only). Add ONE of the"
+  info "following to your existing server so ${DOMAIN} reaches it."
+  info ""
+  bold "  nginx — inside the server block for ${DOMAIN}"
+  cat <<NGINXEOF
+    location / {
+        proxy_pass         http://${APP_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+    }
+NGINXEOF
+  info ""
+  bold "  Apache — inside the <VirtualHost> for ${DOMAIN}"
+  cat <<APACHEVHEOF
+    ProxyPreserveHost On
+    ProxyPass        / http://${APP_UPSTREAM}/
+    ProxyPassReverse / http://${APP_UPSTREAM}/
+    RequestHeader set X-Forwarded-Proto "https"
+APACHEVHEOF
+  info ""
+  bold "  cPanel/Plesk — .htaccess in the document root, when you cannot edit the vhost"
+  cat <<HTACCESSEOF
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+    RewriteRule ^(.*)\$ http://${APP_UPSTREAM}/\$1 [P,L]
+    RequestHeader set X-Forwarded-Proto "https"
+HTACCESSEOF
+  info ""
+  info "ProxyPreserveHost is forbidden in .htaccess, so that last one cannot"
+  info "preserve the Host header — the stack's internal Caddy pins it to"
+  info "${DOMAIN} for exactly that reason, and the app works either way."
+  info ""
+  warn "TLS for ${DOMAIN} stays your existing server's job — this script issued none."
+}
+
 bold ""
 bold "Configuring the web server"
 
@@ -645,7 +793,10 @@ bold "Configuring the web server"
 # Gated on a prompt, matching "never opens a firewall port you did not ask
 # for" above — the fix for that closed port is still the user's call, just
 # now an informed one instead of a mysterious timeout three steps later.
-if [ "$WEB_SERVER" != none ] && command -v firewall-cmd >/dev/null 2>&1 \
+# 'existing' is exempt: whatever is already serving those ports publicly has
+# working firewall rules by definition, and this script is not touching them.
+if [ "$WEB_SERVER" != none ] && [ "$WEB_SERVER" != existing ] \
+    && command -v firewall-cmd >/dev/null 2>&1 \
     && systemctl is-active --quiet firewalld; then
   warn "firewalld is active and only allows SSH through by default."
   if confirm "Open 80 and 443 (ssh stays untouched)?" y; then
@@ -660,10 +811,11 @@ if [ "$WEB_SERVER" != none ] && command -v firewall-cmd >/dev/null 2>&1 \
 fi
 
 case "$WEB_SERVER" in
-  nginx)  configure_nginx ;;
-  apache) configure_apache ;;
-  caddy)  configure_caddy ;;
-  none)   warn "No web server configured. Point your load balancer at ${APP_UPSTREAM} (the stack's internal origin) and forward X-Forwarded-Proto." ;;
+  nginx)    configure_nginx ;;
+  apache)   configure_apache ;;
+  caddy)    configure_caddy ;;
+  existing) configure_existing ;;
+  none)     warn "No web server configured. Point your load balancer at ${APP_UPSTREAM} (the stack's internal origin) and forward X-Forwarded-Proto." ;;
 esac
 
 # ------------------------------------------------------------------- launch
@@ -688,6 +840,7 @@ else
   PROFILES="--profile internal"
 fi
 [ "$DB_MODE" = "bundled" ] && PROFILES="$PROFILES --profile bundled-db"
+[ "${ENABLE_PGWEB:-0}" -eq 1 ] && PROFILES="$PROFILES --profile pgweb"
 
 # Exported as well as passed: `docker compose ps/logs/exec` in the done-block
 # hints below then behave identically for whoever copies them.
@@ -697,6 +850,21 @@ docker compose -f "$COMPOSE_FILE" up -d --build
 docker compose -f "$COMPOSE_FILE" exec -T web python manage.py migrate --no-input
 docker compose -f "$COMPOSE_FILE" exec -T web python manage.py collectstatic --no-input >/dev/null
 docker compose -f "$COMPOSE_FILE" exec -T web python manage.py seed_plans
+
+# Tenant isolation is row-level security, and PostgreSQL disables it silently
+# for superuser and BYPASSRLS roles — no error, no log line, queries just start
+# returning other tenants' rows. The bundled database's POSTGRES_USER is a
+# superuser (that is how the postgres image builds it), so the obvious
+# DATABASE_URL produces a working-looking deployment with no isolation at all.
+# Never fatal here: the stack is already serving, and stopping the script does
+# not un-break it. Loud, specific, and with the fix attached instead.
+bold ""
+bold "Verifying tenant isolation"
+if ! docker compose -f "$COMPOSE_FILE" exec -T web python manage.py verify_tenant_isolation; then
+  echo
+  warn "TENANT ISOLATION IS NOT ENFORCED — see the explanation above."
+  warn "Workspaces can read each other's data. Resolve this before real customers."
+fi
 
 # -------------------------------------------------------------- first owner
 bold ""
@@ -723,6 +891,18 @@ info "Restart   docker compose -f $COMPOSE_FILE restart web"
 info "Update    git pull && sudo bash deploy/setup.sh --non-interactive"
 info "Compose   export COMPOSE_PROFILES=$COMPOSE_PROFILES   # before any manual 'docker compose' command"
 echo
+if [ "$DB_MODE" = "bundled" ]; then
+  bold "  Database"
+  info "psql      docker compose -f $COMPOSE_FILE exec db psql -U ledgerflow ledgerflow"
+  info "Tunnel    ssh -L ${POSTGRES_HOST_PORT:-5432}:127.0.0.1:${POSTGRES_HOST_PORT:-5432} $(whoami)@${DOMAIN}"
+  info "          then connect a desktop client to localhost:${POSTGRES_HOST_PORT:-5432}, database 'ledgerflow',"
+  info "          user 'ledgerflow', password in $ENV_FILE (POSTGRES_PASSWORD)."
+  [ "${ENABLE_PGWEB:-0}" -eq 1 ] && \
+    info "Browser   ssh -L ${PGWEB_HOST_PORT:-8081}:127.0.0.1:${PGWEB_HOST_PORT:-8081} $(whoami)@${DOMAIN}  → http://localhost:${PGWEB_HOST_PORT:-8081}"
+  info "Backup    docker compose -f $COMPOSE_FILE exec -T db pg_dump -U ledgerflow ledgerflow | gzip > backup-\$(date +%F).sql.gz"
+  echo
+fi
 [ -z "${EMAIL_HOST:-}" ] && warn "No SMTP: invitations and password resets will not be delivered."
 [ "$WEB_SERVER" = "none" ] && warn "No TLS on this host — terminate it upstream, or re-run with --reconfigure-web."
+[ "$WEB_SERVER" = "existing" ] && warn "Not reachable until you add the proxy config above to ${PORTS_IN_USE:-your web server}."
 echo
