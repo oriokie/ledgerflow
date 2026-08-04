@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
+from functools import cache
 
 from .base import PaymentProvider
 from .mpesa_provider import MpesaProvider
@@ -14,7 +14,7 @@ _PROVIDERS: dict[str, type[PaymentProvider]] = {
 }
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_provider(key: str) -> PaymentProvider:
     try:
         return _PROVIDERS[key]()

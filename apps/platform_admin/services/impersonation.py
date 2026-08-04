@@ -236,16 +236,14 @@ def expire_stale(*, now=None) -> int:
     indefinitely.
     """
     now = now or timezone.now()
-    return ImpersonationGrant.objects.filter(
-        status=ImpersonationStatus.ACTIVE, expires_at__lte=now
-    ).update(status=ImpersonationStatus.EXPIRED, ended_at=now, updated_at=now)
+    return ImpersonationGrant.objects.filter(status=ImpersonationStatus.ACTIVE, expires_at__lte=now).update(
+        status=ImpersonationStatus.EXPIRED, ended_at=now, updated_at=now
+    )
 
 
 def active_sessions():
     return (
-        ImpersonationGrant.objects.filter(
-            status=ImpersonationStatus.ACTIVE, expires_at__gt=timezone.now()
-        )
+        ImpersonationGrant.objects.filter(status=ImpersonationStatus.ACTIVE, expires_at__gt=timezone.now())
         .select_related("staff", "staff__user")
         .order_by("-created_at")
     )

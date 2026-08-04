@@ -324,9 +324,7 @@ def test_search_parameters_do_not_execute_sql(payload):
 def test_ordering_parameter_is_an_allowlist_not_passed_through():
     """`order_by` on user input allows table scans and can leak schema."""
     membership = MembershipFactory()
-    response = _client(membership).get(
-        "/api/v1/finance/transactions/", {"order_by": "user__password"}
-    )
+    response = _client(membership).get("/api/v1/finance/transactions/", {"order_by": "user__password"})
     assert response.status_code in (200, 400)
 
 

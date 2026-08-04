@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 #
-# LedgerFlow — interactive production setup (Ubuntu 22.04 / 24.04 LTS).
+# LedgerFlow — interactive production setup.
+# Debian/Ubuntu (apt) and the RHEL family — RHEL, Rocky, AlmaLinux, Amazon
+# Linux 2023 (dnf/yum) — are auto-detected; nothing to choose.
 #
 # `provision.sh` does the same job non-interactively from environment
 # variables, which is right for CI and wrong for a person on a fresh box: it
@@ -49,6 +51,44 @@ die()   { printf '\033[31m\n  ✗ %s\033[0m\n\n' "$*" >&2; exit 1; }
 
 require_root() {
   [ "$(id -u)" -eq 0 ] || die "Run with sudo — this installs packages and writes to /etc."
+}
+
+# ---------------------------------------------------------------- OS family
+#
+# Package manager, not distro name, is what every install step below actually
+# branches on — Rocky, Alma and RHEL itself all take the same dnf commands.
+# Detected once, up front, before a single prompt: the previous version of this
+# script discovered it was on the wrong OS four steps in, after generating
+# secrets and writing .env, via a bare "apt-get: command not found" with no
+# context. Dying here instead costs one line and saves the round trip.
+#
+# PKG_FAMILY is "debian" or "rhel" — the two axes install steps below branch
+# on (paths, service names, module handling differ by family, not by manager).
+detect_pkg_manager() {
+  if command -v apt-get >/dev/null 2>&1; then
+    PKG_MANAGER=apt; PKG_FAMILY=debian
+  elif command -v dnf >/dev/null 2>&1; then
+    PKG_MANAGER=dnf; PKG_FAMILY=rhel
+  elif command -v yum >/dev/null 2>&1; then
+    PKG_MANAGER=yum; PKG_FAMILY=rhel
+  else
+    die "No apt-get, dnf or yum found. This script supports Debian/Ubuntu and
+  the RHEL family (RHEL, Rocky, AlmaLinux, Amazon Linux 2023). For anything
+  else — Alpine, Arch, a bare container — see 'Manual / managed infrastructure'
+  in deploy/README.md and drive docker-compose.server.yml directly; every
+  package-install step in this script is one call, easy to translate by hand."
+  fi
+}
+
+# pkg_install <packages...> — the one call site every config function below
+# uses, so a third package manager is one function to add, not a search-and-
+# replace across five functions.
+pkg_install() {
+  case "$PKG_MANAGER" in
+    apt) apt-get install -y -qq "$@" >/dev/null ;;
+    dnf) dnf install -y -q "$@" >/dev/null ;;
+    yum) yum install -y -q "$@" >/dev/null ;;
+  esac
 }
 
 # ---------------------------------------------------------------- prompts
@@ -158,6 +198,8 @@ bold "  LedgerFlow — production setup"
 bold "  ─────────────────────────────"
 echo
 require_root
+detect_pkg_manager
+ok "Detected $PKG_MANAGER ($PKG_FAMILY family)."
 
 # Load any existing configuration so re-runs pre-fill their answers rather than
 # asking everything again as though it were a fresh box.
@@ -373,20 +415,41 @@ ok "Wrote .env (mode 600)"
 if [ "$RECONFIGURE_WEB_ONLY" -eq 0 ]; then
   bold ""
   bold "Installing dependencies"
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get update -qq
-  apt-get install -y -qq ca-certificates curl gnupg openssl >/dev/null
+
+  if [ "$PKG_FAMILY" = debian ]; then
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq
+    pkg_install ca-certificates curl gnupg openssl
+  else
+    dnf makecache -q 2>/dev/null || yum makecache -q 2>/dev/null || true
+    pkg_install ca-certificates curl openssl
+  fi
 
   if ! command -v docker >/dev/null 2>&1; then
-    install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-      | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    chmod a+r /etc/apt/keyrings/docker.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+    if [ "$PKG_FAMILY" = debian ]; then
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      chmod a+r /etc/apt/keyrings/docker.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
 https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-      > /etc/apt/sources.list.d/docker.list
-    apt-get update -qq
-    apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin >/dev/null
+        > /etc/apt/sources.list.d/docker.list
+      apt-get update -qq
+      pkg_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    else
+      # Docker publishes no first-party RHEL repo; its own docs point RHEL,
+      # Rocky and Alma at the CentOS one — all four are ABI-compatible with
+      # the RPMs it ships, which is why this is the documented path rather
+      # than a workaround.
+      pkg_install dnf-plugins-core
+      dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo -y -q 2>/dev/null \
+        || yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      pkg_install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      # The apt package's postinst enables+starts the daemon; dnf/yum's does
+      # not, so a fresh RHEL install would otherwise leave `docker compose up`
+      # failing against a socket nothing is listening on.
+      systemctl enable --now docker
+    fi
     ok "Installed Docker"
   else
     ok "Docker already present"
@@ -405,8 +468,14 @@ fi
 APP_UPSTREAM="127.0.0.1:8080"
 
 configure_nginx() {
-  apt-get install -y -qq nginx >/dev/null
-  cat > /etc/nginx/sites-available/ledgerflow <<NGINXEOF
+  pkg_install nginx
+  # /etc/nginx/conf.d/*.conf is auto-included by nginx.conf on every packaging
+  # of nginx — Debian's own default nginx.conf includes it alongside
+  # sites-enabled, and it's the *only* convention on the RHEL family, which
+  # has no sites-available/sites-enabled at all. Writing here instead of into
+  # sites-available means one code path serves both families, and it drops
+  # the symlink step the sites-available convention required.
+  cat > /etc/nginx/conf.d/ledgerflow.conf <<NGINXEOF
 # Managed by deploy/setup.sh — re-run with --reconfigure-web to regenerate.
 server {
     listen 80;
@@ -443,8 +512,11 @@ server {
     }
 }
 NGINXEOF
-  ln -sf /etc/nginx/sites-available/ledgerflow /etc/nginx/sites-enabled/ledgerflow
-  rm -f /etc/nginx/sites-enabled/default
+  # Both families ship a catch-all default server on :80 that would otherwise
+  # win ties against ours by file-sort order; disabling it is harmless if it
+  # was never there.
+  rm -f /etc/nginx/sites-enabled/default            # Debian/Ubuntu
+  rm -f /etc/nginx/conf.d/default.conf               # RHEL family
   nginx -t >/dev/null 2>&1 || die "nginx rejected the generated config; run 'nginx -t' to see why."
   systemctl reload nginx || systemctl start nginx
   ok "Configured nginx"
@@ -452,9 +524,30 @@ NGINXEOF
 }
 
 configure_apache() {
-  apt-get install -y -qq apache2 >/dev/null
-  a2enmod proxy proxy_http headers ssl rewrite >/dev/null 2>&1 || true
-  cat > /etc/apache2/sites-available/ledgerflow.conf <<APACHEEOF
+  # Package name, config directory and service name all diverge by family —
+  # more than nginx does, because "sites-available + a2enmod" is a Debian
+  # invention with no RHEL equivalent, not just a path difference.
+  local conf_dir
+  if [ "$PKG_FAMILY" = debian ]; then
+    pkg_install apache2
+    a2enmod proxy proxy_http headers ssl rewrite >/dev/null 2>&1 || true
+    conf_dir=/etc/apache2/sites-available
+  else
+    # RHEL's base httpd package auto-loads proxy/proxy_http/headers/rewrite
+    # from conf.modules.d/00-base.conf — there is no a2enmod to run. mod_ssl
+    # is the one module that ships as its own RPM.
+    pkg_install httpd mod_ssl
+    conf_dir=/etc/httpd/conf.d
+    # Installing mod_ssl drops /etc/httpd/conf.d/ssl.conf: a second *:443
+    # VirtualHost pointed at RHEL's snake-oil certificate. Apache picks
+    # between same-port vhosts by ServerName/SNI, but a broken second vhost
+    # is still worth removing rather than trusting Apache's tie-break — it
+    # has caused startup failures on distros where the placeholder cert path
+    # in that file doesn't exist.
+    rm -f /etc/httpd/conf.d/ssl.conf
+  fi
+
+  cat > "$conf_dir/ledgerflow.conf" <<APACHEEOF
 # Managed by deploy/setup.sh — re-run with --reconfigure-web to regenerate.
 <VirtualHost *:80>
     ServerName ${DOMAIN}
@@ -481,10 +574,21 @@ $(for h in ${EXTRA_HOSTS//,/ }; do echo "    ServerAlias $h"; done)
     LimitRequestBody 26214400
 </VirtualHost>
 APACHEEOF
-  a2ensite ledgerflow >/dev/null 2>&1 || true
-  a2dissite 000-default >/dev/null 2>&1 || true
-  apache2ctl configtest >/dev/null 2>&1 || die "Apache rejected the generated config; run 'apache2ctl configtest'."
-  systemctl reload apache2 || systemctl start apache2
+  local apache_service apache_ctl
+  if [ "$PKG_FAMILY" = debian ]; then
+    a2ensite ledgerflow >/dev/null 2>&1 || true
+    a2dissite 000-default >/dev/null 2>&1 || true
+    apache_service=apache2
+    apache_ctl=apache2ctl
+  else
+    # conf.d is auto-included on RHEL — no ensite step, and no default vhost
+    # ships to disable.
+    apache_service=httpd
+    apache_ctl=apachectl
+  fi
+  "$apache_ctl" configtest >/dev/null 2>&1 \
+    || die "Apache rejected the generated config; run '$apache_ctl configtest' to see why."
+  systemctl reload "$apache_service" || systemctl start "$apache_service"
   ok "Configured Apache"
   issue_certificate apache
 }
@@ -495,7 +599,12 @@ issue_certificate() {
     warn "Skipping TLS: point $DOMAIN at this server, then re-run with --reconfigure-web."
     return
   fi
-  apt-get install -y -qq certbot "python3-certbot-${flavour}" >/dev/null
+  if [ "$PKG_FAMILY" = rhel ]; then
+    # certbot and its plugins live in EPEL, not the base/AppStream repos.
+    # Harmless to re-run: dnf no-ops on an already-enabled repo.
+    pkg_install epel-release
+  fi
+  pkg_install certbot "python3-certbot-${flavour}"
 
   local domain_args="-d $DOMAIN"
   for h in ${EXTRA_HOSTS//,/ }; do domain_args="$domain_args -d $(echo "$h" | xargs)"; done
@@ -519,6 +628,28 @@ configure_caddy() {
 
 bold ""
 bold "Configuring the web server"
+
+# RHEL cloud images commonly ship firewalld active with only SSH open —
+# Ubuntu images typically ship no firewall at all. Left alone, DNS resolves
+# and certbot's HTTP-01 challenge times out with nothing indicating the cause
+# is a closed port rather than the DNS/TLS problem its own error suggests.
+# Gated on a prompt, matching "never opens a firewall port you did not ask
+# for" above — the fix for that closed port is still the user's call, just
+# now an informed one instead of a mysterious timeout three steps later.
+if [ "$WEB_SERVER" != none ] && command -v firewall-cmd >/dev/null 2>&1 \
+    && systemctl is-active --quiet firewalld; then
+  warn "firewalld is active and only allows SSH through by default."
+  if confirm "Open 80 and 443 (ssh stays untouched)?" y; then
+    firewall-cmd --permanent --add-service=http >/dev/null
+    firewall-cmd --permanent --add-service=https >/dev/null
+    firewall-cmd --reload >/dev/null
+    ok "Opened 80/443 in firewalld."
+  else
+    warn "Left closed — TLS issuance will fail until you open them yourself:"
+    info "  firewall-cmd --permanent --add-service={http,https} && firewall-cmd --reload"
+  fi
+fi
+
 case "$WEB_SERVER" in
   nginx)  configure_nginx ;;
   apache) configure_apache ;;

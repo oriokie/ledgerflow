@@ -140,9 +140,7 @@ def test_journey_import_to_budget():
     lines = status_body.data["lines"]
     # Ids come back as UUID objects from create and strings from status, so
     # compare as strings rather than relying on the serialiser being uniform.
-    groceries_line = next(
-        row for row in lines if str(row["category_id"]) == str(groceries["id"])
-    )
+    groceries_line = next(row for row in lines if str(row["category_id"]) == str(groceries["id"]))
 
     # $42.50 + $31.25 of groceries, and the salary must not be counted as spend.
     assert groceries_line["actual_minor"] == 7375, groceries_line
@@ -176,12 +174,12 @@ def test_journey_invite_member_and_role_limits(django_capture_on_commit_callback
         override_settings(FRONTEND_BASE_URL="https://app.example.test"),
         django_capture_on_commit_callbacks(execute=True),
     ):
-            sent = client.post(
-                "/api/v1/tenancy/workspaces/invitations/",
-                {"email": invitee.email, "role": Role.VIEWER},
-                format="json",
-            )
-            assert sent.status_code in (200, 201), sent.data
+        sent = client.post(
+            "/api/v1/tenancy/workspaces/invitations/",
+            {"email": invitee.email, "role": Role.VIEWER},
+            format="json",
+        )
+        assert sent.status_code in (200, 201), sent.data
 
     assert len(mail.outbox) == 1, "the invitee received nothing"
     body = mail.outbox[0].body
@@ -196,16 +194,12 @@ def test_journey_invite_member_and_role_limits(django_capture_on_commit_callback
 
     import pathlib
 
-    routes = set(
-        re.findall(r'<Route\s+path="([^"]+)"', pathlib.Path("frontend/app/src/App.tsx").read_text())
-    )
+    routes = set(re.findall(r'<Route\s+path="([^"]+)"', pathlib.Path("frontend/app/src/App.tsx").read_text()))
     assert path in routes, f"the email links to {path}, which is not a page"
 
     # --- the token works ----------------------------------------------------
     invitee_client = _bearer_client(invitee)
-    accepted = invitee_client.post(
-        "/api/v1/tenancy/invitations/accept/", {"token": token}, format="json"
-    )
+    accepted = invitee_client.post("/api/v1/tenancy/invitations/accept/", {"token": token}, format="json")
     assert accepted.status_code in (200, 201), accepted.data
 
     # --- and the role they were given is the role they have -----------------
@@ -246,7 +240,10 @@ def test_journey_failed_payment_to_recovery():
     dunning.ensure_default_policy()
 
     plan = Plan.objects.create(
-        tier=PlanTier.PLUS, name="Plus", price_minor=900, currency="USD",
+        tier=PlanTier.PLUS,
+        name="Plus",
+        price_minor=900,
+        currency="USD",
         interval=BillingInterval.MONTHLY,
     )
     sub = Subscription.objects.create(
@@ -255,8 +252,13 @@ def test_journey_failed_payment_to_recovery():
 
     # --- the card fails -----------------------------------------------------
     failed = Payment.objects.create(
-        tenant_id=tenant_id, subscription=sub, amount_minor=900, currency="USD",
-        status=PaymentStatus.FAILED, provider="stripe", failure_reason="card_declined",
+        tenant_id=tenant_id,
+        subscription=sub,
+        amount_minor=900,
+        currency="USD",
+        status=PaymentStatus.FAILED,
+        provider="stripe",
+        failure_reason="card_declined",
     )
     case = dunning.on_payment_failed(payment=failed)
     assert case is not None
@@ -273,8 +275,12 @@ def test_journey_failed_payment_to_recovery():
 
     # --- the customer pays --------------------------------------------------
     recovered = Payment.objects.create(
-        tenant_id=tenant_id, subscription=sub, amount_minor=900, currency="USD",
-        status=PaymentStatus.SUCCEEDED, provider="stripe",
+        tenant_id=tenant_id,
+        subscription=sub,
+        amount_minor=900,
+        currency="USD",
+        status=PaymentStatus.SUCCEEDED,
+        provider="stripe",
     )
     dunning.on_payment_succeeded(payment=recovered)
 
@@ -287,9 +293,7 @@ def test_journey_failed_payment_to_recovery():
     assert _client(membership).get("/api/v1/finance/accounts/").status_code == 200
 
     # Nothing scheduled may still fire at a customer who has paid.
-    assert not DunningCase.objects.filter(
-        subscription=sub, status=DunningCaseStatus.OPEN
-    ).exists()
+    assert not DunningCase.objects.filter(subscription=sub, status=DunningCaseStatus.OPEN).exists()
 
 
 # ============================================================================

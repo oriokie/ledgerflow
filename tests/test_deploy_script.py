@@ -80,7 +80,7 @@ def test_dns_is_checked_before_requesting_a_certificate():
     almost always DNS, so say that instead."""
     source = SETUP.read_text()
     assert "dns_points_here" in source
-    issue = source[source.index("issue_certificate() {"):]
+    issue = source[source.index("issue_certificate() {") :]
     assert "dns_points_here" in issue[:400]
 
 
@@ -161,8 +161,13 @@ def test_the_generated_env_covers_what_the_app_requires():
     """A missing FRONTEND_BASE_URL is how invitation links broke before."""
     source = SETUP.read_text()
     for key in (
-        "DJANGO_SECRET_KEY", "FIELD_ENCRYPTION_KEY", "DJANGO_ALLOWED_HOSTS",
-        "CORS_ALLOWED_ORIGINS", "FRONTEND_BASE_URL", "DATABASE_URL", "REDIS_URL",
+        "DJANGO_SECRET_KEY",
+        "FIELD_ENCRYPTION_KEY",
+        "DJANGO_ALLOWED_HOSTS",
+        "CORS_ALLOWED_ORIGINS",
+        "FRONTEND_BASE_URL",
+        "DATABASE_URL",
+        "REDIS_URL",
         "WEBAUTHN_RP_ID",
     ):
         assert f"{key}=" in source, key
@@ -177,3 +182,101 @@ def test_it_does_not_seed_demo_data_into_production():
     """`seed_platform_demo` invents customers; on a production box those become
     real rows in every revenue figure the console reports."""
     assert "seed_platform_demo" not in SETUP.read_text()
+
+
+# --------------------------------------------------------------- OS support
+#
+# The script originally hardcoded apt-get with no guard, so a run on any
+# non-Debian box (RHEL, Rocky, AlmaLinux, Amazon Linux — all dnf-based) died
+# mid-script on "apt-get: command not found", four prompts and a generated
+# .env after the point where it could have said so.
+
+
+def test_the_package_manager_is_detected_before_any_prompt():
+    """Detecting the OS after asking six questions and writing secrets is why
+    this broke silently in the first place — the check has to come first."""
+    source = SETUP.read_text()
+    detect_at = source.index("detect_pkg_manager\n")
+    first_prompt = source.index('bold "1. Where will this run?"')
+    assert detect_at < first_prompt
+
+
+def test_an_unsupported_package_manager_dies_with_a_pointer_not_a_crash():
+    source = SETUP.read_text()
+    die_block = source[source.index("detect_pkg_manager() {") : source.index("pkg_install() {")]
+    assert 'die "No apt-get, dnf or yum found' in die_block
+    # Points somewhere useful rather than just naming the problem.
+    assert "docker-compose.server.yml" in die_block
+
+
+@pytest.mark.parametrize("marker", ["dnf install", "yum install"])
+def test_dependency_install_has_an_rhel_branch(marker):
+    source = SETUP.read_text()
+    assert marker in source or "pkg_install" in source
+
+
+@pytest.mark.parametrize(
+    "needle",
+    [
+        "download.docker.com/linux/centos/docker-ce.repo",  # Docker's own RHEL guidance
+        "systemctl enable --now docker",  # dnf's docker-ce postinst doesn't start it
+        "httpd",  # RHEL's Apache package/service/binary name
+        "mod_ssl",  # ships as its own RPM on RHEL, unlike Debian's a2enmod ssl
+        "apachectl",  # RHEL's ctl binary — "apache2ctl" doesn't exist there
+        "epel-release",  # certbot's RHEL home
+    ],
+)
+def test_every_rhel_specific_step_is_present(needle):
+    assert needle in SETUP.read_text(), needle
+
+
+def test_apache_service_and_binary_names_are_not_hardcoded_debian():
+    """The pre-fix version called `apache2ctl` and `systemctl reload apache2`
+    unconditionally — both undefined on a box whose Apache is `httpd`."""
+    source = SETUP.read_text()
+    configure_apache = source[source.index("configure_apache() {") : source.index("issue_certificate() {")]
+    assert "apache_service" in configure_apache
+    assert "apache_ctl" in configure_apache
+    # Must still branch to the Debian names somewhere, not just the RHEL ones.
+    assert "apache2ctl" in configure_apache
+    assert "apache2" in configure_apache
+
+
+def test_nginx_config_lands_somewhere_both_families_auto_include():
+    """sites-available/sites-enabled is a Debian-only convention; conf.d is
+    read by both, which is why the fix collapses to one code path rather than
+    a second Debian/RHEL branch alongside Apache's. The old target path may
+    still appear in a comment explaining the switch away from it — only the
+    actual write target matters here."""
+    source = SETUP.read_text()
+    assert "/etc/nginx/sites-available/ledgerflow" not in source
+    assert "> /etc/nginx/conf.d/ledgerflow.conf" in source
+
+
+def test_opening_the_firewall_asks_first():
+    """The script's own stated rule: 'It never opens a firewall port you did
+    not ask for.' Adding firewalld support must not quietly break that."""
+    source = SETUP.read_text()
+    assert "It never opens a firewall port you did not ask for." in source
+    firewalld_block = source[source.index("firewall-cmd >/dev/null") : source.index('case "$WEB_SERVER" in')]
+    assert "confirm " in firewalld_block or "confirm(" in firewalld_block
+
+
+def test_firewalld_only_touches_http_and_https():
+    """Never SSH — a script run over an SSH session that closes its own
+    connection has no way to fix what it just did."""
+    source = SETUP.read_text()
+    assert "add-service=ssh" not in source
+    assert "add-port" not in source  # only the named http/https services
+
+
+def test_selinux_bind_mounts_are_labelled():
+    """SELinux enforcing (the RHEL-family default) silently denies a
+    container reading a bind-mounted host file with the wrong context —
+    Caddy would fail with 'permission denied' on a file that is right there.
+    `:z` is a no-op where SELinux isn't in play, so this costs nothing on
+    Debian/Ubuntu."""
+    compose = Path("deploy/docker-compose.server.yml").read_text()
+    for mount in ("./Caddyfile:", "./Caddyfile.internal:"):
+        line = next(row for row in compose.splitlines() if mount in row)
+        assert line.rstrip().endswith(",z"), line

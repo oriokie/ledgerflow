@@ -219,18 +219,12 @@ class Insight(TenantOwnedModel):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(
-                fields=["tenant_id", "dedupe_key"], name="uniq_insight_dedupe"
-            ),
-            models.CheckConstraint(
-                condition=models.Q(priority_score__lte=100), name="insight_score_max"
-            ),
+            models.UniqueConstraint(fields=["tenant_id", "dedupe_key"], name="uniq_insight_dedupe"),
+            models.CheckConstraint(condition=models.Q(priority_score__lte=100), name="insight_score_max"),
         ]
         indexes = [
             # The feed query: live insights, most important first.
-            models.Index(
-                fields=["tenant_id", "status", "-priority_score"], name="insight_feed_idx"
-            ),
+            models.Index(fields=["tenant_id", "status", "-priority_score"], name="insight_feed_idx"),
             models.Index(fields=["tenant_id", "kind"], name="insight_kind_idx"),
             models.Index(fields=["tenant_id", "expires_on"], name="insight_expiry_idx"),
         ]
@@ -338,9 +332,7 @@ class AutomationSuggestion(TenantOwnedModel):
     """
 
     kind = models.CharField(max_length=16, choices=SuggestionKind.choices)
-    status = models.CharField(
-        max_length=14, choices=ReviewStatus.choices, default=ReviewStatus.PENDING
-    )
+    status = models.CharField(max_length=14, choices=ReviewStatus.choices, default=ReviewStatus.PENDING)
     #: 0–1, from the detector. Never rounded up for presentation.
     confidence = models.FloatField(default=0.0)
     #: Why, in the user's own figures. Mandatory by contract — a suggestion
@@ -370,9 +362,7 @@ class AutomationSuggestion(TenantOwnedModel):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(
-                fields=["tenant_id", "dedupe_key"], name="uniq_automation_suggestion"
-            ),
+            models.UniqueConstraint(fields=["tenant_id", "dedupe_key"], name="uniq_automation_suggestion"),
             models.CheckConstraint(
                 condition=models.Q(confidence__gte=0) & models.Q(confidence__lte=1),
                 name="automation_confidence_range",
@@ -380,9 +370,7 @@ class AutomationSuggestion(TenantOwnedModel):
         ]
         indexes = [
             # The review queue: pending work, most confident first.
-            models.Index(
-                fields=["tenant_id", "status", "-confidence"], name="autosug_queue_idx"
-            ),
+            models.Index(fields=["tenant_id", "status", "-confidence"], name="autosug_queue_idx"),
             models.Index(fields=["tenant_id", "kind"], name="autosug_kind_idx"),
         ]
         ordering = ["-confidence", "-created_at"]
@@ -425,9 +413,7 @@ class MerchantProfile(TenantOwnedModel):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(
-                fields=["tenant_id", "key"], name="uniq_merchant_profile_key"
-            ),
+            models.UniqueConstraint(fields=["tenant_id", "key"], name="uniq_merchant_profile_key"),
         ]
         indexes = [
             models.Index(fields=["tenant_id", "-transaction_count"], name="merchant_freq_idx"),

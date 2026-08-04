@@ -201,9 +201,7 @@ class TransactionBulkSerializer(serializers.Serializer):
     meaningful for the categorize action (null clears the category)."""
 
     action = serializers.ChoiceField(choices=["categorize", "void"])
-    ids = serializers.ListField(
-        child=serializers.UUIDField(), allow_empty=False, max_length=500
-    )
+    ids = serializers.ListField(child=serializers.UUIDField(), allow_empty=False, max_length=500)
     category_id = serializers.UUIDField(required=False, allow_null=True)
 
 
@@ -328,9 +326,7 @@ class CashflowCalendarQuerySerializer(serializers.Serializer):
 class ReconcileSerializer(serializers.Serializer):
     """A batch of ticks from one reconciliation session."""
 
-    transaction_ids = serializers.ListField(
-        child=serializers.UUIDField(), allow_empty=False, max_length=500
-    )
+    transaction_ids = serializers.ListField(child=serializers.UUIDField(), allow_empty=False, max_length=500)
     #: False un-reconciles. Mis-ticking is ordinary, so undoing is a normal
     #: operation rather than an administrative exception.
     reconciled = serializers.BooleanField(default=True)

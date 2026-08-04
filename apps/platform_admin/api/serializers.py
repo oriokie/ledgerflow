@@ -182,6 +182,7 @@ class InvoiceSerializer(serializers.Serializer):
 
     def get_tenant_name(self, obj) -> str:
         return self.context.get("tenant_names", {}).get(obj.tenant_id, "")
+
     status = serializers.CharField(read_only=True)
     currency = serializers.CharField(read_only=True)
     issue_date = serializers.DateField(read_only=True)
@@ -308,7 +309,9 @@ class WriteCouponSerializer(serializers.Serializer):
         # A percentage above 100% would produce a negative invoice total, and
         # a fixed discount with no currency cannot be safely compared to one.
         if attrs["kind"] == CouponKind.PERCENT and attrs["value"] > 10_000:
-            raise serializers.ValidationError({"value": "A percentage discount cannot exceed 100% (10000 bps)."})
+            raise serializers.ValidationError(
+                {"value": "A percentage discount cannot exceed 100% (10000 bps)."}
+            )
         if attrs["kind"] == CouponKind.FIXED and not attrs.get("currency"):
             raise serializers.ValidationError({"currency": "A fixed-amount discount needs a currency."})
         if attrs["duration"] == CouponDuration.REPEATING and not attrs.get("duration_in_months"):

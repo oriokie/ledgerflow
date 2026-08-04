@@ -55,15 +55,11 @@ class SubscriptionView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
         payment_method = None
         pm_id = s.validated_data.get("payment_method_id")
         if pm_id:
-            payment_method = PaymentMethod.objects.filter(
-                id=pm_id, tenant_id=request.tenant_id
-            ).first()
+            payment_method = PaymentMethod.objects.filter(id=pm_id, tenant_id=request.tenant_id).first()
             if payment_method is None:
                 return Response({"detail": "Payment method not found."}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            sub = services.subscribe(
-                tenant_id=request.tenant_id, plan=plan, payment_method=payment_method
-            )
+            sub = services.subscribe(tenant_id=request.tenant_id, plan=plan, payment_method=payment_method)
         except services.BillingError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         return Response(SubscriptionSerializer(sub).data, status=status.HTTP_201_CREATED)
@@ -174,9 +170,7 @@ class WebhookView(APIView):
     def post(self, request, provider_key):
         headers = {k.lower(): v for k, v in request.headers.items()}
         try:
-            result = services.handle_webhook(
-                provider_key=provider_key, body=request.body, headers=headers
-            )
+            result = services.handle_webhook(provider_key=provider_key, body=request.body, headers=headers)
         except services.BillingError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except ValueError as exc:

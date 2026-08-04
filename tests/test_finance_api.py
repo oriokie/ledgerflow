@@ -199,9 +199,10 @@ def test_review_count_reports_a_total_the_paginated_list_cannot(tenant_context):
     """The ledger is cursor-paginated, deliberately — it has no natural end. But
     cursor pagination cannot report a total, so anything wanting to say "12 need
     a look" has to ask directly rather than counting a page and hoping."""
+    from django.utils import timezone
+
     from apps.finance import services as finance_services
     from apps.finance.models import AccountType, CategoryKind
-    from django.utils import timezone
 
     membership, client = tenant_context
     from tests.utils import tenant_scope
@@ -233,9 +234,10 @@ def test_review_count_reports_a_total_the_paginated_list_cannot(tenant_context):
 def test_a_transaction_says_whether_it_needs_review_and_why(tenant_context):
     """The flag was filterable but not readable: the ledger could be narrowed to
     the rows needing attention without ever being able to mark them."""
+    from django.utils import timezone
+
     from apps.finance import services as finance_services
     from apps.finance.models import AccountType, CategoryKind
-    from django.utils import timezone
     from tests.utils import tenant_scope
 
     membership, client = tenant_context

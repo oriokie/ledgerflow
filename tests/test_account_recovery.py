@@ -41,9 +41,7 @@ def test_lookup_names_why_the_person_cannot_get_in():
     membership.user.save(update_fields=["is_active"])
 
     staff = make_staff(PlatformRole.TECHNICAL_SUPPORT)
-    body = client_for(staff).get(
-        "/api/v1/platform/users/lookup/", {"email": membership.user.email}
-    ).json()
+    body = client_for(staff).get("/api/v1/platform/users/lookup/", {"email": membership.user.email}).json()
 
     assert body["is_active"] is False
     assert "deactivated" in " ".join(body["blockers"]).lower()
@@ -55,17 +53,13 @@ def test_lookup_reports_a_suspended_workspace_as_the_blocker():
     Tenant.objects.filter(id=membership.tenant_id).update(is_active=False)
 
     staff = make_staff(PlatformRole.TECHNICAL_SUPPORT)
-    body = client_for(staff).get(
-        "/api/v1/platform/users/lookup/", {"email": membership.user.email}
-    ).json()
+    body = client_for(staff).get("/api/v1/platform/users/lookup/", {"email": membership.user.email}).json()
     assert any("suspended" in b.lower() for b in body["blockers"])
 
 
 def test_lookup_is_a_404_for_an_unknown_address():
     staff = make_staff(PlatformRole.TECHNICAL_SUPPORT)
-    response = client_for(staff).get(
-        "/api/v1/platform/users/lookup/", {"email": "nobody@example.test"}
-    )
+    response = client_for(staff).get("/api/v1/platform/users/lookup/", {"email": "nobody@example.test"})
     assert response.status_code == 404
 
 
@@ -78,7 +72,8 @@ def test_reactivating_a_locked_out_user():
 
     response = client_for(staff).post(
         f"/api/v1/platform/users/{membership.user_id}/reactivate/",
-        {"reason": REASON}, format="json",
+        {"reason": REASON},
+        format="json",
     )
     assert response.status_code == 200
     assert response.data["is_active"] is True
@@ -96,7 +91,8 @@ def test_reactivation_is_not_a_way_around_dunning():
     staff = make_staff(PlatformRole.TECHNICAL_SUPPORT)
     response = client_for(staff).post(
         f"/api/v1/platform/users/{membership.user_id}/reactivate/",
-        {"reason": REASON}, format="json",
+        {"reason": REASON},
+        format="json",
     )
     assert response.status_code == 422
     assert "billing" in response.data["detail"].lower()
@@ -109,7 +105,8 @@ def test_a_platform_account_cannot_be_deactivated_here():
 
     response = client_for(actor).post(
         f"/api/v1/platform/users/{target.user_id}/deactivate/",
-        {"reason": REASON}, format="json",
+        {"reason": REASON},
+        format="json",
     )
     assert response.status_code == 422
     assert "platform access" in response.data["detail"].lower()
@@ -125,7 +122,8 @@ def test_support_can_start_a_reset_but_never_sees_the_token():
 
     response = client_for(staff).post(
         f"/api/v1/platform/users/{user.id}/send-password-reset/",
-        {"reason": REASON}, format="json",
+        {"reason": REASON},
+        format="json",
     )
     assert response.status_code == 200
     # No token anywhere in the response, and none in the audit row.

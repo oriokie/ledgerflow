@@ -13,11 +13,11 @@ import uuid
 import pytest
 from django.utils import timezone
 
-from tests.utils import tenant_scope
 from apps.finance import selectors as finance_selectors
 from apps.finance import services as finance_services
 from apps.finance.models import AccountType
 from apps.ledger.models import AccountKind, Direction, JournalEntry, LedgerLine
+from tests.utils import tenant_scope
 
 pytestmark = pytest.mark.django_db
 

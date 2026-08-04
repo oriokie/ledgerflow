@@ -64,7 +64,7 @@ def add_months(anchor: date, months: int) -> date:
     year = anchor.year + total // 12
     month = total % 12 + 1
     # Last day of the target month, without importing calendar arithmetic.
-    if month == 12:
+    if month == 12:  # noqa: SIM108 — the ternary reads worse than this
         last_day = 31
     else:
         last_day = (date(year, month + 1, 1) - timedelta(days=1)).day

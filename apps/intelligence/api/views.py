@@ -12,6 +12,7 @@ from dataclasses import asdict
 from django.conf import settings
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
+from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -19,12 +20,21 @@ from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin
 from apps.common.cache import cached_analytics
 from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
-from rest_framework.permissions import BasePermission
 
-from .. import automation_services, registry, selectors, services
+from .. import automation_services, coach, registry, selectors, services
 from ..automation import AutomationError, validate_actions
-from .. import coach
-from ..models import AutomationRule, Briefing, BriefingPeriod, CategorizationSuggestion, Insight, InsightStatus
+from ..models import (
+    AutomationRule,
+    BriefingPeriod,
+    CategorizationSuggestion,
+    Insight,
+    InsightStatus,
+)
+from .serializers import (
+    AutomationRuleSerializer,
+    AutomationRuleWriteSerializer,
+    CategorizationSuggestionSerializer,
+)
 
 
 class HasAIInsights(BasePermission):
@@ -39,12 +49,6 @@ class HasAIInsights(BasePermission):
         if tenant_id is not None:
             ensure_ai_insights(tenant_id=tenant_id)  # raises PlanLimitExceeded if not entitled
         return True
-
-from .serializers import (
-    AutomationRuleSerializer,
-    AutomationRuleWriteSerializer,
-    CategorizationSuggestionSerializer,
-)
 
 
 @cached_analytics("health_score", ttl=300)
@@ -447,9 +451,7 @@ class InsightDecisionView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView
     @extend_schema(operation_id="insight_decision")
     def post(self, request, insight_id, decision):
         if decision not in self._ALLOWED:
-            return Response(
-                {"detail": f"Unknown decision {decision!r}."}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": f"Unknown decision {decision!r}."}, status=status.HTTP_400_BAD_REQUEST)
         insight = Insight.objects.filter(id=insight_id).first()
         if insight is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
@@ -470,9 +472,7 @@ class BriefingView(TenantScopedAPIView, APIView):
     @extend_schema(operation_id="briefing_retrieve")
     def get(self, request, period):
         if period not in BriefingPeriod.values:
-            return Response(
-                {"detail": f"Unknown period {period!r}."}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": f"Unknown period {period!r}."}, status=status.HTTP_400_BAD_REQUEST)
         briefing = coach.generate_briefing(period=period)
         return Response(
             {
@@ -666,16 +666,12 @@ class AutomationDecisionView(WriteRequiresMemberMixin, TenantScopedAPIView, APIV
         from ..models import AutomationSuggestion
 
         if decision not in ("approve", "reject"):
-            return Response(
-                {"detail": f"Unknown decision {decision!r}."}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"detail": f"Unknown decision {decision!r}."}, status=status.HTTP_400_BAD_REQUEST)
         suggestion = AutomationSuggestion.objects.filter(id=suggestion_id).first()
         if suggestion is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
-        handler = (
-            automation_services.approve if decision == "approve" else automation_services.reject
-        )
+        handler = automation_services.approve if decision == "approve" else automation_services.reject
         try:
             handler(suggestion=suggestion, actor_id=getattr(request.user, "id", None))
         except automation_services.AutomationError as exc:

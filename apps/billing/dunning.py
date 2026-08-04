@@ -114,9 +114,7 @@ def open_case(
     """
     now = now or timezone.now()
 
-    existing = DunningCase.objects.filter(
-        subscription=subscription, status__in=LIVE_CASE_STATUSES
-    ).first()
+    existing = DunningCase.objects.filter(subscription=subscription, status__in=LIVE_CASE_STATUSES).first()
     if existing is not None:
         return existing
 
@@ -196,9 +194,7 @@ def _schedule(*, case: DunningCase, policy: DunningPolicy, now) -> None:
 
 
 @transaction.atomic
-def close_case(
-    *, case: DunningCase, status: str, note: str = "", now=None
-) -> DunningCase:
+def close_case(*, case: DunningCase, status: str, note: str = "", now=None) -> DunningCase:
     """Resolve a case and cancel everything still scheduled.
 
     Cancelling the remaining attempts is the important half: a customer who
@@ -447,9 +443,7 @@ def on_payment_succeeded(*, payment: Payment) -> DunningCase | None:
     subscription = payment.subscription
     if subscription is None:
         return None
-    case = DunningCase.objects.filter(
-        subscription=subscription, status__in=LIVE_CASE_STATUSES
-    ).first()
+    case = DunningCase.objects.filter(subscription=subscription, status__in=LIVE_CASE_STATUSES).first()
     if case is None:
         return None
     return mark_recovered(case=case, note="Payment received.")

@@ -103,9 +103,7 @@ def reconciliation_summary(
     reconciled_minor = _signed_total(reconciled)
     uncleared_minor = _signed_total(uncleared)
 
-    last = (
-        reconciled.order_by("-reconciled_at").values_list("reconciled_at", flat=True).first()
-    )
+    last = reconciled.order_by("-reconciled_at").values_list("reconciled_at", flat=True).first()
 
     difference = None
     if statement_balance_minor is not None:
@@ -129,9 +127,7 @@ def reconciliation_summary(
 
 
 @transaction.atomic
-def set_reconciled(
-    *, transactions: list[Transaction], reconciled: bool, actor_id=audit.UNSET
-) -> int:
+def set_reconciled(*, transactions: list[Transaction], reconciled: bool, actor_id=audit.UNSET) -> int:
     """Mark rows confirmed against a statement, or undo that. Returns the count.
 
     Takes a list so a reconciliation screen can commit a whole session's ticks
@@ -147,8 +143,7 @@ def set_reconciled(
     for txn in transactions:
         if txn.status == TransactionStatus.VOID:
             raise ReconciliationError(
-                "A voided transaction has no counterpart on a statement and "
-                "cannot be reconciled."
+                "A voided transaction has no counterpart on a statement and " "cannot be reconciled."
             )
         if txn.status not in RECONCILABLE:
             raise ReconciliationError(

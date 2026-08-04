@@ -29,15 +29,28 @@ pytestmark = pytest.mark.django_db
 # --------------------------------------------------------------------------- helpers
 def _free_plan():
     return Plan.objects.create(
-        tier=PlanTier.FREE, name="Free", price_minor=0, currency="USD",
-        interval=BillingInterval.MONTHLY, max_members=1, max_accounts=3, sort_order=0,
+        tier=PlanTier.FREE,
+        name="Free",
+        price_minor=0,
+        currency="USD",
+        interval=BillingInterval.MONTHLY,
+        max_members=1,
+        max_accounts=3,
+        sort_order=0,
     )
 
 
 def _paid_plan(price=900):
     return Plan.objects.create(
-        tier=PlanTier.PLUS, name="Plus", price_minor=price, currency="USD",
-        interval=BillingInterval.MONTHLY, max_members=2, max_accounts=25, ai_insights=True, sort_order=1,
+        tier=PlanTier.PLUS,
+        name="Plus",
+        price_minor=price,
+        currency="USD",
+        interval=BillingInterval.MONTHLY,
+        max_members=2,
+        max_accounts=25,
+        ai_insights=True,
+        sort_order=1,
     )
 
 
@@ -158,9 +171,7 @@ def test_mpesa_subscribe_is_pending_until_webhook():
     assert payment.status == PaymentStatus.PENDING
 
     # simulate the M-PESA callback (success)
-    body = json.dumps(
-        {"Body": {"stkCallback": {"ResultCode": 0, "CheckoutRequestID": payment.provider_ref}}}
-    )
+    body = json.dumps({"Body": {"stkCallback": {"ResultCode": 0, "CheckoutRequestID": payment.provider_ref}}})
     from rest_framework.test import APIClient
 
     wh = APIClient().post("/api/v1/billing/webhooks/mpesa/", body, content_type="application/json")
@@ -191,9 +202,7 @@ def test_webhook_is_idempotent():
     )
     from rest_framework.test import APIClient
 
-    body = json.dumps(
-        {"id": "evt_1", "type": "payment_intent.succeeded", "data": {"object": {"id": "pi_x"}}}
-    )
+    body = json.dumps({"id": "evt_1", "type": "payment_intent.succeeded", "data": {"object": {"id": "pi_x"}}})
     first = APIClient().post("/api/v1/billing/webhooks/stripe/", body, content_type="application/json")
     second = APIClient().post("/api/v1/billing/webhooks/stripe/", body, content_type="application/json")
     assert first.json()["status"] == "processed"

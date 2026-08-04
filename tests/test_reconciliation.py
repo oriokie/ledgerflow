@@ -26,8 +26,12 @@ def _setup(balance=0):
     client = _bearer_client(membership.user, tenant_id=membership.tenant_id)
     account = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Current", "account_type": "checking", "currency": "USD",
-         **({"opening_balance_minor": balance} if balance else {})},
+        {
+            "name": "Current",
+            "account_type": "checking",
+            "currency": "USD",
+            **({"opening_balance_minor": balance} if balance else {}),
+        },
         format="json",
     ).data
     # Test tenants are built by the factory rather than `create_workspace`, so
@@ -84,7 +88,8 @@ def test_reconciling_stamps_when_it_happened():
     txn = _spend(client, account, 500)
     client.post(
         "/api/v1/finance/transactions/reconcile/",
-        {"transaction_ids": [txn["id"]]}, format="json",
+        {"transaction_ids": [txn["id"]]},
+        format="json",
     )
     assert Transaction.unscoped.get(id=txn["id"]).reconciled_at is not None
 
@@ -93,12 +98,12 @@ def test_unreconciling_is_a_normal_correction():
     """People mis-tick; undoing must not be an administrative exception."""
     _, client, account = _setup()
     txn = _spend(client, account, 500)
-    client.post("/api/v1/finance/transactions/reconcile/",
-                {"transaction_ids": [txn["id"]]}, format="json")
+    client.post("/api/v1/finance/transactions/reconcile/", {"transaction_ids": [txn["id"]]}, format="json")
 
     response = client.post(
         "/api/v1/finance/transactions/reconcile/",
-        {"transaction_ids": [txn["id"]], "reconciled": False}, format="json",
+        {"transaction_ids": [txn["id"]], "reconciled": False},
+        format="json",
     )
     assert response.status_code == 200
     row = Transaction.unscoped.get(id=txn["id"])
@@ -111,9 +116,7 @@ def test_a_whole_session_commits_in_one_request():
     _, client, account = _setup()
     ids = [_spend(client, account, 100 * n, f"Item {n}")["id"] for n in range(1, 6)]
 
-    response = client.post(
-        "/api/v1/finance/transactions/reconcile/", {"transaction_ids": ids}, format="json"
-    )
+    response = client.post("/api/v1/finance/transactions/reconcile/", {"transaction_ids": ids}, format="json")
     assert response.data["updated"] == 5
 
 
@@ -139,7 +142,8 @@ def test_an_unknown_transaction_is_a_404_not_a_partial_commit():
     txn = _spend(client, account, 500)
     response = client.post(
         "/api/v1/finance/transactions/reconcile/",
-        {"transaction_ids": [txn["id"], str(uuid.uuid4())]}, format="json",
+        {"transaction_ids": [txn["id"], str(uuid.uuid4())]},
+        format="json",
     )
     assert response.status_code == 404
     # The valid row must not have been marked on the way to failing.
@@ -162,8 +166,7 @@ def test_the_difference_is_what_the_user_drives_to_zero():
     _, client, account = _setup()
     a = _spend(client, account, 1000, "Rent")
     _spend(client, account, 250, "Not yet cleared")
-    client.post("/api/v1/finance/transactions/reconcile/",
-                {"transaction_ids": [a["id"]]}, format="json")
+    client.post("/api/v1/finance/transactions/reconcile/", {"transaction_ids": [a["id"]]}, format="json")
 
     body = client.get(
         f"/api/v1/finance/accounts/{account['id']}/reconciliation/",
@@ -179,8 +182,7 @@ def test_the_difference_is_what_the_user_drives_to_zero():
 def test_a_discrepancy_shows_as_a_nonzero_difference():
     _, client, account = _setup()
     txn = _spend(client, account, 1000)
-    client.post("/api/v1/finance/transactions/reconcile/",
-                {"transaction_ids": [txn["id"]]}, format="json")
+    client.post("/api/v1/finance/transactions/reconcile/", {"transaction_ids": [txn["id"]]}, format="json")
 
     body = client.get(
         f"/api/v1/finance/accounts/{account['id']}/reconciliation/",

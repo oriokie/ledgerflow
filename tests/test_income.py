@@ -94,18 +94,15 @@ def test_a_deduction_is_one_basis_or_the_other():
     with tenant_scope(tid):
         source = _source(gross_minor=300_000)
         with pytest.raises(services.IncomeError):
-            services.add_deduction(
-                source=source, kind=DeductionKind.TAX, amount_minor=1000, percent_bp=500
-            )
+            services.add_deduction(source=source, kind=DeductionKind.TAX, amount_minor=1000, percent_bp=500)
         with pytest.raises(services.IncomeError):
             services.add_deduction(source=source, kind=DeductionKind.TAX)
 
 
 def test_net_above_gross_is_refused():
     tid = uuid.uuid4()
-    with tenant_scope(tid):
-        with pytest.raises(services.IncomeError, match="Net cannot exceed gross"):
-            _source(net_minor=400_000, gross_minor=300_000)
+    with tenant_scope(tid), pytest.raises(services.IncomeError, match="Net cannot exceed gross"):
+        _source(net_minor=400_000, gross_minor=300_000)
 
 
 # ----------------------------------------------------------------- reliability
@@ -371,16 +368,14 @@ def test_deleted_source_leaves_the_summary():
 def test_a_pay_day_beyond_the_28th_is_refused():
     """A schedule that silently skips February is a real bug, not a rare one."""
     tid = uuid.uuid4()
-    with tenant_scope(tid):
-        with pytest.raises(services.IncomeError, match="between 1 and 28"):
-            _source(frequency=IncomeFrequency.MONTHLY, pay_day=31)
+    with tenant_scope(tid), pytest.raises(services.IncomeError, match="between 1 and 28"):
+        _source(frequency=IncomeFrequency.MONTHLY, pay_day=31)
 
 
 def test_semi_monthly_needs_both_pay_days():
     tid = uuid.uuid4()
-    with tenant_scope(tid):
-        with pytest.raises(services.IncomeError, match="both pay days"):
-            _source(frequency=IncomeFrequency.SEMI_MONTHLY, pay_day=15)
+    with tenant_scope(tid), pytest.raises(services.IncomeError, match="both pay days"):
+        _source(frequency=IncomeFrequency.SEMI_MONTHLY, pay_day=15)
 
 
 def test_currency_cannot_be_edited():

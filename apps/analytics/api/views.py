@@ -58,12 +58,7 @@ class ReportCatalogView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="report_catalog")
     def get(self, request):
-        return Response(
-            [
-                {"slug": slug, **meta}
-                for slug, meta in reports.REPORT_META.items()
-            ]
-        )
+        return Response([{"slug": slug, **meta} for slug, meta in reports.REPORT_META.items()])
 
 
 class ReportView(TenantScopedAPIView, APIView):
@@ -81,9 +76,7 @@ class ReportView(TenantScopedAPIView, APIView):
     @extend_schema(operation_id="report_run", parameters=[ReportQuerySerializer])
     def get(self, request, slug):
         if slug not in reports.REPORTS:
-            return Response(
-                {"detail": f"Unknown report {slug!r}."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": f"Unknown report {slug!r}."}, status=status.HTTP_404_NOT_FOUND)
         result = reports.run_report(slug, _filters_from(request.query_params))
         if result.is_empty:
             return Response(status=status.HTTP_204_NO_CONTENT)
@@ -112,9 +105,7 @@ class ReportExportView(TenantScopedAPIView, APIView):
         from django.http import HttpResponse
 
         if slug not in reports.REPORTS:
-            return Response(
-                {"detail": f"Unknown report {slug!r}."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": f"Unknown report {slug!r}."}, status=status.HTTP_404_NOT_FOUND)
 
         result = reports.run_report(slug, _filters_from(request.query_params))
         table = result.rows or result.series

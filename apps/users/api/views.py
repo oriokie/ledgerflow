@@ -22,10 +22,10 @@ from ..webauthn_models import WebAuthnCredential
 from .serializers import (
     LoginSerializer,
     MFACodeSerializer,
-    PasswordResetConfirmSerializer,
-    PasswordResetRequestSerializer,
     MFAVerifySerializer,
     OAuthCallbackSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     RefreshTokenSerializer,
     RegisterSerializer,
     TOTPConfirmSerializer,

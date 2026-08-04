@@ -132,7 +132,11 @@ def ensure_feature(*, tenant_id, feature, label: str = "") -> None:
     from .plan_catalogue import TIER_FEATURES
 
     cheapest = next(
-        (tier for tier in ("plus", "family", "business") if str(feature) in {str(f) for f in TIER_FEATURES[tier]}),
+        (
+            tier
+            for tier in ("plus", "family", "business")
+            if str(feature) in {str(f) for f in TIER_FEATURES[tier]}
+        ),
         None,
     )
     name = label or str(feature).replace("_", " ")

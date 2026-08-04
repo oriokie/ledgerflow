@@ -47,15 +47,9 @@ def _workspace(months: int = 6):
         currency="USD",
         opening_balance_minor=500_000,
     )
-    groceries = finance_services.create_category(
-        name="Groceries", kind=CategoryKind.EXPENSE, currency="USD"
-    )
-    dining = finance_services.create_category(
-        name="Dining", kind=CategoryKind.EXPENSE, currency="USD"
-    )
-    salary = finance_services.create_category(
-        name="Salary", kind=CategoryKind.INCOME, currency="USD"
-    )
+    groceries = finance_services.create_category(name="Groceries", kind=CategoryKind.EXPENSE, currency="USD")
+    dining = finance_services.create_category(name="Dining", kind=CategoryKind.EXPENSE, currency="USD")
+    salary = finance_services.create_category(name="Salary", kind=CategoryKind.INCOME, currency="USD")
 
     now = timezone.now()
     for month in range(months):
@@ -95,18 +89,14 @@ def test_an_unknown_period_is_rejected():
 
 
 def test_a_custom_range_overrides_the_named_period():
-    filters = ReportFilters(
-        period=Period.CUSTOM, start=date(2026, 1, 1), end=date(2026, 3, 31)
-    )
+    filters = ReportFilters(period=Period.CUSTOM, start=date(2026, 1, 1), end=date(2026, 3, 31))
     assert filters.window() == (date(2026, 1, 1), date(2026, 3, 31))
 
 
 def test_the_previous_window_matches_the_current_one_in_length():
     """Comparing a 30-day window against a 90-day one would make any delta
     meaningless."""
-    filters = ReportFilters(
-        period=Period.CUSTOM, start=date(2026, 3, 1), end=date(2026, 3, 31)
-    )
+    filters = ReportFilters(period=Period.CUSTOM, start=date(2026, 3, 1), end=date(2026, 3, 31))
     current_start, current_end = filters.window()
     previous_start, previous_end = filters.previous_window()
 
@@ -117,9 +107,10 @@ def test_the_previous_window_matches_the_current_one_in_length():
 def test_filters_are_hashable_so_they_can_key_a_cache():
     filters = ReportFilters(account_ids=("a", "b"), category_ids=("c",))
     assert hash(filters)
-    assert filters.cache_key_part() == ReportFilters(
-        account_ids=("a", "b"), category_ids=("c",)
-    ).cache_key_part()
+    assert (
+        filters.cache_key_part()
+        == ReportFilters(account_ids=("a", "b"), category_ids=("c",)).cache_key_part()
+    )
 
 
 def test_different_filters_produce_different_cache_keys():
@@ -199,9 +190,7 @@ def test_an_unscoped_read_bypasses_the_cache_entirely():
     assert len(calls) == 2
 
 
-def test_posting_a_transaction_invalidates_cached_reports(
-    tenant, django_capture_on_commit_callbacks
-):
+def test_posting_a_transaction_invalidates_cached_reports(tenant, django_capture_on_commit_callbacks):
     """The whole point of wiring invalidation into the ledger. A cache that
     survives a posting shows stale money.
 
@@ -225,9 +214,7 @@ def test_posting_a_transaction_invalidates_cached_reports(
     assert second != first, "report was served stale after a posting"
 
 
-def test_a_posting_registers_an_invalidation_callback(
-    tenant, django_capture_on_commit_callbacks
-):
+def test_a_posting_registers_an_invalidation_callback(tenant, django_capture_on_commit_callbacks):
     """Guards the wiring itself: without a callback registered, every derived
     cache in the product would go stale for the length of its TTL."""
     with tenant_scope(tenant):
@@ -244,25 +231,25 @@ def test_a_posting_registers_an_invalidation_callback(
 #: caching and rendering by registering, and an equality check would make every
 #: such addition look like a failure. Removing one of these still fails.
 REQUIRED_DASHBOARDS = {
-        "net_worth",
-        "savings_rate",
-        "cash_flow",
-        "income_sources",
-        "expense_trends",
-        "merchant_analytics",
-        "category_analytics",
-        "lifestyle_inflation",
-        "monthly_comparison",
-        "year_over_year",
-        "income_vs_spending",
-        "largest_purchases",
-        "subscription_costs",
-        "financial_health",
+    "net_worth",
+    "savings_rate",
+    "cash_flow",
+    "income_sources",
+    "expense_trends",
+    "merchant_analytics",
+    "category_analytics",
+    "lifestyle_inflation",
+    "monthly_comparison",
+    "year_over_year",
+    "income_vs_spending",
+    "largest_purchases",
+    "subscription_costs",
+    "financial_health",
 }
 
 
 def test_every_required_dashboard_exists():
-    assert REQUIRED_DASHBOARDS <= set(reports.REPORTS)
+    assert set(reports.REPORTS) >= REQUIRED_DASHBOARDS
 
 
 def test_every_report_has_rendering_metadata():
@@ -293,9 +280,7 @@ FIXED_WINDOW_REPORTS = {"monthly_comparison", "year_over_year"}
 def test_reports_honour_the_requested_window(tenant):
     with tenant_scope(tenant):
         _workspace()
-        filters = ReportFilters(
-            period=Period.CUSTOM, start=date(2026, 1, 1), end=date(2026, 6, 30)
-        )
+        filters = ReportFilters(period=Period.CUSTOM, start=date(2026, 1, 1), end=date(2026, 6, 30))
         for slug in reports.REPORTS:
             result = reports.run_report(slug, filters)
             assert result.slug == slug
@@ -308,9 +293,8 @@ def test_reports_honour_the_requested_window(tenant):
 
 
 def test_an_unknown_report_is_rejected(tenant):
-    with tenant_scope(tenant):
-        with pytest.raises(ValueError):
-            reports.run_report("vibes", ReportFilters())
+    with tenant_scope(tenant), pytest.raises(ValueError):
+        reports.run_report("vibes", ReportFilters())
 
 
 # =============================================================================
@@ -426,14 +410,11 @@ def test_filtering_by_account_narrows_the_result(tenant):
             occurred_at=timezone.now(),
         )
 
-        only_first = reports.run_report(
-            "category_analytics", ReportFilters(account_ids=(str(account.id),))
-        )
+        only_first = reports.run_report("category_analytics", ReportFilters(account_ids=(str(account.id),)))
         total = sum(r["amount_minor"] for r in only_first.rows)
         # The 900.00 on the other account must not be counted.
         assert total < 90_000 + sum(
-            r["amount_minor"]
-            for r in reports.run_report("category_analytics", ReportFilters()).rows
+            r["amount_minor"] for r in reports.run_report("category_analytics", ReportFilters()).rows
         )
 
 
@@ -445,7 +426,7 @@ def test_api_catalogue_lists_every_report(tenant_context):
     resp = client.get("/api/v1/analytics/reports/")
     assert resp.status_code == 200
     slugs = {r["slug"] for r in resp.data}
-    assert REQUIRED_DASHBOARDS <= slugs
+    assert slugs >= REQUIRED_DASHBOARDS
     # The catalogue is the single source of truth for what the UI can draw, so
     # it must agree exactly with the registry rather than merely overlap it.
     assert slugs == set(reports.REPORTS)
@@ -456,8 +437,7 @@ def test_api_runs_a_report(tenant_context):
     _, client = tenant_context
     client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Checking", "account_type": "checking", "currency": "USD",
-         "opening_balance_minor": 500_000},
+        {"name": "Checking", "account_type": "checking", "currency": "USD", "opening_balance_minor": 500_000},
         format="json",
     )
     resp = client.get("/api/v1/analytics/reports/net_worth/")
@@ -486,9 +466,7 @@ def test_api_rejects_a_half_specified_custom_range(tenant_context):
 
 def test_api_rejects_an_inverted_range(tenant_context):
     _, client = tenant_context
-    resp = client.get(
-        "/api/v1/analytics/reports/cash_flow/?start=2026-06-01&end=2026-01-01"
-    )
+    resp = client.get("/api/v1/analytics/reports/cash_flow/?start=2026-06-01&end=2026-01-01")
     assert resp.status_code == 400
 
 
@@ -496,8 +474,7 @@ def test_api_exports_a_report_as_csv(tenant_context):
     _, client = tenant_context
     account = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Checking", "account_type": "checking", "currency": "USD",
-         "opening_balance_minor": 500_000},
+        {"name": "Checking", "account_type": "checking", "currency": "USD", "opening_balance_minor": 500_000},
         format="json",
     ).data
     category = client.post(
@@ -527,6 +504,4 @@ def test_api_exports_a_report_as_csv(tenant_context):
 
 def test_api_export_is_204_when_there_is_nothing_to_export(tenant_context):
     _, client = tenant_context
-    assert (
-        client.get("/api/v1/analytics/reports/largest_purchases/export/").status_code == 204
-    )
+    assert client.get("/api/v1/analytics/reports/largest_purchases/export/").status_code == 204

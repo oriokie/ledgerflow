@@ -142,7 +142,5 @@ def dispatch_email(notification: Notification) -> None:
     notification_id = str(notification.id)
     tenant_id = str(notification.tenant_id)
     transaction.on_commit(
-        lambda: send_notification_email_task.delay(
-            notification_id=notification_id, tenant_id=tenant_id
-        )
+        lambda: send_notification_email_task.delay(notification_id=notification_id, tenant_id=tenant_id)
     )

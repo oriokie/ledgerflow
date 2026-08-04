@@ -48,9 +48,7 @@ def test_readiness_reports_ready_when_everything_is_up(client):
 
 def test_readiness_fails_when_the_database_is_unreachable(client):
     """The whole point: a probe that cannot fail is not a probe."""
-    with mock.patch(
-        "apps.common.health_views.connection.cursor", side_effect=RuntimeError("db is down")
-    ):
+    with mock.patch("apps.common.health_views.connection.cursor", side_effect=RuntimeError("db is down")):
         response = client.get("/readyz/")
     assert response.status_code == 503
     assert response.json()["checks"]["database"] is False
@@ -85,9 +83,7 @@ def test_readiness_fails_when_migrations_are_outstanding(client):
 def test_readiness_names_the_failing_dependency(client):
     """An operator reading the probe output should learn which thing is down,
     not merely that something is."""
-    with mock.patch(
-        "apps.common.health_views.connection.cursor", side_effect=RuntimeError("db is down")
-    ):
+    with mock.patch("apps.common.health_views.connection.cursor", side_effect=RuntimeError("db is down")):
         checks = client.get("/readyz/").json()["checks"]
     assert checks["database"] is False
     assert checks["cache"] is True
@@ -122,9 +118,7 @@ def test_production_refuses_to_boot_without_allowed_hosts():
     """A wildcard host in production is a Host-header attack waiting to happen,
     so the setting is required rather than defaulted — and the failure is at
     import, before the process serves a single request."""
-    assert 'raise RuntimeError("DJANGO_ALLOWED_HOSTS must be set in production.")' in (
-        PRODUCTION_SETTINGS
-    )
+    assert 'raise RuntimeError("DJANGO_ALLOWED_HOSTS must be set in production.")' in (PRODUCTION_SETTINGS)
     assert "if not ALLOWED_HOSTS:" in PRODUCTION_SETTINGS
 
 

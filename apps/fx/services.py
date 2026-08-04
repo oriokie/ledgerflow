@@ -20,11 +20,16 @@ logger = logging.getLogger(__name__)
 _PIVOT = "USD"
 
 
-def upsert_rate(*, base: str, quote: str, rate: Decimal | float | str, source: str = "manual", as_of=None) -> ExchangeRate:
+def upsert_rate(
+    *, base: str, quote: str, rate: Decimal | float | str, source: str = "manual", as_of=None
+) -> ExchangeRate:
     base, quote = base.upper(), quote.upper()
     as_of = as_of or timezone.now()
     obj, _ = ExchangeRate.objects.update_or_create(
-        base_currency=base, quote_currency=quote, as_of=as_of, source=source,
+        base_currency=base,
+        quote_currency=quote,
+        as_of=as_of,
+        source=source,
         defaults={"rate": Decimal(str(rate))},
     )
     return obj

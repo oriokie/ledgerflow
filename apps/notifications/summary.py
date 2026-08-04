@@ -133,9 +133,7 @@ def send_monthly_summary_for_tenant(*, tenant_id, as_of: date | None = None) -> 
     with transaction.atomic():
         bind_db_tenant(tenant_id)
         with use_tenant(tenant_id):
-            summary = build_summary(
-                tenant_id=tenant_id, base_currency=tenant.base_currency, as_of=as_of
-            )
+            summary = build_summary(tenant_id=tenant_id, base_currency=tenant.base_currency, as_of=as_of)
             # A workspace with no activity gets no email. Sending "you earned 0
             # and spent 0" to someone mid-onboarding is a reason to unsubscribe.
             if not summary["income_minor"] and not summary["spending_minor"]:

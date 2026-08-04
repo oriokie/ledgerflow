@@ -125,8 +125,7 @@ def test_concurrent_categorisation_does_not_lose_updates():
         f"{profile.transaction_count} — increments were lost."
     )
     assert sum(counts.values()) == THREADS, (
-        f"category votes total {sum(counts.values())}, expected {THREADS} — "
-        "the JSON dict lost writes."
+        f"category votes total {sum(counts.values())}, expected {THREADS} — " "the JSON dict lost writes."
     )
 
 
@@ -141,12 +140,14 @@ def test_concurrent_invitations_cannot_exceed_the_seat_limit():
 
     owner = MembershipFactory(role=Role.OWNER)
     plan = Plan.objects.create(
-        tier=PlanTier.PLUS, name="Plus", price_minor=900, currency="USD",
-        interval=BillingInterval.MONTHLY, max_members=3,
+        tier=PlanTier.PLUS,
+        name="Plus",
+        price_minor=900,
+        currency="USD",
+        interval=BillingInterval.MONTHLY,
+        max_members=3,
     )
-    Subscription.objects.create(
-        tenant_id=owner.tenant_id, plan=plan, status=SubscriptionStatus.ACTIVE
-    )
+    Subscription.objects.create(tenant_id=owner.tenant_id, plan=plan, status=SubscriptionStatus.ACTIVE)
 
     def invite(i):
         with transaction.atomic():
@@ -163,9 +164,7 @@ def test_concurrent_invitations_cannot_exceed_the_seat_limit():
     results, _ = _in_parallel(invite)
     created = sum(1 for r in results if r == "created")
 
-    pending = Invitation.objects.filter(
-        tenant=owner.tenant, status=InvitationStatus.PENDING
-    ).count()
+    pending = Invitation.objects.filter(tenant=owner.tenant, status=InvitationStatus.PENDING).count()
     seats_committed = 1 + pending  # the owner plus everyone invited
 
     assert seats_committed <= plan.max_members, (
@@ -292,9 +291,7 @@ def test_an_unlocked_read_modify_write_does_lose_updates():
     with transaction.atomic():
         bind_db_tenant(tenant_id)
         with use_tenant(tenant_id, actor_id=membership.user_id):
-            profile_id = MerchantProfile.objects.create(
-                key="control-merchant", display_name="Control"
-            ).id
+            profile_id = MerchantProfile.objects.create(key="control-merchant", display_name="Control").id
 
     def increment_without_a_lock(i):
         with transaction.atomic():

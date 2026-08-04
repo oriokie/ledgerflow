@@ -38,7 +38,10 @@ pytestmark = pytest.mark.django_db
 
 def _paid_subscription(tenant_id, price=900):
     plan = Plan.objects.create(
-        tier=PlanTier.PLUS, name="Plus", price_minor=price, currency="USD",
+        tier=PlanTier.PLUS,
+        name="Plus",
+        price_minor=price,
+        currency="USD",
         interval=BillingInterval.MONTHLY,
     )
     return Subscription.objects.create(
@@ -53,8 +56,13 @@ def test_dunning_sweep_executes_due_attempts():
     membership = MembershipFactory()
     dunning.ensure_default_policy()
     PaymentMethod.objects.create(
-        tenant_id=membership.tenant_id, kind=PaymentMethodKind.CARD, is_default=True,
-        provider="stripe", provider_ref="pm_test", brand="visa", last4="4242",
+        tenant_id=membership.tenant_id,
+        kind=PaymentMethodKind.CARD,
+        is_default=True,
+        provider="stripe",
+        provider_ref="pm_test",
+        brand="visa",
+        last4="4242",
     )
     sub = _paid_subscription(membership.tenant_id)
     case = dunning.open_case(subscription=sub, now=timezone.now() - timedelta(days=2))
@@ -84,8 +92,11 @@ def test_overdue_sweep_moves_only_past_due_invoices():
     line = [invoicing.LineItemSpec(description="Plus", amount_minor=900)]
 
     overdue = invoicing.create_invoice(
-        tenant_id=tenant, currency="USD", line_items=line,
-        issue_date=today - timedelta(days=30), due_date=today - timedelta(days=16),
+        tenant_id=tenant,
+        currency="USD",
+        line_items=line,
+        issue_date=today - timedelta(days=30),
+        due_date=today - timedelta(days=16),
     )
     invoicing.issue_invoice(invoice=overdue)
     current = invoicing.create_invoice(tenant_id=tenant, currency="USD", line_items=line)
@@ -110,12 +121,11 @@ def test_stale_impersonation_grants_are_swept():
     staff = make_staff(PlatformRole.CUSTOMER_SUCCESS)
     membership = MembershipFactory()
     grant, _ = impersonation.start(
-        staff=staff, tenant_id=membership.tenant_id,
+        staff=staff,
+        tenant_id=membership.tenant_id,
         reason="Investigating a reported import failure",
     )
-    ImpersonationGrant.objects.filter(pk=grant.pk).update(
-        expires_at=timezone.now() - timedelta(minutes=1)
-    )
+    ImpersonationGrant.objects.filter(pk=grant.pk).update(expires_at=timezone.now() - timedelta(minutes=1))
 
     assert expire_impersonations() == {"expired": 1}
     grant.refresh_from_db()
@@ -185,8 +195,13 @@ def test_alert_sweep_raises_a_notification_for_failed_payments():
     membership = MembershipFactory()
     sub = _paid_subscription(membership.tenant_id)
     Payment.objects.create(
-        tenant_id=membership.tenant_id, subscription=sub, amount_minor=900, currency="USD",
-        status=PaymentStatus.FAILED, provider="stripe", failure_reason="card_declined",
+        tenant_id=membership.tenant_id,
+        subscription=sub,
+        amount_minor=900,
+        currency="USD",
+        status=PaymentStatus.FAILED,
+        provider="stripe",
+        failure_reason="card_declined",
     )
 
     result = sweep_alerts()
@@ -202,8 +217,12 @@ def test_the_alert_sweep_does_not_duplicate_within_a_day():
     membership = MembershipFactory()
     sub = _paid_subscription(membership.tenant_id)
     Payment.objects.create(
-        tenant_id=membership.tenant_id, subscription=sub, amount_minor=900, currency="USD",
-        status=PaymentStatus.FAILED, provider="stripe",
+        tenant_id=membership.tenant_id,
+        subscription=sub,
+        amount_minor=900,
+        currency="USD",
+        status=PaymentStatus.FAILED,
+        provider="stripe",
     )
 
     sweep_alerts()
@@ -242,9 +261,9 @@ def test_balance_drift_is_detected_repaired_and_reported():
     from apps.finance.models import FinancialAccount
 
     financial = FinancialAccount.unscoped.get(id=account["id"])
-    updated = AccountBalance.unscoped.filter(
-        account_id=financial.ledger_account_id
-    ).update(balance_minor=999_999)
+    updated = AccountBalance.unscoped.filter(account_id=financial.ledger_account_id).update(
+        balance_minor=999_999
+    )
     assert updated == 1, "no materialised balance row to corrupt"
 
     drifted = reconcile_balances_for_tenant(str(membership.tenant_id))

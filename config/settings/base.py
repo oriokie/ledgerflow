@@ -428,9 +428,7 @@ PLATFORM_IMPERSONATION_TTL_MINUTES = env.int("PLATFORM_IMPERSONATION_TTL_MINUTES
 # Whether a platform operator account is barred from also owning a customer
 # workspace. Default on — see apps/platform_admin/separation.py for the
 # reasoning. Turn off knowingly (e.g. a solo founder dogfooding the product).
-PLATFORM_STAFF_SEPARATE_FROM_TENANTS = env.bool(
-    "PLATFORM_STAFF_SEPARATE_FROM_TENANTS", default=True
-)
+PLATFORM_STAFF_SEPARATE_FROM_TENANTS = env.bool("PLATFORM_STAFF_SEPARATE_FROM_TENANTS", default=True)
 # Queue depth above which the health dashboard reports the workers as degraded.
 PLATFORM_QUEUE_BACKLOG_THRESHOLD = env.int("PLATFORM_QUEUE_BACKLOG_THRESHOLD", default=500)
 

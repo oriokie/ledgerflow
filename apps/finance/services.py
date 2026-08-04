@@ -27,6 +27,8 @@ from apps.common import audit
 from apps.ledger import services as ledger_services
 from apps.ledger.models import (
     Account as LedgerAccount,
+)
+from apps.ledger.models import (
     AccountBalance,
     AccountKind,
     Direction,
@@ -196,7 +198,9 @@ def set_opening_balance(
 
     if ledger_account.kind == AccountKind.ASSET:
         lines = [
-            LineInput(account_id=str(ledger_account.id), direction=Direction.DEBIT, amount_minor=amount_minor),
+            LineInput(
+                account_id=str(ledger_account.id), direction=Direction.DEBIT, amount_minor=amount_minor
+            ),
             LineInput(account_id=str(equity.id), direction=Direction.CREDIT, amount_minor=amount_minor),
         ]
     else:
@@ -369,8 +373,7 @@ def archive_category(*, category: Category) -> None:
     in_use = Transaction.objects.filter(category=category).exists()
     if in_use:
         raise FinanceError(
-            "This category is used by existing transactions. Recategorize them first, "
-            "then delete it."
+            "This category is used by existing transactions. Recategorize them first, " "then delete it."
         )
 
     category.delete()  # soft delete

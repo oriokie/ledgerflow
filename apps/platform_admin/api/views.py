@@ -49,8 +49,8 @@ from ..models import (
 from ..notifications import acknowledge, acknowledge_all
 from ..rbac import PlatformCapability as Cap
 from ..selectors import tenants as tenant_selectors
-from ..services import impersonation as impersonation_service
 from ..services import accounts as accounts_service
+from ..services import impersonation as impersonation_service
 from ..services import staff as staff_service
 from ..services import tenants as tenant_service
 from . import serializers as s
@@ -80,9 +80,7 @@ def _paginate_named(request, queryset, serializer_class):
     """
     paginator = AdminPagination()
     page = paginator.paginate_queryset(queryset, request)
-    names = dict(
-        Tenant.objects.filter(id__in={row.tenant_id for row in page}).values_list("id", "name")
-    )
+    names = dict(Tenant.objects.filter(id__in={row.tenant_id for row in page}).values_list("id", "name"))
     data = serializer_class(page, many=True, context={"tenant_names": names}).data
     return paginator.get_paginated_response(data)
 
@@ -112,9 +110,10 @@ class CapabilityCatalogView(PlatformAdminAPIView, APIView):
         return Response(
             {
                 "capabilities": staff_service.capability_catalog(),
-                "roles": [{"value": r.value, "label": r.label} for r in __import__(
-                    "apps.platform_admin.rbac", fromlist=["PlatformRole"]
-                ).PlatformRole],
+                "roles": [
+                    {"value": r.value, "label": r.label}
+                    for r in __import__("apps.platform_admin.rbac", fromlist=["PlatformRole"]).PlatformRole
+                ],
             }
         )
 
@@ -386,9 +385,7 @@ class ImpersonationListView(PlatformAdminAPIView, APIView):
 
     def get(self, request):
         impersonation_service.expire_stale()
-        queryset = ImpersonationGrant.objects.select_related("staff", "staff__user").order_by(
-            "-created_at"
-        )
+        queryset = ImpersonationGrant.objects.select_related("staff", "staff__user").order_by("-created_at")
         if request.query_params.get("active") == "true":
             queryset = impersonation_service.active_sessions()
         return _paginate(request, queryset, s.ImpersonationGrantSerializer)
@@ -434,9 +431,7 @@ class InvoiceListView(PlatformAdminAPIView, APIView):
         if p.get("currency"):
             queryset = queryset.filter(currency=p["currency"].upper())
         if p.get("q"):
-            queryset = queryset.filter(
-                Q(number__icontains=p["q"]) | Q(billing_email__icontains=p["q"])
-            )
+            queryset = queryset.filter(Q(number__icontains=p["q"]) | Q(billing_email__icontains=p["q"]))
         return _paginate_named(request, queryset, s.InvoiceSerializer)
 
 
@@ -575,9 +570,7 @@ class PaymentReconcileView(PlatformAdminAPIView, APIView):
         payment = Payment.objects.filter(id=v["payment_id"]).first()
         invoice = Invoice.objects.filter(id=v["invoice_id"]).first()
         if payment is None or invoice is None:
-            return Response(
-                {"detail": "Payment or invoice not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Payment or invoice not found."}, status=status.HTTP_404_NOT_FOUND)
         try:
             invoicing.reconcile_payment(payment=payment, invoice=invoice)
         except invoicing.InvoicingError as exc:
@@ -833,9 +826,7 @@ class DunningPolicyView(PlatformAdminAPIView, APIView):
     serializer_class = s.DunningPolicySerializer
 
     def get(self, request):
-        return Response(
-            s.DunningPolicySerializer(DunningPolicy.objects.order_by("name"), many=True).data
-        )
+        return Response(s.DunningPolicySerializer(DunningPolicy.objects.order_by("name"), many=True).data)
 
     def post(self, request):
         payload = s.DunningPolicySerializer(data=request.data)
@@ -1081,9 +1072,7 @@ class PlanCatalogueView(PlatformAdminAPIView, APIView):
         # Labels and the universal set ride along so the console's feature
         # editor and the pricing surfaces all print the same names from the
         # same map — the whole point of holding labels server-side.
-        return Response(
-            {"tiers": catalogue(), "labels": FEATURE_LABELS, "universal": sorted(UNIVERSAL)}
-        )
+        return Response({"tiers": catalogue(), "labels": FEATURE_LABELS, "universal": sorted(UNIVERSAL)})
 
 
 # ==================================================================== settings
@@ -1102,9 +1091,7 @@ class PublicAppearanceView(APIView):
 
     @extend_schema(operation_id="platform_public_appearance")
     def get(self, request):
-        return Response(
-            {"illustration_style": settings_store.get("appearance.illustration_style")}
-        )
+        return Response({"illustration_style": settings_store.get("appearance.illustration_style")})
 
 
 class PlatformSettingsView(PlatformAdminAPIView, APIView):
@@ -1169,9 +1156,9 @@ class SavedViewListView(PlatformAdminAPIView, APIView):
     serializer_class = s.SavedViewSerializer
 
     def get(self, request):
-        queryset = SavedView.objects.filter(
-            Q(staff=self.staff) | Q(is_shared=True)
-        ).order_by("surface", "name")
+        queryset = SavedView.objects.filter(Q(staff=self.staff) | Q(is_shared=True)).order_by(
+            "surface", "name"
+        )
         if request.query_params.get("surface"):
             queryset = queryset.filter(surface=request.query_params["surface"])
         return Response(s.SavedViewSerializer(queryset, many=True).data)
@@ -1219,9 +1206,7 @@ def _plan_out(plan, subscriber_counts: dict | None = None) -> dict:
         #: The override list as stored — what an editor round-trips.
         "features": sorted(str(f) for f in (plan.features or [])),
         #: What the plan actually includes, labelled — tier defaults ∪ override.
-        "resolved_features": [
-            {"key": key, "label": label_for(key)} for key in resolved_features(plan)
-        ],
+        "resolved_features": [{"key": key, "label": label_for(key)} for key in resolved_features(plan)],
         "subscriber_count": (subscriber_counts or {}).get(plan.id, 0),
     }
 
@@ -1293,9 +1278,10 @@ class PlanDetailView(PlatformAdminAPIView, APIView):
             request=request,
         )
         counts = dict(
-            Subscription.objects.filter(
-                plan=plan, status__in=["active", "trialing", "past_due"]
-            ).values_list("plan_id").annotate(n=models.Count("id")).values_list("plan_id", "n")
+            Subscription.objects.filter(plan=plan, status__in=["active", "trialing", "past_due"])
+            .values_list("plan_id")
+            .annotate(n=models.Count("id"))
+            .values_list("plan_id", "n")
         )
         return Response(_plan_out(plan, counts))
 
@@ -1322,9 +1308,7 @@ class ExpiringTrialsView(PlatformAdminAPIView, APIView):
     def get(self, request):
         days = int(request.query_params.get("days", 7))
         rows = tenant_selectors.expiring_trials(within_days=days)
-        names = dict(
-            Tenant.objects.filter(id__in=[r.tenant_id for r in rows]).values_list("id", "name")
-        )
+        names = dict(Tenant.objects.filter(id__in=[r.tenant_id for r in rows]).values_list("id", "name"))
         return Response(
             [
                 {

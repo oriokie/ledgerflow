@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 from datetime import date
 
 from django.http import FileResponse, HttpResponseRedirect
@@ -17,13 +18,10 @@ from apps.tenancy.permissions import IsTenantMember
 
 from .. import attachments as attachment_service
 from .. import bills as bills_service
-from .. import payees as payee_service
-from .. import recurring as recurring_service
 from .. import cashflow_calendar as calendar_selectors
-from .. import selectors, services
-from dataclasses import asdict
-
-from .. import reconciliation
+from .. import payees as payee_service
+from .. import reconciliation, selectors, services
+from .. import recurring as recurring_service
 from .. import tagging as tag_service
 from .. import wallets as wallet_service
 from ..attachments import AttachmentError
@@ -40,22 +38,22 @@ from ..models import (
 from ..payees import PayeeError
 from ..tagging import TagError
 from .serializers import (
-    ReconcileSerializer,
     AttachmentConfirmSerializer,
     AttachmentRequestSerializer,
     AttachmentSerializer,
     BillCreateSerializer,
     BillPaySerializer,
-    CategoryCreateSerializer,
-    CategoryUpdateSerializer,
-    CategorySerializer,
-    DateRangeQuerySerializer,
     CashflowCalendarQuerySerializer,
+    CategoryCreateSerializer,
+    CategorySerializer,
+    CategoryUpdateSerializer,
+    DateRangeQuerySerializer,
     FinancialAccountCreateSerializer,
     FinancialAccountSerializer,
     FinancialAccountUpdateSerializer,
     PayeeCreateSerializer,
     PayeeSerializer,
+    ReconcileSerializer,
     RecurringCreateSerializer,
     RecurringSerializer,
     RecurringUpdateSerializer,
@@ -63,9 +61,9 @@ from .serializers import (
     StatementQuerySerializer,
     TagCreateSerializer,
     TagSerializer,
+    TransactionBulkSerializer,
     TransactionCreateSerializer,
     TransactionSerializer,
-    TransactionBulkSerializer,
     TransactionSplitSerializer,
     TransactionUpdateSerializer,
     TransferCreateSerializer,
@@ -600,6 +598,7 @@ class RecurringView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
             return _finance_error(exc)
         return Response(RecurringSerializer(rec).data, status=status.HTTP_201_CREATED)
 
+
 class RecurringDetailView(TenantScopedAPIView, APIView):
     """Pause/resume (PATCH is_active) or cancel (DELETE) a schedule — the levers
     for trimming recurring spend."""
@@ -710,6 +709,7 @@ class CategoryBreakdownView(TenantScopedAPIView, APIView):
                 for r in rows
             ]
         )
+
 
 class CategoryTrendView(TenantScopedAPIView, APIView):
     """Monthly spend (or income) for a single category over the trailing N
@@ -873,9 +873,7 @@ class ReconciliationView(TenantScopedAPIView, APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        summary = reconciliation.reconciliation_summary(
-            account=account, statement_balance_minor=statement
-        )
+        summary = reconciliation.reconciliation_summary(account=account, statement_balance_minor=statement)
         uncleared = reconciliation.uncleared_transactions(account=account)[:200]
         return Response(
             {

@@ -489,7 +489,9 @@ def test_receipt_direct_upload_and_download(tenant_context):
     assert up.status_code == 200, up.data
     assert up.data["status"] == "uploaded"
     assert up.data["byte_size"] == len(blob)
-    assert up.data["download_url"] and up.data["download_url"].endswith(f"/attachments/{attachment_id}/download/")
+    assert up.data["download_url"] and up.data["download_url"].endswith(
+        f"/attachments/{attachment_id}/download/"
+    )
 
     dl = client.get(f"/api/v1/finance/attachments/{attachment_id}/download/")
     assert dl.status_code == 200
@@ -573,4 +575,7 @@ def test_recurring_pause_and_cancel(tenant_context):
     cancelled = client.delete(f"/api/v1/finance/recurring/{rec_id}/")
     assert cancelled.status_code == 204
     assert all(r["id"] != rec_id for r in client.get("/api/v1/finance/recurring/").data)
-    assert client.patch(f"/api/v1/finance/recurring/{rec_id}/", {"is_active": True}, format="json").status_code == 404
+    assert (
+        client.patch(f"/api/v1/finance/recurring/{rec_id}/", {"is_active": True}, format="json").status_code
+        == 404
+    )

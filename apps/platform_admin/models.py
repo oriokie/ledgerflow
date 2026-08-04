@@ -77,9 +77,7 @@ class PlatformStaff(UUIDModel, TimeStampedModel):
 
     @property
     def capabilities(self) -> frozenset:
-        return capabilities_for(
-            self.role, extra=self.extra_capabilities, denied=self.denied_capabilities
-        )
+        return capabilities_for(self.role, extra=self.extra_capabilities, denied=self.denied_capabilities)
 
     def has(self, capability) -> bool:
         return capability in self.capabilities

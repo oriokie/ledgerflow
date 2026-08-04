@@ -49,9 +49,7 @@ def _view_out(v) -> dict:
         "promo_ends_on": v.promo_ends_on,
         "next_rate_change_on": v.next_rate_change_on,
         "next_rate_apr": float(v.next_rate_apr) if v.next_rate_apr is not None else None,
-        "rate_schedule": [
-            {"effective_from": p.effective_from, "apr": float(p.apr)} for p in v.rate_schedule
-        ],
+        "rate_schedule": [{"effective_from": p.effective_from, "apr": float(p.apr)} for p in v.rate_schedule],
         "fees": (
             {
                 "monthly_minor": v.fees.monthly_minor,
@@ -93,9 +91,7 @@ class DebtTermsView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
         except services.DebtError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-        view = next(
-            (v for v in selectors.debt_views() if v.account_id == str(account.id)), None
-        )
+        view = next((v for v in selectors.debt_views() if v.account_id == str(account.id)), None)
         return Response(_view_out(view) if view else {}, status=status.HTTP_200_OK)
 
     def delete(self, request, account_id):
@@ -186,9 +182,7 @@ class PayoffPlanView(TenantScopedAPIView, APIView):
         q.is_valid(raise_exception=True)
         v = q.validated_data
 
-        plan = selectors.payoff_plan(
-            strategy=v["strategy"], extra_monthly_minor=v["extra_monthly_minor"]
-        )
+        plan = selectors.payoff_plan(strategy=v["strategy"], extra_monthly_minor=v["extra_monthly_minor"])
         if plan is None:
             return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -235,9 +229,7 @@ class PayoffPlanView(TenantScopedAPIView, APIView):
                         "first_cleared_name": c.first_cleared_name,
                         "first_cleared_months": c.first_cleared_months,
                     }
-                    for c in selectors.strategy_comparison(
-                        extra_monthly_minor=v["extra_monthly_minor"]
-                    )
+                    for c in selectors.strategy_comparison(extra_monthly_minor=v["extra_monthly_minor"])
                 ],
             }
         )
@@ -273,14 +265,10 @@ class RateHistoryView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="debt_rate_history")
     def get(self, request, account_id):
-        view = next(
-            (v for v in selectors.debt_views() if v.account_id == str(account_id)), None
-        )
+        view = next((v for v in selectors.debt_views() if v.account_id == str(account_id)), None)
         if view is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        history = [
-            {"effective_from": p.effective_from, "apr": float(p.apr)} for p in view.rate_schedule
-        ]
+        history = [{"effective_from": p.effective_from, "apr": float(p.apr)} for p in view.rate_schedule]
         # Balance-weighted is meaningless across time; a plain mean of the
         # recorded rates is what "historical average" honestly means here.
         average = round(sum(h["apr"] for h in history) / len(history), 2) if history else None
@@ -333,9 +321,7 @@ class OffsetAccountsView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
         except services.DebtError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-        view = next(
-            (v for v in selectors.debt_views() if v.account_id == str(account.id)), None
-        )
+        view = next((v for v in selectors.debt_views() if v.account_id == str(account.id)), None)
         return Response(_view_out(view) if view else {})
 
 
@@ -529,13 +515,10 @@ class ScenarioComparisonView(TenantScopedAPIView, APIView):
                     "total_interest_minor": plan.total_interest_minor,
                     "total_fees_minor": plan.total_fees_minor,
                     "total_paid_minor": plan.total_paid_minor,
-                    "interest_saved_minor": max(
-                        0, baseline.total_interest_minor - plan.total_interest_minor
-                    ),
+                    "interest_saved_minor": max(0, baseline.total_interest_minor - plan.total_interest_minor),
                     "months_saved": (
                         baseline.months_to_debt_free - plan.months_to_debt_free
-                        if baseline.months_to_debt_free is not None
-                        and plan.months_to_debt_free is not None
+                        if baseline.months_to_debt_free is not None and plan.months_to_debt_free is not None
                         else None
                     ),
                     "is_complete": plan.is_complete,

@@ -67,7 +67,7 @@ def capture_usage_snapshots(limit: int = 500) -> dict:
     captured_at = timezone.now().replace(microsecond=0)
     written = 0
 
-    for tenant_id, in Tenant.objects.values_list("id")[:limit]:
+    for (tenant_id,) in Tenant.objects.values_list("id")[:limit]:
         try:
             with transaction.atomic():
                 bind_db_tenant(tenant_id)
@@ -77,9 +77,7 @@ def capture_usage_snapshots(limit: int = 500) -> dict:
                     accounts = FinancialAccount.objects.count()
                     transactions = Transaction.objects.count()
                     attachment_count = Attachment.objects.count()
-                    storage_bytes = (
-                        Attachment.objects.aggregate(total=Sum("byte_size"))["total"] or 0
-                    )
+                    storage_bytes = Attachment.objects.aggregate(total=Sum("byte_size"))["total"] or 0
 
             from apps.tenancy.models import Membership
 

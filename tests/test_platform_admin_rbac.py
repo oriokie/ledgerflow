@@ -17,10 +17,12 @@ from apps.platform_admin.permissions import ip_allowed
 from apps.platform_admin.rbac import (
     ALL_CAPABILITIES,
     ROLE_CAPABILITIES,
-    PlatformCapability as Cap,
     PlatformRole,
     UnknownCapabilityError,
     capabilities_for,
+)
+from apps.platform_admin.rbac import (
+    PlatformCapability as Cap,
 )
 from apps.platform_admin.services import staff as staff_service
 from tests.factories import UserFactory
@@ -141,9 +143,7 @@ def test_a_tenant_owner_has_no_platform_authority():
 
     membership = MembershipFactory()
     client = APIClient()
-    client.credentials(
-        HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(membership.user).access_token}"
-    )
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(membership.user).access_token}")
     assert client.get("/api/v1/platform/tenants/").status_code == 403
 
 
@@ -184,9 +184,7 @@ def test_the_platform_api_ignores_a_tenant_header():
     membership = MembershipFactory()
     member = make_staff(PlatformRole.OWNER)
     client = client_for(member)
-    response = client.get(
-        "/api/v1/platform/dashboard/", HTTP_X_TENANT_ID=str(membership.tenant_id)
-    )
+    response = client.get("/api/v1/platform/dashboard/", HTTP_X_TENANT_ID=str(membership.tenant_id))
     assert response.status_code == 200
 
 
@@ -221,13 +219,14 @@ def test_the_audit_log_is_append_only_at_the_database_level():
     """Application convention is not a control; a trigger is."""
     row = PlatformAuditLog.objects.create(action="test.action", module="tests")
 
-    with pytest.raises(Exception):
-        with transaction.atomic():
-            PlatformAuditLog.objects.filter(pk=row.pk).update(action="tampered")
+    # Same trigger mechanism as apps.common.audit.AuditLog (see
+    # apps/platform_admin/migrations/0002_audit_immutability.py) — the RAISE
+    # EXCEPTION surfaces through psycopg as IntegrityError.
+    with pytest.raises(IntegrityError), transaction.atomic():
+        PlatformAuditLog.objects.filter(pk=row.pk).update(action="tampered")
 
-    with pytest.raises(Exception):
-        with transaction.atomic():
-            PlatformAuditLog.objects.filter(pk=row.pk).delete()
+    with pytest.raises(IntegrityError), transaction.atomic():
+        PlatformAuditLog.objects.filter(pk=row.pk).delete()
 
     row.refresh_from_db()
     assert row.action == "test.action"
@@ -309,9 +308,8 @@ def test_a_user_can_only_hold_one_platform_role():
     owner = make_staff(PlatformRole.OWNER)
     target = UserFactory()
     staff_service.appoint(user=target, role=PlatformRole.AUDITOR, actor=owner)
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            PlatformStaff.objects.create(user=target, role=PlatformRole.FINANCE)
+    with pytest.raises(IntegrityError), transaction.atomic():
+        PlatformStaff.objects.create(user=target, role=PlatformRole.FINANCE)
 
 
 def test_appointment_is_audited_with_the_granting_actor():

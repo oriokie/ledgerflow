@@ -84,9 +84,7 @@ def test_real_spending_still_counts():
         checking, savings = _two_accounts()
         from django.utils import timezone
 
-        groceries = finance_services.create_category(
-            name="Groceries", kind="expense", currency="USD"
-        )
+        groceries = finance_services.create_category(name="Groceries", kind="expense", currency="USD")
         finance_services.record_expense(
             financial_account=checking,
             category=groceries,

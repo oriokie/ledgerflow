@@ -111,12 +111,8 @@ class StripeProvider(PaymentProvider):
             if status == "succeeded":
                 return ChargeResult(success=True, provider_ref=ref, status="succeeded")
             if status in {"requires_action", "requires_confirmation"}:
-                return ChargeResult(
-                    success=False, provider_ref=ref, status="pending", requires_action=True
-                )
-            return ChargeResult(
-                success=False, provider_ref=ref, status="failed", failure_reason=str(status)
-            )
+                return ChargeResult(success=False, provider_ref=ref, status="pending", requires_action=True)
+            return ChargeResult(success=False, provider_ref=ref, status="failed", failure_reason=str(status))
         except Exception as exc:  # pragma: no cover - network path
             raise PaymentError(f"Stripe charge failed: {exc}") from exc
 
@@ -130,9 +126,7 @@ class StripeProvider(PaymentProvider):
             event = json.loads(body or b"{}")
         else:  # pragma: no cover - network path
             try:
-                event = stripe.Webhook.construct_event(
-                    body, headers.get("stripe-signature", ""), secret
-                )
+                event = stripe.Webhook.construct_event(body, headers.get("stripe-signature", ""), secret)
             except Exception as exc:
                 raise PaymentError(f"Invalid Stripe webhook signature: {exc}") from exc
 
@@ -185,7 +179,9 @@ class StripeProvider(PaymentProvider):
                 success=status == "succeeded",
                 provider_ref=data.get("id", ""),
                 # Stripe reports "pending" while the card network settles.
-                status="succeeded" if status == "succeeded" else ("failed" if status == "failed" else "pending"),
+                status=(
+                    "succeeded" if status == "succeeded" else ("failed" if status == "failed" else "pending")
+                ),
                 failure_reason=data.get("failure_reason", "") or "",
             )
         except Exception as exc:  # pragma: no cover - network path

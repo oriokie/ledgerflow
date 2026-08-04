@@ -25,9 +25,7 @@ TODAY = date(2026, 6, 15)
 def _client(membership) -> APIClient:
     client = APIClient()
     token = RefreshToken.for_user(membership.user).access_token
-    client.credentials(
-        HTTP_AUTHORIZATION=f"Bearer {token}", HTTP_X_TENANT_ID=str(membership.tenant_id)
-    )
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}", HTTP_X_TENANT_ID=str(membership.tenant_id))
     return client
 
 
@@ -133,9 +131,7 @@ def test_a_deduction_belonging_to_another_source_is_not_deletable(tenant_context
     """The URL nests deduction under source; the query must honour both ids."""
     _membership, client = tenant_context
     first = client.post(f"{BASE}/sources/", _payload(gross_minor=400_000), format="json").data
-    second = client.post(
-        f"{BASE}/sources/", _payload(name="Second", gross_minor=400_000), format="json"
-    ).data
+    second = client.post(f"{BASE}/sources/", _payload(name="Second", gross_minor=400_000), format="json").data
     deduction = client.post(
         f"{BASE}/sources/{first['id']}/deductions/",
         {"kind": "tax", "amount_minor": 1000},

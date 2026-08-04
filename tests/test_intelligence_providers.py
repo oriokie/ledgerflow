@@ -342,9 +342,8 @@ from django.utils import timezone  # noqa: E402
 
 from apps.finance import bills as bill_services  # noqa: E402
 from apps.finance import services as finance_services  # noqa: E402
-from apps.finance.models import AccountType, CategoryKind  # noqa: E402
+from apps.finance.models import CategoryKind  # noqa: E402
 from apps.intelligence import selectors as intel_selectors  # noqa: E402
-from apps.intelligence.providers.recommend import HeuristicRecommender  # noqa: E402
 from tests.utils import tenant_scope  # noqa: E402
 
 pytestmark = pytest.mark.django_db
@@ -384,13 +383,14 @@ def test_the_due_label_matches_the_real_number_of_days(tenant):
             name="Utilities", kind=CategoryKind.EXPENSE, currency="USD"
         )
         bill_services.create_bill(
-            name="Internet", amount_minor=6_000, currency="USD",
-            due_on=timezone.localdate() + timedelta(days=1), category=category,
+            name="Internet",
+            amount_minor=6_000,
+            currency="USD",
+            due_on=timezone.localdate() + timedelta(days=1),
+            category=category,
         )
         context = intel_selectors.build_recommendation_context()
-        [rec] = [
-            r for r in HeuristicRecommender().recommend(context) if r.kind == "bill_upcoming"
-        ]
+        [rec] = [r for r in HeuristicRecommender().recommend(context) if r.kind == "bill_upcoming"]
         assert "tomorrow" in rec.title
 
 
@@ -402,13 +402,14 @@ def test_the_bill_action_is_one_the_frontend_can_actually_execute(tenant):
             name="Utilities", kind=CategoryKind.EXPENSE, currency="USD"
         )
         bill = bill_services.create_bill(
-            name="Water", amount_minor=4_000, currency="USD",
-            due_on=timezone.localdate() + timedelta(days=5), category=category,
+            name="Water",
+            amount_minor=4_000,
+            currency="USD",
+            due_on=timezone.localdate() + timedelta(days=5),
+            category=category,
         )
         context = intel_selectors.build_recommendation_context()
-        [rec] = [
-            r for r in HeuristicRecommender().recommend(context) if r.kind == "bill_upcoming"
-        ]
+        [rec] = [r for r in HeuristicRecommender().recommend(context) if r.kind == "bill_upcoming"]
         assert rec.action == {"action": "bill_upcoming", "bill_id": str(bill.id)}
 
 
@@ -419,11 +420,12 @@ def test_multiple_upcoming_bills_each_get_their_own_recommendation(tenant):
         )
         for name, days in (("Electric", 2), ("Water", 5), ("Internet", 10)):
             bill_services.create_bill(
-                name=name, amount_minor=5_000, currency="USD",
-                due_on=timezone.localdate() + timedelta(days=days), category=category,
+                name=name,
+                amount_minor=5_000,
+                currency="USD",
+                due_on=timezone.localdate() + timedelta(days=days),
+                category=category,
             )
         context = intel_selectors.build_recommendation_context()
-        bill_recs = [
-            r for r in HeuristicRecommender().recommend(context) if r.kind == "bill_upcoming"
-        ]
+        bill_recs = [r for r in HeuristicRecommender().recommend(context) if r.kind == "bill_upcoming"]
         assert len(bill_recs) == 3

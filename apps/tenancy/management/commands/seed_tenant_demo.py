@@ -38,16 +38,6 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction as db_transaction
 from django.utils import timezone
 
-from apps.income import services as income_services
-from apps.income.models import (
-    DeductionKind,
-    IncomeFrequency,
-    IncomeKind,
-    IncomeReceipt,
-    IncomeSource,
-    Reliability,
-)
-
 from apps.budgeting import services as budget_services
 from apps.budgeting.models import Budget
 from apps.common.rls import bind_db_tenant
@@ -63,8 +53,17 @@ from apps.finance.models import (
     TransactionStatus,
 )
 from apps.goals import services as goal_services
-from apps.ledger.models import JournalEntry
 from apps.goals.models import GoalKind, SavingsGoal
+from apps.income import services as income_services
+from apps.income.models import (
+    DeductionKind,
+    IncomeFrequency,
+    IncomeKind,
+    IncomeReceipt,
+    IncomeSource,
+    Reliability,
+)
+from apps.ledger.models import JournalEntry
 from apps.tenancy.models import Membership, Tenant
 from apps.users.models import User
 
@@ -159,9 +158,7 @@ class Command(BaseCommand):
             payees = self._ensure_payees(expense_cats)
             self._ensure_budget(tenant, expense_cats, start)
             goals = self._ensure_goals(tenant, accounts)
-            posted = self._post_history(
-                accounts, income_cats, expense_cats, payees, goals, start, today
-            )
+            posted = self._post_history(accounts, income_cats, expense_cats, payees, goals, start, today)
             self._ensure_income_sources(accounts, income_cats, start, today)
             self._report(user, tenant, start, today, posted)
 
@@ -174,10 +171,7 @@ class Command(BaseCommand):
             raise CommandError(
                 f"No user with email {email}. Run `manage.py seed_platform_demo` first."
             ) from None
-        membership = (
-            Membership.objects.filter(user=user).select_related("tenant")
-            .first()
-        )
+        membership = Membership.objects.filter(user=user).select_related("tenant").first()
         if membership is None:
             raise CommandError(f"{email} has no tenant membership to seed.")
         return user, membership.tenant
@@ -222,9 +216,7 @@ class Command(BaseCommand):
         for name in INCOME_CATEGORIES:
             cat = Category.objects.filter(name=name, kind=CategoryKind.INCOME).first()
             if cat is None:
-                cat = finance_services.create_category(
-                    name=name, kind=CategoryKind.INCOME, currency=currency
-                )
+                cat = finance_services.create_category(name=name, kind=CategoryKind.INCOME, currency=currency)
             income.append(cat)
 
         expense: dict[str, Category] = {}
@@ -265,13 +257,9 @@ class Command(BaseCommand):
             category = expense_cats[name]
             if budget.lines.filter(category=category).exists():
                 continue
-            budget_services.add_budget_line(
-                budget=budget, category=category, limit_minor=limit_major * 100
-            )
+            budget_services.add_budget_line(budget=budget, category=category, limit_minor=limit_major * 100)
 
-    def _ensure_goals(
-        self, tenant: Tenant, accounts: dict[str, FinancialAccount]
-    ) -> list[SavingsGoal]:
+    def _ensure_goals(self, tenant: Tenant, accounts: dict[str, FinancialAccount]) -> list[SavingsGoal]:
         goals: list[SavingsGoal] = []
         for name, kind, target_major, monthly_major in GOALS:
             goal = SavingsGoal.objects.filter(name=name).first()
@@ -321,7 +309,11 @@ class Command(BaseCommand):
                 if gig_day is not None:
                     amount = self.rng.randrange(350, 1_400) * 100
                     posted += self._income(
-                        checking, freelance, amount, gig_day, f"Freelance project — {tag}",
+                        checking,
+                        freelance,
+                        amount,
+                        gig_day,
+                        f"Freelance project — {tag}",
                         f"freelance:{tag}",
                     )
 
@@ -343,7 +335,11 @@ class Command(BaseCommand):
                     else:
                         account = checking
                     posted += self._expense(
-                        account, category, amount, day, payee,
+                        account,
+                        category,
+                        amount,
+                        day,
+                        payee,
                         f"{payee.name if payee else name}",
                         f"{name.lower()}:{tag}:{n}",
                     )
@@ -462,12 +458,10 @@ class Command(BaseCommand):
 
         # Receipts from the posted history, so nothing here is invented.
         for source, category in ((salary, salary_cat), (freelance, freelance_cat)):
-            existing = set(
-                IncomeReceipt.objects.filter(source=source).values_list("occurred_on", flat=True)
+            existing = set(IncomeReceipt.objects.filter(source=source).values_list("occurred_on", flat=True))
+            transactions = Transaction.objects.filter(category=category, amount_minor__gt=0).order_by(
+                "occurred_at"
             )
-            transactions = Transaction.objects.filter(
-                category=category, amount_minor__gt=0
-            ).order_by("occurred_at")
             for txn in transactions:
                 occurred_on = timezone.localtime(txn.occurred_at).date()
                 if occurred_on in existing or occurred_on > today:
@@ -540,7 +534,9 @@ class Command(BaseCommand):
         out.write(f"  Log in as  {user.email}")
         out.write(f"  Range      {start} → {today}")
         out.write(f"  Posted     {posted} new transactions this run")
-        out.write(f"  Totals     {Transaction.objects.count()} transactions, "
-                  f"{FinancialAccount.objects.count()} accounts, "
-                  f"{SavingsGoal.objects.count()} goals")
+        out.write(
+            f"  Totals     {Transaction.objects.count()} transactions, "
+            f"{FinancialAccount.objects.count()} accounts, "
+            f"{SavingsGoal.objects.count()} goals"
+        )
         out.write("\n  Re-run any time — it tops up to today rather than duplicating.\n")

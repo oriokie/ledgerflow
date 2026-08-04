@@ -15,9 +15,8 @@ from django.utils import timezone
 
 from apps.finance import quick_add
 from apps.finance import services as finance_services
-from apps.finance.models import Transaction
+from apps.finance.models import AccountType, CategoryKind, Transaction
 from apps.finance.payees import get_or_create_payee
-from apps.finance.models import AccountType, CategoryKind
 from apps.intelligence import automation_services
 from apps.ledger.models import LedgerLine
 from tests.utils import tenant_scope
@@ -63,14 +62,13 @@ def test_a_blank_merchant_is_refused(tenant):
 
 
 def test_without_any_account_quick_add_fails_clearly(tenant):
-    with tenant_scope(tenant):
-        with pytest.raises(quick_add.QuickAddError, match="Add an account"):
-            quick_add.quick_add(amount_minor=1_000, merchant="Shop")
+    with tenant_scope(tenant), pytest.raises(quick_add.QuickAddError, match="Add an account"):
+        quick_add.quick_add(amount_minor=1_000, merchant="Shop")
 
 
 def test_the_account_defaults_to_the_most_recently_used_one(tenant):
     with tenant_scope(tenant):
-        old = _account(name="Old Card")
+        _account(name="Old Card")
         new = _account(name="New Card")
         finance_services.record_expense(
             financial_account=new,
@@ -87,13 +85,13 @@ def test_an_explicit_account_is_never_overridden(tenant):
     with tenant_scope(tenant):
         default_account = _account(name="Default")
         finance_services.record_expense(
-            financial_account=default_account, category=_category(), amount_minor=500,
+            financial_account=default_account,
+            category=_category(),
+            amount_minor=500,
             occurred_at=timezone.now(),
         )
         chosen = _account(name="Chosen")
-        result = quick_add.quick_add(
-            amount_minor=1_000, merchant="Shop", financial_account=chosen
-        )
+        result = quick_add.quick_add(amount_minor=1_000, merchant="Shop", financial_account=chosen)
         assert result.transaction.financial_account_id == chosen.id
         assert result.account_was_inferred is False
 
@@ -107,8 +105,11 @@ def test_category_is_inferred_from_the_same_store_the_automation_engine_reads(te
         payee, _ = get_or_create_payee(name="Corner Shop")
         for _ in range(3):
             txn = finance_services.record_expense(
-                financial_account=account, category=groceries, amount_minor=2_000,
-                occurred_at=timezone.now(), payee=payee,
+                financial_account=account,
+                category=groceries,
+                amount_minor=2_000,
+                occurred_at=timezone.now(),
+                payee=payee,
             )
             automation_services.learn_from_transaction(txn)
 
@@ -135,7 +136,9 @@ def test_a_split_history_does_not_force_a_guess(tenant):
         b = _category(name="B", currency="USD")
         for category in (a, b, a, b):
             txn = finance_services.record_expense(
-                financial_account=account, category=category, amount_minor=1_000,
+                financial_account=account,
+                category=category,
+                amount_minor=1_000,
                 occurred_at=timezone.now(),
             )
             automation_services.learn_from_transaction(txn)
@@ -151,14 +154,14 @@ def test_an_explicit_category_is_never_overridden_by_inference(tenant):
         household = _category(name="Household")
         for _ in range(3):
             txn = finance_services.record_expense(
-                financial_account=account, category=groceries, amount_minor=1_000,
+                financial_account=account,
+                category=groceries,
+                amount_minor=1_000,
                 occurred_at=timezone.now(),
             )
             automation_services.learn_from_transaction(txn)
 
-        result = quick_add.quick_add(
-            amount_minor=800, merchant="Corner Shop", category=household
-        )
+        result = quick_add.quick_add(amount_minor=800, merchant="Corner Shop", category=household)
         assert result.transaction.category_id == household.id
         assert result.category_was_inferred is False
 
@@ -172,7 +175,9 @@ def test_an_explicitly_typed_category_teaches_the_learning_store(tenant):
         account = _account()
         category = _category()
         quick_add.quick_add(
-            amount_minor=1_000, merchant="Fresh Merchant", financial_account=account,
+            amount_minor=1_000,
+            merchant="Fresh Merchant",
+            financial_account=account,
             category=category,
         )
         assert MerchantProfile.objects.filter(display_name="Fresh Merchant").exists()
@@ -189,8 +194,11 @@ def test_an_inferred_category_does_not_double_count_its_own_evidence(tenant):
         payee, _ = get_or_create_payee(name="Corner Shop")
         for _ in range(3):
             txn = finance_services.record_expense(
-                financial_account=account, category=groceries, amount_minor=1_000,
-                occurred_at=timezone.now(), payee=payee,
+                financial_account=account,
+                category=groceries,
+                amount_minor=1_000,
+                occurred_at=timezone.now(),
+                payee=payee,
             )
             automation_services.learn_from_transaction(txn)
         before = MerchantProfile.objects.get(display_name__iexact="Corner Shop").category_counts
@@ -227,8 +235,11 @@ def test_recent_merchants_are_ordered_by_recency_not_alphabetically(tenant):
         for name, days_ago in (("Zebra Shop", 5), ("Apple Store", 1)):
             payee, _ = get_or_create_payee(name=name)
             finance_services.record_expense(
-                financial_account=account, category=category, amount_minor=500,
-                occurred_at=now - timedelta(days=days_ago), payee=payee,
+                financial_account=account,
+                category=category,
+                amount_minor=500,
+                occurred_at=now - timedelta(days=days_ago),
+                payee=payee,
             )
         merchants = quick_add.recent_merchants(limit=5)
         assert merchants[0] == "Apple Store"
@@ -239,8 +250,7 @@ def test_api_quick_add(tenant_context):
     _, client = tenant_context
     client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Checking", "account_type": "checking", "currency": "USD",
-         "opening_balance_minor": 500_000},
+        {"name": "Checking", "account_type": "checking", "currency": "USD", "opening_balance_minor": 500_000},
         format="json",
     )
     resp = client.post(
@@ -255,9 +265,7 @@ def test_api_quick_add(tenant_context):
 
 def test_api_quick_add_rejects_a_zero_amount(tenant_context):
     _, client = tenant_context
-    resp = client.post(
-        "/api/v1/finance/quick-add/", {"amount_minor": 0, "merchant": "Shop"}, format="json"
-    )
+    resp = client.post("/api/v1/finance/quick-add/", {"amount_minor": 0, "merchant": "Shop"}, format="json")
     assert resp.status_code == 400
 
 
@@ -265,13 +273,10 @@ def test_api_recent_merchants(tenant_context):
     _, client = tenant_context
     client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Checking", "account_type": "checking", "currency": "USD",
-         "opening_balance_minor": 500_000},
+        {"name": "Checking", "account_type": "checking", "currency": "USD", "opening_balance_minor": 500_000},
         format="json",
     )
-    client.post(
-        "/api/v1/finance/quick-add/", {"amount_minor": 500, "merchant": "Corner Shop"}, format="json"
-    )
+    client.post("/api/v1/finance/quick-add/", {"amount_minor": 500, "merchant": "Corner Shop"}, format="json")
     merchants = client.get("/api/v1/finance/quick-add/recent-merchants/").data
     assert "Corner Shop" in merchants
 
@@ -303,8 +308,7 @@ def test_api_quick_add_replay_is_idempotent(tenant_context):
     _, client = tenant_context
     client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Checking", "account_type": "checking", "currency": "USD",
-         "opening_balance_minor": 500_000},
+        {"name": "Checking", "account_type": "checking", "currency": "USD", "opening_balance_minor": 500_000},
         format="json",
     )
     payload = {"amount_minor": 1_250, "merchant": "Corner Shop", "idempotency_key": "offline-1"}

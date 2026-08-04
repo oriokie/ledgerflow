@@ -100,7 +100,12 @@ services:
       DOMAIN: ${DOMAIN:?DOMAIN must be set in .env}
       ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL must be set in .env}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # :z relabels the host file for the container's SELinux context. A
+      # no-op where SELinux isn't in play (Debian/Ubuntu); required on the
+      # RHEL family with SELinux enforcing (the common default there), or
+      # Caddy gets "permission denied" reading a file that is right there.
+      # Named volumes below don't need it — Docker manages their context.
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro,z
       - staticfiles:/srv/staticfiles:ro
       - frontend:/srv/frontend:ro
       - caddydata:/data
@@ -124,7 +129,7 @@ services:
       # binding wider would expose the app with TLS and HSTS assumptions unmet.
       - "127.0.0.1:8080:80"
     volumes:
-      - ./Caddyfile.internal:/etc/caddy/Caddyfile:ro
+      - ./Caddyfile.internal:/etc/caddy/Caddyfile:ro,z
       - staticfiles:/srv/staticfiles:ro
       - frontend:/srv/frontend:ro
     depends_on:

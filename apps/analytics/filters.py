@@ -11,7 +11,7 @@ so two identical requests cannot produce two cache entries.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, timedelta
 
 from django.utils import timezone

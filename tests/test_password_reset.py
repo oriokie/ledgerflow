@@ -77,8 +77,9 @@ def test_weak_password_is_rejected(api_client):
 
 
 def test_expired_token_is_rejected():
-    from django.utils import timezone
     from datetime import timedelta
+
+    from django.utils import timezone
 
     user = _make_user()
     raw = svc.request_password_reset(email=user.email)

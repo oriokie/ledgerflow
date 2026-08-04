@@ -69,12 +69,8 @@ def account_status(*, user: User) -> dict:
     from apps.users.mfa_models import TOTPDevice
     from apps.users.security_events import LoginEvent
 
-    memberships = list(
-        Membership.objects.filter(user=user).select_related("tenant")
-    )
-    recent = list(
-        LoginEvent.objects.filter(user=user).order_by("-created_at")[:5]
-    )
+    memberships = list(Membership.objects.filter(user=user).select_related("tenant"))
+    recent = list(LoginEvent.objects.filter(user=user).order_by("-created_at")[:5])
 
     blockers = []
     if not user.is_active:

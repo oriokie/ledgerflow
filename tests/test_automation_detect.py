@@ -108,9 +108,7 @@ def test_an_equal_and_opposite_pair_across_accounts_is_a_transfer():
 
 
 def test_confidence_tapers_as_the_legs_drift_apart():
-    same_day = detect.detect_transfers(
-        [_txn("o", -50_000, account="a"), _txn("i", 50_000, account="b")]
-    )[0]
+    same_day = detect.detect_transfers([_txn("o", -50_000, account="a"), _txn("i", 50_000, account="b")])[0]
     days_apart = detect.detect_transfers(
         [_txn("o", -50_000, account="a"), _txn("i", 50_000, day=3, account="b")]
     )[0]
@@ -272,9 +270,7 @@ def test_irregular_charges_are_not_recurring_even_if_the_mean_fits():
 
 
 def test_a_drifting_price_still_counts_but_scores_lower():
-    steady = detect.detect_recurring(
-        [_txn(f"s{i}", -1_000, day=i * 30, merchant="Sub") for i in range(3)]
-    )[0]
+    steady = detect.detect_recurring([_txn(f"s{i}", -1_000, day=i * 30, merchant="Sub") for i in range(3)])[0]
     drifting = detect.detect_recurring(
         [
             _txn("a", -1_000, day=0, merchant="Sub"),
@@ -287,9 +283,7 @@ def test_a_drifting_price_still_counts_but_scores_lower():
 
 
 def test_weekly_and_yearly_cadences_are_recognised():
-    weekly = detect.detect_recurring(
-        [_txn(f"w{i}", -500, day=i * 7, merchant="Weekly") for i in range(4)]
-    )
+    weekly = detect.detect_recurring([_txn(f"w{i}", -500, day=i * 7, merchant="Weekly") for i in range(4)])
     yearly = detect.detect_recurring(
         [_txn(f"y{i}", -9_900, day=i * 365, merchant="Yearly") for i in range(3)]
     )
@@ -349,9 +343,7 @@ def test_a_merchant_categorised_several_ways_suggests_a_split():
 
 def test_a_consistently_categorised_merchant_suggests_no_split():
     """Noise dressed as insight."""
-    history = [
-        _txn(f"h{i}", -3_000, merchant="Supermarket", category="groceries") for i in range(5)
-    ]
+    history = [_txn(f"h{i}", -3_000, merchant="Supermarket", category="groceries") for i in range(5)]
     assert detect.suggest_splits(_txn("new", -12_000, merchant="Supermarket"), history) == []
 
 

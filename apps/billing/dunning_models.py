@@ -198,9 +198,7 @@ class DunningAttempt(UUIDModel, TimeStampedModel):
     class Meta:
         ordering = ["scheduled_for", "sequence"]
         constraints = [
-            models.UniqueConstraint(
-                fields=["case", "kind", "sequence"], name="uniq_dunning_attempt_step"
-            )
+            models.UniqueConstraint(fields=["case", "kind", "sequence"], name="uniq_dunning_attempt_step")
         ]
         indexes = [
             # The worker's claim query: due, not yet executed.

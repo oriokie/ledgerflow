@@ -111,7 +111,7 @@ def test_confidence_is_clamped_and_weighted_lightly():
     assert scoring.confidence_points(-1.0) == 0
     # Confidence must not be able to outweigh severity — especially once an LLM
     # is supplying that number about itself.
-    assert scoring.MAX_CONFIDENCE_POINTS < scoring.SEVERITY_BASE[InsightSeverity.INFO]
+    assert scoring.SEVERITY_BASE[InsightSeverity.INFO] > scoring.MAX_CONFIDENCE_POINTS
 
 
 def test_score_is_bounded_to_0_100():
@@ -327,6 +327,7 @@ def test_regeneration_refreshes_rather_than_duplicating(tenant):
 
 def test_refresh_updates_the_figures(tenant):
     with tenant_scope(tenant):
+
         def ctx_with(spent: int):
             return _ctx(
                 budget_lines=(
@@ -522,9 +523,8 @@ def test_briefing_window_matches_its_period(tenant):
 
 
 def test_unknown_period_is_rejected(tenant):
-    with tenant_scope(tenant):
-        with pytest.raises(coach.CoachError):
-            coach.generate_briefing(period="fortnightly", as_of=TODAY)
+    with tenant_scope(tenant), pytest.raises(coach.CoachError):
+        coach.generate_briefing(period="fortnightly", as_of=TODAY)
 
 
 # --------------------------------------------------------------- provider seam
@@ -589,9 +589,7 @@ def test_insight_endpoints_generate_read_and_decide(tenant_context):
 
 def test_unknown_decision_is_rejected(tenant_context):
     _, client = tenant_context
-    resp = client.post(
-        "/api/v1/intelligence/insights/00000000-0000-0000-0000-000000000000/explode/"
-    )
+    resp = client.post("/api/v1/intelligence/insights/00000000-0000-0000-0000-000000000000/explode/")
     assert resp.status_code == 400
 
 
@@ -812,16 +810,19 @@ def test_budget_recommendation_fires_when_no_budget_exists():
 def test_merchant_change_is_detected_from_real_transactions(tenant):
     """Proves the context builder actually feeds the detector — a detector with
     no data source is the exact failure these three had."""
+    from django.utils import timezone
+
     from apps.finance import services as finance_services
     from apps.finance.models import AccountType, CategoryKind
     from apps.finance.payees import get_or_create_payee
     from apps.intelligence import coach_context
-    from django.utils import timezone
 
     today = timezone.localdate()
     with tenant_scope(tenant):
         account = finance_services.create_financial_account(
-            name="Checking", account_type=AccountType.CHECKING, currency="USD",
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
             opening_balance_minor=500_000,
         )
         category = finance_services.create_category(
@@ -854,15 +855,18 @@ def test_merchant_change_is_detected_from_real_transactions(tenant):
 def test_a_first_ever_purchase_is_not_a_price_change(tenant):
     """Treating a first purchase as a price rise is the false alarm that gets a
     coach muted."""
+    from django.utils import timezone
+
     from apps.finance import services as finance_services
     from apps.finance.models import AccountType, CategoryKind
     from apps.finance.payees import get_or_create_payee
     from apps.intelligence import coach_context
-    from django.utils import timezone
 
     with tenant_scope(tenant):
         account = finance_services.create_financial_account(
-            name="Checking", account_type=AccountType.CHECKING, currency="USD",
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
             opening_balance_minor=500_000,
         )
         category = finance_services.create_category(
@@ -888,7 +892,9 @@ def test_health_is_populated_from_the_existing_scorer(tenant):
 
     with tenant_scope(tenant):
         finance_services.create_financial_account(
-            name="Checking", account_type=AccountType.CHECKING, currency="USD",
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
             opening_balance_minor=250_000,
         )
         health = coach_context.build_context().health
@@ -905,20 +911,21 @@ def test_duplicates_are_detected_from_real_transactions(tenant):
     found nothing, ever. Only an integration test could catch that; the unit
     tests passed against hand-built context throughout.
     """
+    from django.utils import timezone
+
     from apps.finance import services as finance_services
     from apps.finance.models import AccountType, CategoryKind
     from apps.finance.payees import get_or_create_payee
     from apps.intelligence import coach_context
-    from django.utils import timezone
 
     with tenant_scope(tenant):
         account = finance_services.create_financial_account(
-            name="Checking", account_type=AccountType.CHECKING, currency="USD",
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
             opening_balance_minor=500_000,
         )
-        category = finance_services.create_category(
-            name="Food", kind=CategoryKind.EXPENSE, currency="USD"
-        )
+        category = finance_services.create_category(name="Food", kind=CategoryKind.EXPENSE, currency="USD")
         payee, _ = get_or_create_payee(name="Corner Shop")
 
         when = timezone.now() - timezone.timedelta(days=3)
@@ -936,20 +943,21 @@ def test_duplicates_are_detected_from_real_transactions(tenant):
 
 
 def test_a_single_charge_is_not_reported_as_a_duplicate(tenant):
+    from django.utils import timezone
+
     from apps.finance import services as finance_services
     from apps.finance.models import AccountType, CategoryKind
     from apps.finance.payees import get_or_create_payee
     from apps.intelligence import coach_context
-    from django.utils import timezone
 
     with tenant_scope(tenant):
         account = finance_services.create_financial_account(
-            name="Checking", account_type=AccountType.CHECKING, currency="USD",
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
             opening_balance_minor=500_000,
         )
-        category = finance_services.create_category(
-            name="Food", kind=CategoryKind.EXPENSE, currency="USD"
-        )
+        category = finance_services.create_category(name="Food", kind=CategoryKind.EXPENSE, currency="USD")
         finance_services.record_expense(
             financial_account=account,
             category=category,
@@ -986,13 +994,15 @@ def test_an_opted_out_tenant_never_constructs_the_configured_llm_provider():
 
     workspace = Tenant.objects.create(name="Opted-out household", ai_enabled=False)
 
-    with tenant_scope(workspace.id):
-        with patch(
+    with (
+        tenant_scope(workspace.id),
+        patch(
             "apps.intelligence.registry._resolve",
             side_effect=AssertionError("registry reached despite tenant opt-out"),
-        ):
-            insights = coach.generate_insights()
-            assert insights is not None  # completed via the rule-based path, untouched
+        ),
+    ):
+        insights = coach.generate_insights()
+        assert insights is not None  # completed via the rule-based path, untouched
 
 
 def test_an_opted_in_tenant_does_reach_the_registry():
@@ -1005,13 +1015,15 @@ def test_an_opted_in_tenant_does_reach_the_registry():
 
     workspace = Tenant.objects.create(name="Opted-in household", ai_enabled=True)
 
-    with tenant_scope(workspace.id):
-        with patch(
+    with (
+        tenant_scope(workspace.id),
+        patch(
             "apps.intelligence.coach.get_insight_provider",
             wraps=coach.get_insight_provider,
-        ) as spied:
-            coach.generate_insights()
-            spied.assert_called_once()
+        ) as spied,
+    ):
+        coach.generate_insights()
+        spied.assert_called_once()
 
 
 def test_the_flag_defaults_to_enabled():
@@ -1048,9 +1060,7 @@ def test_api_llm_settings_reports_the_tenant_flag(tenant_context):
 
 def test_api_owner_can_toggle_the_flag_off(tenant_context):
     membership, client = tenant_context
-    resp = client.patch(
-        "/api/v1/intelligence/llm-settings/", {"tenant_ai_enabled": False}, format="json"
-    )
+    resp = client.patch("/api/v1/intelligence/llm-settings/", {"tenant_ai_enabled": False}, format="json")
     assert resp.status_code == 200, resp.data
     assert resp.data["tenant_ai_enabled"] is False
 
@@ -1062,25 +1072,21 @@ def test_api_owner_can_toggle_the_flag_off(tenant_context):
 def test_api_toggling_off_then_on_round_trips(tenant_context):
     _, client = tenant_context
     client.patch("/api/v1/intelligence/llm-settings/", {"tenant_ai_enabled": False}, format="json")
-    resp = client.patch(
-        "/api/v1/intelligence/llm-settings/", {"tenant_ai_enabled": True}, format="json"
-    )
+    resp = client.patch("/api/v1/intelligence/llm-settings/", {"tenant_ai_enabled": True}, format="json")
     assert resp.data["tenant_ai_enabled"] is True
 
 
 def test_api_a_plain_member_cannot_toggle_the_flag():
     """This is a decision about the whole household's data, not an individual
     member's preference — the same bar as every other workspace-level write."""
+    from apps.tenancy.models import Role
     from tests.conftest import _bearer_client
     from tests.factories import MembershipFactory
-    from apps.tenancy.models import Role
 
     membership = MembershipFactory(role=Role.MEMBER)
     client = _bearer_client(membership.user, tenant_id=membership.tenant_id)
 
-    resp = client.patch(
-        "/api/v1/intelligence/llm-settings/", {"tenant_ai_enabled": False}, format="json"
-    )
+    resp = client.patch("/api/v1/intelligence/llm-settings/", {"tenant_ai_enabled": False}, format="json")
     assert resp.status_code == 403
 
     from apps.tenancy.models import Tenant
@@ -1090,9 +1096,9 @@ def test_api_a_plain_member_cannot_toggle_the_flag():
 
 def test_api_a_plain_member_can_still_read_the_settings():
     """GET stays open to any member — only the write is restricted."""
+    from apps.tenancy.models import Role
     from tests.conftest import _bearer_client
     from tests.factories import MembershipFactory
-    from apps.tenancy.models import Role
 
     membership = MembershipFactory(role=Role.MEMBER)
     client = _bearer_client(membership.user, tenant_id=membership.tenant_id)

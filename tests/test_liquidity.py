@@ -15,18 +15,15 @@ from apps.billing.models import BillingInterval, Plan, PlanTier
 from apps.common.rls import bind_db_tenant
 from apps.common.tenant_context import use_tenant
 from apps.finance import services as fin
-from apps.finance.selectors import cashflow_statement
-from apps.intelligence.selectors import cash_runway
 
 pytestmark = pytest.mark.django_db
 
 
 @contextlib.contextmanager
 def _ctx(membership):
-    with db_tx.atomic():
-        with use_tenant(membership.tenant_id, membership.user_id):
-            bind_db_tenant(membership.tenant_id)
-            yield
+    with db_tx.atomic(), use_tenant(membership.tenant_id, membership.user_id):
+        bind_db_tenant(membership.tenant_id)
+        yield
 
 
 def _seed_history(membership, monthly_income=500_000, monthly_expense=650_000, months=3):
@@ -37,14 +34,20 @@ def _seed_history(membership, monthly_income=500_000, monthly_expense=650_000, m
         cat_out = fin.create_category(name="Life", kind="expense", currency="USD")
         now = timezone.now()
         for m in range(1, months + 1):
-            when = (now.replace(day=15) - timedelta(days=30 * m))
+            when = now.replace(day=15) - timedelta(days=30 * m)
             fin.record_income(
-                financial_account=acct, category=cat_in, amount_minor=monthly_income,
-                occurred_at=when, memo=f"salary {m}",
+                financial_account=acct,
+                category=cat_in,
+                amount_minor=monthly_income,
+                occurred_at=when,
+                memo=f"salary {m}",
             )
             fin.record_expense(
-                financial_account=acct, category=cat_out, amount_minor=monthly_expense,
-                occurred_at=when + timedelta(days=1), memo=f"living {m}",
+                financial_account=acct,
+                category=cat_out,
+                amount_minor=monthly_expense,
+                occurred_at=when + timedelta(days=1),
+                memo=f"living {m}",
             )
     return acct
 
@@ -112,8 +115,14 @@ def test_cash_runway_insufficient_data(tenant_context):
 def test_cash_runway_gated_like_other_ai_features(tenant_context):
     membership, client = tenant_context
     no_ai = Plan.objects.create(
-        tier=PlanTier.FREE, name="Free", price_minor=0, currency="USD",
-        interval=BillingInterval.MONTHLY, max_accounts=3, max_members=1, ai_insights=False,
+        tier=PlanTier.FREE,
+        name="Free",
+        price_minor=0,
+        currency="USD",
+        interval=BillingInterval.MONTHLY,
+        max_accounts=3,
+        max_members=1,
+        ai_insights=False,
     )
     billing.subscribe(tenant_id=membership.tenant_id, plan=no_ai)
     assert client.get("/api/v1/intelligence/cash-runway/").status_code == 402

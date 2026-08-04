@@ -8,12 +8,12 @@ import pytest
 from django.core import mail
 from django.db import transaction
 
+from apps.common.rls import bind_db_tenant
+from apps.common.tenant_context import use_tenant
 from apps.notifications import services
 from apps.notifications.email_channel import EMAIL_WORTHY, wants_email
 from apps.notifications.models import NotificationPreference, NotificationType
-from apps.notifications.summary import build_summary, render_summary_text
-from apps.common.rls import bind_db_tenant
-from apps.common.tenant_context import use_tenant
+from apps.notifications.summary import render_summary_text
 from tests.conftest import _bearer_client
 from tests.factories import MembershipFactory
 
@@ -153,7 +153,8 @@ def test_a_failing_mail_provider_does_not_break_the_alert(monkeypatch):
 
     m = MembershipFactory()
     monkeypatch.setattr(
-        email_channel.EmailMultiAlternatives, "send",
+        email_channel.EmailMultiAlternatives,
+        "send",
         lambda self, **kw: (_ for _ in ()).throw(RuntimeError("smtp down")),
     )
     with _tenant(m):
@@ -168,9 +169,7 @@ def test_a_failing_mail_provider_does_not_break_the_alert(monkeypatch):
 # =============================================================== preferences
 def test_preferences_default_to_everything_on_except_email():
     m = MembershipFactory()
-    body = _bearer_client(m.user, tenant_id=m.tenant_id).get(
-        "/api/v1/notifications/preferences/"
-    ).json()
+    body = _bearer_client(m.user, tenant_id=m.tenant_id).get("/api/v1/notifications/preferences/").json()
 
     assert body["email_enabled"] is False
     assert body["push_enabled"] is True
@@ -206,9 +205,9 @@ def test_preferences_are_per_user_not_per_workspace():
     _bearer_client(owner.user, tenant_id=owner.tenant_id).patch(
         "/api/v1/notifications/preferences/", {"email_enabled": True}, format="json"
     )
-    body = _bearer_client(other.user, tenant_id=other.tenant_id).get(
-        "/api/v1/notifications/preferences/"
-    ).json()
+    body = (
+        _bearer_client(other.user, tenant_id=other.tenant_id).get("/api/v1/notifications/preferences/").json()
+    )
     assert body["email_enabled"] is False
 
 
@@ -233,8 +232,13 @@ def test_the_summary_leads_with_a_verdict():
 
 def test_the_summary_names_a_shortfall_plainly():
     text = render_summary_text(
-        {"month_label": "June 2026", "income_minor": 100, "spending_minor": 400,
-         "net_minor": -300, "net_worth_minor": None},
+        {
+            "month_label": "June 2026",
+            "income_minor": 100,
+            "spending_minor": 400,
+            "net_minor": -300,
+            "net_worth_minor": None,
+        },
         currency="USD",
     )
     assert "more than you earned" in text

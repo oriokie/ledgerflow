@@ -24,7 +24,7 @@ from decimal import Decimal
 from django.db.models import Sum
 from django.utils import timezone
 
-from apps.finance.models import AccountType, FinancialAccount
+from apps.finance.models import AccountType
 
 from .models import AssetClass, Holding, InvestmentTransaction, InvestmentTransactionType, Lot, PriceQuote
 
@@ -32,9 +32,7 @@ from .models import AssetClass, Holding, InvestmentTransaction, InvestmentTransa
 INVESTMENT_ACCOUNT_TYPES = {AccountType.INVESTMENT}
 
 
-def latest_price(
-    security_id: str, *, as_of: date | None = None
-) -> tuple[int, date] | None:
+def latest_price(security_id: str, *, as_of: date | None = None) -> tuple[int, date] | None:
     """Most recent quote at or before `as_of`, **with the date it was taken**.
 
     The date is not decoration. Quotes in this product are entered by hand —
@@ -183,9 +181,7 @@ def _allocate(valuations: list[HoldingValuation], key) -> list[AllocationSlice]:
 
 def asset_allocation(*, as_of: date | None = None) -> list[AllocationSlice]:
     labels = dict(AssetClass.choices)
-    return _allocate(
-        holding_valuations(as_of=as_of), lambda v: labels.get(v.asset_class, v.asset_class)
-    )
+    return _allocate(holding_valuations(as_of=as_of), lambda v: labels.get(v.asset_class, v.asset_class))
 
 
 def sector_allocation(*, as_of: date | None = None) -> list[AllocationSlice]:
@@ -335,9 +331,7 @@ def valuation_history(*, months: int = 12, currency: str | None = None) -> list[
             cost += _cost_at(holding, month_end)
 
         if priced_any:
-            points.append(
-                ValuationPoint(as_of=month_end, market_value_minor=market, cost_basis_minor=cost)
-            )
+            points.append(ValuationPoint(as_of=month_end, market_value_minor=market, cost_basis_minor=cost))
     return points
 
 
@@ -349,9 +343,9 @@ def _quantity_at(holding: Holding, as_of: date) -> Decimal:
     duplicating something already derivable.
     """
     quantity = Decimal("0")
-    for txn in InvestmentTransaction.objects.filter(
-        holding=holding, occurred_on__lte=as_of
-    ).order_by("occurred_on", "id"):
+    for txn in InvestmentTransaction.objects.filter(holding=holding, occurred_on__lte=as_of).order_by(
+        "occurred_on", "id"
+    ):
         if txn.txn_type == InvestmentTransactionType.BUY:
             quantity += txn.quantity
         elif txn.txn_type == InvestmentTransactionType.SELL:
@@ -376,9 +370,7 @@ def _cost_at(holding: Holding, as_of: date) -> int:
     # Lots as they were created, oldest first — the FIFO order disposals used.
     lots = [
         {"acquired_on": lot.acquired_on, "quantity": lot.quantity, "cost": Decimal(lot.cost_minor)}
-        for lot in Lot.objects.filter(holding=holding, acquired_on__lte=as_of).order_by(
-            "acquired_on", "id"
-        )
+        for lot in Lot.objects.filter(holding=holding, acquired_on__lte=as_of).order_by("acquired_on", "id")
     ]
     if not lots:
         return 0

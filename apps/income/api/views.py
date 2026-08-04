@@ -68,9 +68,7 @@ class IncomeSourceView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
         if v.get("deposit_account_id"):
             account = FinancialAccount.objects.filter(id=v["deposit_account_id"]).first()
             if account is None:
-                return Response(
-                    {"detail": "deposit_account not found"}, status=status.HTTP_400_BAD_REQUEST
-                )
+                return Response({"detail": "deposit_account not found"}, status=status.HTTP_400_BAD_REQUEST)
         try:
             source = services.create_source(
                 name=v["name"],
@@ -270,16 +268,18 @@ class IncomeSummaryView(TenantScopedAPIView, APIView):
                 "source_count": summary.source_count,
                 "ad_hoc_count": summary.ad_hoc_count,
                 "speculative_count": summary.speculative_count,
-                "committed": None
-                if committed is None
-                else {
-                    "committed_minor": committed.committed_minor,
-                    "free_minor": committed.free_minor,
-                    "committed_pct": committed.committed_pct,
-                    "committed_against_fixed_pct": committed.committed_against_fixed_pct,
-                    "bills_minor": committed.bills_minor,
-                    "debt_minimums_minor": committed.debt_minimums_minor,
-                    "recurring_expenses_minor": committed.recurring_expenses_minor,
-                },
+                "committed": (
+                    None
+                    if committed is None
+                    else {
+                        "committed_minor": committed.committed_minor,
+                        "free_minor": committed.free_minor,
+                        "committed_pct": committed.committed_pct,
+                        "committed_against_fixed_pct": committed.committed_against_fixed_pct,
+                        "bills_minor": committed.bills_minor,
+                        "debt_minimums_minor": committed.debt_minimums_minor,
+                        "recurring_expenses_minor": committed.recurring_expenses_minor,
+                    }
+                ),
             }
         )

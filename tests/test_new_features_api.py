@@ -233,7 +233,13 @@ def test_bill_cancel(tenant_context):
     rent = _mk_category(client, "Rent")
     bill = client.post(
         "/api/v1/finance/bills/",
-        {"name": "Gym", "amount_minor": 5000, "currency": "USD", "due_on": "2026-02-01", "category_id": rent["id"]},
+        {
+            "name": "Gym",
+            "amount_minor": 5000,
+            "currency": "USD",
+            "due_on": "2026-02-01",
+            "category_id": rent["id"],
+        },
         format="json",
     ).data
     bill_id = bill["id"]

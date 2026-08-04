@@ -320,20 +320,26 @@ def test_replaying_record_expense_does_not_create_a_second_transaction():
     tenant = uuid.uuid4()
     with tenant_scope(tenant):
         account = services.create_financial_account(
-            name="Checking", account_type=AccountType.CHECKING, currency="USD",
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
             opening_balance_minor=500_000,
         )
-        category = services.create_category(
-            name="Groceries", kind=CategoryKind.EXPENSE, currency="USD"
-        )
+        category = services.create_category(name="Groceries", kind=CategoryKind.EXPENSE, currency="USD")
         key = "replay-key-expense"
         first = services.record_expense(
-            financial_account=account, category=category, amount_minor=1_000,
-            occurred_at=timezone.now(), idempotency_key=key,
+            financial_account=account,
+            category=category,
+            amount_minor=1_000,
+            occurred_at=timezone.now(),
+            idempotency_key=key,
         )
         second = services.record_expense(
-            financial_account=account, category=category, amount_minor=1_000,
-            occurred_at=timezone.now(), idempotency_key=key,
+            financial_account=account,
+            category=category,
+            amount_minor=1_000,
+            occurred_at=timezone.now(),
+            idempotency_key=key,
         )
         assert first.id == second.id
         assert Transaction.objects.filter(journal_entry=first.journal_entry).count() == 1
@@ -345,17 +351,21 @@ def test_replaying_record_income_does_not_create_a_second_transaction():
         account = services.create_financial_account(
             name="Checking", account_type=AccountType.CHECKING, currency="USD"
         )
-        category = services.create_category(
-            name="Salary", kind=CategoryKind.INCOME, currency="USD"
-        )
+        category = services.create_category(name="Salary", kind=CategoryKind.INCOME, currency="USD")
         key = "replay-key-income"
         first = services.record_income(
-            financial_account=account, category=category, amount_minor=50_000,
-            occurred_at=timezone.now(), idempotency_key=key,
+            financial_account=account,
+            category=category,
+            amount_minor=50_000,
+            occurred_at=timezone.now(),
+            idempotency_key=key,
         )
         second = services.record_income(
-            financial_account=account, category=category, amount_minor=50_000,
-            occurred_at=timezone.now(), idempotency_key=key,
+            financial_account=account,
+            category=category,
+            amount_minor=50_000,
+            occurred_at=timezone.now(),
+            idempotency_key=key,
         )
         assert first.id == second.id
         assert Transaction.objects.filter(journal_entry=first.journal_entry).count() == 1
@@ -367,7 +377,9 @@ def test_replaying_record_transfer_does_not_create_extra_legs():
     tenant = uuid.uuid4()
     with tenant_scope(tenant):
         checking = services.create_financial_account(
-            name="Checking", account_type=AccountType.CHECKING, currency="USD",
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
             opening_balance_minor=500_000,
         )
         savings = services.create_financial_account(
@@ -375,12 +387,18 @@ def test_replaying_record_transfer_does_not_create_extra_legs():
         )
         key = "replay-key-transfer"
         out1, in1 = services.record_transfer(
-            from_account=checking, to_account=savings, amount_minor=20_000,
-            occurred_at=timezone.now(), idempotency_key=key,
+            from_account=checking,
+            to_account=savings,
+            amount_minor=20_000,
+            occurred_at=timezone.now(),
+            idempotency_key=key,
         )
         out2, in2 = services.record_transfer(
-            from_account=checking, to_account=savings, amount_minor=20_000,
-            occurred_at=timezone.now(), idempotency_key=key,
+            from_account=checking,
+            to_account=savings,
+            amount_minor=20_000,
+            occurred_at=timezone.now(),
+            idempotency_key=key,
         )
         assert out1.id == out2.id
         assert in1.id == in2.id
@@ -394,15 +412,19 @@ def test_a_fresh_idempotency_key_still_posts_normally():
         account = services.create_financial_account(
             name="Checking", account_type=AccountType.CHECKING, currency="USD"
         )
-        category = services.create_category(
-            name="Groceries", kind=CategoryKind.EXPENSE, currency="USD"
+        category = services.create_category(name="Groceries", kind=CategoryKind.EXPENSE, currency="USD")
+        services.record_expense(
+            financial_account=account,
+            category=category,
+            amount_minor=1_000,
+            occurred_at=timezone.now(),
+            idempotency_key="key-1",
         )
         services.record_expense(
-            financial_account=account, category=category, amount_minor=1_000,
-            occurred_at=timezone.now(), idempotency_key="key-1",
-        )
-        services.record_expense(
-            financial_account=account, category=category, amount_minor=1_000,
-            occurred_at=timezone.now(), idempotency_key="key-2",
+            financial_account=account,
+            category=category,
+            amount_minor=1_000,
+            occurred_at=timezone.now(),
+            idempotency_key="key-2",
         )
         assert Transaction.objects.count() == 2

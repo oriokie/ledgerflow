@@ -85,9 +85,7 @@ def request_refund(
     if amount <= 0:
         raise RefundError("A refund must be for a positive amount.")
     if amount > available:
-        raise RefundError(
-            f"Refund of {amount} exceeds the {available} still refundable on this payment."
-        )
+        raise RefundError(f"Refund of {amount} exceeds the {available} still refundable on this payment.")
 
     return Refund.objects.create(
         tenant_id=payment.tenant_id,

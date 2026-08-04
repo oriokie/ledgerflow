@@ -274,9 +274,9 @@ class DividendView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
                 security=security,
                 amount_minor=v["amount_minor"],
                 occurred_on=v.get("occurred_on"),
-                cash_account=_resolve(FinancialAccount, v["cash_account_id"])
-                if v.get("cash_account_id")
-                else None,
+                cash_account=(
+                    _resolve(FinancialAccount, v["cash_account_id"]) if v.get("cash_account_id") else None
+                ),
                 memo=v.get("memo", ""),
             )
         except services.InvestmentError as exc:

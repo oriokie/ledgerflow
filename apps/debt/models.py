@@ -114,18 +114,14 @@ class DebtProfile(SoftDeletableModel):
     #: Some debts are interest-free for a window — BNPL almost always, credit
     #: cards on a promotional rate. After this date `apr` applies.
     promotional_apr_until = models.DateField(null=True, blank=True)
-    promotional_apr = models.DecimalField(
-        max_digits=6, decimal_places=3, null=True, blank=True
-    )
+    promotional_apr = models.DecimalField(max_digits=6, decimal_places=3, null=True, blank=True)
 
     #: Position in a CUSTOM payoff order. Lower is paid first.
     custom_priority = models.PositiveSmallIntegerField(default=100)
 
     #: How often interest is compounded. Monthly is the common case and the
     #: default, so existing rows keep behaving exactly as they did.
-    compounding = models.CharField(
-        max_length=12, choices=Compounding.choices, default=Compounding.MONTHLY
-    )
+    compounding = models.CharField(max_length=12, choices=Compounding.choices, default=Compounding.MONTHLY)
 
     # --- fees ---------------------------------------------------------------
     # Charges that cost money without reducing the principal. Kept as separate
@@ -181,7 +177,7 @@ class DebtProfile(SoftDeletableModel):
     def __str__(self) -> str:
         return f"{self.debt_kind} @ {self.apr}%"
 
-    def effective_apr(self, on: "object" = None) -> Decimal:
+    def effective_apr(self, on: object = None) -> Decimal:
         """The rate that actually applies on a date.
 
         Promotional periods are common enough — and consequential enough — that
@@ -228,9 +224,7 @@ class DebtRateHistory(SoftDeletableModel):
     rather than being surprised by it later.
     """
 
-    profile = models.ForeignKey(
-        DebtProfile, on_delete=models.CASCADE, related_name="rate_history"
-    )
+    profile = models.ForeignKey(DebtProfile, on_delete=models.CASCADE, related_name="rate_history")
     #: The rate applies from this date until the next entry begins.
     effective_from = models.DateField()
     apr = models.DecimalField(max_digits=6, decimal_places=3)

@@ -75,24 +75,16 @@ class Command(BaseCommand):
                     "sort_order": order,
                 }
 
-                existing = Plan.objects.filter(
-                    tier=tier, interval=interval, currency=currency
-                ).first()
+                existing = Plan.objects.filter(tier=tier, interval=interval, currency=currency).first()
 
                 if existing is None:
                     if not dry_run:
-                        Plan.objects.create(
-                            tier=tier, interval=interval, currency=currency, **defaults
-                        )
+                        Plan.objects.create(tier=tier, interval=interval, currency=currency, **defaults)
                     created += 1
                     self.stdout.write(f"  + {label:18} {currency} {price / 100:>8.2f}")
                     continue
 
-                changes = [
-                    field
-                    for field, value in defaults.items()
-                    if getattr(existing, field) != value
-                ]
+                changes = [field for field, value in defaults.items() if getattr(existing, field) != value]
                 if not changes:
                     continue
                 if not dry_run:
@@ -106,10 +98,6 @@ class Command(BaseCommand):
                 self.stdout.write(f"  ~ {label:18} {', '.join(changes)}")
 
         verb = "would be" if dry_run else ""
-        self.stdout.write(
-            self.style.SUCCESS(f"\n{created} created, {updated} updated {verb}".strip())
-        )
+        self.stdout.write(self.style.SUCCESS(f"\n{created} created, {updated} updated {verb}".strip()))
         if not dry_run and updated:
-            self.stdout.write(
-                "Existing subscriptions keep their tier and inherit its new contents."
-            )
+            self.stdout.write("Existing subscriptions keep their tier and inherit its new contents.")

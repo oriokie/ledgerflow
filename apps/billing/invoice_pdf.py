@@ -109,9 +109,7 @@ def render_invoice_pdf(invoice: Invoice) -> bytes:
     )
 
     styles = getSampleStyleSheet()
-    muted = ParagraphStyle(
-        "muted", parent=styles["Normal"], fontSize=9, textColor=colors.HexColor("#656c81")
-    )
+    muted = ParagraphStyle("muted", parent=styles["Normal"], fontSize=9, textColor=colors.HexColor("#656c81"))
     story: list = []
 
     # ---------------------------------------------------------------- header
@@ -259,8 +257,7 @@ def render_invoice_pdf(invoice: Invoice) -> bytes:
     story.append(Spacer(1, 10 * mm))
     story.append(
         Paragraph(
-            f"Generated {timezone.now():%d %B %Y}. "
-            f"Questions? Reply to {issuer['email']}.",
+            f"Generated {timezone.now():%d %B %Y}. " f"Questions? Reply to {issuer['email']}.",
             muted,
         )
     )

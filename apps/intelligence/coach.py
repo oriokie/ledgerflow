@@ -24,8 +24,8 @@ from apps.common.outbox import OutboxEvent
 from . import coach_context, scoring
 from .models import Briefing, BriefingPeriod, Insight, InsightStatus
 from .protocols import CoachContext, InsightCandidate
-from .registry import get_insight_provider, get_narrative_provider
 from .providers.coach import RuleBasedCoach, TemplateNarrator
+from .registry import get_insight_provider, get_narrative_provider
 
 
 def _tenant_ai_enabled() -> bool:
@@ -260,9 +260,7 @@ def generate_briefing(*, period: str, as_of: date | None = None) -> Briefing:
         for i in insights
     ]
     narrator = get_narrative_provider() if _tenant_ai_enabled() else TemplateNarrator()
-    draft = narrator.write_briefing(
-        period=period, context=context, insights=candidates
-    )
+    draft = narrator.write_briefing(period=period, context=context, insights=candidates)
 
     briefing, _ = Briefing.objects.update_or_create(
         period=period,

@@ -235,7 +235,9 @@ def issue_invoice(*, invoice: Invoice) -> Invoice:
 
 
 @transaction.atomic
-def mark_paid(*, invoice: Invoice, amount_minor: int | None = None, payment: Payment | None = None) -> Invoice:
+def mark_paid(
+    *, invoice: Invoice, amount_minor: int | None = None, payment: Payment | None = None
+) -> Invoice:
     """Record settlement. Partial payments accumulate and leave the invoice open.
 
     A partial payment does *not* flip the status: an invoice with 40% paid is

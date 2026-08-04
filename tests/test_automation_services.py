@@ -17,8 +17,8 @@ import pytest
 from django.utils import timezone
 
 from apps.finance import services as finance_services
-from apps.finance.models import AccountType, CategoryKind
 from apps.finance.import_csv import import_transactions_csv
+from apps.finance.models import AccountType, CategoryKind
 from apps.finance.payees import get_or_create_payee
 from apps.intelligence import automation_services as auto
 from apps.intelligence import detect
@@ -49,12 +49,8 @@ def _setup():
     savings = finance_services.create_financial_account(
         name="Savings", account_type=AccountType.SAVINGS, currency="USD"
     )
-    groceries = finance_services.create_category(
-        name="Groceries", kind=CategoryKind.EXPENSE, currency="USD"
-    )
-    dining = finance_services.create_category(
-        name="Dining", kind=CategoryKind.EXPENSE, currency="USD"
-    )
+    groceries = finance_services.create_category(name="Groceries", kind=CategoryKind.EXPENSE, currency="USD")
+    dining = finance_services.create_category(name="Dining", kind=CategoryKind.EXPENSE, currency="USD")
     return checking, savings, groceries, dining
 
 
@@ -73,11 +69,7 @@ def _import_uncategorised(account, *, description, amount_major):
 
     # The importer routes these through a lazily-created "Uncategorized"
     # category, because the ledger needs one for a valid posting.
-    return (
-        Transaction.objects.filter(category__name__istartswith="Uncategor")
-        .order_by("-created_at")
-        .first()
-    )
+    return Transaction.objects.filter(category__name__istartswith="Uncategor").order_by("-created_at").first()
 
 
 def _spend(account, category, amount, *, days_ago=0, payee="Corner Shop"):
@@ -161,9 +153,7 @@ def test_a_dismissed_suggestion_never_comes_back(tenant):
         _spend(checking, groceries, 1_250)
         auto.scan()
 
-        suggestion = AutomationSuggestion.objects.filter(
-            kind=SuggestionKind.DUPLICATE
-        ).first()
+        suggestion = AutomationSuggestion.objects.filter(kind=SuggestionKind.DUPLICATE).first()
         auto.reject(suggestion=suggestion)
 
         auto.scan()
@@ -181,9 +171,7 @@ def test_rescanning_refreshes_an_undecided_finding(tenant):
             _spend(checking, groceries, 1_299, days_ago=days, payee="Streaming Co")
         auto.scan()
 
-        suggestion = AutomationSuggestion.objects.filter(
-            kind=SuggestionKind.RECURRING
-        ).first()
+        suggestion = AutomationSuggestion.objects.filter(kind=SuggestionKind.RECURRING).first()
         assert suggestion is not None
 
         result = auto.scan()
@@ -198,7 +186,9 @@ def test_scanning_never_writes_to_the_ledger(tenant):
     with tenant_scope(tenant):
         checking, savings, groceries, _ = _setup()
         finance_services.record_transfer(
-            from_account=checking, to_account=savings, amount_minor=50_000,
+            from_account=checking,
+            to_account=savings,
+            amount_minor=50_000,
             occurred_at=timezone.now(),
         )
         _spend(checking, groceries, 1_250)
@@ -218,9 +208,7 @@ def test_approving_a_duplicate_does_not_delete_anything(tenant):
         _spend(checking, groceries, 1_250)
         auto.scan()
 
-        suggestion = AutomationSuggestion.objects.filter(
-            kind=SuggestionKind.DUPLICATE
-        ).first()
+        suggestion = AutomationSuggestion.objects.filter(kind=SuggestionKind.DUPLICATE).first()
         lines_before = LedgerLine.objects.count()
         txns_before = suggestion.transactions.count()
 
@@ -235,7 +223,9 @@ def test_approving_a_transfer_suggestion_does_not_repost(tenant):
     with tenant_scope(tenant):
         checking, savings, _, _ = _setup()
         finance_services.record_transfer(
-            from_account=checking, to_account=savings, amount_minor=50_000,
+            from_account=checking,
+            to_account=savings,
+            amount_minor=50_000,
             occurred_at=timezone.now(),
         )
         auto.scan()
@@ -281,13 +271,9 @@ def test_a_learned_category_is_suggested_on_the_next_scan(tenant):
     with tenant_scope(tenant):
         checking, _, groceries, _ = _setup()
         for _ in range(3):
-            auto.learn_from_transaction(
-                _spend(checking, groceries, 3_000, payee="Corner Shop")
-            )
+            auto.learn_from_transaction(_spend(checking, groceries, 3_000, payee="Corner Shop"))
 
-        uncategorised = _import_uncategorised(
-            checking, description="Corner Shop", amount_major=25.00
-        )
+        uncategorised = _import_uncategorised(checking, description="Corner Shop", amount_major=25.00)
         assert uncategorised is not None
         auto.scan()
 
@@ -304,9 +290,7 @@ def test_rejecting_a_category_withdraws_its_vote(tenant):
     with tenant_scope(tenant):
         checking, _, groceries, _ = _setup()
         for _ in range(3):
-            auto.learn_from_transaction(
-                _spend(checking, groceries, 3_000, payee="Corner Shop")
-            )
+            auto.learn_from_transaction(_spend(checking, groceries, 3_000, payee="Corner Shop"))
         before = MerchantProfile.objects.get().category_counts[str(groceries.id)]
 
         auto.unlearn_category(
@@ -322,9 +306,7 @@ def test_a_split_history_suggests_no_category(tenant):
     with tenant_scope(tenant):
         checking, _, groceries, dining = _setup()
         for category in (groceries, dining, groceries, dining):
-            auto.learn_from_transaction(
-                _spend(checking, category, 3_000, payee="Corner Shop")
-            )
+            auto.learn_from_transaction(_spend(checking, category, 3_000, payee="Corner Shop"))
 
         profile = MerchantProfile.objects.get()
         assert profile.dominant_category_id is None
@@ -334,9 +316,7 @@ def test_a_dominant_category_is_reported(tenant):
     with tenant_scope(tenant):
         checking, _, groceries, dining = _setup()
         for category in (groceries, groceries, groceries, dining):
-            auto.learn_from_transaction(
-                _spend(checking, category, 3_000, payee="Corner Shop")
-            )
+            auto.learn_from_transaction(_spend(checking, category, 3_000, payee="Corner Shop"))
 
         assert MerchantProfile.objects.get().dominant_category_id == str(groceries.id)
 
@@ -348,12 +328,8 @@ def test_approving_a_category_applies_it(tenant):
     with tenant_scope(tenant):
         checking, _, groceries, _ = _setup()
         for _ in range(3):
-            auto.learn_from_transaction(
-                _spend(checking, groceries, 3_000, payee="Corner Shop")
-            )
-        uncategorised = _import_uncategorised(
-            checking, description="Corner Shop", amount_major=25.00
-        )
+            auto.learn_from_transaction(_spend(checking, groceries, 3_000, payee="Corner Shop"))
+        uncategorised = _import_uncategorised(checking, description="Corner Shop", amount_major=25.00)
         auto.scan()
 
         suggestion = AutomationSuggestion.objects.filter(
@@ -373,9 +349,7 @@ def test_a_decided_suggestion_cannot_be_decided_again(tenant):
         _spend(checking, groceries, 1_250)
         auto.scan()
 
-        suggestion = AutomationSuggestion.objects.filter(
-            kind=SuggestionKind.DUPLICATE
-        ).first()
+        suggestion = AutomationSuggestion.objects.filter(kind=SuggestionKind.DUPLICATE).first()
         auto.reject(suggestion=suggestion)
         with pytest.raises(auto.AutomationError):
             auto.approve(suggestion=suggestion)
@@ -399,9 +373,8 @@ def test_bulk_review_decides_many_at_once(tenant):
 
 
 def test_bulk_review_rejects_an_unknown_decision(tenant):
-    with tenant_scope(tenant):
-        with pytest.raises(auto.AutomationError):
-            auto.bulk_decide(suggestion_ids=[], decision="maybe")
+    with tenant_scope(tenant), pytest.raises(auto.AutomationError):
+        auto.bulk_decide(suggestion_ids=[], decision="maybe")
 
 
 def test_bulk_review_skips_rows_already_decided_elsewhere(tenant):
@@ -415,9 +388,7 @@ def test_bulk_review_skips_rows_already_decided_elsewhere(tenant):
         suggestions = list(auto.pending_suggestions())
         auto.reject(suggestion=suggestions[0])
 
-        decided = auto.bulk_decide(
-            suggestion_ids=[s.id for s in suggestions], decision="approve"
-        )
+        decided = auto.bulk_decide(suggestion_ids=[s.id for s in suggestions], decision="approve")
         assert decided == len(suggestions) - 1
 
 
@@ -453,9 +424,7 @@ def test_the_uncategorised_placeholder_is_never_learned(tenant):
     with tenant_scope(tenant):
         checking, _, _, _ = _setup()
         for _ in range(3):
-            imported = _import_uncategorised(
-                checking, description="Mystery Shop", amount_major=12.00
-            )
+            imported = _import_uncategorised(checking, description="Mystery Shop", amount_major=12.00)
             auto.learn_from_transaction(imported)
 
         profile = MerchantProfile.objects.get(key=detect.merchant_key("Mystery Shop"))
@@ -470,8 +439,12 @@ def test_the_uncategorised_placeholder_is_never_learned(tenant):
 def _api_setup(client):
     account = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Checking", "account_type": "checking", "currency": "USD",
-         "opening_balance_minor": 1_000_000},
+        {
+            "name": "Checking",
+            "account_type": "checking",
+            "currency": "USD",
+            "opening_balance_minor": 1_000_000,
+        },
         format="json",
     ).data
     savings = client.post(
@@ -540,9 +513,7 @@ def test_api_decide_one(tenant_context):
     client.post("/api/v1/intelligence/automation/scan/", {}, format="json")
 
     suggestion = client.get("/api/v1/intelligence/automation/queue/").data["suggestions"][0]
-    resp = client.post(
-        f"/api/v1/intelligence/automation/{suggestion['id']}/reject/", {}, format="json"
-    )
+    resp = client.post(f"/api/v1/intelligence/automation/{suggestion['id']}/reject/", {}, format="json")
     assert resp.status_code == 200
     assert resp.data["status"] == "rejected"
 
@@ -555,9 +526,7 @@ def test_api_rejects_an_unknown_decision(tenant_context):
     client.post("/api/v1/intelligence/automation/scan/", {}, format="json")
     suggestion = client.get("/api/v1/intelligence/automation/queue/").data["suggestions"][0]
 
-    resp = client.post(
-        f"/api/v1/intelligence/automation/{suggestion['id']}/maybe/", {}, format="json"
-    )
+    resp = client.post(f"/api/v1/intelligence/automation/{suggestion['id']}/maybe/", {}, format="json")
     assert resp.status_code == 400
 
 

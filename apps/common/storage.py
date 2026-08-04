@@ -29,7 +29,9 @@ def generate_presigned_upload_url(*, key: str, content_type: str, expires_in: in
     )
 
 
-def generate_presigned_download_url(*, key: str, expires_in: int = 900, filename: str | None = None) -> str | None:
+def generate_presigned_download_url(
+    *, key: str, expires_in: int = 900, filename: str | None = None
+) -> str | None:
     """Returns a short-lived presigned S3 GET URL for `key`, or None if the
     active storage backend can't presign — callers then stream the bytes
     themselves. `filename` sets an inline Content-Disposition so browsers

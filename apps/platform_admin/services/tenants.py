@@ -46,9 +46,7 @@ def _require_reason(reason: str, action: str) -> str:
 
 # ------------------------------------------------------------------ lifecycle
 @transaction.atomic
-def suspend(
-    *, tenant: Tenant, actor: PlatformStaff, reason: str, request=None
-) -> Tenant:
+def suspend(*, tenant: Tenant, actor: PlatformStaff, reason: str, request=None) -> Tenant:
     """Revoke workspace access without touching any data.
 
     Suspension is deliberately reversible and lossless. The subscription is
@@ -362,9 +360,7 @@ def cancel_subscription(
 
 
 @transaction.atomic
-def resume_subscription(
-    *, tenant: Tenant, actor: PlatformStaff, reason: str, request=None
-) -> Subscription:
+def resume_subscription(*, tenant: Tenant, actor: PlatformStaff, reason: str, request=None) -> Subscription:
     """Undo a pending cancellation."""
     reason = _require_reason(reason, "Resuming a subscription")
     sub = Subscription.objects.filter(tenant_id=tenant.id).select_related("plan").first()

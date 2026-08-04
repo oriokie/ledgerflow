@@ -152,27 +152,21 @@ def test_expired_credit_is_not_consumed():
         currency="USD",
         expires_at=timezone.now() - timedelta(days=1),
     )
-    invoice = invoicing.create_invoice(
-        tenant_id=tenant, currency="USD", line_items=[_line(amount=400)]
-    )
+    invoice = invoicing.create_invoice(tenant_id=tenant, currency="USD", line_items=[_line(amount=400)])
     assert invoice.credit_minor == 0
 
 
 def test_credit_in_another_currency_is_not_consumed():
     tenant = uuid.uuid4()
     invoicing.issue_credit(tenant_id=tenant, amount_minor=500, currency="KES")
-    invoice = invoicing.create_invoice(
-        tenant_id=tenant, currency="USD", line_items=[_line(amount=400)]
-    )
+    invoice = invoicing.create_invoice(tenant_id=tenant, currency="USD", line_items=[_line(amount=400)])
     assert invoice.credit_minor == 0
 
 
 def test_voiding_an_invoice_returns_the_credit_it_consumed():
     tenant = uuid.uuid4()
     credit = invoicing.issue_credit(tenant_id=tenant, amount_minor=500, currency="USD")
-    invoice = invoicing.create_invoice(
-        tenant_id=tenant, currency="USD", line_items=[_line(amount=400)]
-    )
+    invoice = invoicing.create_invoice(tenant_id=tenant, currency="USD", line_items=[_line(amount=400)])
     credit.refresh_from_db()
     assert credit.remaining_minor == 100
 
@@ -197,9 +191,7 @@ def test_credit_balance_ignores_voided_and_spent_credit():
 def test_voiding_a_credit_leaves_already_spent_amounts_alone():
     tenant = uuid.uuid4()
     credit = invoicing.issue_credit(tenant_id=tenant, amount_minor=500, currency="USD")
-    invoice = invoicing.create_invoice(
-        tenant_id=tenant, currency="USD", line_items=[_line(amount=200)]
-    )
+    invoice = invoicing.create_invoice(tenant_id=tenant, currency="USD", line_items=[_line(amount=200)])
     invoicing.void_credit(credit=credit)
 
     invoice.refresh_from_db()
@@ -209,9 +201,7 @@ def test_voiding_a_credit_leaves_already_spent_amounts_alone():
 
 # ------------------------------------------------------------------- lifecycle
 def test_only_a_draft_can_be_issued():
-    invoice = invoicing.create_invoice(
-        tenant_id=uuid.uuid4(), currency="USD", line_items=[_line()]
-    )
+    invoice = invoicing.create_invoice(tenant_id=uuid.uuid4(), currency="USD", line_items=[_line()])
     invoicing.issue_invoice(invoice=invoice)
     with pytest.raises(invoicing.InvoicingError):
         invoicing.issue_invoice(invoice=invoice)
@@ -258,9 +248,7 @@ def test_a_fully_credited_invoice_settles_itself():
 
 
 def test_a_paid_invoice_cannot_be_voided():
-    invoice = invoicing.create_invoice(
-        tenant_id=uuid.uuid4(), currency="USD", line_items=[_line()]
-    )
+    invoice = invoicing.create_invoice(tenant_id=uuid.uuid4(), currency="USD", line_items=[_line()])
     invoicing.issue_invoice(invoice=invoice)
     invoicing.mark_paid(invoice=invoice)
     with pytest.raises(invoicing.InvoicingError):
@@ -309,9 +297,7 @@ def test_subscription_invoicing_is_idempotent_per_period():
 
 def test_reconcile_rejects_a_currency_mismatch():
     tenant = uuid.uuid4()
-    invoice = invoicing.create_invoice(
-        tenant_id=tenant, currency="USD", line_items=[_line()]
-    )
+    invoice = invoicing.create_invoice(tenant_id=tenant, currency="USD", line_items=[_line()])
     invoicing.issue_invoice(invoice=invoice)
     payment = _payment(tenant)
     payment.currency = "KES"
@@ -384,9 +370,7 @@ def test_approval_by_the_requester_is_refused():
 def test_approved_refund_settles_and_marks_the_payment_refunded():
     tenant = uuid.uuid4()
     payment = _payment(tenant, amount=1000)
-    refund = refunds.request_refund(
-        payment=payment, reason="Service outage", requested_by=UserFactory()
-    )
+    refund = refunds.request_refund(payment=payment, reason="Service outage", requested_by=UserFactory())
     refunds.approve_refund(refund=refund, approved_by=UserFactory())
 
     refund.refresh_from_db()
@@ -420,9 +404,7 @@ def test_mpesa_refund_stays_pending_until_the_provider_confirms():
     """Reporting success before Safaricom agrees would lie to the customer."""
     tenant = uuid.uuid4()
     payment = _payment(tenant, amount=1000, provider="mpesa")
-    refund = refunds.request_refund(
-        payment=payment, reason="Reversal", requested_by=UserFactory()
-    )
+    refund = refunds.request_refund(payment=payment, reason="Reversal", requested_by=UserFactory())
     refunds.approve_refund(refund=refund, approved_by=UserFactory())
 
     refund.refresh_from_db()
@@ -494,9 +476,7 @@ def test_expired_coupon_explains_itself():
 
 def test_country_restriction_is_enforced():
     coupon = _coupon(allowed_countries=["KE", "UG"])
-    assert not promotions.check_eligibility(
-        coupon=coupon, tenant_id=uuid.uuid4(), country="US"
-    ).ok
+    assert not promotions.check_eligibility(coupon=coupon, tenant_id=uuid.uuid4(), country="US").ok
     assert promotions.check_eligibility(coupon=coupon, tenant_id=uuid.uuid4(), country="ke").ok
 
 
@@ -532,9 +512,7 @@ def test_global_redemption_limit_exhausts_a_coupon():
 def test_repeating_coupon_stays_active_for_its_duration():
     tenant = uuid.uuid4()
     coupon = _coupon(duration=CouponDuration.REPEATING, duration_in_months=3)
-    redemption = promotions.redeem(
-        coupon=coupon, tenant_id=tenant, discount_minor=200, currency="USD"
-    )
+    redemption = promotions.redeem(coupon=coupon, tenant_id=tenant, discount_minor=200, currency="USD")
 
     assert promotions.active_redemption(tenant_id=tenant) is not None
     promotions.consume_period(redemption=redemption)
@@ -552,9 +530,7 @@ def test_once_coupon_does_not_discount_a_later_period():
 def test_forever_coupon_never_lapses():
     tenant = uuid.uuid4()
     coupon = _coupon(duration=CouponDuration.FOREVER)
-    redemption = promotions.redeem(
-        coupon=coupon, tenant_id=tenant, discount_minor=200, currency="USD"
-    )
+    redemption = promotions.redeem(coupon=coupon, tenant_id=tenant, discount_minor=200, currency="USD")
     for _ in range(5):
         promotions.consume_period(redemption=redemption)
     assert promotions.active_redemption(tenant_id=tenant) is not None

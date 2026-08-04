@@ -142,9 +142,7 @@ class PushSubscription(SoftDeletableModel):
     existing row rather than accumulate a duplicate that silently goes stale.
     """
 
-    user = models.ForeignKey(
-        "users.User", on_delete=models.CASCADE, related_name="push_subscriptions"
-    )
+    user = models.ForeignKey("users.User", on_delete=models.CASCADE, related_name="push_subscriptions")
     #: The push service URL the browser gave us — unique per registration,
     #: and the whole address a Web Push message is sent to.
     endpoint = models.URLField(max_length=1024)

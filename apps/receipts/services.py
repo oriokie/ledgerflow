@@ -17,7 +17,6 @@ from __future__ import annotations
 import uuid
 from datetime import date
 
-from django.conf import settings
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import transaction
@@ -139,9 +138,7 @@ def process_receipt_ocr(*, receipt: Receipt) -> Receipt:
     receipt.parsed_fields = {
         "merchant": result.extraction.merchant,
         "amount_minor": result.extraction.amount_minor,
-        "occurred_on": (
-            result.extraction.occurred_on.isoformat() if result.extraction.occurred_on else None
-        ),
+        "occurred_on": (result.extraction.occurred_on.isoformat() if result.extraction.occurred_on else None),
     }
     # Pre-fill the confirmed fields from what OCR found, as a starting point
     # only — the user can change every one of them before anything posts.
@@ -152,9 +149,7 @@ def process_receipt_ocr(*, receipt: Receipt) -> Receipt:
     if result.extraction.occurred_on:
         receipt.confirmed_occurred_on = result.extraction.occurred_on
 
-    receipt.status = (
-        ReceiptStatus.PARSED if result.raw_text.strip() else ReceiptStatus.UNREADABLE
-    )
+    receipt.status = ReceiptStatus.PARSED if result.raw_text.strip() else ReceiptStatus.UNREADABLE
     receipt.save()
     return receipt
 
@@ -206,9 +201,7 @@ def link_to_transaction(
         raise ReceiptError("Confirm an amount before linking this receipt.")
 
     occurred_on = receipt.confirmed_occurred_on or timezone.localdate()
-    occurred_at = timezone.make_aware(
-        timezone.datetime.combine(occurred_on, timezone.datetime.min.time())
-    )
+    occurred_at = timezone.make_aware(timezone.datetime.combine(occurred_on, timezone.datetime.min.time()))
 
     payee = None
     if receipt.confirmed_merchant:
@@ -253,7 +246,7 @@ def download_url(receipt: Receipt) -> str | None:
 
 def pending_review(*, limit: int | None = None):
     """Receipts waiting for a person to look at them."""
-    qs = Receipt.objects.filter(
-        status__in=[ReceiptStatus.PARSED, ReceiptStatus.UNREADABLE]
-    ).order_by("-created_at")
+    qs = Receipt.objects.filter(status__in=[ReceiptStatus.PARSED, ReceiptStatus.UNREADABLE]).order_by(
+        "-created_at"
+    )
     return qs[:limit] if limit else qs

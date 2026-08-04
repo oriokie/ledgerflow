@@ -153,8 +153,7 @@ ROLE_CAPABILITIES: dict[PlatformRole, frozenset[PlatformCapability]] = {
     PlatformRole.OWNER: ALL_CAPABILITIES,
     # Everything operational, but not the ability to appoint other staff or
     # approve refunds — the owner keeps appointment, finance keeps the money.
-    PlatformRole.ADMIN: ALL_CAPABILITIES
-    - frozenset({C.STAFF_MANAGE, C.REFUND_APPROVE, C.TENANT_DELETE}),
+    PlatformRole.ADMIN: ALL_CAPABILITIES - frozenset({C.STAFF_MANAGE, C.REFUND_APPROVE, C.TENANT_DELETE}),
     PlatformRole.BILLING_ADMIN: _READ_ONLY
     | frozenset(
         {

@@ -25,7 +25,7 @@ from apps.finance import selectors as finance_selectors
 from apps.finance import services as finance_services
 from apps.finance.models import AccountType
 from apps.investments import selectors, services
-from apps.investments.models import AssetClass, Holding, InvestmentTransactionType, Lot, Security
+from apps.investments.models import AssetClass, Holding, Lot, Security
 from apps.ledger.models import AccountKind, Direction, LedgerLine
 from tests.utils import tenant_scope
 
@@ -116,11 +116,8 @@ def test_different_symbols_are_unaffected(tenant):
 
 
 def test_unknown_asset_class_is_rejected(tenant):
-    with tenant_scope(tenant):
-        with pytest.raises(services.InvestmentError):
-            services.create_security(
-                symbol="X", name="X", asset_class="magic_beans", currency="USD"
-            )
+    with tenant_scope(tenant), pytest.raises(services.InvestmentError):
+        services.create_security(symbol="X", name="X", asset_class="magic_beans", currency="USD")
 
 
 def test_all_required_asset_classes_are_supported():
@@ -152,8 +149,8 @@ def test_buying_posts_a_balanced_entry_and_creates_a_lot(tenant):
 
         lines = list(LedgerLine.objects.filter(entry=txn.journal_entry))
         assert len(lines) == 2
-        debits = sum(l.amount_minor for l in lines if l.direction == Direction.DEBIT)
-        credits = sum(l.amount_minor for l in lines if l.direction == Direction.CREDIT)
+        debits = sum(line.amount_minor for line in lines if line.direction == Direction.DEBIT)
+        credits = sum(line.amount_minor for line in lines if line.direction == Direction.CREDIT)
         # Fees are capitalised: what you paid to acquire it is part of its cost.
         assert debits == credits == 50_500
 
@@ -174,9 +171,7 @@ def test_buying_debits_investments_and_credits_cash(tenant):
         asset_line = LedgerLine.objects.get(
             entry=txn.journal_entry, account__kind=AccountKind.ASSET, direction=Direction.DEBIT
         )
-        cash_line = LedgerLine.objects.get(
-            entry=txn.journal_entry, account_id=account.ledger_account_id
-        )
+        cash_line = LedgerLine.objects.get(entry=txn.journal_entry, account_id=account.ledger_account_id)
         assert asset_line.amount_minor == 25_000
         assert cash_line.direction == Direction.CREDIT
 
@@ -187,17 +182,23 @@ def test_separate_purchases_keep_their_own_lots(tenant):
         account = _brokerage()
         security = _security()
         services.buy(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=50_000, occurred_on=date(2026, 1, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=50_000,
+            occurred_on=date(2026, 1, 10),
         )
         services.buy(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=80_000, occurred_on=date(2026, 3, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=80_000,
+            occurred_on=date(2026, 3, 10),
         )
 
         lots = list(Lot.objects.order_by("acquired_on"))
         assert len(lots) == 2
-        assert [l.cost_minor for l in lots] == [50_000, 80_000]
+        assert [lot.cost_minor for lot in lots] == [50_000, 80_000]
 
         holding = Holding.objects.get()
         assert holding.quantity == Decimal("20")
@@ -227,8 +228,10 @@ def test_currency_mismatch_is_refused_rather_than_guessed(tenant):
         usd_security = _security()
         with pytest.raises(services.InvestmentError):
             services.buy(
-                financial_account=gbp_account, security=usd_security,
-                quantity=Decimal("1"), amount_minor=1_000,
+                financial_account=gbp_account,
+                security=usd_security,
+                quantity=Decimal("1"),
+                amount_minor=1_000,
             )
 
 
@@ -239,13 +242,19 @@ def test_selling_relieves_the_asset_at_cost_not_at_sale_price(tenant):
         account = _brokerage()
         security = _security()
         services.buy(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=50_000, occurred_on=date(2026, 1, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=50_000,
+            occurred_on=date(2026, 1, 10),
         )
 
         txn = services.sell(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=80_000, occurred_on=date(2026, 6, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=80_000,
+            occurred_on=date(2026, 6, 10),
         )
 
         asset_line = LedgerLine.objects.get(
@@ -268,11 +277,11 @@ def test_a_sale_posts_a_balanced_entry_including_the_gain(tenant):
         )
 
         lines = list(LedgerLine.objects.filter(entry=txn.journal_entry))
-        debits = sum(l.amount_minor for l in lines if l.direction == Direction.DEBIT)
-        credits = sum(l.amount_minor for l in lines if l.direction == Direction.CREDIT)
+        debits = sum(line.amount_minor for line in lines if line.direction == Direction.DEBIT)
+        credits = sum(line.amount_minor for line in lines if line.direction == Direction.CREDIT)
         assert debits == credits
         # Gain is booked to income, where it belongs.
-        assert any(l.account.kind == AccountKind.INCOME for l in lines)
+        assert any(line.account.kind == AccountKind.INCOME for line in lines)
 
 
 def test_a_loss_debits_the_gain_account(tenant):
@@ -287,9 +296,7 @@ def test_a_loss_debits_the_gain_account(tenant):
         )
 
         assert txn.realized_gain_minor == -30_000
-        income_line = LedgerLine.objects.get(
-            entry=txn.journal_entry, account__kind=AccountKind.INCOME
-        )
+        income_line = LedgerLine.objects.get(entry=txn.journal_entry, account__kind=AccountKind.INCOME)
         # One account nets both directions, so "realised gains" is a single
         # meaningful figure rather than two to subtract.
         assert income_line.direction == Direction.DEBIT
@@ -301,17 +308,26 @@ def test_fifo_consumes_the_oldest_lot_first(tenant):
         account = _brokerage()
         security = _security()
         services.buy(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=50_000, occurred_on=date(2026, 1, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=50_000,
+            occurred_on=date(2026, 1, 10),
         )
         services.buy(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=80_000, occurred_on=date(2026, 3, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=80_000,
+            occurred_on=date(2026, 3, 10),
         )
 
         txn = services.sell(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=90_000, occurred_on=date(2026, 6, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=90_000,
+            occurred_on=date(2026, 6, 10),
         )
 
         # Against the 50,000 lot, not the 80,000 one, and not an average.
@@ -343,13 +359,13 @@ def test_selling_more_than_held_is_refused(tenant):
     with tenant_scope(tenant):
         account = _brokerage()
         security = _security()
-        services.buy(
-            financial_account=account, security=security, quantity=Decimal("5"), amount_minor=25_000
-        )
+        services.buy(financial_account=account, security=security, quantity=Decimal("5"), amount_minor=25_000)
         with pytest.raises(services.InvestmentError, match="short by"):
             services.sell(
-                financial_account=account, security=security,
-                quantity=Decimal("10"), amount_minor=60_000,
+                financial_account=account,
+                security=security,
+                quantity=Decimal("10"),
+                amount_minor=60_000,
             )
 
 
@@ -359,8 +375,10 @@ def test_selling_without_a_holding_is_refused(tenant):
         security = _security()
         with pytest.raises(services.InvestmentError):
             services.sell(
-                financial_account=account, security=security,
-                quantity=Decimal("1"), amount_minor=1_000,
+                financial_account=account,
+                security=security,
+                quantity=Decimal("1"),
+                amount_minor=1_000,
             )
 
 
@@ -375,14 +393,10 @@ def test_dividends_are_income_not_cost_basis(tenant):
         )
         before = selectors.holding_cost_basis_minor(Holding.objects.get())
 
-        txn = services.record_dividend(
-            financial_account=account, security=security, amount_minor=1_200
-        )
+        txn = services.record_dividend(financial_account=account, security=security, amount_minor=1_200)
 
         assert selectors.holding_cost_basis_minor(Holding.objects.get()) == before
-        income_line = LedgerLine.objects.get(
-            entry=txn.journal_entry, account__kind=AccountKind.INCOME
-        )
+        income_line = LedgerLine.objects.get(entry=txn.journal_entry, account__kind=AccountKind.INCOME)
         assert income_line.direction == Direction.CREDIT
         assert income_line.amount_minor == 1_200
 
@@ -391,9 +405,7 @@ def test_dividend_increases_the_cash_balance(tenant):
     with tenant_scope(tenant):
         account = _brokerage(opening=100_000)
         security = _security()
-        services.record_dividend(
-            financial_account=account, security=security, amount_minor=5_000
-        )
+        services.record_dividend(financial_account=account, security=security, amount_minor=5_000)
         assert finance_selectors.account_current_balance_minor(account) == 105_000
 
 
@@ -407,9 +419,7 @@ def test_a_split_changes_units_without_moving_money(tenant):
         )
         cash_before = finance_selectors.account_current_balance_minor(account)
 
-        txn = services.apply_split(
-            financial_account=account, security=security, ratio=Decimal("2")
-        )
+        txn = services.apply_split(financial_account=account, security=security, ratio=Decimal("2"))
 
         holding = Holding.objects.get()
         assert holding.quantity == Decimal("20")
@@ -478,12 +488,8 @@ def test_asset_allocation_splits_by_class(tenant):
         stock = _security("ACME", AssetClass.STOCK)
         crypto = _security("BTC", AssetClass.CRYPTO)
 
-        services.buy(
-            financial_account=account, security=stock, quantity=Decimal("10"), amount_minor=50_000
-        )
-        services.buy(
-            financial_account=account, security=crypto, quantity=Decimal("1"), amount_minor=50_000
-        )
+        services.buy(financial_account=account, security=stock, quantity=Decimal("10"), amount_minor=50_000)
+        services.buy(financial_account=account, security=crypto, quantity=Decimal("1"), amount_minor=50_000)
         services.record_price(security=stock, price_minor=7_500)
         services.record_price(security=crypto, price_minor=25_000)
 
@@ -499,9 +505,7 @@ def test_sector_allocation_groups_unclassified_securities(tenant):
         security = services.create_security(
             symbol="MYSTERY", name="Mystery", asset_class=AssetClass.STOCK, currency="USD"
         )
-        services.buy(
-            financial_account=account, security=security, quantity=Decimal("1"), amount_minor=10_000
-        )
+        services.buy(financial_account=account, security=security, quantity=Decimal("1"), amount_minor=10_000)
         services.record_price(security=security, price_minor=10_000)
 
         [slice_] = selectors.sector_allocation()
@@ -516,12 +520,8 @@ def test_unpriced_holdings_are_excluded_from_allocation(tenant):
         priced = _security("PRICED", AssetClass.STOCK)
         unpriced = _security("UNPRICED", AssetClass.CRYPTO)
 
-        services.buy(
-            financial_account=account, security=priced, quantity=Decimal("1"), amount_minor=10_000
-        )
-        services.buy(
-            financial_account=account, security=unpriced, quantity=Decimal("1"), amount_minor=10_000
-        )
+        services.buy(financial_account=account, security=priced, quantity=Decimal("1"), amount_minor=10_000)
+        services.buy(financial_account=account, security=unpriced, quantity=Decimal("1"), amount_minor=10_000)
         services.record_price(security=priced, price_minor=10_000)
 
         slices = selectors.asset_allocation()
@@ -536,25 +536,29 @@ def test_portfolio_summary_separates_the_four_kinds_of_gain(tenant):
         security = _security()
 
         services.buy(
-            financial_account=account, security=security, quantity=Decimal("20"),
-            amount_minor=100_000, occurred_on=date(2026, 1, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("20"),
+            amount_minor=100_000,
+            occurred_on=date(2026, 1, 10),
         )
         services.sell(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=80_000, occurred_on=date(2026, 3, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=80_000,
+            occurred_on=date(2026, 3, 10),
         )
-        services.record_dividend(
-            financial_account=account, security=security, amount_minor=2_000
-        )
+        services.record_dividend(financial_account=account, security=security, amount_minor=2_000)
         services.record_price(security=security, price_minor=9_000)
 
         summary = selectors.portfolio_summary()
         assert summary is not None
-        assert summary.cost_basis_minor == 50_000        # 10 units left
+        assert summary.cost_basis_minor == 50_000  # 10 units left
         assert summary.market_value_minor == 90_000
-        assert summary.unrealized_gain_minor == 40_000   # paper
-        assert summary.realized_gain_minor == 30_000     # booked
-        assert summary.dividend_income_minor == 2_000    # income
+        assert summary.unrealized_gain_minor == 40_000  # paper
+        assert summary.realized_gain_minor == 30_000  # booked
+        assert summary.dividend_income_minor == 2_000  # income
         assert summary.total_return_minor == 72_000
 
 
@@ -587,9 +591,7 @@ def test_a_valuation_carries_the_date_its_price_was_taken(tenant):
     with tenant_scope(tenant):
         account = _brokerage()
         security = _security()
-        services.buy(
-            financial_account=account, security=security, quantity=Decimal("1"), amount_minor=10_000
-        )
+        services.buy(financial_account=account, security=security, quantity=Decimal("1"), amount_minor=10_000)
         old_day = timezone.localdate() - timedelta(days=140)
         services.record_price(security=security, price_minor=12_000, as_of=old_day)
 
@@ -631,9 +633,7 @@ def test_prices_taken_today_are_not_reported_as_stale(tenant):
     with tenant_scope(tenant):
         account = _brokerage()
         security = _security()
-        services.buy(
-            financial_account=account, security=security, quantity=Decimal("1"), amount_minor=10_000
-        )
+        services.buy(financial_account=account, security=security, quantity=Decimal("1"), amount_minor=10_000)
         services.record_price(security=security, price_minor=12_000)
 
         summary = selectors.portfolio_summary()
@@ -678,8 +678,11 @@ def test_valuation_history_omits_months_with_no_prices(tenant):
         account = _brokerage()
         security = _security()
         services.buy(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=50_000, occurred_on=timezone.localdate() - timedelta(days=5),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=50_000,
+            occurred_on=timezone.localdate() - timedelta(days=5),
         )
         services.record_price(security=security, price_minor=6_000)
 
@@ -747,14 +750,23 @@ def test_api_a_case_only_difference_is_still_caught_as_a_duplicate(tenant_contex
 def _api_setup(client):
     account = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Brokerage", "account_type": "investment", "currency": "USD",
-         "opening_balance_minor": 1_000_000},
+        {
+            "name": "Brokerage",
+            "account_type": "investment",
+            "currency": "USD",
+            "opening_balance_minor": 1_000_000,
+        },
         format="json",
     ).data
     security = client.post(
         "/api/v1/investments/securities/",
-        {"symbol": "acme", "name": "Acme Inc", "asset_class": "stock", "currency": "USD",
-         "sector": "Technology"},
+        {
+            "symbol": "acme",
+            "name": "Acme Inc",
+            "asset_class": "stock",
+            "currency": "USD",
+            "sector": "Technology",
+        },
         format="json",
     ).data
     return account, security
@@ -767,8 +779,12 @@ def test_api_buy_sell_and_portfolio_round_trip(tenant_context):
 
     buy = client.post(
         "/api/v1/investments/trade/buy/",
-        {"financial_account_id": account["id"], "security_id": security["id"],
-         "quantity": "10", "amount_minor": 50_000},
+        {
+            "financial_account_id": account["id"],
+            "security_id": security["id"],
+            "quantity": "10",
+            "amount_minor": 50_000,
+        },
         format="json",
     )
     assert buy.status_code == 201, buy.data
@@ -785,8 +801,12 @@ def test_api_buy_sell_and_portfolio_round_trip(tenant_context):
 
     sell = client.post(
         "/api/v1/investments/trade/sell/",
-        {"financial_account_id": account["id"], "security_id": security["id"],
-         "quantity": "5", "amount_minor": 40_000},
+        {
+            "financial_account_id": account["id"],
+            "security_id": security["id"],
+            "quantity": "5",
+            "amount_minor": 40_000,
+        },
         format="json",
     )
     assert sell.status_code == 201, sell.data
@@ -808,8 +828,12 @@ def test_api_rejects_an_unknown_trade_action(tenant_context):
     account, security = _api_setup(client)
     resp = client.post(
         "/api/v1/investments/trade/short/",
-        {"financial_account_id": account["id"], "security_id": security["id"],
-         "quantity": "1", "amount_minor": 100},
+        {
+            "financial_account_id": account["id"],
+            "security_id": security["id"],
+            "quantity": "1",
+            "amount_minor": 100,
+        },
         format="json",
     )
     assert resp.status_code == 400
@@ -820,14 +844,22 @@ def test_api_overselling_returns_a_clear_error(tenant_context):
     account, security = _api_setup(client)
     client.post(
         "/api/v1/investments/trade/buy/",
-        {"financial_account_id": account["id"], "security_id": security["id"],
-         "quantity": "1", "amount_minor": 5_000},
+        {
+            "financial_account_id": account["id"],
+            "security_id": security["id"],
+            "quantity": "1",
+            "amount_minor": 5_000,
+        },
         format="json",
     )
     resp = client.post(
         "/api/v1/investments/trade/sell/",
-        {"financial_account_id": account["id"], "security_id": security["id"],
-         "quantity": "99", "amount_minor": 5_000},
+        {
+            "financial_account_id": account["id"],
+            "security_id": security["id"],
+            "quantity": "99",
+            "amount_minor": 5_000,
+        },
         format="json",
     )
     assert resp.status_code == 422
@@ -863,13 +895,19 @@ def test_historical_cost_reflects_the_position_as_it_stood(tenant):
         security = _security()
         holding_date = date(2026, 1, 10)
         services.buy(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=50_000, occurred_on=holding_date,
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=50_000,
+            occurred_on=holding_date,
         )
         # Sold entirely, later.
         services.sell(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=80_000, occurred_on=date(2026, 6, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=80_000,
+            occurred_on=date(2026, 6, 10),
         )
 
         # In February the position was fully held and had cost 50,000.
@@ -883,12 +921,18 @@ def test_historical_cost_handles_a_partial_sale(tenant):
         account = _brokerage()
         security = _security()
         services.buy(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=50_000, occurred_on=date(2026, 1, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=50_000,
+            occurred_on=date(2026, 1, 10),
         )
         services.sell(
-            financial_account=account, security=security, quantity=Decimal("4"),
-            amount_minor=40_000, occurred_on=date(2026, 5, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("4"),
+            amount_minor=40_000,
+            occurred_on=date(2026, 5, 10),
         )
         holding = Holding.objects.get()
 
@@ -902,16 +946,25 @@ def test_historical_cost_consumes_lots_fifo(tenant):
         account = _brokerage()
         security = _security()
         services.buy(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=50_000, occurred_on=date(2026, 1, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=50_000,
+            occurred_on=date(2026, 1, 10),
         )
         services.buy(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=90_000, occurred_on=date(2026, 3, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=90_000,
+            occurred_on=date(2026, 3, 10),
         )
         services.sell(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=100_000, occurred_on=date(2026, 5, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=100_000,
+            occurred_on=date(2026, 5, 10),
         )
         holding = Holding.objects.get()
 
@@ -927,12 +980,18 @@ def test_historical_cost_agrees_with_current_cost_basis(tenant):
         account = _brokerage()
         security = _security()
         services.buy(
-            financial_account=account, security=security, quantity=Decimal("10"),
-            amount_minor=50_000, occurred_on=date(2026, 1, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("10"),
+            amount_minor=50_000,
+            occurred_on=date(2026, 1, 10),
         )
         services.sell(
-            financial_account=account, security=security, quantity=Decimal("3"),
-            amount_minor=30_000, occurred_on=date(2026, 5, 10),
+            financial_account=account,
+            security=security,
+            quantity=Decimal("3"),
+            amount_minor=30_000,
+            occurred_on=date(2026, 5, 10),
         )
         holding = Holding.objects.get()
         today = timezone.localdate()
@@ -946,8 +1005,12 @@ def test_net_worth_api_returns_book_and_market_value_separately(tenant_context):
     _, client = tenant_context
     account = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Brokerage", "account_type": "investment", "currency": "USD",
-         "opening_balance_minor": 100_000},
+        {
+            "name": "Brokerage",
+            "account_type": "investment",
+            "currency": "USD",
+            "opening_balance_minor": 100_000,
+        },
         format="json",
     ).data
     security = client.post(
@@ -958,8 +1021,12 @@ def test_net_worth_api_returns_book_and_market_value_separately(tenant_context):
 
     client.post(
         "/api/v1/investments/trade/buy/",
-        {"financial_account_id": account["id"], "security_id": security["id"],
-         "quantity": "10", "amount_minor": 50_000},
+        {
+            "financial_account_id": account["id"],
+            "security_id": security["id"],
+            "quantity": "10",
+            "amount_minor": 50_000,
+        },
         format="json",
     )
     client.post(
@@ -981,8 +1048,7 @@ def test_net_worth_overlay_is_zero_without_investments(tenant_context):
     _, client = tenant_context
     client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Checking", "account_type": "checking", "currency": "USD",
-         "opening_balance_minor": 100_000},
+        {"name": "Checking", "account_type": "checking", "currency": "USD", "opening_balance_minor": 100_000},
         format="json",
     )
     usd = next(r for r in client.get("/api/v1/finance/net-worth/").data if r["currency"] == "USD")

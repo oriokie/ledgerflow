@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date
 
 # ---------------------------------------------------------------------------
 # Merchant normalisation
@@ -31,16 +31,26 @@ from datetime import date, timedelta
 #: Payment processors and aggregators that prefix the real merchant name. The
 #: descriptor belongs to the processor; the merchant is what follows.
 _PROCESSOR_PREFIXES = (
-    "sq *", "sq*", "square *",
-    "tst*", "tst *",
-    "paypal *", "pp*", "paypal*",
-    "sumup *", "sumup*",
+    "sq *",
+    "sq*",
+    "square *",
+    "tst*",
+    "tst *",
+    "paypal *",
+    "pp*",
+    "paypal*",
+    "sumup *",
+    "sumup*",
     "izettle *",
     "stripe *",
     "shopify *",
-    "amzn mktp", "amazon mktpl", "amzn digital",
-    "wl *", "wl*",
-    "zettle_*", "zettle *",
+    "amzn mktp",
+    "amazon mktpl",
+    "amzn digital",
+    "wl *",
+    "wl*",
+    "zettle_*",
+    "zettle *",
 )
 
 #: Noise that survives the prefix strip: trailing reference codes, store
@@ -205,9 +215,7 @@ def detect_transfers(txns: list[Txn]) -> list[Suggestion]:
     out: list[Suggestion] = []
     used: set[str] = set()
 
-    outflows = sorted(
-        (t for t in txns if t.amount_minor < 0), key=lambda t: (t.occurred_on, t.txn_id)
-    )
+    outflows = sorted((t for t in txns if t.amount_minor < 0), key=lambda t: (t.occurred_on, t.txn_id))
     inflows = [t for t in txns if t.amount_minor > 0]
 
     for out_txn in outflows:
@@ -230,7 +238,7 @@ def detect_transfers(txns: list[Txn]) -> list[Suggestion]:
                     kind=SuggestionKind.TRANSFER,
                     confidence=round(confidence, 2),
                     reason=(
-                        f"Equal and opposite amounts between two of your accounts"
+                        "Equal and opposite amounts between two of your accounts"
                         + (" on the same day." if gap == 0 else f", {gap} day{'s' if gap > 1 else ''} apart.")
                     ),
                     txn_ids=(out_txn.txn_id, in_txn.txn_id),
@@ -277,7 +285,7 @@ def detect_duplicates(txns: list[Txn]) -> list[Suggestion]:
         if len(group) < 2:
             continue
         group = sorted(group, key=lambda t: (t.occurred_on, t.txn_id))
-        for earlier, later in zip(group, group[1:]):
+        for earlier, later in zip(group, group[1:], strict=False):
             gap = (later.occurred_on - earlier.occurred_on).days
             if gap > DUPLICATE_WINDOW_DAYS:
                 continue
@@ -287,7 +295,7 @@ def detect_duplicates(txns: list[Txn]) -> list[Suggestion]:
                     kind=SuggestionKind.DUPLICATE,
                     confidence=round(confidence, 2),
                     reason=(
-                        f"Same amount and merchant"
+                        "Same amount and merchant"
                         + (" on the same day." if gap == 0 else f", {gap} day{'s' if gap > 1 else ''} apart.")
                         + " Worth checking — repeats are often legitimate."
                     ),
@@ -316,9 +324,7 @@ def detect_refunds(txns: list[Txn]) -> list[Suggestion]:
     refund from a transfer or an unrelated payment.
     """
     out: list[Suggestion] = []
-    charges = sorted(
-        (t for t in txns if t.amount_minor < 0), key=lambda t: t.occurred_on, reverse=True
-    )
+    charges = sorted((t for t in txns if t.amount_minor < 0), key=lambda t: t.occurred_on, reverse=True)
     used: set[str] = set()
 
     for credit in sorted((t for t in txns if t.amount_minor > 0), key=lambda t: t.occurred_on):
@@ -401,7 +407,7 @@ def detect_recurring(txns: list[Txn]) -> list[Suggestion]:
         group = sorted(group, key=lambda t: t.occurred_on)
         gaps = [
             (later.occurred_on - earlier.occurred_on).days
-            for earlier, later in zip(group, group[1:])
+            for earlier, later in zip(group, group[1:], strict=False)
         ]
         if not gaps:
             continue
@@ -478,7 +484,7 @@ def detect_income(txns: list[Txn]) -> list[Suggestion]:
         group = sorted(group, key=lambda t: t.occurred_on)
         gaps = [
             (later.occurred_on - earlier.occurred_on).days
-            for earlier, later in zip(group, group[1:])
+            for earlier, later in zip(group, group[1:], strict=False)
         ]
         regular = bool(gaps) and all(20 <= gap <= 40 for gap in gaps)
         amounts = [t.amount_minor for t in group]
@@ -570,9 +576,7 @@ CATEGORY_MIN_SHARE = 0.6
 CATEGORY_MIN_EXAMPLES = 2
 
 
-def suggest_category(
-    txn: Txn, *, merchant_stats: dict[str, dict[str, int]]
-) -> Suggestion | None:
+def suggest_category(txn: Txn, *, merchant_stats: dict[str, dict[str, int]]) -> Suggestion | None:
     """Suggest a category from what this user has chosen for this merchant.
 
     Learned from the user's own decisions rather than a shared model: two
@@ -615,6 +619,7 @@ def suggest_category(
 # ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
+
 
 #: Order matters. Transfers and refunds claim their transactions first, so
 #: income detection only considers what is genuinely left over.

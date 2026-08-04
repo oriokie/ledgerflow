@@ -134,9 +134,7 @@ def latest_usage_by_tenant(tenant_ids) -> dict:
     first", so the database returns one row per tenant instead of every
     snapshot ever taken.
     """
-    newest = TenantUsageSnapshot.objects.filter(tenant_id=OuterRef("tenant_id")).order_by(
-        "-captured_at"
-    )
+    newest = TenantUsageSnapshot.objects.filter(tenant_id=OuterRef("tenant_id")).order_by("-captured_at")
     rows = TenantUsageSnapshot.objects.filter(
         tenant_id__in=tenant_ids,
         captured_at=Subquery(newest.values("captured_at")[:1]),
@@ -213,12 +211,8 @@ def tenant_detail(tenant: Tenant) -> dict:
     the customer is and what they pay, never what they spend — seeing that
     requires an audited impersonation grant.
     """
-    sub = (
-        Subscription.objects.filter(tenant_id=tenant.id).select_related("plan").first()
-    )
-    members = list(
-        Membership.objects.filter(tenant=tenant).select_related("user").order_by("created_at")
-    )
+    sub = Subscription.objects.filter(tenant_id=tenant.id).select_related("plan").first()
+    members = list(Membership.objects.filter(tenant=tenant).select_related("user").order_by("created_at"))
     snapshot = TenantUsageSnapshot.objects.filter(tenant_id=tenant.id).order_by("-captured_at").first()
 
     return {

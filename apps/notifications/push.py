@@ -126,13 +126,9 @@ def push_notification(notification: Notification) -> int:
     if pref and not pref.push_enabled:
         return 0
 
-    subscriptions = PushSubscription.objects.filter(
-        user_id=notification.user_id, expired_at__isnull=True
-    )
+    subscriptions = PushSubscription.objects.filter(user_id=notification.user_id, expired_at__isnull=True)
     payload = _notification_payload(notification)
-    delivered = sum(
-        1 for sub in subscriptions if send_to_subscription(subscription=sub, payload=payload)
-    )
+    delivered = sum(1 for sub in subscriptions if send_to_subscription(subscription=sub, payload=payload))
     if delivered:
         channels = set(notification.delivered_channels or [])
         channels.add("push")

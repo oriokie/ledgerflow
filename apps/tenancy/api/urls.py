@@ -3,10 +3,10 @@ from django.urls import path
 from .audit_views import WorkspaceAuditView
 from .views import (
     AcceptInvitationView,
-    WorkspaceInvitationDetailView,
-    WorkspaceInvitationsView,
     WorkspaceDetailView,
     WorkspaceExportView,
+    WorkspaceInvitationDetailView,
+    WorkspaceInvitationsView,
     WorkspaceListCreateView,
     WorkspaceMemberDetailView,
     WorkspaceMembersView,

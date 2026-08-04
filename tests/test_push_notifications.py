@@ -19,7 +19,6 @@ from apps.notifications import push, services
 from apps.notifications.models import (
     Notification,
     NotificationPreference,
-    NotificationSeverity,
     NotificationType,
     PushSubscription,
 )
@@ -164,9 +163,7 @@ def test_a_410_permanently_expires_the_subscription(tenant, user, settings):
     settings.VAPID_CLAIMS_EMAIL = "ops@example.com"
     with tenant_scope(tenant):
         sub = _subscribe(user)
-        with patch("pywebpush.webpush") as mocked, patch(
-            "pywebpush.WebPushException", _FakeWebPushException
-        ):
+        with patch("pywebpush.webpush") as mocked, patch("pywebpush.WebPushException", _FakeWebPushException):
             mocked.side_effect = _FakeWebPushException(410)
             result = push.send_to_subscription(subscription=sub, payload={"title": "Hi"})
         assert result is False
@@ -181,9 +178,7 @@ def test_a_transient_failure_does_not_expire_the_subscription(tenant, user, sett
     settings.VAPID_CLAIMS_EMAIL = "ops@example.com"
     with tenant_scope(tenant):
         sub = _subscribe(user)
-        with patch("pywebpush.webpush") as mocked, patch(
-            "pywebpush.WebPushException", _FakeWebPushException
-        ):
+        with patch("pywebpush.webpush") as mocked, patch("pywebpush.WebPushException", _FakeWebPushException):
             mocked.side_effect = _FakeWebPushException(503)
             push.send_to_subscription(subscription=sub, payload={"title": "Hi"})
         sub.refresh_from_db()
@@ -244,7 +239,9 @@ def test_a_delivered_push_is_recorded_on_the_notification(tenant, user, settings
     with tenant_scope(tenant):
         _subscribe(user)
         notification = Notification.objects.create(
-            user=user, type=NotificationType.LOW_BALANCE, title="Low balance",
+            user=user,
+            type=NotificationType.LOW_BALANCE,
+            title="Low balance",
             delivered_channels=["inapp"],
         )
         with patch("pywebpush.webpush") as mocked:
@@ -286,9 +283,7 @@ def test_a_workspace_wide_notification_with_no_user_sends_no_push(tenant, settin
 # =============================================================================
 # raise_notification dispatch wiring
 # =============================================================================
-def test_raising_a_notification_schedules_a_push_dispatch(
-    tenant, user, django_capture_on_commit_callbacks
-):
+def test_raising_a_notification_schedules_a_push_dispatch(tenant, user, django_capture_on_commit_callbacks):
     """The single choke point every producer passes through — this is what
     stops five different producers each needing to remember to wire push in
     for themselves."""
@@ -313,13 +308,17 @@ def test_refreshing_an_existing_dedupe_does_not_re_dispatch_push(
 
         with django_capture_on_commit_callbacks():
             notif_services.raise_notification(
-                type=NotificationType.BUDGET_THRESHOLD, title="90% of budget",
-                user=user, dedupe_key="budget:groceries:2026-06",
+                type=NotificationType.BUDGET_THRESHOLD,
+                title="90% of budget",
+                user=user,
+                dedupe_key="budget:groceries:2026-06",
             )
         with django_capture_on_commit_callbacks() as callbacks:
             notif_services.raise_notification(
-                type=NotificationType.BUDGET_THRESHOLD, title="105% of budget",
-                user=user, dedupe_key="budget:groceries:2026-06",
+                type=NotificationType.BUDGET_THRESHOLD,
+                title="105% of budget",
+                user=user,
+                dedupe_key="budget:groceries:2026-06",
             )
         assert not callbacks
 
@@ -328,9 +327,7 @@ def test_a_muted_type_raises_nothing_and_schedules_no_push(tenant, user):
     with tenant_scope(tenant):
         from apps.notifications import services as notif_services
 
-        NotificationPreference.objects.create(
-            user=user, muted_types=[NotificationType.LOW_BALANCE]
-        )
+        NotificationPreference.objects.create(user=user, muted_types=[NotificationType.LOW_BALANCE])
         result = notif_services.raise_notification(
             type=NotificationType.LOW_BALANCE, title="Low balance", user=user
         )

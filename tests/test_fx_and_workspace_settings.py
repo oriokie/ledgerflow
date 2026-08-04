@@ -7,7 +7,6 @@ from decimal import Decimal
 import pytest
 
 from apps.fx import services as fx
-from apps.fx.currencies import is_supported
 
 pytestmark = pytest.mark.django_db
 
@@ -55,6 +54,7 @@ def test_convert_rejects_unsupported_currency(auth_client):
 
 # ---------------------------------------------------------------- #4 base ccy
 
+
 def test_owner_can_change_base_currency(tenant_context):
     membership, client = tenant_context
     res = client.patch(
@@ -79,25 +79,32 @@ def test_invalid_base_currency_rejected(tenant_context):
 
 
 def test_non_owner_cannot_change_settings(tenant_context, user):
-    from apps.tenancy import services as tsvc
-    from apps.tenancy.models import Role
     from rest_framework.test import APIClient
     from rest_framework_simplejwt.tokens import RefreshToken
+
+    from apps.tenancy import services as tsvc
+    from apps.tenancy.models import Role
 
     membership, _ = tenant_context
     tsvc.add_member(tenant=membership.tenant, user=user, role=Role.VIEWER)
     c = APIClient()
-    c.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(user).access_token}",
-                  HTTP_X_TENANT_ID=str(membership.tenant_id))
-    res = c.patch(f"/api/v1/tenancy/workspaces/{membership.tenant_id}/", {"base_currency": "EUR"}, format="json")
+    c.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(user).access_token}",
+        HTTP_X_TENANT_ID=str(membership.tenant_id),
+    )
+    res = c.patch(
+        f"/api/v1/tenancy/workspaces/{membership.tenant_id}/", {"base_currency": "EUR"}, format="json"
+    )
     assert res.status_code == 403
 
 
 # --------------------------------------------------- consolidated net worth
 
+
 def test_net_worth_in_base_consolidates_currencies(tenant_context):
     """Mixed-currency holdings roll up into the workspace base via FX."""
     import contextlib
+
     from django.db import transaction as db_tx
     from django.utils import timezone
 
@@ -117,10 +124,12 @@ def test_net_worth_in_base_consolidates_currencies(tenant_context):
         cat = fin.create_category(name="Pay", kind="income", currency="USD")
         usd = fin.create_financial_account(name="US", account_type="checking", currency="USD")
         eur = fin.create_financial_account(name="EU", account_type="checking", currency="EUR")
-        fin.record_income(financial_account=usd, category=cat, amount_minor=100_00,
-                          occurred_at=timezone.now(), memo="usd")
-        fin.record_income(financial_account=eur, category=cat, amount_minor=100_00,
-                          occurred_at=timezone.now(), memo="eur")
+        fin.record_income(
+            financial_account=usd, category=cat, amount_minor=100_00, occurred_at=timezone.now(), memo="usd"
+        )
+        fin.record_income(
+            financial_account=eur, category=cat, amount_minor=100_00, occurred_at=timezone.now(), memo="eur"
+        )
 
     res = client.get("/api/v1/finance/net-worth/base/")
     assert res.status_code == 200, res.data

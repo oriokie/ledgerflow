@@ -60,9 +60,7 @@ def database() -> dict:
         if connection.vendor == "postgresql":
             cursor.execute("SELECT pg_database_size(current_database())")
             size_bytes = cursor.fetchone()[0]
-            cursor.execute(
-                "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()"
-            )
+            cursor.execute("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database()")
             connections = cursor.fetchone()[0]
     return {
         "status": OK,
@@ -142,9 +140,10 @@ def outbox() -> dict:
 
     pending = OutboxEvent.objects.filter(published_at__isnull=True).count()
     oldest = (
-        OutboxEvent.objects.filter(published_at__isnull=True).order_by("created_at").values_list(
-            "created_at", flat=True
-        ).first()
+        OutboxEvent.objects.filter(published_at__isnull=True)
+        .order_by("created_at")
+        .values_list("created_at", flat=True)
+        .first()
     )
     stale = bool(oldest and (timezone.now() - oldest) > timedelta(minutes=15))
     return {

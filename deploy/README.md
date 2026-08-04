@@ -4,7 +4,8 @@ Three paths, in increasing order of "how permanent is this":
 
 1. [Local on a Mac](#1-local-on-a-mac) — for developing/running on your laptop.
 2. [Automated server deploy](#2-automated-server-deploy) — one command turns a
-   fresh Ubuntu VM into a running, TLS-terminated production stack.
+   fresh Debian/Ubuntu **or** RHEL-family (RHEL, Rocky, AlmaLinux, Amazon
+   Linux 2023) VM into a running, TLS-terminated production stack.
 3. [Manual / managed-infra notes](#3-manual--managed-infrastructure) — for
    Kubernetes/ECS or a managed Postgres/Redis.
 
@@ -118,7 +119,10 @@ routing lives in one place regardless of which web server fronts it.
 
 ### Prerequisites
 
-- A server (any provider: DigitalOcean, Hetzner, EC2, Lightsail…), Ubuntu LTS.
+- A server (any provider: DigitalOcean, Hetzner, EC2, Lightsail…) running
+  Ubuntu/Debian **or** the RHEL family (RHEL, Rocky, AlmaLinux, Amazon Linux
+  2023) if you're using `setup.sh`. `provision.sh`, the non-interactive path,
+  is Ubuntu/Debian only.
 - A domain name with an **A record pointing at the server's public IP** (TLS
   issuance needs this to resolve before you run the script).
 - Ports 80 and 443 reachable from the internet.

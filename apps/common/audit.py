@@ -138,7 +138,8 @@ def record(
         context=context or {},
     )
     _audit_logger.info(
-        "audit %s", action,
+        "audit %s",
+        action,
         extra={"audit_action": action, "audit_target": f"{target_type}:{target_id}"},
     )
     return row

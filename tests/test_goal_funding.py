@@ -31,9 +31,7 @@ def _accounts(checking_minor: int = 500_00, currency: str = "USD"):
     savings = finance_services.create_financial_account(
         name="Savings", account_type=AccountType.SAVINGS, currency=currency
     )
-    finance_services.set_opening_balance(
-        financial_account=checking, amount_minor=checking_minor
-    )
+    finance_services.set_opening_balance(financial_account=checking, amount_minor=checking_minor)
     return checking, savings
 
 
@@ -62,9 +60,7 @@ def test_a_funded_contribution_reduces_the_source_account():
             linked_account=savings,
         )
 
-        contribution = services.add_contribution(
-            goal=goal, amount_minor=150_00, from_account=checking
-        )
+        contribution = services.add_contribution(goal=goal, amount_minor=150_00, from_account=checking)
 
         assert finance_selectors.account_current_balance_minor(checking) == 350_00
         assert finance_selectors.account_current_balance_minor(savings) == 150_00
@@ -79,9 +75,7 @@ def test_funding_leaves_net_worth_unchanged():
     tid = uuid.uuid4()
     with tenant_scope(tid):
         checking, savings = _accounts()
-        goal = services.create_goal(
-            name="Car", currency="USD", target_minor=1000_00, linked_account=savings
-        )
+        goal = services.create_goal(name="Car", currency="USD", target_minor=1000_00, linked_account=savings)
 
         before = finance_selectors.liquid_balance_minor("USD")
         services.add_contribution(goal=goal, amount_minor=200_00, from_account=checking)
@@ -96,9 +90,7 @@ def test_funding_can_name_a_destination_when_the_goal_has_no_linked_account():
         checking, savings = _accounts()
         goal = services.create_goal(name="Wedding", currency="USD", target_minor=1000_00)
 
-        services.add_contribution(
-            goal=goal, amount_minor=100_00, from_account=checking, to_account=savings
-        )
+        services.add_contribution(goal=goal, amount_minor=100_00, from_account=checking, to_account=savings)
 
         assert finance_selectors.account_current_balance_minor(savings) == 100_00
 
@@ -136,9 +128,7 @@ def test_cross_currency_funding_is_refused_rather_than_transferred_at_par():
         eur_checking = finance_services.create_financial_account(
             name="EUR Checking", account_type=AccountType.CHECKING, currency="EUR"
         )
-        finance_services.set_opening_balance(
-            financial_account=eur_checking, amount_minor=500_00
-        )
+        finance_services.set_opening_balance(financial_account=eur_checking, amount_minor=500_00)
         usd_savings = finance_services.create_financial_account(
             name="USD Savings", account_type=AccountType.SAVINGS, currency="USD"
         )
@@ -147,9 +137,7 @@ def test_cross_currency_funding_is_refused_rather_than_transferred_at_par():
         )
 
         with pytest.raises(services.GoalError, match="USD"):
-            services.add_contribution(
-                goal=goal, amount_minor=100_00, from_account=eur_checking
-            )
+            services.add_contribution(goal=goal, amount_minor=100_00, from_account=eur_checking)
 
 
 def test_funding_and_an_explicit_source_transaction_are_mutually_exclusive():
@@ -160,9 +148,7 @@ def test_funding_and_an_explicit_source_transaction_are_mutually_exclusive():
         goal = services.create_goal(
             name="Ambiguous", currency="USD", target_minor=1000_00, linked_account=savings
         )
-        txn = finance_services.set_opening_balance(
-            financial_account=savings, amount_minor=1_00
-        )
+        txn = finance_services.set_opening_balance(financial_account=savings, amount_minor=1_00)
 
         with pytest.raises(services.GoalError):
             services.add_contribution(

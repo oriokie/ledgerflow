@@ -8,7 +8,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.billing import services as billing
 from apps.billing.models import BillingInterval, Plan, PlanTier, SubscriptionStatus
-from apps.tenancy import selectors, services as tenancy
+from apps.tenancy import selectors
+from apps.tenancy import services as tenancy
 from apps.tenancy.models import Role
 
 pytestmark = pytest.mark.django_db
@@ -25,11 +26,17 @@ def _client(user, tenant_id=None):
 
 # ------------------------------------------------------------------ dunning
 
+
 def test_retry_reactivates_a_past_due_free_subscription(tenant_context):
     membership, client = tenant_context
     free = Plan.objects.create(
-        tier=PlanTier.FREE, name="Free", price_minor=0, currency="USD",
-        interval=BillingInterval.MONTHLY, max_accounts=3, max_members=1,
+        tier=PlanTier.FREE,
+        name="Free",
+        price_minor=0,
+        currency="USD",
+        interval=BillingInterval.MONTHLY,
+        max_accounts=3,
+        max_members=1,
     )
     sub = billing.subscribe(tenant_id=membership.tenant_id, plan=free)
     sub.status = SubscriptionStatus.PAST_DUE
@@ -52,13 +59,23 @@ def test_failed_payment_webhook_marks_subscription_past_due(tenant_context):
 
     membership, _ = tenant_context
     free = Plan.objects.create(
-        tier=PlanTier.FREE, name="Free", price_minor=0, currency="USD",
-        interval=BillingInterval.MONTHLY, max_accounts=3, max_members=1,
+        tier=PlanTier.FREE,
+        name="Free",
+        price_minor=0,
+        currency="USD",
+        interval=BillingInterval.MONTHLY,
+        max_accounts=3,
+        max_members=1,
     )
     sub = billing.subscribe(tenant_id=membership.tenant_id, plan=free)
     payment = Payment.objects.create(
-        tenant_id=membership.tenant_id, subscription=sub, amount_minor=900, currency="USD",
-        status=PaymentStatus.PENDING, provider="stripe", provider_ref="pi_test_fail",
+        tenant_id=membership.tenant_id,
+        subscription=sub,
+        amount_minor=900,
+        currency="USD",
+        status=PaymentStatus.PENDING,
+        provider="stripe",
+        provider_ref="pi_test_fail",
     )
     # Simulate the provider-normalized failure the webhook path applies.
     from types import SimpleNamespace
@@ -71,6 +88,7 @@ def test_failed_payment_webhook_marks_subscription_past_due(tenant_context):
 
 
 # ------------------------------------------------------------------ gdpr
+
 
 def test_export_returns_workspace_data_for_owner(tenant_context):
     membership, client = tenant_context

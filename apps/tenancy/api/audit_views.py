@@ -110,9 +110,7 @@ class WorkspaceAuditView(TenantScopedAPIView, APIView):
         paginator = CursorPagination()
         page = paginator.paginate_queryset(queryset, request, view=self)
         return paginator.get_paginated_response(
-            AuditEntrySerializer(
-                page, many=True, context={"actors": _actor_names(page)}
-            ).data
+            AuditEntrySerializer(page, many=True, context={"actors": _actor_names(page)}).data
         )
 
 

@@ -7,13 +7,11 @@ tested as guarantees rather than as behaviour.
 
 from __future__ import annotations
 
-import uuid
 from datetime import timedelta
 
 import pytest
 from django.utils import timezone
 
-from apps.billing import services as billing
 from apps.billing.models import (
     BillingInterval,
     Payment,
@@ -154,9 +152,7 @@ def test_closing_a_workspace_emits_a_purge_event_rather_than_deleting():
     tenant_service.close_tenant(tenant=tenant, actor=owner, reason="Customer asked us to close it")
 
     assert Tenant.objects.filter(id=tenant.id).exists()
-    assert OutboxEvent.objects.filter(
-        aggregate_id=tenant.id, event_type="tenancy.workspace.closed"
-    ).exists()
+    assert OutboxEvent.objects.filter(aggregate_id=tenant.id, event_type="tenancy.workspace.closed").exists()
 
 
 # ============================================================== subscriptions
@@ -210,9 +206,7 @@ def test_resetting_billing_state_closes_dunning_and_restores_access():
     membership = MembershipFactory()
     tenant = Tenant.objects.get(id=membership.tenant_id)
     ensure_default_policy()
-    sub = Subscription.objects.create(
-        tenant_id=tenant.id, plan=_plan(), status=SubscriptionStatus.PAST_DUE
-    )
+    sub = Subscription.objects.create(tenant_id=tenant.id, plan=_plan(), status=SubscriptionStatus.PAST_DUE)
     open_case(subscription=sub)
     tenant.is_active = False
     tenant.save(update_fields=["is_active"])
@@ -246,9 +240,7 @@ def test_impersonation_demands_a_specific_reason():
     membership = MembershipFactory()
 
     with pytest.raises(impersonation_service.ImpersonationError):
-        impersonation_service.start(
-            staff=staff, tenant_id=membership.tenant_id, reason="support"
-        )
+        impersonation_service.start(staff=staff, tenant_id=membership.tenant_id, reason="support")
 
 
 def test_impersonation_requires_the_capability():
@@ -421,9 +413,7 @@ def test_stale_grants_are_swept():
     grant, _ = impersonation_service.start(
         staff=staff, tenant_id=membership.tenant_id, reason="Reproducing a reported import bug"
     )
-    ImpersonationGrant.objects.filter(pk=grant.pk).update(
-        expires_at=timezone.now() - timedelta(hours=1)
-    )
+    ImpersonationGrant.objects.filter(pk=grant.pk).update(expires_at=timezone.now() - timedelta(hours=1))
 
     assert impersonation_service.expire_stale() == 1
     grant.refresh_from_db()
@@ -660,9 +650,7 @@ def test_the_full_tenant_action_flow_over_http():
 
     assert client.get(f"{base}/").status_code == 200
 
-    suspend = client.post(
-        f"{base}/suspend/", {"reason": "Payment disputed by the cardholder"}, format="json"
-    )
+    suspend = client.post(f"{base}/suspend/", {"reason": "Payment disputed by the cardholder"}, format="json")
     assert suspend.status_code == 200
     assert suspend.json()["is_active"] is False
 

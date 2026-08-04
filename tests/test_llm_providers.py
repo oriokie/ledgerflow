@@ -17,7 +17,7 @@ from datetime import date
 import pytest
 
 from apps.intelligence import llm
-from apps.intelligence.models import InsightKind, InsightSeverity
+from apps.intelligence.models import InsightKind
 from apps.intelligence.protocols import CoachContext
 from apps.intelligence.providers.llm_coach import LLMCoach, LLMNarrator
 from tests.utils import tenant_scope
@@ -216,7 +216,13 @@ def test_malformed_candidates_are_dropped(settings, monkeypatch):
         "apps.intelligence.providers.llm_coach.complete_json",
         lambda **_: [
             {"kind": "not_a_real_kind", "severity": "info", "title": "x", "body": "y", "rationale": "z"},
-            {"kind": "savings_opportunity", "severity": "apocalyptic", "title": "x", "body": "y", "rationale": "z"},
+            {
+                "kind": "savings_opportunity",
+                "severity": "apocalyptic",
+                "title": "x",
+                "body": "y",
+                "rationale": "z",
+            },
             # No rationale — the contract that stops unsupported claims.
             {"kind": "savings_opportunity", "severity": "info", "title": "x", "body": "y"},
             "not even an object",

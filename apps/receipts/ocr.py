@@ -20,7 +20,7 @@ with a detector's findings.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
 from typing import Protocol, runtime_checkable
 

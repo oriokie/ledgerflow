@@ -47,7 +47,9 @@ class Plan(UUIDModel, TimeStampedModel):
     # Price is per-interval; a plan row exists per (tier, interval, currency).
     price_minor = models.PositiveIntegerField(default=0)
     currency = models.CharField(max_length=3, default="USD")
-    interval = models.CharField(max_length=10, choices=BillingInterval.choices, default=BillingInterval.MONTHLY)
+    interval = models.CharField(
+        max_length=10, choices=BillingInterval.choices, default=BillingInterval.MONTHLY
+    )
 
     # Entitlements — what the plan unlocks. Kept as explicit columns for the
     # ones the app enforces today; `features` JSON holds display bullet points.

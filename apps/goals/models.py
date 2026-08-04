@@ -88,9 +88,7 @@ class SavingsGoal(SoftDeletableModel):
     currency = models.CharField(max_length=3)
     target_minor = models.BigIntegerField()  # > 0
     target_date = models.DateField(null=True, blank=True)
-    priority = models.PositiveSmallIntegerField(
-        choices=GoalPriority.choices, default=GoalPriority.MEDIUM
-    )
+    priority = models.PositiveSmallIntegerField(choices=GoalPriority.choices, default=GoalPriority.MEDIUM)
     tracking = models.CharField(max_length=20, choices=GoalTracking.choices, default=GoalTracking.MANUAL)
     # Required when tracking == account_balance; optional context otherwise
     # (e.g. "the account I intend to fund this from").

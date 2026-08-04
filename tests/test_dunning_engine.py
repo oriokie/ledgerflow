@@ -14,7 +14,6 @@ import pytest
 from django.utils import timezone
 
 from apps.billing import dunning
-from apps.billing import services as billing
 from apps.billing.dunning_models import (
     DunningAttempt,
     DunningAttemptKind,
@@ -129,9 +128,7 @@ def test_opening_a_case_writes_the_whole_schedule_up_front():
     sub = _subscription(uuid.uuid4())
     case = dunning.open_case(subscription=sub, failure_reason="card_declined")
 
-    kinds = list(
-        DunningAttempt.objects.filter(case=case).values_list("kind", flat=True).order_by("kind")
-    )
+    kinds = list(DunningAttempt.objects.filter(case=case).values_list("kind", flat=True).order_by("kind"))
     assert kinds.count(DunningAttemptKind.RETRY) == 2
     assert kinds.count(DunningAttemptKind.REMINDER_EMAIL) == 1
     assert kinds.count(DunningAttemptKind.SUSPEND) == 1
@@ -208,9 +205,7 @@ def test_recovery_cancels_the_remaining_schedule():
 
     dunning.run_due_attempts(now=timezone.now() + timedelta(days=1, hours=1))
 
-    remaining = DunningAttempt.objects.filter(
-        case=case, outcome=DunningAttemptOutcome.SCHEDULED
-    ).count()
+    remaining = DunningAttempt.objects.filter(case=case, outcome=DunningAttemptOutcome.SCHEDULED).count()
     assert remaining == 0
 
 
@@ -263,9 +258,7 @@ def test_executing_an_attempt_twice_is_a_no_op():
     _policy()
     sub = _subscription(uuid.uuid4())
     case = dunning.open_case(subscription=sub)
-    attempt = DunningAttempt.objects.filter(
-        case=case, kind=DunningAttemptKind.REMINDER_EMAIL
-    ).first()
+    attempt = DunningAttempt.objects.filter(case=case, kind=DunningAttemptKind.REMINDER_EMAIL).first()
     later = timezone.now() + timedelta(days=1, hours=1)
 
     first = dunning.execute_attempt(attempt=attempt, now=later)
@@ -314,14 +307,21 @@ def test_a_free_plan_failure_opens_no_case():
     """There is nothing to collect, so there is nothing to chase."""
     _policy()
     free = Plan.objects.create(
-        tier=PlanTier.FREE, name="Free", price_minor=0, currency="USD",
+        tier=PlanTier.FREE,
+        name="Free",
+        price_minor=0,
+        currency="USD",
         interval=BillingInterval.MONTHLY,
     )
     tenant_id = uuid.uuid4()
     sub = _subscription(tenant_id, plan=free)
     payment = Payment.objects.create(
-        tenant_id=tenant_id, subscription=sub, amount_minor=0, currency="USD",
-        status=PaymentStatus.FAILED, provider="stripe",
+        tenant_id=tenant_id,
+        subscription=sub,
+        amount_minor=0,
+        currency="USD",
+        status=PaymentStatus.FAILED,
+        provider="stripe",
     )
     assert dunning.on_payment_failed(payment=payment) is None
 
@@ -335,8 +335,12 @@ def test_self_service_payment_closes_an_open_case():
     case = dunning.open_case(subscription=sub)
 
     payment = Payment.objects.create(
-        tenant_id=tenant_id, subscription=sub, amount_minor=1000, currency="USD",
-        status=PaymentStatus.SUCCEEDED, provider="stripe",
+        tenant_id=tenant_id,
+        subscription=sub,
+        amount_minor=1000,
+        currency="USD",
+        status=PaymentStatus.SUCCEEDED,
+        provider="stripe",
     )
     dunning.on_payment_succeeded(payment=payment)
 
@@ -352,13 +356,17 @@ def test_payment_on_a_suspended_case_restores_access():
     tenant_id = membership.tenant_id
     _policy()
     sub = _subscription(tenant_id)
-    case = dunning.open_case(subscription=sub)
+    dunning.open_case(subscription=sub)
     dunning.run_due_attempts(now=timezone.now() + timedelta(days=7, hours=1))
     assert not Tenant.objects.get(id=tenant_id).is_active
 
     payment = Payment.objects.create(
-        tenant_id=tenant_id, subscription=sub, amount_minor=1000, currency="USD",
-        status=PaymentStatus.SUCCEEDED, provider="stripe",
+        tenant_id=tenant_id,
+        subscription=sub,
+        amount_minor=1000,
+        currency="USD",
+        status=PaymentStatus.SUCCEEDED,
+        provider="stripe",
     )
     dunning.on_payment_succeeded(payment=payment)
 

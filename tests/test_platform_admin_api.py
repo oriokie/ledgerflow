@@ -47,7 +47,10 @@ def api(owner):
 
 def _plan(price=900, tier=PlanTier.PLUS, name="Plus"):
     return Plan.objects.create(
-        tier=tier, name=name, price_minor=price, currency="USD",
+        tier=tier,
+        name=name,
+        price_minor=price,
+        currency="USD",
         interval=BillingInterval.MONTHLY,
     )
 
@@ -99,8 +102,19 @@ def test_every_console_read_endpoint_responds_on_an_empty_platform(api, path):
 
 @pytest.mark.parametrize(
     "report",
-    ["revenue_series", "cohorts", "forecast", "churn", "ltv", "trial_conversion",
-     "payment_success", "by_plan", "by_country", "by_currency", "by_provider"],
+    [
+        "revenue_series",
+        "cohorts",
+        "forecast",
+        "churn",
+        "ltv",
+        "trial_conversion",
+        "payment_success",
+        "by_plan",
+        "by_country",
+        "by_currency",
+        "by_provider",
+    ],
 )
 def test_every_analytics_report_renders(api, report):
     response = api.get("/api/v1/platform/analytics/", {"report": report})
@@ -272,13 +286,20 @@ def test_invoice_filters_narrow_the_list(api):
 def test_manual_payment_reconciliation_over_http(api):
     invoice = _invoice()
     payment = Payment.objects.create(
-        tenant_id=invoice.tenant_id, amount_minor=invoice.total_minor, currency="USD",
-        status=PaymentStatus.SUCCEEDED, provider="stripe", provider_ref="pi_manual",
+        tenant_id=invoice.tenant_id,
+        amount_minor=invoice.total_minor,
+        currency="USD",
+        status=PaymentStatus.SUCCEEDED,
+        provider="stripe",
+        provider_ref="pi_manual",
     )
     response = api.post(
         "/api/v1/platform/payments/reconcile/",
-        {"payment_id": str(payment.id), "invoice_id": str(invoice.id),
-         "reason": "Bank transfer received out of band"},
+        {
+            "payment_id": str(payment.id),
+            "invoice_id": str(invoice.id),
+            "reason": "Bank transfer received out of band",
+        },
         format="json",
     )
     assert response.status_code == 200
@@ -288,8 +309,12 @@ def test_manual_payment_reconciliation_over_http(api):
 def test_reconciling_a_currency_mismatch_is_refused(api):
     invoice = _invoice()
     payment = Payment.objects.create(
-        tenant_id=invoice.tenant_id, amount_minor=900, currency="KES",
-        status=PaymentStatus.SUCCEEDED, provider="mpesa", provider_ref="ws_x",
+        tenant_id=invoice.tenant_id,
+        amount_minor=900,
+        currency="KES",
+        status=PaymentStatus.SUCCEEDED,
+        provider="mpesa",
+        provider_ref="ws_x",
     )
     response = api.post(
         "/api/v1/platform/payments/reconcile/",
@@ -306,8 +331,12 @@ def test_the_refund_request_and_approval_split_over_http():
     requester = make_staff(PlatformRole.CUSTOMER_SUCCESS)
     approver = make_staff(PlatformRole.FINANCE)
     payment = Payment.objects.create(
-        tenant_id=uuid.uuid4(), amount_minor=1000, currency="USD",
-        status=PaymentStatus.SUCCEEDED, provider="stripe", provider_ref="pi_refundable",
+        tenant_id=uuid.uuid4(),
+        amount_minor=1000,
+        currency="USD",
+        status=PaymentStatus.SUCCEEDED,
+        provider="stripe",
+        provider_ref="pi_refundable",
     )
 
     requested = client_for(requester).post(
@@ -336,8 +365,12 @@ def test_rejecting_a_refund_over_http():
     requester = make_staff(PlatformRole.CUSTOMER_SUCCESS)
     approver = make_staff(PlatformRole.FINANCE)
     payment = Payment.objects.create(
-        tenant_id=uuid.uuid4(), amount_minor=1000, currency="USD",
-        status=PaymentStatus.SUCCEEDED, provider="stripe", provider_ref="pi_reject",
+        tenant_id=uuid.uuid4(),
+        amount_minor=1000,
+        currency="USD",
+        status=PaymentStatus.SUCCEEDED,
+        provider="stripe",
+        provider_ref="pi_reject",
     )
     requested = client_for(requester).post(
         "/api/v1/platform/refunds/",
@@ -444,8 +477,14 @@ def test_an_unknown_dunning_action_is_rejected(api):
 def test_creating_a_dunning_policy_over_http(api):
     response = api.post(
         "/api/v1/platform/dunning/policies/",
-        {"name": "Patient", "retry_offsets_days": [2, 5], "grace_period_days": 10,
-         "suspend_after_days": 20, "abandon_after_days": 40, "is_default": True},
+        {
+            "name": "Patient",
+            "retry_offsets_days": [2, 5],
+            "grace_period_days": 10,
+            "suspend_after_days": 20,
+            "abandon_after_days": 40,
+            "is_default": True,
+        },
         format="json",
     )
     assert response.status_code == 201
@@ -455,8 +494,13 @@ def test_an_impossible_dunning_policy_is_refused(api):
     """Suspension before the grace period ends cannot happen in that order."""
     response = api.post(
         "/api/v1/platform/dunning/policies/",
-        {"name": "Backwards", "retry_offsets_days": [1], "grace_period_days": 30,
-         "suspend_after_days": 5, "abandon_after_days": 60},
+        {
+            "name": "Backwards",
+            "retry_offsets_days": [1],
+            "grace_period_days": 30,
+            "suspend_after_days": 5,
+            "abandon_after_days": 60,
+        },
         format="json",
     )
     assert response.status_code == 422
@@ -535,13 +579,15 @@ def test_ending_someone_elses_session_needs_the_audit_capability():
     other = make_staff(PlatformRole.TECHNICAL_SUPPORT)
     membership = MembershipFactory()
     grant, _ = impersonation.start(
-        staff=operator, tenant_id=membership.tenant_id,
+        staff=operator,
+        tenant_id=membership.tenant_id,
         reason="Investigating a reported import failure",
     )
 
     # Technical support holds audit.read, so it may supervise.
     response = client_for(other).post(
-        f"/api/v1/platform/impersonations/{grant.id}/end/", {"reason": "No longer needed"},
+        f"/api/v1/platform/impersonations/{grant.id}/end/",
+        {"reason": "No longer needed"},
         format="json",
     )
     assert response.status_code == 200
@@ -549,9 +595,7 @@ def test_ending_someone_elses_session_needs_the_audit_capability():
 
 
 def test_ending_an_unknown_session_is_a_404(api):
-    response = api.post(
-        f"/api/v1/platform/impersonations/{uuid.uuid4()}/end/", {}, format="json"
-    )
+    response = api.post(f"/api/v1/platform/impersonations/{uuid.uuid4()}/end/", {}, format="json")
     assert response.status_code == 404
 
 

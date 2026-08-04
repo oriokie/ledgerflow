@@ -76,9 +76,7 @@ class RuleBasedCoach:
     version = VERSION
 
     def _provenance(self, rationale: str) -> Provenance:
-        return Provenance(
-            provider=self.name, kind=self.kind, version=self.version, rationale=rationale
-        )
+        return Provenance(provider=self.name, kind=self.kind, version=self.version, rationale=rationale)
 
     # ------------------------------------------------------------------ budget
     def _overspending(self, ctx: CoachContext) -> list[InsightCandidate]:
@@ -570,9 +568,7 @@ class TemplateNarrator:
             if opp:
                 parts.append(opp)
         if not parts and not lead:
-            parts.append(
-                f"Nothing unusual {label}. Your spending is tracking against its recent pattern."
-            )
+            parts.append(f"Nothing unusual {label}. Your spending is tracking against its recent pattern.")
 
         if context.savings_rate is not None:
             parts.append(f"You're keeping about {context.savings_rate * 100:.0f}% of what comes in.")

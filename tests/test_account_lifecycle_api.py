@@ -85,9 +85,7 @@ def test_excluding_an_account_removes_it_from_net_worth_only(tenant_context):
     _create(client, name="Personal", opening_balance_minor=2_000_00)
     business = _create(client, name="Business", opening_balance_minor=9_000_00).data["id"]
 
-    client.patch(
-        f"/api/v1/finance/accounts/{business}/", {"include_in_net_worth": False}, format="json"
-    )
+    client.patch(f"/api/v1/finance/accounts/{business}/", {"include_in_net_worth": False}, format="json")
 
     net = client.get("/api/v1/finance/net-worth/")
     usd = next(r for r in net.data if r["currency"] == "USD")

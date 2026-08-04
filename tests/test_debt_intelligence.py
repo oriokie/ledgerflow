@@ -43,13 +43,7 @@ def test_compounding_more_often_always_costs_more():
         f: payoff.equivalent_monthly_rate(Decimal("12"), f)
         for f in (C.ANNUAL, C.MONTHLY, C.WEEKLY, C.DAILY, C.CONTINUOUS)
     }
-    assert (
-        rates[C.ANNUAL]
-        < rates[C.MONTHLY]
-        < rates[C.WEEKLY]
-        < rates[C.DAILY]
-        < rates[C.CONTINUOUS]
-    )
+    assert rates[C.ANNUAL] < rates[C.MONTHLY] < rates[C.WEEKLY] < rates[C.DAILY] < rates[C.CONTINUOUS]
 
 
 def test_monthly_compounding_is_the_plain_division():
@@ -189,9 +183,7 @@ def test_fees_do_not_reduce_the_balance():
 
 def test_fees_make_a_debt_take_longer_to_clear():
     plain = payoff.simulate([_debt(apr="0")], start=START)
-    fee_laden = payoff.simulate(
-        [_debt(apr="0", fees=payoff.DebtFees(monthly_minor=2_000))], start=START
-    )
+    fee_laden = payoff.simulate([_debt(apr="0", fees=payoff.DebtFees(monthly_minor=2_000))], start=START)
     assert fee_laden.months_to_debt_free > plain.months_to_debt_free
 
 
@@ -223,9 +215,7 @@ def test_a_debt_with_no_fees_reports_none():
 # =============================================================================
 def test_an_offset_reduces_the_interest_bearing_balance():
     without = payoff.simulate([_debt(balance=1_000_000, apr="6")], start=START)
-    with_offset = payoff.simulate(
-        [_debt(balance=1_000_000, apr="6", offset_minor=400_000)], start=START
-    )
+    with_offset = payoff.simulate([_debt(balance=1_000_000, apr="6", offset_minor=400_000)], start=START)
     assert with_offset.total_interest_minor < without.total_interest_minor
     assert with_offset.months_to_debt_free < without.months_to_debt_free
 
@@ -233,16 +223,12 @@ def test_an_offset_reduces_the_interest_bearing_balance():
 def test_an_offset_never_changes_the_debt_balance():
     """The offset account's money is still the user's — it reduces the interest
     charged, it does not repay anything."""
-    plan = payoff.simulate(
-        [_debt(balance=1_000_000, apr="6", offset_minor=400_000)], start=START
-    )
+    plan = payoff.simulate([_debt(balance=1_000_000, apr="6", offset_minor=400_000)], start=START)
     assert plan.per_debt[0].starting_balance_minor == 1_000_000
 
 
 def test_an_offset_larger_than_the_debt_stops_interest_entirely():
-    plan = payoff.simulate(
-        [_debt(balance=100_000, apr="20", offset_minor=500_000)], start=START
-    )
+    plan = payoff.simulate([_debt(balance=100_000, apr="20", offset_minor=500_000)], start=START)
     # It stops the interest; it doesn't earn a credit.
     assert plan.total_interest_minor == 0
 
@@ -260,9 +246,7 @@ def test_a_zero_offset_behaves_as_if_absent():
 def test_a_constant_extra_is_just_the_simplest_schedule():
     """Normalising one into the other means there's only one code path."""
     flat = payoff.simulate([_debt()], extra_monthly_minor=10_000, start=START)
-    via_schedule = payoff.simulate(
-        [_debt()], extra=payoff.ExtraPayments(monthly_minor=10_000), start=START
-    )
+    via_schedule = payoff.simulate([_debt()], extra=payoff.ExtraPayments(monthly_minor=10_000), start=START)
     assert flat.months_to_debt_free == via_schedule.months_to_debt_free
     assert flat.total_interest_minor == via_schedule.total_interest_minor
 
@@ -303,9 +287,7 @@ def test_a_future_lump_sum_stops_a_plan_being_called_impossible():
     stuck = _debt(balance=500_000, apr="24", minimum=5_000)
     assert payoff.simulate([stuck], start=START).months_to_debt_free is None
 
-    rescued = payoff.simulate(
-        [stuck], extra=payoff.ExtraPayments(lump_sums=((6, 600_000),)), start=START
-    )
+    rescued = payoff.simulate([stuck], extra=payoff.ExtraPayments(lump_sums=((6, 600_000),)), start=START)
     assert rescued.months_to_debt_free is not None
     assert rescued.stuck_debt_ids == []
 
@@ -456,9 +438,7 @@ def test_consolidation_fees_are_added_to_the_new_balance():
     )
     with_fees = payoff.simulate_consolidation(
         debts,
-        payoff.ConsolidationQuote(
-            new_apr=Decimal("9"), new_minimum_payment_minor=40_000, fees_minor=50_000
-        ),
+        payoff.ConsolidationQuote(new_apr=Decimal("9"), new_minimum_payment_minor=40_000, fees_minor=50_000),
         start=START,
     )
     assert with_fees.new_total_cost_minor > without.new_total_cost_minor
@@ -694,9 +674,7 @@ def test_recorded_rate_changes_build_the_engine_timeline(tenant):
 def test_a_rate_in_force_supersedes_the_flat_field(tenant):
     with tenant_scope(tenant):
         account = _card(apr="12")
-        debt_services.record_rate_change(
-            financial_account=account, apr="18", effective_from=date(2026, 1, 1)
-        )
+        debt_services.record_rate_change(financial_account=account, apr="18", effective_from=date(2026, 1, 1))
         [view] = debt_selectors.debt_views(as_of=date(2026, 6, 1))
         assert view.apr == Decimal("18.000")
 
@@ -706,12 +684,8 @@ def test_rate_history_is_append_only_per_date(tenant):
     second rate for one morning."""
     with tenant_scope(tenant):
         account = _card()
-        debt_services.record_rate_change(
-            financial_account=account, apr="15", effective_from=date(2027, 1, 1)
-        )
-        debt_services.record_rate_change(
-            financial_account=account, apr="16", effective_from=date(2027, 1, 1)
-        )
+        debt_services.record_rate_change(financial_account=account, apr="15", effective_from=date(2027, 1, 1))
+        debt_services.record_rate_change(financial_account=account, apr="16", effective_from=date(2027, 1, 1))
         assert DebtRateHistory.objects.count() == 1
         assert DebtRateHistory.objects.get().apr == Decimal("16.000")
 
@@ -730,7 +704,7 @@ def test_rate_changes_need_terms_first(tenant):
 def test_legacy_promotional_fields_become_a_rate_timeline(tenant):
     """Existing promo data must keep working without migrating it."""
     with tenant_scope(tenant):
-        account = _card(
+        _card(
             apr="22",
             promotional_apr="0",
             promotional_apr_until=date(2027, 6, 30),
@@ -801,9 +775,7 @@ def test_offset_accounts_reduce_interest_without_moving_money(tenant):
         )
 
         before = debt_selectors.debt_views()[0].monthly_interest_minor
-        debt_services.set_offset_accounts(
-            financial_account=mortgage, account_ids=[savings.id]
-        )
+        debt_services.set_offset_accounts(financial_account=mortgage, account_ids=[savings.id])
         view = next(v for v in debt_selectors.debt_views() if v.name == "Mortgage")
 
         assert view.offset_minor == 5_000_000
@@ -817,9 +789,7 @@ def test_a_debt_cannot_offset_another_debt(tenant):
         loan = _card(name="Loan")
         other = _card(name="Other card")
         with pytest.raises(debt_services.DebtError, match="asset accounts"):
-            debt_services.set_offset_accounts(
-                financial_account=loan, account_ids=[other.id]
-            )
+            debt_services.set_offset_accounts(financial_account=loan, account_ids=[other.id])
 
 
 def test_offsets_must_match_the_debt_currency(tenant):
@@ -829,9 +799,7 @@ def test_offsets_must_match_the_debt_currency(tenant):
             name="EUR savings", account_type=AccountType.SAVINGS, currency="EUR"
         )
         with pytest.raises(debt_services.DebtError, match="currency"):
-            debt_services.set_offset_accounts(
-                financial_account=card, account_ids=[eur.id]
-            )
+            debt_services.set_offset_accounts(financial_account=card, account_ids=[eur.id])
 
 
 def test_stress_score_is_derived_and_explained(tenant):
@@ -859,8 +827,7 @@ def test_stress_score_is_none_without_debt(tenant):
 def _api_card(client, name="Card", balance=800_000, apr="19.9", minimum=30_000, **terms):
     account = client.post(
         "/api/v1/finance/accounts/",
-        {"name": name, "account_type": "credit_card", "currency": "USD",
-         "opening_balance_minor": balance},
+        {"name": name, "account_type": "credit_card", "currency": "USD", "opening_balance_minor": balance},
         format="json",
     ).data
     payload = {"apr": apr, "minimum_payment_minor": minimum, "debt_kind": "credit_card"}
@@ -891,9 +858,7 @@ def test_api_rate_history_round_trip(tenant_context):
 
 def test_api_compounding_and_fees_round_trip(tenant_context):
     _, client = tenant_context
-    _api_card(
-        client, apr="0", compounding="daily", monthly_fee_minor=500, annual_fee_minor=9_900
-    )
+    _api_card(client, apr="0", compounding="daily", monthly_fee_minor=500, annual_fee_minor=9_900)
 
     [debt] = client.get("/api/v1/debt/debts/").data
     assert debt["compounding"] == "daily"
@@ -911,8 +876,7 @@ def test_api_offset_accounts_reduce_interest(tenant_context):
     account = _api_card(client, name="Mortgage", balance=20_000_000, apr="5", minimum=120_000)
     savings = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Offset", "account_type": "savings", "currency": "USD",
-         "opening_balance_minor": 5_000_000},
+        {"name": "Offset", "account_type": "savings", "currency": "USD", "opening_balance_minor": 5_000_000},
         format="json",
     ).data
 
@@ -955,8 +919,7 @@ def test_api_consolidation_compares_lifetime_cost(tenant_context):
 
     result = client.post(
         "/api/v1/debt/debts/consolidate/",
-        {"account_ids": [a["id"], b["id"]], "new_apr": "9",
-         "new_minimum_payment_minor": 35_000},
+        {"account_ids": [a["id"], b["id"]], "new_apr": "9", "new_minimum_payment_minor": 35_000},
         format="json",
     )
     assert result.status_code == 200, result.data
@@ -1022,9 +985,7 @@ def test_existing_payoff_endpoint_is_unchanged(tenant_context):
     _api_card(client, name="A", balance=100_000, apr="0", minimum=20_000)
     _api_card(client, name="B", balance=200_000, apr="0", minimum=20_000)
 
-    data = client.get(
-        "/api/v1/debt/debts/payoff/?strategy=snowball&extra_monthly_minor=10000&months=6"
-    ).data
+    data = client.get("/api/v1/debt/debts/payoff/?strategy=snowball&extra_monthly_minor=10000&months=6").data
     assert data["strategy"] == "snowball"
     assert data["is_complete"] is True
     assert data["calendar"]
@@ -1108,15 +1069,21 @@ def test_a_low_fee_debt_is_not_flagged(tenant):
 def test_idle_savings_against_a_mortgage_suggests_offsetting(tenant):
     with tenant_scope(tenant):
         mortgage = finance_services.create_financial_account(
-            name="Mortgage", account_type=AccountType.LOAN, currency="USD",
+            name="Mortgage",
+            account_type=AccountType.LOAN,
+            currency="USD",
             opening_balance_minor=20_000_000,
         )
         debt_services.set_debt_terms(
-            financial_account=mortgage, apr="5", minimum_payment_minor=120_000,
+            financial_account=mortgage,
+            apr="5",
+            minimum_payment_minor=120_000,
             debt_kind=DebtKind.MORTGAGE,
         )
         finance_services.create_financial_account(
-            name="Savings", account_type=AccountType.SAVINGS, currency="USD",
+            name="Savings",
+            account_type=AccountType.SAVINGS,
+            currency="USD",
             opening_balance_minor=3_000_000,
         )
 
@@ -1129,20 +1096,24 @@ def test_idle_savings_against_a_mortgage_suggests_offsetting(tenant):
 def test_offsetting_is_not_suggested_once_it_is_set_up(tenant):
     with tenant_scope(tenant):
         mortgage = finance_services.create_financial_account(
-            name="Mortgage", account_type=AccountType.LOAN, currency="USD",
+            name="Mortgage",
+            account_type=AccountType.LOAN,
+            currency="USD",
             opening_balance_minor=20_000_000,
         )
         debt_services.set_debt_terms(
-            financial_account=mortgage, apr="5", minimum_payment_minor=120_000,
+            financial_account=mortgage,
+            apr="5",
+            minimum_payment_minor=120_000,
             debt_kind=DebtKind.MORTGAGE,
         )
         savings = finance_services.create_financial_account(
-            name="Savings", account_type=AccountType.SAVINGS, currency="USD",
+            name="Savings",
+            account_type=AccountType.SAVINGS,
+            currency="USD",
             opening_balance_minor=3_000_000,
         )
-        debt_services.set_offset_accounts(
-            financial_account=mortgage, account_ids=[savings.id]
-        )
+        debt_services.set_offset_accounts(financial_account=mortgage, account_ids=[savings.id])
         assert not [s for s in debt_selectors.debt_signals() if s.kind == "offset_opportunity"]
 
 
@@ -1151,9 +1122,7 @@ def test_the_most_expensive_debt_is_identified_without_claiming_a_product_exists
         _card(name="Cheap loan", balance=1_000_000, apr="4", minimum=20_000)
         _card(name="Expensive card", balance=500_000, apr="27", minimum=15_000)
 
-        refi = next(
-            s for s in debt_selectors.debt_signals() if s.kind == "refinance_opportunity"
-        )
+        refi = next(s for s in debt_selectors.debt_signals() if s.kind == "refinance_opportunity")
         assert "Expensive card" in refi.title
         # Careful wording: we have no rate data, so we don't promise an offer.
         assert "depends" in refi.rationale
@@ -1163,9 +1132,7 @@ def test_progress_milestones_are_reported(tenant):
     """A planner that only ever reports problems is one people stop opening."""
     with tenant_scope(tenant):
         _card(name="Car loan", balance=250_000, original_principal_minor=1_000_000)
-        milestone = next(
-            s for s in debt_selectors.debt_signals() if s.kind == "debt_milestone"
-        )
+        milestone = next(s for s in debt_selectors.debt_signals() if s.kind == "debt_milestone")
         assert "75% repaid" in milestone.title
 
 
@@ -1180,17 +1147,18 @@ def test_signals_are_ordered_by_severity(tenant):
     with tenant_scope(tenant):
         today = date.today()
         _card(
-            name="Urgent", balance=600_000, apr="24",
-            promotional_apr="0", promotional_apr_until=today + timedelta(days=7),
+            name="Urgent",
+            balance=600_000,
+            apr="24",
+            promotional_apr="0",
+            promotional_apr_until=today + timedelta(days=7),
             opened_on=today - timedelta(days=300),
         )
         _card(name="Milestone", balance=250_000, original_principal_minor=1_000_000)
 
         signals = debt_selectors.debt_signals()
         order = {"critical": 0, "warning": 1, "opportunity": 2, "info": 3}
-        assert [order[s.severity] for s in signals] == sorted(
-            order[s.severity] for s in signals
-        )
+        assert [order[s.severity] for s in signals] == sorted(order[s.severity] for s in signals)
 
 
 def test_no_debt_produces_no_signals(tenant):
@@ -1207,8 +1175,11 @@ def test_debt_signals_reach_the_coach_as_insights(tenant):
     with tenant_scope(tenant):
         today = date.today()
         _card(
-            name="Store card", balance=600_000, apr="24",
-            promotional_apr="0", promotional_apr_until=today + timedelta(days=20),
+            name="Store card",
+            balance=600_000,
+            apr="24",
+            promotional_apr="0",
+            promotional_apr_until=today + timedelta(days=20),
             opened_on=today - timedelta(days=300),
         )
         coach.generate_insights()
@@ -1252,11 +1223,15 @@ def test_analytics_composition_sums_to_a_hundred_percent(tenant):
     with tenant_scope(tenant):
         _card(name="Card", balance=400_000, apr="20", minimum=20_000)
         loan = finance_services.create_financial_account(
-            name="Car loan", account_type=AccountType.LOAN, currency="USD",
+            name="Car loan",
+            account_type=AccountType.LOAN,
+            currency="USD",
             opening_balance_minor=600_000,
         )
         debt_services.set_debt_terms(
-            financial_account=loan, apr="6", minimum_payment_minor=20_000,
+            financial_account=loan,
+            apr="6",
+            minimum_payment_minor=20_000,
             debt_kind=DebtKind.VEHICLE_LOAN,
         )
 
@@ -1320,14 +1295,20 @@ def test_debt_alerts_include_the_signal_engine(tenant_context):
     _, client = tenant_context
     account = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Store card", "account_type": "credit_card", "currency": "USD",
-         "opening_balance_minor": 600_000},
+        {
+            "name": "Store card",
+            "account_type": "credit_card",
+            "currency": "USD",
+            "opening_balance_minor": 600_000,
+        },
         format="json",
     ).data
     client.put(
         f"/api/v1/debt/debts/{account['id']}/terms/",
         {
-            "apr": "24", "minimum_payment_minor": 30_000, "debt_kind": "credit_card",
+            "apr": "24",
+            "minimum_payment_minor": 30_000,
+            "debt_kind": "credit_card",
             "promotional_apr": "0",
             "promotional_apr_until": (date.today() + timedelta(days=20)).isoformat(),
             "opened_on": (date.today() - timedelta(days=300)).isoformat(),

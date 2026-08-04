@@ -87,9 +87,7 @@ def _to_detect_txn(txn: Transaction) -> detect.Txn:
         # A placeholder reads as no category, so the engine's existing contract
         # — "no category means suggest one" — covers the imported case without
         # the pure module needing to know product-specific names.
-        category_id=(
-            None if is_placeholder_category(txn.category) else str(txn.category_id)
-        ),
+        category_id=(None if is_placeholder_category(txn.category) else str(txn.category_id)),
         memo=txn.memo or "",
     )
 
@@ -101,10 +99,7 @@ def merchant_stats() -> dict[str, dict[str, int]]:
     profile table is that this is a single cheap query instead of a scan over
     history for every row.
     """
-    return {
-        profile.key: dict(profile.category_counts or {})
-        for profile in MerchantProfile.objects.all()
-    }
+    return {profile.key: dict(profile.category_counts or {}) for profile in MerchantProfile.objects.all()}
 
 
 # ---------------------------------------------------------------------------
@@ -215,9 +210,7 @@ def scan(*, days: int = DEFAULT_SCAN_DAYS, as_of: date | None = None) -> ScanRes
         return ScanResult(0, 0, 0, 0)
 
     by_id = {str(t.id): t for t in rows}
-    findings = detect.detect_all(
-        [_to_detect_txn(t) for t in rows], merchant_stats=merchant_stats()
-    )
+    findings = detect.detect_all([_to_detect_txn(t) for t in rows], merchant_stats=merchant_stats())
 
     created = refreshed = auto_applied = 0
 
@@ -245,19 +238,14 @@ def scan(*, days: int = DEFAULT_SCAN_DAYS, as_of: date | None = None) -> ScanRes
             payload=finding.payload,
             dedupe_key=key,
             primary_transaction=primary,
-            merchant_key=(
-                detect.merchant_key(_merchant_name(primary)) if primary else ""
-            ),
+            merchant_key=(detect.merchant_key(_merchant_name(primary)) if primary else ""),
         )
         suggestion.transactions.set([by_id[t] for t in finding.txn_ids if t in by_id])
         created += 1
 
         # High-confidence categorisation is the one thing applied unasked, and
         # even that is recorded and reversible.
-        if (
-            finding.kind == detect.SuggestionKind.CATEGORY
-            and finding.confidence >= AUTO_APPLY_THRESHOLD
-        ):
+        if finding.kind == detect.SuggestionKind.CATEGORY and finding.confidence >= AUTO_APPLY_THRESHOLD:
             _apply(suggestion)
             suggestion.status = ReviewStatus.AUTO_APPLIED
             suggestion.decided_at = timezone.now()
@@ -322,9 +310,7 @@ def reject(*, suggestion: AutomationSuggestion, actor_id=None) -> AutomationSugg
     if suggestion.kind == SuggestionKind.CATEGORY and suggestion.merchant_key:
         category_id = suggestion.payload.get("category_id")
         if category_id:
-            unlearn_category(
-                merchant_key_value=suggestion.merchant_key, category_id=str(category_id)
-            )
+            unlearn_category(merchant_key_value=suggestion.merchant_key, category_id=str(category_id))
 
     suggestion.status = ReviewStatus.REJECTED
     suggestion.decided_at = timezone.now()
@@ -478,10 +464,7 @@ def queue_summary() -> QueueSummary:
     from django.db.models import Count
 
     pending = AutomationSuggestion.objects.filter(status=ReviewStatus.PENDING)
-    by_kind = {
-        row["kind"]: row["n"]
-        for row in pending.order_by().values("kind").annotate(n=Count("id"))
-    }
+    by_kind = {row["kind"]: row["n"] for row in pending.order_by().values("kind").annotate(n=Count("id"))}
 
     approved = AutomationSuggestion.objects.filter(status=ReviewStatus.APPROVED).count()
     rejected = AutomationSuggestion.objects.filter(status=ReviewStatus.REJECTED).count()
@@ -490,9 +473,7 @@ def queue_summary() -> QueueSummary:
     return QueueSummary(
         pending=pending.count(),
         by_kind=by_kind,
-        auto_applied=AutomationSuggestion.objects.filter(
-            status=ReviewStatus.AUTO_APPLIED
-        ).count(),
+        auto_applied=AutomationSuggestion.objects.filter(status=ReviewStatus.AUTO_APPLIED).count(),
         # `None` rather than a flattering 0 or 100 when nothing has been
         # decided — an accuracy figure from no data is not an accuracy figure.
         approval_rate=round(approved / decided, 2) if decided else None,

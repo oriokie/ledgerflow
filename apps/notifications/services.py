@@ -91,7 +91,6 @@ def raise_notification(
         return Notification.objects.filter(dedupe_key=dedupe_key).first()
 
 
-
 # --------------------------------------------------------------- push subscriptions
 @transaction.atomic
 def subscribe_to_push(

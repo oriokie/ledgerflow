@@ -11,18 +11,18 @@ from contextlib import contextmanager
 
 import pytest
 from django.db import transaction
+from django.db.utils import IntegrityError
 
 from apps.common import audit as tenant_audit
 from apps.common.audit import AuditLog
 from apps.common.frontend_urls import invitation_accept, password_reset
 from apps.common.rls import bind_db_tenant
 from apps.common.tenant_context import use_tenant
-from apps.finance.models import Tag
 from apps.investments.models import Security
 from apps.tenancy import services as tenancy
 from apps.tenancy.models import Role
 from tests.conftest import _bearer_client
-from tests.factories import MembershipFactory, UserFactory
+from tests.factories import MembershipFactory
 
 pytestmark = pytest.mark.django_db
 
@@ -87,14 +87,13 @@ def test_invitation_email_is_queued_only_after_commit(monkeypatch, django_captur
 
     monkeypatch.setattr(tasks.send_invitation_email, "delay", lambda **kw: dispatched.append(kw))
 
-    with django_capture_on_commit_callbacks(execute=True) as callbacks:
-        with _tenant(membership):
-            tenancy.create_invitation(
-                tenant=membership.tenant,
-                invited_by_membership=membership,
-                email="new@example.test",
-                role=Role.MEMBER,
-            )
+    with django_capture_on_commit_callbacks(execute=True) as callbacks, _tenant(membership):
+        tenancy.create_invitation(
+            tenant=membership.tenant,
+            invited_by_membership=membership,
+            email="new@example.test",
+            role=Role.MEMBER,
+        )
         # Nothing dispatched while the block was open — it was deferred.
     assert len(callbacks) == 1
     assert len(dispatched) == 1
@@ -109,16 +108,18 @@ def test_a_rolled_back_invitation_never_emails_anyone(monkeypatch, django_captur
 
     monkeypatch.setattr(tasks.send_invitation_email, "delay", lambda **kw: dispatched.append(kw))
 
-    with django_capture_on_commit_callbacks(execute=True):
-        with pytest.raises(RuntimeError):
-            with _tenant(membership):
-                tenancy.create_invitation(
-                    tenant=membership.tenant,
-                    invited_by_membership=membership,
-                    email="new@example.test",
-                    role=Role.MEMBER,
-                )
-                raise RuntimeError("something later failed")
+    with (
+        django_capture_on_commit_callbacks(execute=True),
+        pytest.raises(RuntimeError),
+        _tenant(membership),
+    ):
+        tenancy.create_invitation(
+            tenant=membership.tenant,
+            invited_by_membership=membership,
+            email="new@example.test",
+            role=Role.MEMBER,
+        )
+        raise RuntimeError("something later failed")
 
     assert dispatched == []
 
@@ -137,9 +138,7 @@ def test_a_role_change_records_both_sides():
     owner = MembershipFactory(role=Role.OWNER)
     member = MembershipFactory(tenant=owner.tenant, role=Role.MEMBER)
     with _tenant(owner):
-        tenancy.change_member_role(
-            actor_membership=owner, target_membership=member, new_role=Role.VIEWER
-        )
+        tenancy.change_member_role(actor_membership=owner, target_membership=member, new_role=Role.VIEWER)
         row = AuditLog.objects.get(action="member.role_changed")
         assert row.changes["role"] == [Role.MEMBER, Role.VIEWER]
 
@@ -181,9 +180,11 @@ def test_the_audit_log_is_append_only():
     with _tenant(membership):
         tenancy.close_workspace(tenant=membership.tenant, actor_membership=membership)
         row = AuditLog.objects.get(action="workspace.closed")
-    with pytest.raises(Exception):
-        with transaction.atomic():
-            AuditLog.objects.filter(pk=row.pk).update(action="tampered")
+    # The BEFORE UPDATE trigger's RAISE EXCEPTION surfaces through psycopg as
+    # IntegrityError, not a bare Exception — narrowed so this only passes for
+    # the trigger actually firing, not any unrelated failure in the block.
+    with pytest.raises(IntegrityError), transaction.atomic():
+        AuditLog.objects.filter(pk=row.pk).update(action="tampered")
 
 
 # ============================================================== F-2: securities
@@ -230,9 +231,7 @@ def test_renaming_onto_an_existing_symbol_is_refused():
         {"symbol": "BBB", "name": "B", "asset_class": "etf", "currency": "USD"},
         format="json",
     )
-    clash = client.patch(
-        f"/api/v1/investments/securities/{a.data['id']}/", {"symbol": "BBB"}, format="json"
-    )
+    clash = client.patch(f"/api/v1/investments/securities/{a.data['id']}/", {"symbol": "BBB"}, format="json")
     assert clash.status_code == 422
     assert "already tracked" in clash.data["detail"]
 
@@ -290,9 +289,7 @@ def test_a_tag_can_be_renamed_and_deleted():
     created = client.post("/api/v1/finance/tags/", {"name": "hoilday"}, format="json")
     assert created.status_code == 201
 
-    renamed = client.patch(
-        f"/api/v1/finance/tags/{created.data['id']}/", {"name": "holiday"}, format="json"
-    )
+    renamed = client.patch(f"/api/v1/finance/tags/{created.data['id']}/", {"name": "holiday"}, format="json")
     assert renamed.status_code == 200
     assert renamed.data["name"] == "holiday"
 
@@ -355,9 +352,7 @@ def test_a_member_can_read_the_workspace_activity_trail():
     owner = MembershipFactory(role=Role.OWNER)
     member = MembershipFactory(tenant=owner.tenant, role=Role.MEMBER)
     with _tenant(owner):
-        tenancy.change_member_role(
-            actor_membership=owner, target_membership=member, new_role=Role.VIEWER
-        )
+        tenancy.change_member_role(actor_membership=owner, target_membership=member, new_role=Role.VIEWER)
 
     body = _client(owner).get("/api/v1/tenancy/workspaces/activity/").json()
     rows = body["results"] if isinstance(body, dict) else body
@@ -392,8 +387,12 @@ def test_a_system_action_is_labelled_as_automation():
     """Null actor means a task or webhook — different from an unknown person."""
     membership = MembershipFactory(role=Role.OWNER)
     with _tenant(membership):
-        tenant_audit.record(action="transaction.voided", target_type="finance.Transaction",
-                            target_id=uuid.uuid4(), actor_id=None)
+        tenant_audit.record(
+            action="transaction.voided",
+            target_type="finance.Transaction",
+            target_id=uuid.uuid4(),
+            actor_id=None,
+        )
 
     body = _client(membership).get("/api/v1/tenancy/workspaces/activity/").json()
     rows = body["results"] if isinstance(body, dict) else body
@@ -405,8 +404,12 @@ def test_resolving_actor_names_does_not_scale_with_row_count(django_assert_num_q
     owner = MembershipFactory(role=Role.OWNER)
     with _tenant(owner):
         for _ in range(12):
-            tenant_audit.record(action="transaction.voided", target_type="finance.Transaction",
-                                target_id=uuid.uuid4(), actor_id=owner.user_id)
+            tenant_audit.record(
+                action="transaction.voided",
+                target_type="finance.Transaction",
+                target_id=uuid.uuid4(),
+                actor_id=owner.user_id,
+            )
 
     client = _client(owner)
     # Warm auth/membership lookups so the assertion covers the view only.
@@ -419,8 +422,9 @@ def test_an_unlabelled_action_still_appears():
     """Dropping unknown actions would make the log lie by omission."""
     membership = MembershipFactory(role=Role.OWNER)
     with _tenant(membership):
-        tenant_audit.record(action="some.future.action", target_type="x",
-                            target_id=uuid.uuid4(), actor_id=membership.user_id)
+        tenant_audit.record(
+            action="some.future.action", target_type="x", target_id=uuid.uuid4(), actor_id=membership.user_id
+        )
 
     body = _client(membership).get("/api/v1/tenancy/workspaces/activity/").json()
     rows = body["results"] if isinstance(body, dict) else body
@@ -429,8 +433,6 @@ def test_an_unlabelled_action_still_appears():
 
 def test_a_bad_since_filter_is_a_field_error():
     membership = MembershipFactory(role=Role.OWNER)
-    response = _client(membership).get(
-        "/api/v1/tenancy/workspaces/activity/", {"since": "last tuesday"}
-    )
+    response = _client(membership).get("/api/v1/tenancy/workspaces/activity/", {"since": "last tuesday"})
     assert response.status_code == 400
     assert "since" in response.json()

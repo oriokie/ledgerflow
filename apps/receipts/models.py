@@ -44,7 +44,9 @@ class Receipt(SoftDeletableModel):
     financial_account = models.ForeignKey(
         "finance.FinancialAccount", null=True, blank=True, on_delete=models.SET_NULL, related_name="receipts"
     )
-    status = models.CharField(max_length=16, choices=ReceiptStatus.choices, default=ReceiptStatus.PENDING_UPLOAD)
+    status = models.CharField(
+        max_length=16, choices=ReceiptStatus.choices, default=ReceiptStatus.PENDING_UPLOAD
+    )
 
     # --- storage ---
     storage_key = models.CharField(max_length=512)

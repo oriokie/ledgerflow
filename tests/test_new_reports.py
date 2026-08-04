@@ -213,18 +213,14 @@ def test_category_movers_ranks_by_absolute_swing():
             account,
             fun,
             500_00,
-            timezone.make_aware(
-                timezone.datetime.combine(last_month_start, timezone.datetime.min.time())
-            )
+            timezone.make_aware(timezone.datetime.combine(last_month_start, timezone.datetime.min.time()))
             + timedelta(days=2),
         )
         _expense(
             account,
             fun,
             100_00,
-            timezone.make_aware(
-                timezone.datetime.combine(prior_month_start, timezone.datetime.min.time())
-            )
+            timezone.make_aware(timezone.datetime.combine(prior_month_start, timezone.datetime.min.time()))
             + timedelta(days=2),
         )
 
@@ -247,9 +243,7 @@ def test_category_movers_calls_a_brand_new_category_new_rather_than_infinite():
             account,
             fun,
             300_00,
-            timezone.make_aware(
-                timezone.datetime.combine(last_month_start, timezone.datetime.min.time())
-            )
+            timezone.make_aware(timezone.datetime.combine(last_month_start, timezone.datetime.min.time()))
             + timedelta(days=2),
         )
 

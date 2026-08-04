@@ -274,9 +274,7 @@ def test_auto_contribution_requires_a_valid_amount_and_day(tenant):
             goal_services.set_auto_contribution(goal=goal, enabled=True, amount_minor=0, day_of_month=1)
         with pytest.raises(goal_services.GoalError):
             # Day 31 doesn't exist in every month; capping at 28 is deliberate.
-            goal_services.set_auto_contribution(
-                goal=goal, enabled=True, amount_minor=100_00, day_of_month=31
-            )
+            goal_services.set_auto_contribution(goal=goal, enabled=True, amount_minor=100_00, day_of_month=31)
 
 
 def test_auto_contribution_rejects_account_balance_goals(tenant):
@@ -286,9 +284,7 @@ def test_auto_contribution_rejects_account_balance_goals(tenant):
         )
         goal = _goal(tracking=GoalTracking.ACCOUNT_BALANCE, linked_account=account)
         with pytest.raises(goal_services.GoalError):
-            goal_services.set_auto_contribution(
-                goal=goal, enabled=True, amount_minor=100_00, day_of_month=1
-            )
+            goal_services.set_auto_contribution(goal=goal, enabled=True, amount_minor=100_00, day_of_month=1)
 
 
 def test_auto_contribution_runs_once_per_month(tenant):

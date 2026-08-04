@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from django.db import transaction
+
 from apps.common.rls import bind_db_tenant
 from apps.common.tenant_context import use_tenant
-from django.db import transaction
 
 
 def _rows(qs, fields: list[str]) -> list[dict[str, Any]]:

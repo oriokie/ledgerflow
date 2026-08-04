@@ -152,9 +152,7 @@ def _observed(source: IncomeSource, *, as_of: date) -> tuple[int | None, int | N
     """Mean, standard deviation, count and latest date of recent receipts."""
     window_start = as_of - timedelta(days=OBSERVED_WINDOW_DAYS)
     amounts = list(
-        IncomeReceipt.objects.filter(
-            source=source, occurred_on__gte=window_start, occurred_on__lte=as_of
-        )
+        IncomeReceipt.objects.filter(source=source, occurred_on__gte=window_start, occurred_on__lte=as_of)
         .order_by("-occurred_on")
         .values_list("net_minor", "occurred_on")
     )
@@ -317,9 +315,7 @@ def income_summary(*, as_of: date | None = None, currency: str | None = None) ->
     return IncomeSummary(
         currency=currency,
         monthly_net_minor=total,
-        monthly_fixed_minor=sum(
-            v.monthly_net_minor for v in monthly if v.reliability == Reliability.FIXED
-        ),
+        monthly_fixed_minor=sum(v.monthly_net_minor for v in monthly if v.reliability == Reliability.FIXED),
         monthly_variable_minor=sum(
             v.monthly_net_minor for v in monthly if v.reliability != Reliability.FIXED
         ),
@@ -395,9 +391,7 @@ def _monthly_bills_minor(*, currency: str, as_of: date) -> int:
         status=BillStatus.UPCOMING,
     ).exclude(recurrence_frequency="")
     for bill in bills:
-        per_year = {"daily": 365, "weekly": 52, "monthly": 12, "yearly": 1}.get(
-            bill.recurrence_frequency
-        )
+        per_year = {"daily": 365, "weekly": 52, "monthly": 12, "yearly": 1}.get(bill.recurrence_frequency)
         if per_year is None:
             continue
         interval = max(1, bill.recurrence_interval)

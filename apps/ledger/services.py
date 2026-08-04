@@ -8,7 +8,6 @@ updates materialized balances + the audit outbox — all in one DB transaction.
 from __future__ import annotations
 
 import logging
-
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -18,9 +17,8 @@ from apps.common.outbox import OutboxEvent
 
 from .models import Account, AccountBalance, Direction, JournalEntry, LedgerLine
 
-
-
 logger = logging.getLogger("ledgerflow.ledger")
+
 
 class LedgerError(Exception): ...
 

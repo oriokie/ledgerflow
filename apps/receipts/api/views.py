@@ -68,9 +68,7 @@ class ReceiptUploadRequestView(WriteRequiresMemberMixin, TenantScopedAPIView, AP
             )
         except services.ReceiptError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
-        return Response(
-            {**_receipt_out(receipt), "upload_url": upload_url}, status=status.HTTP_201_CREATED
-        )
+        return Response({**_receipt_out(receipt), "upload_url": upload_url}, status=status.HTTP_201_CREATED)
 
 
 class ReceiptConfirmUploadView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
@@ -166,9 +164,7 @@ class ReceiptLinkView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
             return Response({"detail": "Account or category not found."}, status=404)
 
         try:
-            txn = services.link_to_transaction(
-                receipt=receipt, financial_account=account, category=category
-            )
+            txn = services.link_to_transaction(receipt=receipt, financial_account=account, category=category)
         except services.ReceiptError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         return Response({"transaction_id": txn.id, "receipt": _receipt_out(receipt)})

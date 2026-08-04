@@ -201,8 +201,7 @@ def test_avalanche_never_costs_more_interest_than_snowball():
         _debt("big_low", 400_000, 4, 10_000, name="Big low-rate"),
     ]
     results = {
-        c.strategy: c
-        for c in payoff.compare_strategies(debts, extra_monthly_minor=20_000, start=START)
+        c.strategy: c for c in payoff.compare_strategies(debts, extra_monthly_minor=20_000, start=START)
     }
     assert results["avalanche"].total_interest_minor <= results["snowball"].total_interest_minor
 
@@ -214,8 +213,7 @@ def test_snowball_can_clear_a_first_debt_sooner():
         _debt("big_high", 600_000, 25, 15_000, name="Big high-rate"),
     ]
     results = {
-        c.strategy: c
-        for c in payoff.compare_strategies(debts, extra_monthly_minor=10_000, start=START)
+        c.strategy: c for c in payoff.compare_strategies(debts, extra_monthly_minor=10_000, start=START)
     }
     assert results["snowball"].first_cleared_months <= results["avalanche"].first_cleared_months
     assert results["snowball"].first_cleared_name == "Tiny low-rate"
@@ -225,8 +223,7 @@ def test_savings_are_measured_against_doing_nothing():
     """Comparing strategies to each other would flatter whichever came second."""
     debts = [_debt("a", 300_000, 20, 10_000)]
     results = {
-        c.strategy: c
-        for c in payoff.compare_strategies(debts, extra_monthly_minor=15_000, start=START)
+        c.strategy: c for c in payoff.compare_strategies(debts, extra_monthly_minor=15_000, start=START)
     }
     assert results["avalanche"].interest_saved_minor > 0
     assert results["avalanche"].months_saved > 0
@@ -609,8 +606,7 @@ def test_payoff_calendar_groups_by_month(tenant):
 def _api_card(client, name="Card", balance=500_000, apr="19.9", minimum=10_000, **terms):
     account = client.post(
         "/api/v1/finance/accounts/",
-        {"name": name, "account_type": "credit_card", "currency": "USD",
-         "opening_balance_minor": balance},
+        {"name": name, "account_type": "credit_card", "currency": "USD", "opening_balance_minor": balance},
         format="json",
     ).data
     payload = {"apr": apr, "minimum_payment_minor": minimum, "debt_kind": "credit_card"}
@@ -622,7 +618,7 @@ def _api_card(client, name="Card", balance=500_000, apr="19.9", minimum=10_000, 
 
 def test_api_terms_round_trip(tenant_context):
     _, client = tenant_context
-    account = _api_card(client)
+    _api_card(client)
 
     [debt] = client.get("/api/v1/debt/debts/").data
     assert debt["apr"] == 19.9
@@ -637,9 +633,7 @@ def test_api_rejects_an_implausible_apr(tenant_context):
         {"name": "Card", "account_type": "credit_card", "currency": "USD"},
         format="json",
     ).data
-    resp = client.put(
-        f"/api/v1/debt/debts/{account['id']}/terms/", {"apr": "199"}, format="json"
-    )
+    resp = client.put(f"/api/v1/debt/debts/{account['id']}/terms/", {"apr": "199"}, format="json")
     assert resp.status_code == 422
     assert "percentage" in resp.data["detail"]
 
@@ -665,9 +659,7 @@ def test_api_payoff_plan_includes_calendar_and_comparison(tenant_context):
     _api_card(client, name="A", balance=100_000, apr="0", minimum=20_000)
     _api_card(client, name="B", balance=200_000, apr="0", minimum=20_000)
 
-    data = client.get(
-        "/api/v1/debt/debts/payoff/?strategy=snowball&extra_monthly_minor=10000&months=6"
-    ).data
+    data = client.get("/api/v1/debt/debts/payoff/?strategy=snowball&extra_monthly_minor=10000&months=6").data
 
     assert data["strategy"] == "snowball"
     assert data["months_to_debt_free"] is not None
@@ -714,9 +706,7 @@ def test_terms_can_be_re_added_after_being_cleared(tenant):
         debt_services.clear_debt_terms(financial_account=account)
         assert debt_selectors.debt_views()[0].profile_id is None
 
-        debt_services.set_debt_terms(
-            financial_account=account, apr="12.5", minimum_payment_minor=8_000
-        )
+        debt_services.set_debt_terms(financial_account=account, apr="12.5", minimum_payment_minor=8_000)
         view = debt_selectors.debt_views()[0]
         assert view.profile_id is not None
         assert view.apr == Decimal("12.5")

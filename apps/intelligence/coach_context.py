@@ -251,9 +251,7 @@ def _debts(as_of: date) -> tuple[dict, ...]:
                 "currency": account.currency,
                 "account_type": account.account_type,
                 "apr": apr,
-                "monthly_interest_minor": (
-                    int(owed * apr / 1200) if apr > 0 else 0
-                ),
+                "monthly_interest_minor": (int(owed * apr / 1200) if apr > 0 else 0),
             }
         )
     # Ranked by what each debt *costs*, not by size — that ordering is only

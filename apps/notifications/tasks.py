@@ -138,9 +138,7 @@ def send_notification_email_task(self, *, notification_id: str, tenant_id: str) 
     with transaction.atomic():
         bind_db_tenant(tenant_uuid)
         with use_tenant(tenant_uuid):
-            notification = (
-                Notification.objects.filter(id=notification_id).select_related("user").first()
-            )
+            notification = Notification.objects.filter(id=notification_id).select_related("user").first()
             if notification is None:
                 return {"sent": False, "reason": "notification_missing"}
             try:
@@ -159,8 +157,9 @@ def send_monthly_summaries() -> dict:
     reaches a user who has not opened the app — which, for a monthly review
     habit, is most of them most of the time.
     """
-    from .summary import send_monthly_summary_for_tenant
     from apps.tenancy.models import Tenant
+
+    from .summary import send_monthly_summary_for_tenant
 
     sent = failed = 0
     for tenant_id in Tenant.objects.filter(is_active=True).values_list("id", flat=True):

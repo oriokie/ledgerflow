@@ -12,8 +12,6 @@ import uuid
 from datetime import date
 
 import pytest
-from django.core.files.base import ContentFile
-from django.utils import timezone
 
 from apps.finance import services as finance_services
 from apps.finance.models import AccountType, CategoryKind
@@ -34,9 +32,7 @@ def _account_and_category():
     account = finance_services.create_financial_account(
         name="Checking", account_type=AccountType.CHECKING, currency="USD", opening_balance_minor=500_000
     )
-    category = finance_services.create_category(
-        name="Groceries", kind=CategoryKind.EXPENSE, currency="USD"
-    )
+    category = finance_services.create_category(name="Groceries", kind=CategoryKind.EXPENSE, currency="USD")
     return account, category
 
 
@@ -60,19 +56,13 @@ def test_requesting_an_upload_creates_a_pending_receipt(tenant):
 
 
 def test_an_oversized_image_is_rejected(tenant):
-    with tenant_scope(tenant):
-        with pytest.raises(receipts.ReceiptError, match="MB limit"):
-            receipts.request_receipt_upload(
-                filename="r.jpg", content_type="image/jpeg", byte_size=99_000_000
-            )
+    with tenant_scope(tenant), pytest.raises(receipts.ReceiptError, match="MB limit"):
+        receipts.request_receipt_upload(filename="r.jpg", content_type="image/jpeg", byte_size=99_000_000)
 
 
 def test_an_unsupported_content_type_is_rejected(tenant):
-    with tenant_scope(tenant):
-        with pytest.raises(receipts.ReceiptError, match="Unsupported"):
-            receipts.request_receipt_upload(
-                filename="r.pdf", content_type="application/pdf", byte_size=1_000
-            )
+    with tenant_scope(tenant), pytest.raises(receipts.ReceiptError, match="Unsupported"):
+        receipts.request_receipt_upload(filename="r.pdf", content_type="application/pdf", byte_size=1_000)
 
 
 def test_confirming_twice_is_refused(tenant):
@@ -184,9 +174,7 @@ def test_linking_posts_the_confirmed_amount_not_the_parsed_one(tenant):
         # The user corrects it before confirming.
         receipts.update_confirmed_fields(receipt=receipt, amount_minor=1_250)
 
-        txn = receipts.link_to_transaction(
-            receipt=receipt, financial_account=account, category=category
-        )
+        txn = receipts.link_to_transaction(receipt=receipt, financial_account=account, category=category)
         assert txn.amount_minor == -1_250  # signed: money out
         assert txn.amount_minor != -99_999
 
@@ -206,9 +194,7 @@ def test_linking_posts_a_balanced_ledger_entry(tenant):
         receipts.update_confirmed_fields(receipt=receipt, merchant="Shop", amount_minor=2_000)
 
         before = LedgerLine.objects.count()
-        txn = receipts.link_to_transaction(
-            receipt=receipt, financial_account=account, category=category
-        )
+        txn = receipts.link_to_transaction(receipt=receipt, financial_account=account, category=category)
         lines = list(LedgerLine.objects.filter(entry=txn.journal_entry))
         assert len(lines) == 2
         assert LedgerLine.objects.count() == before + 2
@@ -233,9 +219,7 @@ def test_linking_teaches_the_automation_engine(tenant):
 
         account, category = _account_and_category()
         receipt = _uploaded_receipt()
-        receipts.update_confirmed_fields(
-            receipt=receipt, merchant="Corner Shop", amount_minor=1_500
-        )
+        receipts.update_confirmed_fields(receipt=receipt, merchant="Corner Shop", amount_minor=1_500)
         receipts.link_to_transaction(receipt=receipt, financial_account=account, category=category)
 
         assert MerchantProfile.objects.filter(display_name="Corner Shop").exists()
@@ -245,12 +229,8 @@ def test_a_linked_receipt_carries_a_memo_referencing_the_merchant(tenant):
     with tenant_scope(tenant):
         account, category = _account_and_category()
         receipt = _uploaded_receipt()
-        receipts.update_confirmed_fields(
-            receipt=receipt, merchant="Corner Shop", amount_minor=1_500
-        )
-        txn = receipts.link_to_transaction(
-            receipt=receipt, financial_account=account, category=category
-        )
+        receipts.update_confirmed_fields(receipt=receipt, merchant="Corner Shop", amount_minor=1_500)
+        txn = receipts.link_to_transaction(receipt=receipt, financial_account=account, category=category)
         assert "Corner Shop" in txn.memo
 
 
@@ -297,8 +277,7 @@ def test_api_full_receipt_flow(tenant_context):
     _, client = tenant_context
     account = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Checking", "account_type": "checking", "currency": "USD",
-         "opening_balance_minor": 500_000},
+        {"name": "Checking", "account_type": "checking", "currency": "USD", "opening_balance_minor": 500_000},
         format="json",
     ).data
     category = client.post(
@@ -340,7 +319,18 @@ def test_api_full_receipt_flow(tenant_context):
     assert linked.status_code == 200, linked.data
     assert linked.data["receipt"]["status"] == "linked"
 
-    txn = client.get("/api/v1/finance/transactions/").data
+    # The point of "full" flow: linking must actually post a transaction, not
+    # just flip the receipt's own status. Fetched and never asserted on before
+    # — a gap that let the flow claim "linked" without proving anything moved.
+    [txn] = client.get("/api/v1/finance/transactions/").data["results"]
+    assert txn["amount_minor"] == -1_850  # an expense: money out
+    # `.data` on the test client's response holds pre-render Python objects —
+    # `TransactionSerializer.financial_account_id` comes back as a `UUID`,
+    # while `account["id"]` (read off an earlier response the same way) is
+    # already a `str`. `str()` on both sides compares the value, not the type.
+    assert str(txn["financial_account_id"]) == str(account["id"])
+    assert str(txn["category_id"]) == str(category["id"])
+    assert txn["memo"] == "From receipt: Corner Shop"
 
 
 def test_api_rejects_linking_with_no_confirmed_amount(tenant_context):

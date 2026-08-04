@@ -41,7 +41,8 @@ from django.utils import timezone
 from apps.common import audit
 from apps.finance.models import FinancialAccount
 from apps.ledger import services as ledger_services
-from apps.ledger.models import Account as LedgerAccount, AccountKind, Direction, JournalEntry
+from apps.ledger.models import Account as LedgerAccount
+from apps.ledger.models import AccountKind, Direction
 from apps.ledger.services import LineInput
 
 from .models import (
@@ -76,9 +77,7 @@ def _system_account(name: str, kind: str, currency: str) -> LedgerAccount:
     existing = LedgerAccount.objects.filter(name=full_name, kind=kind).first()
     if existing is not None:
         return existing
-    return ledger_services.create_account(
-        name=full_name, kind=kind, currency=currency, is_system=True
-    )
+    return ledger_services.create_account(name=full_name, kind=kind, currency=currency, is_system=True)
 
 
 def investment_asset_account(currency: str) -> LedgerAccount:
@@ -170,9 +169,7 @@ def _get_or_create_holding(*, financial_account: FinancialAccount, security: Sec
             "Security currency must match the account currency. "
             "Hold foreign securities in an account of that currency."
         )
-    holding, _ = Holding.objects.get_or_create(
-        financial_account=financial_account, security=security
-    )
+    holding, _ = Holding.objects.get_or_create(financial_account=financial_account, security=security)
     return holding
 
 
@@ -261,9 +258,7 @@ def buy(
         raise InvestmentError("Cash account currency must match the security currency.")
 
     entry = ledger_services.post_journal_entry(
-        occurred_at=timezone.make_aware(
-            timezone.datetime.combine(occurred_on, timezone.datetime.min.time())
-        ),
+        occurred_at=timezone.make_aware(timezone.datetime.combine(occurred_on, timezone.datetime.min.time())),
         lines=[
             LineInput(
                 account_id=str(investment_asset_account(currency).id),
@@ -332,9 +327,7 @@ def sell(
         raise InvestmentError("Fee cannot be negative.")
 
     occurred_on = occurred_on or timezone.localdate()
-    holding = Holding.objects.filter(
-        financial_account=financial_account, security=security
-    ).first()
+    holding = Holding.objects.filter(financial_account=financial_account, security=security).first()
     if holding is None:
         raise InvestmentError("No holding to sell from.")
 
@@ -382,12 +375,9 @@ def sell(
         )
 
     entry = ledger_services.post_journal_entry(
-        occurred_at=timezone.make_aware(
-            timezone.datetime.combine(occurred_on, timezone.datetime.min.time())
-        ),
+        occurred_at=timezone.make_aware(timezone.datetime.combine(occurred_on, timezone.datetime.min.time())),
         lines=lines,
-        idempotency_key=idempotency_key
-        or f"inv-sell:{holding.id}:{occurred_on}:{quantity}:{amount_minor}",
+        idempotency_key=idempotency_key or f"inv-sell:{holding.id}:{occurred_on}:{quantity}:{amount_minor}",
         memo=memo or f"Sell {quantity} {security.symbol}",
     )
 
@@ -434,9 +424,7 @@ def record_dividend(
     destination = cash_account or financial_account
 
     entry = ledger_services.post_journal_entry(
-        occurred_at=timezone.make_aware(
-            timezone.datetime.combine(occurred_on, timezone.datetime.min.time())
-        ),
+        occurred_at=timezone.make_aware(timezone.datetime.combine(occurred_on, timezone.datetime.min.time())),
         lines=[
             LineInput(
                 account_id=str(destination.ledger_account_id),
@@ -449,8 +437,7 @@ def record_dividend(
                 amount_minor=amount_minor,
             ),
         ],
-        idempotency_key=idempotency_key
-        or f"inv-div:{holding.id}:{occurred_on}:{amount_minor}",
+        idempotency_key=idempotency_key or f"inv-div:{holding.id}:{occurred_on}:{amount_minor}",
         memo=memo or f"Dividend from {security.symbol}",
     )
 
@@ -484,9 +471,7 @@ def apply_split(
         raise InvestmentError("Split ratio must be positive.")
 
     occurred_on = occurred_on or timezone.localdate()
-    holding = Holding.objects.filter(
-        financial_account=financial_account, security=security
-    ).first()
+    holding = Holding.objects.filter(financial_account=financial_account, security=security).first()
     if holding is None:
         raise InvestmentError("No holding to split.")
 

@@ -172,11 +172,10 @@ def _seed_default_categories(*, tenant: Tenant, owner, currency: str) -> None:
     from apps.finance import services as finance_services
 
     try:
-        with transaction.atomic():
-            with use_tenant(tenant.id, owner.id):
-                bind_db_tenant(tenant.id)
-                for cat_name, kind in DEFAULT_CATEGORIES:
-                    finance_services.create_category(name=cat_name, kind=kind, currency=currency)
+        with transaction.atomic(), use_tenant(tenant.id, owner.id):
+            bind_db_tenant(tenant.id)
+            for cat_name, kind in DEFAULT_CATEGORIES:
+                finance_services.create_category(name=cat_name, kind=kind, currency=currency)
     except Exception:  # noqa: BLE001 - defensive: seeding must never break workspace creation
         logger.exception("Failed to seed default categories for tenant %s", tenant.id)
 

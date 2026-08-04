@@ -168,9 +168,7 @@ class IncomeSource(SoftDeletableModel):
     #: would assert the user earns nothing before tax.
     gross_minor = models.BigIntegerField(null=True, blank=True)
 
-    reliability = models.CharField(
-        max_length=12, choices=Reliability.choices, default=Reliability.FIXED
-    )
+    reliability = models.CharField(max_length=12, choices=Reliability.choices, default=Reliability.FIXED)
     frequency = models.CharField(
         max_length=14, choices=IncomeFrequency.choices, default=IncomeFrequency.MONTHLY
     )
@@ -225,8 +223,7 @@ class IncomeSource(SoftDeletableModel):
                 name="income_net_not_above_gross",
             ),
             models.CheckConstraint(
-                condition=models.Q(pay_day__isnull=True)
-                | models.Q(pay_day__gte=1, pay_day__lte=28),
+                condition=models.Q(pay_day__isnull=True) | models.Q(pay_day__gte=1, pay_day__lte=28),
                 name="income_pay_day_in_range",
             ),
             models.CheckConstraint(
@@ -235,8 +232,7 @@ class IncomeSource(SoftDeletableModel):
                 name="income_second_pay_day_in_range",
             ),
             models.CheckConstraint(
-                condition=models.Q(ends_on__isnull=True)
-                | models.Q(ends_on__gte=models.F("starts_on")),
+                condition=models.Q(ends_on__isnull=True) | models.Q(ends_on__gte=models.F("starts_on")),
                 name="income_ends_after_start",
             ),
         ]

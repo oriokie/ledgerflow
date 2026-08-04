@@ -254,9 +254,7 @@ def add_contribution(
         # Cross-currency funding would need an FX rate and a gain/loss posting;
         # refusing is better than silently transferring at par.
         if from_account.currency != goal.currency or destination.currency != goal.currency:
-            raise GoalError(
-                f"Funding accounts must be held in {goal.currency}, matching the goal."
-            )
+            raise GoalError(f"Funding accounts must be held in {goal.currency}, matching the goal.")
 
         from apps.finance import services as finance_services
 

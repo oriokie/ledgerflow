@@ -188,9 +188,7 @@ class NotificationPreferenceView(TenantScopedAPIView, APIView):
             "large_transaction_minor": pref.large_transaction_minor if pref else None,
             # The catalogue travels with the payload so the UI never hard-codes
             # a list that can drift from the server's.
-            "available_types": [
-                {"value": v, "label": label} for v, label in NotificationType.choices
-            ],
+            "available_types": [{"value": v, "label": label} for v, label in NotificationType.choices],
             "email_default_types": sorted(str(t) for t in EMAIL_WORTHY),
         }
 

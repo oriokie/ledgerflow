@@ -59,8 +59,9 @@ def _text(pdf: bytes) -> str:
     document"; not a PDF parser.
     """
     try:
-        from pdfminer.high_level import extract_text  # type: ignore
         import io
+
+        from pdfminer.high_level import extract_text  # type: ignore
 
         return extract_text(io.BytesIO(pdf))
     except Exception:
@@ -156,9 +157,7 @@ def test_rendering_cost_is_fixed_and_tiny(django_assert_num_queries):
     invoice = invoicing.create_invoice(
         tenant_id=uuid.uuid4(),
         currency="USD",
-        line_items=[
-            invoicing.LineItemSpec(description=f"Line {n}", amount_minor=100) for n in range(12)
-        ],
+        line_items=[invoicing.LineItemSpec(description=f"Line {n}", amount_minor=100) for n in range(12)],
     )
     prefetched = Invoice.objects.prefetch_related("line_items").get(pk=invoice.pk)
     with django_assert_num_queries(1):
@@ -306,9 +305,7 @@ def test_sending_from_the_api_queues_the_task_and_audits_it():
     staff = make_staff(PlatformRole.FINANCE)
     mail.outbox.clear()
 
-    response = client_for(staff).post(
-        f"/api/v1/platform/invoices/{invoice.id}/send/", {}, format="json"
-    )
+    response = client_for(staff).post(f"/api/v1/platform/invoices/{invoice.id}/send/", {}, format="json")
 
     assert response.status_code == 200
     assert response.json()["to"] == "amina@example.test"
@@ -327,9 +324,7 @@ def test_sending_an_invoice_with_no_address_is_a_field_error():
     invoice = _invoice(billing_email="")
     staff = make_staff(PlatformRole.FINANCE)
 
-    response = client_for(staff).post(
-        f"/api/v1/platform/invoices/{invoice.id}/send/", {}, format="json"
-    )
+    response = client_for(staff).post(f"/api/v1/platform/invoices/{invoice.id}/send/", {}, format="json")
     assert response.status_code == 400
     assert "to" in response.json()
 
@@ -341,9 +336,7 @@ def test_sending_needs_invoice_write_not_merely_read():
     invoice = _invoice()
     auditor = make_staff(PlatformRole.AUDITOR)  # read-only
 
-    response = client_for(auditor).post(
-        f"/api/v1/platform/invoices/{invoice.id}/send/", {}, format="json"
-    )
+    response = client_for(auditor).post(f"/api/v1/platform/invoices/{invoice.id}/send/", {}, format="json")
     assert response.status_code == 403
 
 
@@ -352,9 +345,7 @@ def test_a_missing_invoice_is_a_404_not_a_500():
     from tests.test_platform_admin_rbac import client_for, make_staff
 
     staff = make_staff(PlatformRole.FINANCE)
-    assert (
-        client_for(staff).get(f"/api/v1/platform/invoices/{uuid.uuid4()}/pdf/").status_code == 404
-    )
+    assert client_for(staff).get(f"/api/v1/platform/invoices/{uuid.uuid4()}/pdf/").status_code == 404
 
 
 def test_a_voided_invoice_still_renders():

@@ -29,8 +29,7 @@ from .providers import get_provider
 from .providers.base import PaymentError
 
 
-class BillingError(Exception):
-    ...
+class BillingError(Exception): ...
 
 
 # --------------------------------------------------------------------------- plans
@@ -39,7 +38,9 @@ def list_plans(*, currency: str = "USD") -> list[Plan]:
 
 
 def _free_plan(currency: str) -> Plan | None:
-    return Plan.objects.filter(is_active=True, price_minor=0, currency=currency).order_by("sort_order").first()
+    return (
+        Plan.objects.filter(is_active=True, price_minor=0, currency=currency).order_by("sort_order").first()
+    )
 
 
 # --------------------------------------------------------------------------- subscription reads
@@ -196,9 +197,7 @@ def remove_payment_method(*, tenant_id, payment_method_id) -> None:
     method.delete()
 
     if was_default:
-        successor = (
-            PaymentMethod.objects.filter(tenant_id=tenant_id).order_by("-created_at").first()
-        )
+        successor = PaymentMethod.objects.filter(tenant_id=tenant_id).order_by("-created_at").first()
         if successor is not None:
             successor.is_default = True
             successor.save(update_fields=["is_default"])

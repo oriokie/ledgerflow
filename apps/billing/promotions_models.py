@@ -60,9 +60,7 @@ class Coupon(UUIDModel, TimeStampedModel):
     #: avoid an FX rate silently changing a promised discount.
     currency = models.CharField(max_length=3, blank=True, default="")
 
-    duration = models.CharField(
-        max_length=12, choices=CouponDuration.choices, default=CouponDuration.ONCE
-    )
+    duration = models.CharField(max_length=12, choices=CouponDuration.choices, default=CouponDuration.ONCE)
     duration_in_months = models.PositiveSmallIntegerField(null=True, blank=True)
 
     # Eligibility

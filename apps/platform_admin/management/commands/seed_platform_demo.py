@@ -348,9 +348,7 @@ class Command(BaseCommand):
             # A concluded trial has already rolled into a paid period, so the
             # period end must still be in the future — only a *running* trial
             # ends when the trial does.
-            current_period_end=(
-                trial_end if (trial_end and trial_end > now) else now + timedelta(days=25)
-            ),
+            current_period_end=(trial_end if (trial_end and trial_end > now) else now + timedelta(days=25)),
             trial_end=trial_end,
         )
         # Age the subscription to match the workspace it belongs to. Churn's
@@ -421,9 +419,7 @@ class Command(BaseCommand):
             )
             # Backdate so the monthly revenue series spreads across months
             # rather than landing entirely in the current one.
-            Payment.objects.filter(pk=payment.pk).update(
-                created_at=now - timedelta(days=30 * offset)
-            )
+            Payment.objects.filter(pk=payment.pk).update(created_at=now - timedelta(days=30 * offset))
             invoicing.mark_paid(invoice=invoice, payment=payment)
 
     # ----------------------------------------------------------------- output

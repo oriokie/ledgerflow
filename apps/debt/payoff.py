@@ -34,6 +34,7 @@ from decimal import Decimal
 #: Nothing beyond this is a plan. 40 years covers a mortgage from day one.
 MAX_MONTHS = 480
 
+
 class Compounding:
     """How often interest is added to the balance.
 
@@ -325,7 +326,7 @@ def simulate(
     *,
     strategy: str = "avalanche",
     extra_monthly_minor: int = 0,
-    extra: "ExtraPayments | None" = None,
+    extra: ExtraPayments | None = None,
     start: date | None = None,
     currency: str = "USD",
     max_months: int = MAX_MONTHS,
@@ -365,13 +366,9 @@ def simulate(
     del active
     balances = {d.debt_id: d.balance_minor for d in ordered}
     progress = {
-        d.debt_id: DebtProgress(
-            debt_id=d.debt_id, name=d.name, starting_balance_minor=d.balance_minor
-        )
+        d.debt_id: DebtProgress(debt_id=d.debt_id, name=d.name, starting_balance_minor=d.balance_minor)
         for d in ordered
     }
-    by_id = {d.debt_id: d for d in ordered}
-
     for month_index in range(1, max_months + 1):
         outstanding = [d for d in ordered if balances[d.debt_id] > 0]
         if not outstanding:
@@ -386,9 +383,7 @@ def simulate(
         # The minimum pool never shrinks as debts clear — that is the rollover.
         # Only the extra varies, month by month.
         budget = base_minimums + schedule.for_month(month_index)
-        reserved = sum(
-            d.minimum_payment_minor for d in outstanding if d.debt_id != target.debt_id
-        )
+        reserved = sum(d.minimum_payment_minor for d in outstanding if d.debt_id != target.debt_id)
         target_payment = max(0, budget - reserved)
 
         balance_before_month = sum(balances.values())
@@ -523,9 +518,7 @@ def compare_strategies(
     happens if the user changes nothing. Comparing strategies against each
     other would flatter whichever is listed second.
     """
-    baseline = simulate(
-        debts, strategy="avalanche", extra_monthly_minor=0, start=start, currency=currency
-    )
+    baseline = simulate(debts, strategy="avalanche", extra_monthly_minor=0, start=start, currency=currency)
 
     out: list[StrategyComparison] = []
     for strategy in ("avalanche", "snowball", "custom"):
@@ -583,13 +576,10 @@ def extra_payment_curve(
                 "months_to_debt_free": plan.months_to_debt_free,
                 "debt_free_on": plan.debt_free_on,
                 "total_interest_minor": plan.total_interest_minor,
-                "interest_saved_minor": max(
-                    0, baseline.total_interest_minor - plan.total_interest_minor
-                ),
+                "interest_saved_minor": max(0, baseline.total_interest_minor - plan.total_interest_minor),
                 "months_saved": (
                     max(0, baseline.months_to_debt_free - plan.months_to_debt_free)
-                    if baseline.months_to_debt_free is not None
-                    and plan.months_to_debt_free is not None
+                    if baseline.months_to_debt_free is not None and plan.months_to_debt_free is not None
                     else None
                 ),
             }
@@ -696,9 +686,7 @@ def simulate_refinance(
 
     current = simulate([debt], strategy="avalanche", start=start)
 
-    new_balance = debt.balance_minor + (
-        quote.closing_costs_minor if quote.capitalise_costs else 0
-    )
+    new_balance = debt.balance_minor + (quote.closing_costs_minor if quote.capitalise_costs else 0)
     refinanced = DebtInput(
         debt_id=debt.debt_id,
         name=debt.name,
@@ -804,9 +792,7 @@ def simulate_consolidation(
 
     weighted = 0.0
     if combined > 0:
-        weighted = round(
-            sum(float(d.apr) * d.balance_minor for d in debts) / combined, 2
-        )
+        weighted = round(sum(float(d.apr) * d.balance_minor for d in debts) / combined, 2)
 
     consolidated = DebtInput(
         debt_id="consolidated",

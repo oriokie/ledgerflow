@@ -46,7 +46,6 @@ from datetime import date, timedelta
 from django.utils import timezone
 
 from .models import (
-    AccountType,
     Bill,
     BillStatus,
     FinancialAccount,
@@ -57,7 +56,7 @@ from .models import (
     TransactionStatus,
 )
 from .schedule import nth_occurrence
-from .selectors import _dominant_liquid_currency, _LIQUID_TYPES, liquid_balance_minor
+from .selectors import _LIQUID_TYPES, _dominant_liquid_currency, liquid_balance_minor
 
 #: Default projection window. Long enough to cover a full pay cycle plus the
 #: month after it, short enough that the compounding uncertainty of a forecast
@@ -345,9 +344,7 @@ def _classify_income(recurring: RecurringTransaction) -> str:
     return EventSource.INCOME
 
 
-def _recurring_events(
-    *, currency: str, start: date, end: date, in_scope: set[str]
-) -> list[CashflowEvent]:
+def _recurring_events(*, currency: str, start: date, end: date, in_scope: set[str]) -> list[CashflowEvent]:
     """Expand active recurring templates into dated occurrences in the window.
 
     Occurrences come from ``nth_occurrence`` against the original anchor rather
@@ -365,9 +362,7 @@ def _recurring_events(
 
     templates = RecurringTransaction.objects.filter(
         is_active=True, currency=currency, next_run_on__lte=end
-    ).select_related(
-        "financial_account", "counter_account", "category", "payee", "income_source"
-    )
+    ).select_related("financial_account", "counter_account", "category", "payee", "income_source")
 
     for template in templates:
         account_id = str(template.financial_account_id)
@@ -411,9 +406,7 @@ def _recurring_events(
                 # income is not one number, and the figure typed into the form
                 # months ago is the least informed estimate available once
                 # receipts exist. `expected` prefers the measured mean.
-                expected, speculative = expected_income.get(
-                    str(template.id), (template.amount_minor, False)
-                )
+                expected, speculative = expected_income.get(str(template.id), (template.amount_minor, False))
                 events.append(
                     CashflowEvent(
                         occurs_on=occurs,

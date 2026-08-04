@@ -24,7 +24,6 @@ the score was actually measurable.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
 
 #: Component weights. They sum to 1.0 when everything is measurable; when a
 #: component is dropped for want of data the rest are renormalised.
@@ -162,9 +161,7 @@ def compute(inputs: StressInputs) -> StressScore:
                 score=_scale(ratio, best=0.10, worst=0.40),
                 weight=WEIGHTS["minimum_payment_ratio"],
                 value=round(ratio * 100, 1),
-                detail=(
-                    f"Minimum payments take about {ratio * 100:.0f}% of your monthly income."
-                ),
+                detail=(f"Minimum payments take about {ratio * 100:.0f}% of your monthly income."),
             )
         )
 
@@ -224,9 +221,7 @@ def compute(inputs: StressInputs) -> StressScore:
                 score=_scale(float(months), best=12.0, worst=120.0),
                 weight=WEIGHTS["payoff_duration"],
                 value=float(months),
-                detail=(
-                    f"At current payments you'd be debt free in about {months} months."
-                ),
+                detail=(f"At current payments you'd be debt free in about {months} months."),
             )
         )
     elif inputs.total_balance_minor > 0 and inputs.total_minimum_minor > 0:

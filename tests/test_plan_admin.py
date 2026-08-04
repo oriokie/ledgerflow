@@ -14,7 +14,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from apps.billing.models import Plan
-from apps.billing.plan_catalogue import FEATURE_LABELS, PlanFeature, UNIVERSAL, resolved_features
+from apps.billing.plan_catalogue import FEATURE_LABELS, UNIVERSAL, PlanFeature, resolved_features
 from apps.platform_admin.models import PlatformAuditLog
 from apps.platform_admin.rbac import PlatformRole
 from tests.test_platform_admin_rbac import client_for, make_staff

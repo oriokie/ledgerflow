@@ -297,14 +297,10 @@ def revenue_by(dimension: str, *, currency: str = "USD") -> list[dict]:
 
     if dimension == "country":
         tenant_country = dict(
-            Tenant.objects.filter(id__in=[s.tenant_id for s in subs]).values_list(
-                "id", "country"
-            )
+            Tenant.objects.filter(id__in=[s.tenant_id for s in subs]).values_list("id", "country")
         )
         locales = dict(
-            Tenant.objects.filter(id__in=[s.tenant_id for s in subs]).values_list(
-                "id", "default_locale"
-            )
+            Tenant.objects.filter(id__in=[s.tenant_id for s in subs]).values_list("id", "default_locale")
         )
 
     buckets: dict[str, dict] = {}
@@ -377,9 +373,7 @@ def monthly_revenue_series(*, months: int = 12, currency: str = "USD") -> list[d
         )
         totals = collected_revenue(start=start, end=end, currency=currency)
         series.append({"month": cursor.isoformat(), "partial": cursor == current_month, **totals})
-        cursor = (
-            date(cursor.year - 1, 12, 1) if cursor.month == 1 else date(cursor.year, cursor.month - 1, 1)
-        )
+        cursor = date(cursor.year - 1, 12, 1) if cursor.month == 1 else date(cursor.year, cursor.month - 1, 1)
 
     return list(reversed(series))
 
@@ -419,9 +413,7 @@ def cohort_retention(*, months: int = 6) -> list[dict]:
                 "retention_rate": round(retained / len(tenant_ids), 4) if tenant_ids else None,
             }
         )
-        cursor = (
-            date(cursor.year - 1, 12, 1) if cursor.month == 1 else date(cursor.year, cursor.month - 1, 1)
-        )
+        cursor = date(cursor.year - 1, 12, 1) if cursor.month == 1 else date(cursor.year, cursor.month - 1, 1)
 
     return list(reversed(cohorts))
 

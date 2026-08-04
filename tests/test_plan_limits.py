@@ -3,7 +3,10 @@ enforced, upgrading raises them, and tenants with no subscription are unmetered.
 
 from __future__ import annotations
 
+import contextlib
+
 import pytest
+from django.db import transaction
 
 from apps.billing import services as billing_services
 from apps.billing.entitlements import PlanLimitExceeded, resolve_entitlements
@@ -11,16 +14,21 @@ from apps.billing.models import BillingInterval, Plan, PlanTier
 from apps.common.rls import bind_db_tenant
 from apps.common.tenant_context import use_tenant
 from apps.finance import services as finance_services
-from apps.tenancy.models import Role
 from apps.tenancy import services as tenancy_services
+from apps.tenancy.models import Role
 
 pytestmark = pytest.mark.django_db
 
 
 def _plan(*, tier, accounts, members, price=0):
     return Plan.objects.create(
-        tier=tier, name=str(tier), price_minor=price, currency="USD",
-        interval=BillingInterval.MONTHLY, max_accounts=accounts, max_members=members,
+        tier=tier,
+        name=str(tier),
+        price_minor=price,
+        currency="USD",
+        interval=BillingInterval.MONTHLY,
+        max_accounts=accounts,
+        max_members=members,
     )
 
 
@@ -70,9 +78,6 @@ def test_active_plan_caps_members(tenant_context, user):
 
 # --- helpers -------------------------------------------------------------
 
-import contextlib
-from django.db import transaction
-
 
 @contextlib.contextmanager
 def _in_tx(tenant_id):
@@ -84,7 +89,9 @@ def _in_tx(tenant_id):
 def test_account_creation_over_cap_returns_402(tenant_context):
     """The HTTP surface returns 402 with an upgrade-oriented message."""
     membership, client = tenant_context
-    billing_services.subscribe(tenant_id=membership.tenant_id, plan=_plan(tier=PlanTier.FREE, accounts=1, members=1))
+    billing_services.subscribe(
+        tenant_id=membership.tenant_id, plan=_plan(tier=PlanTier.FREE, accounts=1, members=1)
+    )
 
     first = client.post(
         "/api/v1/finance/accounts/",
@@ -109,8 +116,14 @@ def test_ai_insights_gated_by_plan(tenant_context):
 
     # Metered plan WITHOUT ai_insights → AI endpoints are 402, analytics still 200.
     no_ai = Plan.objects.create(
-        tier=PlanTier.FREE, name="Free", price_minor=0, currency="USD",
-        interval=BillingInterval.MONTHLY, max_accounts=3, max_members=1, ai_insights=False,
+        tier=PlanTier.FREE,
+        name="Free",
+        price_minor=0,
+        currency="USD",
+        interval=BillingInterval.MONTHLY,
+        max_accounts=3,
+        max_members=1,
+        ai_insights=False,
     )
     billing_services.subscribe(tenant_id=tid, plan=no_ai)
 
@@ -121,8 +134,14 @@ def test_ai_insights_gated_by_plan(tenant_context):
 
     # Upgrade to a plan WITH ai_insights → AI endpoints unlock.
     with_ai = Plan.objects.create(
-        tier=PlanTier.PLUS, name="Plus", price_minor=0, currency="USD",
-        interval=BillingInterval.MONTHLY, max_accounts=25, max_members=5, ai_insights=True,
+        tier=PlanTier.PLUS,
+        name="Plus",
+        price_minor=0,
+        currency="USD",
+        interval=BillingInterval.MONTHLY,
+        max_accounts=25,
+        max_members=5,
+        ai_insights=True,
     )
     billing_services.subscribe(tenant_id=tid, plan=with_ai)
     assert client.get("/api/v1/intelligence/health-score/").status_code == 200

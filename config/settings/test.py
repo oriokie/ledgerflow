@@ -23,4 +23,3 @@ EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 # Persistent connections cause connection-state bleed between tests
 # (esp. transactional tests interacting with CONN_MAX_AGE). Disable in tests.
 DATABASES["default"]["CONN_MAX_AGE"] = 0  # noqa: F405
-

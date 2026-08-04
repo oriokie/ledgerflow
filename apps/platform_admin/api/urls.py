@@ -35,9 +35,8 @@ from .views import (
     PaymentListView,
     PaymentReconcileView,
     PlanCatalogueView,
+    PlanDetailView,
     PlanListView,
-    UserLookupView,
-    UserRecoveryActionView,
     PlatformSettingsView,
     PublicAppearanceView,
     RefundDecisionView,
@@ -59,7 +58,8 @@ from .views import (
     TenantResetBillingView,
     TenantResumeSubscriptionView,
     TenantSuspendView,
-    PlanDetailView,
+    UserLookupView,
+    UserRecoveryActionView,
 )
 
 urlpatterns = [

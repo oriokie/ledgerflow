@@ -14,10 +14,9 @@ that gets switched off.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
-from decimal import Decimal
-from typing import Callable
 
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncMonth
@@ -25,9 +24,6 @@ from django.utils import timezone
 
 from apps.finance import selectors as finance_selectors
 from apps.finance.models import (
-    AccountType,
-    CategoryKind,
-    FinancialAccount,
     RecurringTransaction,
     RecurringType,
     Transaction,
@@ -35,7 +31,7 @@ from apps.finance.models import (
     TransactionStatus,
 )
 
-from .filters import Period, ReportFilters
+from .filters import ReportFilters
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,9 +67,7 @@ class ReportResult:
         """
         if self.series or self.rows:
             return False
-        return not any(
-            value for value in self.totals.values() if isinstance(value, (int, float))
-        )
+        return not any(value for value in self.totals.values() if isinstance(value, (int, float)))
 
 
 def _aware(value: date, *, end: bool = False) -> datetime:
@@ -346,7 +340,8 @@ def income_sources_report(filters: ReportFilters) -> ReportResult:
         meta={
             # Named because it changes what the numbers mean, not just how they
             # look.
-            "concentrated": largest_share >= 80,
+            "concentrated": largest_share
+            >= 80,
         },
     )
 
@@ -520,6 +515,7 @@ def lifestyle_inflation_report(filters: ReportFilters) -> ReportResult:
         )
 
     midpoint = len(months) // 2
+
     def totals(subset):
         return (
             sum(monthly[m]["inflow_minor"] for m in subset),
@@ -534,9 +530,7 @@ def lifestyle_inflation_report(filters: ReportFilters) -> ReportResult:
     early_in_avg, early_out_avg = early_in / early_months, early_out / early_months
     late_in_avg, late_out_avg = late_in / late_months, late_out / late_months
 
-    income_growth = (
-        round((late_in_avg - early_in_avg) / early_in_avg * 100, 1) if early_in_avg > 0 else None
-    )
+    income_growth = round((late_in_avg - early_in_avg) / early_in_avg * 100, 1) if early_in_avg > 0 else None
     spend_growth = (
         round((late_out_avg - early_out_avg) / early_out_avg * 100, 1) if early_out_avg > 0 else None
     )
@@ -776,9 +770,7 @@ def largest_purchases_report(filters: ReportFilters) -> ReportResult:
             "total_spend_minor": abs(total_spend),
             # How concentrated spending is — often more surprising than the
             # individual amounts.
-            "top_ten_share": (
-                round(top_ten / abs(total_spend) * 100, 1) if total_spend else 0.0
-            ),
+            "top_ten_share": (round(top_ten / abs(total_spend) * 100, 1) if total_spend else 0.0),
         },
         rows=rows,
     )
@@ -931,9 +923,7 @@ def category_movers_report(filters: ReportFilters) -> ReportResult:
                 "change_minor": now - before,
                 # A category with no prior spend has no meaningful percentage;
                 # None says "new" rather than implying an infinite increase.
-                "change_percent": (
-                    round((now - before) / before * 100, 1) if before else None
-                ),
+                "change_percent": (round((now - before) / before * 100, 1) if before else None),
             }
         )
 
@@ -1096,8 +1086,7 @@ def income_stability_report(filters: ReportFilters) -> ReportResult:
     monthly = _monthly_totals(filters, start, end)
     months = _month_range(start, end)
     series = [
-        {"month": month, "income_minor": monthly.get(month, {}).get("inflow_minor", 0)}
-        for month in months
+        {"month": month, "income_minor": monthly.get(month, {}).get("inflow_minor", 0)} for month in months
     ]
 
     # Exclude months with no income at all: usually a window that opens before
@@ -1118,9 +1107,7 @@ def income_stability_report(filters: ReportFilters) -> ReportResult:
 
     average = sum(earning) // len(earning)
     lowest, highest = min(earning), max(earning)
-    spread = (
-        sum(abs(value - average) for value in earning) / len(earning) / average if average else 0
-    )
+    spread = sum(abs(value - average) for value in earning) / len(earning) / average if average else 0
 
     return ReportResult(
         slug="income_stability",

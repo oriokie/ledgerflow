@@ -125,8 +125,10 @@ def test_list_query_count_does_not_grow_with_row_count(path):
     small_queries, small_ms, _ = _count_queries(lambda: small_client.get(path))
     large_queries, large_ms, _ = _count_queries(lambda: large_client.get(path))
 
-    print(f"\n  {path}: {SMALL} rows -> {small_queries}q/{small_ms:.0f}ms | "
-          f"{LARGE} rows -> {large_queries}q/{large_ms:.0f}ms")
+    print(
+        f"\n  {path}: {SMALL} rows -> {small_queries}q/{small_ms:.0f}ms | "
+        f"{LARGE} rows -> {large_queries}q/{large_ms:.0f}ms"
+    )
 
     # A couple of queries of slack for pagination counts and permission lookups
     # that legitimately vary; anything more is scaling with the data.
@@ -150,8 +152,10 @@ def test_the_dashboard_cost_does_not_grow_with_history():
     assert small_response.status_code == 200
     assert large_response.status_code == 200
 
-    print(f"\n  health-score: {SMALL} rows -> {small_queries}q/{small_ms:.0f}ms | "
-          f"{LARGE} rows -> {large_queries}q/{large_ms:.0f}ms")
+    print(
+        f"\n  health-score: {SMALL} rows -> {small_queries}q/{small_ms:.0f}ms | "
+        f"{LARGE} rows -> {large_queries}q/{large_ms:.0f}ms"
+    )
     assert large_queries <= small_queries + 2
 
 
@@ -185,8 +189,10 @@ def test_the_tenant_directory_does_not_scale_with_tenant_count():
     many_queries, many_ms, response = _count_queries(lambda: api.get("/api/v1/platform/tenants/"))
 
     assert response.status_code == 200
-    print(f"\n  platform tenants: 3 -> {few_queries}q/{few_ms:.0f}ms | "
-          f"23 -> {many_queries}q/{many_ms:.0f}ms")
+    print(
+        f"\n  platform tenants: 3 -> {few_queries}q/{few_ms:.0f}ms | "
+        f"23 -> {many_queries}q/{many_ms:.0f}ms"
+    )
     assert many_queries <= few_queries + 2
 
 
@@ -202,24 +208,25 @@ def test_csv_import_cost_is_linear_not_quadratic():
 
     def csv_of(n, offset=0):
         rows = "\n".join(
-            f"2026-03-{(i % 28) + 1:02d},MERCHANT {i},-{10 + i}.00,batch-{offset + i}"
-            for i in range(n)
+            f"2026-03-{(i % 28) + 1:02d},MERCHANT {i},-{10 + i}.00,batch-{offset + i}" for i in range(n)
         )
         return f"date,description,amount,external_id\n{rows}"
 
     small_queries, small_ms, small = _count_queries(
         lambda: client.post(
             "/api/v1/finance/transactions/import/",
-            {"account_id": account["id"], "content": csv_of(20),
-             "default_category_id": category["id"]},
+            {"account_id": account["id"], "content": csv_of(20), "default_category_id": category["id"]},
             format="json",
         )
     )
     large_queries, large_ms, large = _count_queries(
         lambda: client.post(
             "/api/v1/finance/transactions/import/",
-            {"account_id": account["id"], "content": csv_of(80, offset=1000),
-             "default_category_id": category["id"]},
+            {
+                "account_id": account["id"],
+                "content": csv_of(80, offset=1000),
+                "default_category_id": category["id"],
+            },
             format="json",
         )
     )
@@ -228,8 +235,10 @@ def test_csv_import_cost_is_linear_not_quadratic():
 
     per_row_small = small_queries / 20
     per_row_large = large_queries / 80
-    print(f"\n  import: 20 rows -> {small_queries}q ({per_row_small:.1f}/row, {small_ms:.0f}ms) | "
-          f"80 rows -> {large_queries}q ({per_row_large:.1f}/row, {large_ms:.0f}ms)")
+    print(
+        f"\n  import: 20 rows -> {small_queries}q ({per_row_small:.1f}/row, {small_ms:.0f}ms) | "
+        f"80 rows -> {large_queries}q ({per_row_large:.1f}/row, {large_ms:.0f}ms)"
+    )
 
     # Per-row cost must stay flat. A quadratic path shows up here as the
     # per-row figure climbing with batch size.

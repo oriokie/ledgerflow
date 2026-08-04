@@ -78,8 +78,7 @@ def _liability_accounts():
         FinancialAccount.objects.filter(
             account_type__in=[AccountType.CREDIT_CARD, AccountType.LOAN],
             archived_at__isnull=True,
-        )
-        .select_related("ledger_account__balance", "debt_profile")
+        ).select_related("ledger_account__balance", "debt_profile")
         # Rate history and offsets are read for every debt, so prefetching them
         # keeps the dashboard to a fixed number of queries rather than growing
         # with the number of debts.
@@ -163,19 +162,13 @@ def debt_views(*, as_of: date | None = None) -> list[DebtView]:
             if applicable:
                 apr = max(applicable, key=lambda p: p.effective_from).apr
 
-        interest = payoff._monthly_interest_minor(
-            balance, apr, compounding=compounding, offset_minor=offset
-        )
+        interest = payoff._monthly_interest_minor(balance, apr, compounding=compounding, offset_minor=offset)
 
         upcoming = [p for p in schedule if p.effective_from > as_of]
         next_change = min(upcoming, key=lambda p: p.effective_from) if upcoming else None
 
         promo_ends = profile.promotional_apr_until if profile else None
-        promo_days = (
-            (promo_ends - as_of).days
-            if promo_ends is not None and promo_ends >= as_of
-            else None
-        )
+        promo_days = (promo_ends - as_of).days if promo_ends is not None and promo_ends >= as_of else None
 
         out.append(
             DebtView(
@@ -364,9 +357,7 @@ def debt_summary(*, as_of: date | None = None) -> DebtSummary | None:
 
     weighted = 0.0
     if priced_balance > 0:
-        weighted = round(
-            sum(float(v.apr) * v.balance_minor for v in priced) / priced_balance, 2
-        )
+        weighted = round(sum(float(v.apr) * v.balance_minor for v in priced) / priced_balance, 2)
 
     rated = [v for v in scoped if v.apr > 0]
     highest = max(rated, key=lambda v: v.apr) if rated else None
@@ -465,9 +456,7 @@ def payoff_calendar(
     leaves: a user wants to know what March costs, not what the car loan costs
     across three years.
     """
-    plan = payoff_plan(
-        strategy=strategy, extra_monthly_minor=extra_monthly_minor, as_of=as_of
-    )
+    plan = payoff_plan(strategy=strategy, extra_monthly_minor=extra_monthly_minor, as_of=as_of)
     if plan is None:
         return []
 
@@ -545,9 +534,7 @@ def debt_alerts(*, as_of: date | None = None) -> list[DebtAlert]:
     # the same conflation of unmeasured with zero this module is being cleaned
     # of. What actually blocks a payoff plan is no profile at all, or no
     # minimum payment to simulate against; a rate of zero is a rate.
-    missing = [
-        v for v in views if v.profile_id is None or v.minimum_payment_minor <= 0
-    ]
+    missing = [v for v in views if v.profile_id is None or v.minimum_payment_minor <= 0]
     if missing:
         alerts.append(
             DebtAlert(
@@ -753,9 +740,7 @@ def debt_stress(*, as_of: date | None = None) -> dict | None:
 
     # Utilisation only means anything for revolving credit: a mortgage has no
     # limit to be a percentage of.
-    revolving = sum(
-        v.balance_minor for v in scoped if v.debt_kind == DebtKind.CREDIT_CARD
-    )
+    revolving = sum(v.balance_minor for v in scoped if v.debt_kind == DebtKind.CREDIT_CARD)
 
     plan = payoff_plan(as_of=as_of)
     inputs = stress.StressInputs(
@@ -818,9 +803,7 @@ def _promo_expiry_signals(views: list[DebtView], as_of: date) -> list[DebtSignal
         # What the balance will start costing once the promo ends.
         future_apr = view.next_rate_apr
         monthly_after = (
-            payoff._monthly_interest_minor(
-                view.balance_minor, future_apr, compounding=view.compounding
-            )
+            payoff._monthly_interest_minor(view.balance_minor, future_apr, compounding=view.compounding)
             if future_apr
             else None
         )
@@ -937,11 +920,7 @@ def _offset_opportunity_signals(views: list[DebtView]) -> list[DebtSignal]:
     """
     from apps.finance.models import AccountType, FinancialAccount
 
-    candidates = [
-        v
-        for v in views
-        if v.debt_kind == DebtKind.MORTGAGE and v.offset_minor == 0 and v.apr > 0
-    ]
+    candidates = [v for v in views if v.debt_kind == DebtKind.MORTGAGE and v.offset_minor == 0 and v.apr > 0]
     if not candidates:
         return []
 
@@ -1059,9 +1038,7 @@ def _milestone_signals(views: list[DebtView]) -> list[DebtSignal]:
                             f"You've cleared {repaid:.0f}% of the original "
                             f"{view.original_principal_minor / 100:,.0f} {view.currency}."
                         ),
-                        rationale=(
-                            "Measured against the original principal you recorded for this debt."
-                        ),
+                        rationale=("Measured against the original principal you recorded for this debt."),
                         dedupe_key=f"milestone:{view.account_id}:{threshold}",
                         evidence={
                             "percent_repaid": repaid,
@@ -1117,9 +1094,7 @@ def debt_analytics(
     Nothing is stored — these are projections, and a cached one goes stale the
     moment a payment posts.
     """
-    plan = payoff_plan(
-        strategy=strategy, extra_monthly_minor=extra_monthly_minor, as_of=as_of
-    )
+    plan = payoff_plan(strategy=strategy, extra_monthly_minor=extra_monthly_minor, as_of=as_of)
     if plan is None:
         return None
 
@@ -1197,9 +1172,7 @@ def payoff_timeline_csv(
     import csv
     import io
 
-    plan = payoff_plan(
-        strategy=strategy, extra_monthly_minor=extra_monthly_minor, as_of=as_of
-    )
+    plan = payoff_plan(strategy=strategy, extra_monthly_minor=extra_monthly_minor, as_of=as_of)
     if plan is None:
         return ""
 
@@ -1259,16 +1232,15 @@ def payoff_timeline_pdf(
     Returns empty bytes when there is nothing to schedule, so callers can answer
     204 rather than serving a blank document.
     """
+    import io
+
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib.units import mm
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-    import io
 
-    plan = payoff_plan(
-        strategy=strategy, extra_monthly_minor=extra_monthly_minor, as_of=as_of
-    )
+    plan = payoff_plan(strategy=strategy, extra_monthly_minor=extra_monthly_minor, as_of=as_of)
     if plan is None:
         return b""
 
@@ -1300,19 +1272,13 @@ def payoff_timeline_pdf(
         ["Monthly budget", f"{plan.monthly_budget_minor / 100:,.2f} {plan.currency}"],
         [
             "Debt free",
-            plan.debt_free_on.strftime("%B %Y")
-            if plan.debt_free_on
-            else "Not at these payments",
+            plan.debt_free_on.strftime("%B %Y") if plan.debt_free_on else "Not at these payments",
         ],
         ["Total interest", f"{plan.total_interest_minor / 100:,.2f} {plan.currency}"],
     ]
     if plan.total_fees_minor:
-        summary_rows.append(
-            ["Total fees", f"{plan.total_fees_minor / 100:,.2f} {plan.currency}"]
-        )
-    summary_rows.append(
-        ["Total paid", f"{plan.total_paid_minor / 100:,.2f} {plan.currency}"]
-    )
+        summary_rows.append(["Total fees", f"{plan.total_fees_minor / 100:,.2f} {plan.currency}"])
+    summary_rows.append(["Total paid", f"{plan.total_paid_minor / 100:,.2f} {plan.currency}"])
 
     summary = Table(summary_rows, colWidths=[45 * mm, 60 * mm])
     summary.setStyle(
@@ -1355,7 +1321,9 @@ def payoff_timeline_pdf(
                 ]
             )
 
-    table = Table(rows, repeatRows=1, colWidths=[20 * mm, 34 * mm, 22 * mm, 21 * mm, 17 * mm, 22 * mm, 24 * mm])
+    table = Table(
+        rows, repeatRows=1, colWidths=[20 * mm, 34 * mm, 22 * mm, 21 * mm, 17 * mm, 22 * mm, 24 * mm]
+    )
     table.setStyle(
         TableStyle(
             [
