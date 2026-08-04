@@ -24,6 +24,7 @@ api_v1_patterns = [
     path("debt/", include("apps.debt.api.urls")),
     path("analytics/", include("apps.analytics.api.urls")),
     path("projections/", include("apps.projections.api.urls")),
+    path("household/", include("apps.household.api.urls")),
     path("receipts/", include("apps.receipts.api.urls")),
     path("goals/", include("apps.goals.api.urls")),
     path("income/", include("apps.income.api.urls")),

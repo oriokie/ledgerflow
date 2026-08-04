@@ -83,6 +83,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Workspace",
     items: [
+      { to: "/household", label: "Household", icon: Users },
       { to: "/members", label: "Members", icon: Users },
       { to: "/billing", label: "Billing", icon: CreditCard },
       { to: "/settings", label: "Settings", icon: Settings },

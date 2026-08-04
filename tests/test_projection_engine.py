@@ -289,7 +289,11 @@ def test_all_fifteen_life_events_compile_and_run():
         ev.EventKind.BUSINESS_START: {"startup_cost_minor": 1_000_000},
         ev.EventKind.ONE_TIME_PURCHASE: {"amount_minor": 400_000},
     }
-    assert set(samples) == set(ev.EventKind.all()), "a life event is missing from this test"
+    # The two sample maps must jointly cover every declared kind: a kind the
+    # API offers and no test exercises is a feature nobody has run.
+    assert set(samples) | set(HOUSEHOLD_SAMPLES) == set(
+        ev.EventKind.all()
+    ), "a life event is missing from these tests"
 
     pos = position()
     for kind, params in samples.items():
@@ -441,3 +445,125 @@ def test_start_month_is_one_based():
             position=position(),
             assumptions=FLAT,
         )
+
+
+# ---------------------------------------------------------------------------
+# household life events (Phase 3)
+# ---------------------------------------------------------------------------
+
+
+#: The Phase 3 additions, kept at module level so the completeness assertion
+#: above can prove the two maps jointly cover every declared kind.
+HOUSEHOLD_SAMPLES = {
+    ev.EventKind.MARRIAGE: {
+        "wedding_cost_minor": 800_000,
+        "partner_monthly_gross_income_minor": 300_000,
+    },
+    ev.EventKind.PARENTAL_LEAVE: {"months": 9, "paid_fraction": 0.4},
+    ev.EventKind.SEPARATION: {"retained_income_fraction": 0.6},
+    ev.EventKind.CARING_FOR_PARENT: {"monthly_cost_minor": 80_000, "years": 4},
+    ev.EventKind.INHERITANCE: {"amount_minor": 5_000_000, "invested_fraction": 0.8},
+}
+
+
+def test_all_five_household_events_compile_and_run():
+    """Phase 3 adds five life events and no engine branches — the compiler
+    absorbs them, which is the whole reason it exists."""
+    pos = position()
+    for kind, params in HOUSEHOLD_SAMPLES.items():
+        compiled = ev.compile_event(kind=kind, start_month=2, params=params, position=pos, assumptions=FLAT)
+        assert compiled, f"{kind} compiled to nothing"
+        result = project(position=pos, assumptions=FLAT, events=compiled, months=120)
+        assert len(result.points) == 120
+
+
+def test_parental_leave_defaults_to_unpaid_which_is_the_pessimistic_reading():
+    """Entitlement varies enormously; a projection that assumes generous cover
+    is the one that surprises people at the worst possible moment."""
+    compiled = ev.compile_event(
+        kind=ev.EventKind.PARENTAL_LEAVE,
+        start_month=1,
+        params={"months": 6},
+        position=position(monthly_net_income_minor=500_000),
+        assumptions=FLAT,
+    )
+    (event,) = compiled
+    assert event.monthly_income_delta_minor == -500_000
+    assert event.end_month == 6
+
+
+def test_paid_leave_only_loses_the_unpaid_share():
+    compiled = ev.compile_event(
+        kind=ev.EventKind.PARENTAL_LEAVE,
+        start_month=1,
+        params={"months": 6, "paid_fraction": 0.6},
+        position=position(monthly_net_income_minor=500_000),
+        assumptions=FLAT,
+    )
+    assert compiled[0].monthly_income_delta_minor == -200_000
+
+
+def test_marriage_adds_the_partners_income_net_of_tax():
+    taxed = EconomicAssumptions(effective_tax_rate=0.25)
+    compiled = ev.compile_event(
+        kind=ev.EventKind.MARRIAGE,
+        start_month=1,
+        params={"partner_monthly_gross_income_minor": 400_000},
+        position=position(),
+        assumptions=taxed,
+    )
+    assert compiled[0].monthly_income_delta_minor == 300_000
+
+
+def test_separation_splits_assets_and_income():
+    compiled = ev.compile_event(
+        kind=ev.EventKind.SEPARATION,
+        start_month=1,
+        params={"retained_income_fraction": 0.5, "retained_assets_fraction": 0.5},
+        position=position(liquid_minor=2_000_000, monthly_net_income_minor=500_000),
+        assumptions=FLAT,
+    )
+    (event,) = compiled
+    assert event.monthly_income_delta_minor == -250_000
+    assert event.one_off_cash_minor == -1_000_000
+
+
+def test_caring_for_a_parent_costs_money_and_sometimes_earnings():
+    compiled = ev.compile_event(
+        kind=ev.EventKind.CARING_FOR_PARENT,
+        start_month=1,
+        params={"monthly_cost_minor": 50_000, "years": 3, "income_reduction_fraction": 0.2},
+        position=position(monthly_net_income_minor=500_000),
+        assumptions=FLAT,
+    )
+    (event,) = compiled
+    assert event.monthly_expense_delta_minor == 50_000
+    assert event.monthly_income_delta_minor == -100_000
+    assert event.end_month == 36
+
+
+def test_an_inheritance_splits_between_cash_and_invested():
+    compiled = ev.compile_event(
+        kind=ev.EventKind.INHERITANCE,
+        start_month=1,
+        params={"amount_minor": 1_000_000, "invested_fraction": 0.75},
+        position=position(),
+        assumptions=FLAT,
+    )
+    cash = next(c for c in compiled if c.one_off_cash_minor)
+    invested = next(c for c in compiled if c.asset_delta_minor)
+    assert cash.one_off_cash_minor == 250_000
+    assert invested.asset_delta_minor == 750_000
+
+
+def test_an_inheritance_is_taken_as_received_with_no_tax_guessed():
+    """Inheritance tax varies by jurisdiction, relationship and estate
+    structure to a degree this product cannot responsibly guess at."""
+    compiled = ev.compile_event(
+        kind=ev.EventKind.INHERITANCE,
+        start_month=1,
+        params={"amount_minor": 1_000_000, "invested_fraction": 0.0},
+        position=position(),
+        assumptions=EconomicAssumptions(effective_tax_rate=0.4),
+    )
+    assert compiled[0].one_off_cash_minor == 1_000_000

@@ -6,6 +6,7 @@ import {
   ListOrdered,
   Route,
   Target,
+  Users,
   TrendingDown,
   TrendingUp,
   Wallet,
@@ -74,7 +75,10 @@ export const NAV_SECTIONS_V2: NavSectionV2[] = [
   },
   {
     label: "Meaning",
-    items: [{ to: "/insights", label: "Insights", icon: Lightbulb, metric: "openSuggestions" }],
+    items: [
+      { to: "/insights", label: "Insights", icon: Lightbulb, metric: "openSuggestions" },
+      { to: "/household", label: "Household", icon: Users },
+    ],
   },
 ];
 

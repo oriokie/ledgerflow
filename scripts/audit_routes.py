@@ -68,6 +68,10 @@ TENANT_ROUTES = [
     # rendered from a backend schema has no fixed field count, so nothing but
     # a real measurement can say whether it still fits a 375px screen.
     "/projections",
+    # The family dashboard. Its whole job is showing a total that does not
+    # reconcile with its own breakdown and explaining why, which is a lot of
+    # prose in a small space — exactly where overflow and overlap appear.
+    "/household",
 ]
 
 #: Routes whose content the Phase 5 flag decides, audited in their own pass with

@@ -14,6 +14,9 @@ const DashboardPage = lazy(() => import("./pages/DashboardPage").then((m) => ({ 
 const TransactionsPage = lazy(() => import("./pages/TransactionsPage").then((m) => ({ default: m.TransactionsPage })));
 const ReportsPage = lazy(() => import("./pages/ReportsPage").then((m) => ({ default: m.ReportsPage })));
 const ReviewPage = lazy(() => import("./pages/ReviewPage").then((m) => ({ default: m.ReviewPage })));
+const HouseholdPage = lazy(() =>
+  import("./pages/HouseholdPage").then((m) => ({ default: m.HouseholdPage })),
+);
 const ProjectionsPage = lazy(() =>
   import("./pages/ProjectionsPage").then((m) => ({ default: m.ProjectionsPage })),
 );
@@ -202,6 +205,7 @@ export default function App() {
           <Route path="/insights" element={<InsightsRoute />} />
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/projections" element={<ProjectionsPage />} />
+          <Route path="/household" element={<HouseholdPage />} />
           <Route path="/automation" element={<AutomationPage />} />
           <Route path="/quick-add" element={<QuickAddPage />} />
           <Route path="/receipts/scan" element={<ReceiptScanPage />} />

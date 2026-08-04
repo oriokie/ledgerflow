@@ -58,6 +58,16 @@ class EventKind:
     BUSINESS_START = "business_start"
     ONE_TIME_PURCHASE = "one_time_purchase"
 
+    # --- household events (Phase 3) --------------------------------------
+    # Added to the same compile target rather than to the engine: a marriage
+    # and a mortgage are wholly different life experiences and exactly the
+    # same six primitives, which is the point of having a compiler at all.
+    MARRIAGE = "marriage"
+    PARENTAL_LEAVE = "parental_leave"
+    SEPARATION = "separation"
+    CARING_FOR_PARENT = "caring_for_parent"
+    INHERITANCE = "inheritance"
+
     @classmethod
     def all(cls) -> tuple[str, ...]:
         return tuple(
@@ -82,6 +92,11 @@ EVENT_LABELS: dict[str, str] = {
     EventKind.RELOCATION: "Relocating",
     EventKind.BUSINESS_START: "Starting a business",
     EventKind.ONE_TIME_PURCHASE: "A large one-off purchase",
+    EventKind.MARRIAGE: "Getting married",
+    EventKind.PARENTAL_LEAVE: "Parental leave",
+    EventKind.SEPARATION: "Separating or divorcing",
+    EventKind.CARING_FOR_PARENT: "Caring for a parent",
+    EventKind.INHERITANCE: "An inheritance",
 }
 
 
@@ -168,6 +183,30 @@ EVENT_PARAMS: dict[str, tuple[ParamSpec, ...]] = {
         ParamSpec("amount_minor", required=True),
         ParamSpec("annual_rate", default=0.0, kind=float),
         ParamSpec("term_months"),
+    ),
+    EventKind.MARRIAGE: (
+        ParamSpec("wedding_cost_minor"),
+        ParamSpec("partner_monthly_gross_income_minor"),
+        ParamSpec("shared_monthly_saving_minor"),
+    ),
+    EventKind.PARENTAL_LEAVE: (
+        ParamSpec("months", required=True),
+        ParamSpec("paid_fraction", default=0.0, kind=float),
+    ),
+    EventKind.SEPARATION: (
+        ParamSpec("retained_income_fraction", default=1.0, kind=float),
+        ParamSpec("retained_assets_fraction", default=0.5, kind=float),
+        ParamSpec("one_off_cost_minor"),
+        ParamSpec("monthly_expense_delta_minor"),
+    ),
+    EventKind.CARING_FOR_PARENT: (
+        ParamSpec("monthly_cost_minor", required=True),
+        ParamSpec("years", default=5),
+        ParamSpec("income_reduction_fraction", default=0.0, kind=float),
+    ),
+    EventKind.INHERITANCE: (
+        ParamSpec("amount_minor", required=True),
+        ParamSpec("invested_fraction", default=1.0, kind=float),
     ),
 }
 
@@ -492,6 +531,124 @@ def _one_time_purchase(p, start, position, assumptions, label):
     return [CompiledEvent(label=label, start_month=start, one_off_cash_minor=-p["amount_minor"])]
 
 
+# ---------------------------------------------------------------------------
+# household compilers (Phase 3)
+# ---------------------------------------------------------------------------
+def _marriage(p, start, position, assumptions, label):
+    """Two incomes, one household, and a party.
+
+    Modelled as a permanent income addition rather than a merged position,
+    because the projection is run from *this* household's ledger and the
+    partner's balance sheet is not in it. The income is the part that changes
+    this household's arithmetic; saying more than that would be inventing
+    numbers about somebody the product has never seen.
+    """
+    events = [
+        CompiledEvent(
+            label=label,
+            start_month=start,
+            monthly_income_delta_minor=_net(p["partner_monthly_gross_income_minor"], assumptions),
+            monthly_investment_delta_minor=p["shared_monthly_saving_minor"],
+        )
+    ]
+    if p["wedding_cost_minor"]:
+        events.append(
+            CompiledEvent(
+                label=f"{label} (the day itself)",
+                start_month=start,
+                one_off_cash_minor=-p["wedding_cost_minor"],
+            )
+        )
+    return events
+
+
+def _parental_leave(p, start, position, assumptions, label):
+    """A window of reduced income, ending on a knowable date.
+
+    `paid_fraction` is what statutory or employer pay replaces. Defaulting it
+    to zero is the pessimistic reading and the right one: entitlement varies
+    enormously and a projection that assumes generous cover is the one that
+    surprises people at the worst possible moment.
+    """
+    months = max(1, int(p["months"]))
+    retained = min(1.0, max(0.0, float(p["paid_fraction"])))
+    lost = round(position.monthly_net_income_minor * (1 - retained))
+    return [
+        CompiledEvent(
+            label=label,
+            start_month=start,
+            end_month=start + months - 1,
+            monthly_income_delta_minor=-lost,
+        )
+    ]
+
+
+def _separation(p, start, position, assumptions, label):
+    """The event nobody wants modelled and everybody wants answered.
+
+    Assets are split by fraction and applied as a one-off reduction; income
+    changes to the share retained. It is a blunt model and it is stated as one
+    — the legal reality is negotiated, not arithmetic — but a household asking
+    "could I manage on my own" deserves a number rather than a silence.
+    """
+    income_kept = min(1.0, max(0.0, float(p["retained_income_fraction"])))
+    assets_kept = min(1.0, max(0.0, float(p["retained_assets_fraction"])))
+    events = [
+        CompiledEvent(
+            label=label,
+            start_month=start,
+            monthly_income_delta_minor=-round(position.monthly_net_income_minor * (1 - income_kept)),
+            monthly_expense_delta_minor=p["monthly_expense_delta_minor"],
+            one_off_cash_minor=-round(position.liquid_minor * (1 - assets_kept)) - p["one_off_cost_minor"],
+        )
+    ]
+    return events
+
+
+def _caring_for_parent(p, start, position, assumptions, label):
+    """Cost, and often a quieter cost: the hours it takes out of earning."""
+    years = max(1, int(p["years"]))
+    reduction = min(1.0, max(0.0, float(p["income_reduction_fraction"])))
+    return [
+        CompiledEvent(
+            label=label,
+            start_month=start,
+            end_month=start + years * 12 - 1,
+            monthly_expense_delta_minor=p["monthly_cost_minor"],
+            monthly_income_delta_minor=-round(position.monthly_net_income_minor * reduction),
+        )
+    ]
+
+
+def _inheritance(p, start, position, assumptions, label):
+    """A lump sum, split between cash and invested.
+
+    No tax is applied. Inheritance tax varies by jurisdiction, relationship and
+    estate structure to a degree this product cannot responsibly guess at, so
+    the amount is taken as *received* and the assumption says so.
+    """
+    invested = min(1.0, max(0.0, float(p["invested_fraction"])))
+    to_investments = round(p["amount_minor"] * invested)
+    to_cash = p["amount_minor"] - to_investments
+    events = [
+        CompiledEvent(
+            label=label,
+            start_month=start,
+            one_off_cash_minor=to_cash,
+        )
+    ]
+    if to_investments:
+        events.append(
+            CompiledEvent(
+                label=f"{label} (invested)",
+                start_month=start,
+                asset_delta_minor=to_investments,
+                asset_annual_growth=assumptions.annual_investment_return,
+            )
+        )
+    return events
+
+
 _COMPILERS: dict[str, Callable] = {
     EventKind.HOME_PURCHASE: _home_purchase,
     EventKind.MORTGAGE: _mortgage,
@@ -508,6 +665,11 @@ _COMPILERS: dict[str, Callable] = {
     EventKind.RELOCATION: _relocation,
     EventKind.BUSINESS_START: _business_start,
     EventKind.ONE_TIME_PURCHASE: _one_time_purchase,
+    EventKind.MARRIAGE: _marriage,
+    EventKind.PARENTAL_LEAVE: _parental_leave,
+    EventKind.SEPARATION: _separation,
+    EventKind.CARING_FOR_PARENT: _caring_for_parent,
+    EventKind.INHERITANCE: _inheritance,
 }
 
 

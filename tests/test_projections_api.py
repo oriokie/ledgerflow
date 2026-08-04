@@ -266,13 +266,20 @@ def test_assumptions_are_readable_and_editable(tenant_context):
     assert patched.data["annual_inflation"] == "0.0800"
 
 
-def test_the_event_catalogue_describes_all_fifteen_kinds(tenant_context):
+def test_the_event_catalogue_describes_every_declared_kind(tenant_context):
     """The scenario builder renders its forms from this, so a missing kind is a
-    feature the user cannot reach."""
+    feature the user cannot reach.
+
+    Derived from `EventKind` rather than a hardcoded count: this test's job is
+    to catch a kind that exists but is not served, and a literal number just
+    makes it fail every time the catalogue legitimately grows.
+    """
+    from apps.projections.events import EventKind
+
     _, client = tenant_context
     res = client.get(f"{BASE}/event-catalogue/")
     assert res.status_code == 200
-    assert len(res.data["results"]) == 15
+    assert {e["kind"] for e in res.data["results"]} == set(EventKind.all())
     for entry in res.data["results"]:
         assert entry["label"]
         assert isinstance(entry["params"], list)
