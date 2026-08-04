@@ -411,6 +411,15 @@ ENVEOF
 chmod 600 "$ENV_FILE"
 ok "Wrote .env (mode 600)"
 
+# Compose resolves ${VAR} interpolation (e.g. the caddy service's required
+# DOMAIN/ACME_EMAIL) against a .env file in the *compose file's* directory,
+# not the caller's cwd or the env_file: directive below — those only inject
+# vars into containers, they don't feed interpolation. Without this symlink,
+# any manual `docker compose -f deploy/docker-compose.server.yml ...` run
+# from the repo root (exactly what the README's Day-2 ops section shows)
+# fails interpolation unless .env was sourced into the shell first.
+ln -sf ../.env "$REPO_ROOT/deploy/.env"
+
 # ------------------------------------------------------------- dependencies
 if [ "$RECONFIGURE_WEB_ONLY" -eq 0 ]; then
   bold ""

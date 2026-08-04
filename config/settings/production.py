@@ -16,6 +16,12 @@ SECURE_HSTS_SECONDS = env.int("DJANGO_HSTS_SECONDS", default=60 * 60 * 24 * 365)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Some reverse proxies (e.g. a shared-hosting vhost that can't set
+# ProxyPreserveHost) can't rewrite the Host header, only add
+# X-Forwarded-Host. Without this, ALLOWED_HOSTS validates against the
+# proxy's own backend address instead of the public hostname and every
+# request gets rejected as DisallowedHost.
+USE_X_FORWARDED_HOST = True
 
 # Object storage becomes mandatory in production (no local filesystem media).
 STORAGES["default"]["BACKEND"] = env(  # noqa: F405
