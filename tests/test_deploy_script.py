@@ -466,7 +466,7 @@ def test_port_selection_happens_before_env_is_written():
     after the heredoc closes is a port compose never sees."""
     source = SETUP.read_text()
     env_write_end = source.index("\nENVEOF")
-    for var in ('POSTGRES_HOST_PORT="$(pick_free_port', 'INTERNAL_HTTP_PORT="$(pick_free_port'):
+    for var in ("pick_free_port POSTGRES_HOST_PORT", "pick_free_port INTERNAL_HTTP_PORT"):
         assert source.index(var) < env_write_end, f"{var} is chosen too late to be written"
 
 
@@ -580,3 +580,45 @@ def test_owning_the_tables_does_not_hand_back_rls_bypass():
     assert "NOSUPERUSER" in source and "NOBYPASSRLS" in source
     # And the deploy proves it rather than trusting this reasoning.
     assert "verify_tenant_isolation" in source
+
+
+# --------------------------------------------------- two picks, two ports
+# Nothing is bound until the containers start, so two independent picks in one
+# run both saw the same port as free and both took it. pgweb won the race and
+# caddy_internal died on "port is already allocated" — after every other
+# container had already started.
+def _run_picker(script: str) -> subprocess.CompletedProcess:
+    """Drive the real functions out of setup.sh rather than a copy of them."""
+    harness = f"""
+set -euo pipefail
+eval "$(sed -n '/^PICKED_PORTS=""/,/^$/p' {SETUP})"
+eval "$(sed -n '/^port_is_free() {{/,/^}}/p' {SETUP})"
+eval "$(sed -n '/^pick_free_port() {{/,/^}}/p' {SETUP})"
+PICKED_PORTS=""
+{script}
+"""
+    return subprocess.run(["bash", "-c", harness], capture_output=True, text=True)
+
+
+def test_two_picks_in_one_run_never_return_the_same_port():
+    result = _run_picker(
+        'pick_free_port A 9871\npick_free_port B 9871\npick_free_port C 9871\necho "$A $B $C"'
+    )
+    assert result.returncode == 0, result.stderr
+    ports = result.stdout.split()
+    assert len(set(ports)) == 3, f"collision: {ports}"
+
+
+def test_the_picker_assigns_rather_than_prints():
+    """A `$(...)` call runs in a subshell, so a picker that printed its answer
+    would lose the record of what it had already handed out — which is the bug
+    itself, not an implementation detail."""
+    source = SETUP.read_text()
+    assert 'printf -v "$__var"' in source
+    assert '"$(pick_free_port' not in source, "still called in a subshell"
+
+
+def test_a_port_this_run_claimed_counts_as_taken():
+    source = SETUP.read_text()
+    checker = source[source.index("port_is_free() {") :][:400]
+    assert "PICKED_PORTS" in checker

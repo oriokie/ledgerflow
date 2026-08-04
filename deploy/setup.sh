@@ -245,13 +245,23 @@ detect_port_conflict() {
   return 0
 }
 
-# True when nothing is listening on the given TCP port.
+#: Ports already handed out by pick_free_port during this run.
+#:
+#: Listening state alone is not enough: nothing is bound to a port until the
+#: containers start, so two independent picks in the same run both saw the same
+#: port as free and both took it. pgweb won the race and caddy_internal died on
+#: "port is already allocated" — after every other container had started.
+PICKED_PORTS=""
+
+# True when nothing is listening on the given TCP port, and this run has not
+# already claimed it.
 #
 # Returns "free" when it cannot tell (no ss, no netstat) rather than blocking a
 # deployment on a check that could not run — the container bind then reports
 # the conflict the way it always did.
 port_is_free() {
   local port="$1"
+  case " $PICKED_PORTS " in *" $port "*) return 1 ;; esac
   if command -v ss >/dev/null 2>&1; then
     ! ss -ltn 2>/dev/null | grep -qE ":${port}[[:space:]]"
   elif command -v netstat >/dev/null 2>&1; then
@@ -267,17 +277,23 @@ port_is_free() {
 # database, or a cPanel/Plesk-managed one — makes the conventional 5432 bind
 # fail *after* the rest of the stack has already started, which reads as the
 # deploy breaking rather than as one port being spoken for.
+# pick_free_port VAR <preferred>
+#
+# Assigns into VAR rather than printing, deliberately: a `$(...)` call would run
+# this in a subshell, and the record of what was already taken would die with
+# it — which is precisely the bug being fixed here.
 pick_free_port() {
-  local candidate="$1" tries=0
+  local __var="$1" candidate="$2" tries=0
   while [ "$tries" -lt 20 ]; do
     if port_is_free "$candidate"; then
-      printf '%s' "$candidate"
+      PICKED_PORTS="$PICKED_PORTS $candidate"
+      printf -v "$__var" '%s' "$candidate"
       return 0
     fi
     candidate=$((candidate + 1))
     tries=$((tries + 1))
   done
-  printf '%s' "$1"
+  printf -v "$__var" '%s' "$2"
 }
 
 # DNS is checked before requesting a certificate because Let's Encrypt will
@@ -354,7 +370,7 @@ ask WEB_SERVER "Which" "$_ws_default" valid_webserver_free_ports
 # The loopback origin the host web server proxies to. Chosen now, before .env
 # is written, because compose interpolates the published port from there.
 if [ "$WEB_SERVER" != "caddy" ]; then
-  INTERNAL_HTTP_PORT="$(pick_free_port "${INTERNAL_HTTP_PORT:-8080}")"
+  pick_free_port INTERNAL_HTTP_PORT "${INTERNAL_HTTP_PORT:-8080}"
   [ "$INTERNAL_HTTP_PORT" != "8080" ] && \
     warn "Port 8080 is taken, so the internal origin uses ${INTERNAL_HTTP_PORT}."
 else
@@ -387,7 +403,7 @@ if [ "$DB_MODE" = "bundled" ]; then
   # A server already running Postgres for something else owns 5432, and the
   # bind fails only once the rest of the stack is up — so choose a port that
   # is actually free instead of discovering the clash mid-launch.
-  POSTGRES_HOST_PORT="$(pick_free_port "${POSTGRES_HOST_PORT:-5432}")"
+  pick_free_port POSTGRES_HOST_PORT "${POSTGRES_HOST_PORT:-5432}"
   info ""
   if [ "$POSTGRES_HOST_PORT" != "5432" ]; then
     warn "Port 5432 is taken on this host, so the database is published on ${POSTGRES_HOST_PORT} instead."
@@ -397,7 +413,7 @@ if [ "$DB_MODE" = "bundled" ]; then
   info "  ssh -L 5432:127.0.0.1:${POSTGRES_HOST_PORT} $(whoami)@${DOMAIN}"
   if confirm "Also run pgweb, a browser UI for the database?" n; then
     ENABLE_PGWEB=1
-    PGWEB_HOST_PORT="$(pick_free_port "${PGWEB_HOST_PORT:-8081}")"
+    pick_free_port PGWEB_HOST_PORT "${PGWEB_HOST_PORT:-8081}"
     info "Browse it at localhost:${PGWEB_HOST_PORT} through:  ssh -L ${PGWEB_HOST_PORT}:127.0.0.1:${PGWEB_HOST_PORT} $(whoami)@${DOMAIN}"
   else
     ENABLE_PGWEB=0
