@@ -15,6 +15,7 @@ import {
   BudgetLineRow,
   BudgetSummary,
   CreateBudgetForm,
+  SmartBudgetPanel,
 } from "./budgets";
 import { budgetAlerts, paceIsMeaningful, periodProgress, sortLinesByRisk } from "./budgets/budgetMath";
 import { useOpenOnParam } from "../hooks/useOpenOnParam";
@@ -27,6 +28,7 @@ export function BudgetsPage({ embedded }: { embedded?: boolean } = {}) {
   const { data: categories } = useCategories();
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | undefined>(undefined);
   const [showCreate, setShowCreate] = useOpenOnParam();
+  const [showSuggest, setShowSuggest] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const activeBudgetId = selectedBudgetId ?? budgets?.[0]?.id;
@@ -71,10 +73,25 @@ export function BudgetsPage({ embedded }: { embedded?: boolean } = {}) {
           eyebrow={activeBudget?.period ?? "\u00a0"}
           title="Budgets"
           actions={
-            <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
-              {showCreate ? "Close" : "New budget"}
-            </Button>
+            <Inline gap={2}>
+              <Button variant="secondary" onClick={() => setShowSuggest((v) => !v)}>
+                {showSuggest ? "Close suggestion" : "Suggest a budget"}
+              </Button>
+              <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
+                {showCreate ? "Close" : "New budget"}
+              </Button>
+            </Inline>
           }
+        />
+      )}
+
+      {showSuggest && (
+        <SmartBudgetPanel
+          onCreated={(id) => {
+            setSelectedBudgetId(id);
+            setShowSuggest(false);
+          }}
+          onCancel={() => setShowSuggest(false)}
         />
       )}
 
@@ -102,9 +119,14 @@ export function BudgetsPage({ embedded }: { embedded?: boolean } = {}) {
               "Budgets roll forward each period, so you set them up once.",
             ]}
             action={
-              <Button variant="primary" onClick={() => setShowCreate(true)}>
-                Create a budget
-              </Button>
+              <Inline gap={2}>
+                <Button variant="primary" onClick={() => setShowSuggest(true)}>
+                  Suggest one from my history
+                </Button>
+                <Button variant="secondary" onClick={() => setShowCreate(true)}>
+                  Start from scratch
+                </Button>
+              </Inline>
             }
           />
         </Card>

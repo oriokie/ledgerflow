@@ -256,6 +256,17 @@ def test_every_candidate_carries_a_rationale_and_a_dedupe_key():
                 "percent": 200.0,
                 "period_end": date(2026, 6, 30),
             },
+            # Under its limit but on pace to blow it: the two overspend kinds
+            # are mutually exclusive per line, so reaching both needs two.
+            {
+                "category_id": "c9",
+                "category_name": "Dining out",
+                "limit_minor": 30_000,
+                "spent_minor": 24_000,
+                "percent": 80.0,
+                "period_start": date(2026, 6, 1),
+                "period_end": date(2026, 6, 30),
+            },
         ),
         category_trends=(
             {
@@ -699,6 +710,17 @@ def test_every_insight_kind_is_reachable():
                 "percent": 200.0,
                 "period_end": date(2026, 6, 30),
             },
+            # Under its limit but on pace to blow it: the two overspend kinds
+            # are mutually exclusive per line, so reaching both needs two.
+            {
+                "category_id": "c9",
+                "category_name": "Dining out",
+                "limit_minor": 30_000,
+                "spent_minor": 24_000,
+                "percent": 80.0,
+                "period_start": date(2026, 6, 1),
+                "period_end": date(2026, 6, 30),
+            },
         ),
         category_trends=(
             {
@@ -1111,3 +1133,79 @@ def test_api_missing_field_is_a_clean_400_not_a_crash(tenant_context):
     _, client = tenant_context
     resp = client.patch("/api/v1/intelligence/llm-settings/", {}, format="json")
     assert resp.status_code == 400
+
+
+# ------------------------------------------------------------------ pace
+def _pace_line(**overrides):
+    line = {
+        "category_id": "c1",
+        "category_name": "Dining out",
+        "limit_minor": 30_000,
+        "spent_minor": 24_000,
+        "percent": 80.0,
+        "period_start": date(2026, 6, 1),
+        "period_end": date(2026, 6, 30),
+    }
+    line.update(overrides)
+    return line
+
+
+def test_pace_warns_before_the_limit_is_crossed():
+    """Day 15 of 30, 80% spent: projected ~160% of the limit. _overspending is
+    silent (the limit is not yet crossed) and this must not be."""
+    coach_provider = RuleBasedCoach()
+    ctx = _ctx(as_of=date(2026, 6, 15), budget_lines=(_pace_line(),))
+
+    [insight] = [i for i in coach_provider.generate(ctx) if i.kind == InsightKind.OVERSPEND_PACE]
+    assert "Dining out" in insight.title
+    assert insight.evidence["projected_minor"] == 48_000
+    assert not [i for i in coach_provider.generate(ctx) if i.kind == InsightKind.OVERSPENDING]
+
+
+def test_pace_is_quiet_when_spending_matches_the_calendar():
+    """Half the period gone, half the budget spent: nothing to say."""
+    coach_provider = RuleBasedCoach()
+    ctx = _ctx(as_of=date(2026, 6, 15), budget_lines=(_pace_line(spent_minor=15_000),))
+
+    assert not [i for i in coach_provider.generate(ctx) if i.kind == InsightKind.OVERSPEND_PACE]
+
+
+def test_pace_is_quiet_in_the_first_fifth_of_the_period():
+    """One grocery run on the 2nd projects to catastrophe. Firing there
+    teaches the user to dismiss every warning that follows."""
+    coach_provider = RuleBasedCoach()
+    ctx = _ctx(as_of=date(2026, 6, 3), budget_lines=(_pace_line(spent_minor=8_000),))
+
+    assert not [i for i in coach_provider.generate(ctx) if i.kind == InsightKind.OVERSPEND_PACE]
+
+
+def test_pace_needs_a_margin_not_a_hair():
+    """Projected 103% is noise — spending is lumpy. Below PACE_TOLERANCE the
+    rule stays quiet."""
+    coach_provider = RuleBasedCoach()
+    # Day 15/30, spent 15_500 → projects to 31_000 = 103% of 30_000.
+    ctx = _ctx(as_of=date(2026, 6, 15), budget_lines=(_pace_line(spent_minor=15_500),))
+
+    assert not [i for i in coach_provider.generate(ctx) if i.kind == InsightKind.OVERSPEND_PACE]
+
+
+def test_pace_hands_over_to_overspending_once_the_limit_is_crossed():
+    """Both firing for one category would say "you will overspend" and "you
+    have overspent" in the same feed."""
+    coach_provider = RuleBasedCoach()
+    ctx = _ctx(as_of=date(2026, 6, 20), budget_lines=(_pace_line(spent_minor=31_000),))
+
+    kinds = {i.kind for i in coach_provider.generate(ctx)}
+    assert InsightKind.OVERSPENDING in kinds
+    assert InsightKind.OVERSPEND_PACE not in kinds
+
+
+def test_pace_survives_lines_without_period_start():
+    """Context rows from an older serialisation carry no period_start; the rule
+    must skip them, not crash the whole coach run."""
+    coach_provider = RuleBasedCoach()
+    line = _pace_line()
+    del line["period_start"]
+    ctx = _ctx(as_of=date(2026, 6, 15), budget_lines=(line,))
+
+    assert coach_provider.generate(ctx) is not None

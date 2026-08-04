@@ -40,6 +40,11 @@ VERSION = "1.0"
 
 #: Below this share of a budget line, an overspend isn't worth a notification.
 OVERSPEND_TOLERANCE = 1.0
+#: A pace projection must clear the limit by this much before it is worth
+#: saying. Projections are noisy — spending is lumpy, not linear — and a
+#: warning that fires at 101% projected teaches people to dismiss the one
+#: that fires at 140%.
+PACE_TOLERANCE = 1.1
 
 #: Category growth beyond this month-on-month is worth surfacing.
 CATEGORY_SPIKE_THRESHOLD = 0.4
@@ -113,6 +118,74 @@ class RuleBasedCoach:
                     related_category_id=line.get("category_id"),
                     expires_on=line.get("period_end"),
                     provenance=self._provenance("budget line exceeded"),
+                )
+            )
+        return out
+
+    def _overspending_pace(self, ctx: CoachContext) -> list[InsightCandidate]:
+        """Warn while there is still time to react.
+
+        `_overspending` fires after a limit is crossed, which is a post-mortem:
+        the money is gone and the only available action is regret. This one
+        projects each line's end-of-period spend from the elapsed fraction of
+        the period and warns when the projection clears the limit with margin —
+        early enough that easing off actually changes the outcome.
+
+        Quiet in the first fifth of the period, deliberately. One grocery run
+        on the 2nd projects to a catastrophe and teaches the user to ignore
+        every warning that follows.
+        """
+        out: list[InsightCandidate] = []
+        for line in ctx.budget_lines:
+            limit = line.get("limit_minor") or 0
+            spent = line.get("spent_minor") or 0
+            start = line.get("period_start")
+            end = line.get("period_end")
+            if limit <= 0 or spent <= 0 or not start or not end:
+                continue
+            if spent > limit * OVERSPEND_TOLERANCE:
+                continue  # already over: _overspending owns that story
+            total_days = (end - start).days + 1
+            elapsed = (ctx.as_of - start).days + 1
+            if total_days <= 0 or elapsed <= 0 or elapsed >= total_days:
+                continue
+            fraction = elapsed / total_days
+            if fraction < 0.2:
+                continue
+            projected = int(spent / fraction)
+            if projected <= limit * PACE_TOLERANCE:
+                continue
+            over = projected - limit
+            days_left = total_days - elapsed
+            name = line.get("category_name") or "a category"
+            out.append(
+                InsightCandidate(
+                    kind=InsightKind.OVERSPEND_PACE,
+                    severity=InsightSeverity.WARNING,
+                    title=f"On pace to overspend {name}",
+                    body=(
+                        f"{_money(spent, ctx.currency)} spent with {_plural(days_left, 'day')} to go — "
+                        f"at this pace {name} ends the period around {_money(projected, ctx.currency)}, "
+                        f"about {_money(over, ctx.currency)} over its {_money(limit, ctx.currency)} limit."
+                    ),
+                    rationale=(
+                        f"{round(fraction * 100)}% of the period has passed and "
+                        f"{round(spent / limit * 100)}% of the {name} budget is spent. Projecting the "
+                        "current daily pace to the end of the period clears the limit by more than "
+                        f"{round((PACE_TOLERANCE - 1) * 100)}%."
+                    ),
+                    dedupe_key=f"overspend_pace:{line.get('category_id')}:{end}",
+                    evidence={
+                        "limit_minor": limit,
+                        "spent_minor": spent,
+                        "projected_minor": projected,
+                        "days_left": days_left,
+                        "period_fraction": round(fraction, 3),
+                    },
+                    action={"action": "review_category", "category_id": line.get("category_id")},
+                    related_category_id=line.get("category_id"),
+                    expires_on=end,
+                    provenance=self._provenance("current pace projected to the end of the period"),
                 )
             )
         return out
@@ -492,6 +565,7 @@ class RuleBasedCoach:
             self._cashflow_risk,
             self._debt_signals,
             self._overspending,
+            self._overspending_pace,
             self._spending_anomalies,
             self._debt,
             self._duplicates,

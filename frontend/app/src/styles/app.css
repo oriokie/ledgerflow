@@ -144,3 +144,43 @@ tr:focus-within .lf-row-actions {
   font-size: inherit;
   font-variant-numeric: tabular-nums;
 }
+
+/* ---- suggested budget panel ---- */
+.lf-smart-envelope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-4) var(--lf-space-6);
+  margin: 0;
+}
+.lf-smart-envelope dt {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+}
+.lf-smart-envelope dd {
+  margin: 0;
+  font-size: var(--lf-text-lg);
+  font-variant-numeric: tabular-nums;
+}
+.lf-smart-lines {
+  width: 100%;
+  border-collapse: collapse;
+}
+.lf-smart-lines th,
+.lf-smart-lines td {
+  padding: var(--lf-space-2) var(--lf-space-3);
+  border-bottom: 1px solid var(--lf-border-subtle);
+  text-align: start;
+  vertical-align: top;
+}
+.lf-smart-lines .lf-num {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lf-smart-lines tfoot th,
+.lf-smart-lines tfoot td {
+  border-bottom: none;
+  font-weight: var(--lf-weight-semibold);
+}

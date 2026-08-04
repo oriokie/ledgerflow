@@ -22,7 +22,9 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 # would answer a different question — and would still answer it while the
 # frontend was stale, which is exactly when the number matters.
 ARG APP_RELEASE=dev
+ARG APP_VERSION=0.0.0
 ENV VITE_APP_RELEASE=${APP_RELEASE}
+ENV VITE_APP_VERSION=${APP_VERSION}
 RUN npm run build
 
 # The runtime "image" is just the built assets on a tiny base; the compose

@@ -25,7 +25,9 @@ RUN pip install --upgrade pip && pip install -r ${REQUIREMENTS_FILE}
 # ---------------------------------------------------------------------------
 FROM python:${PYTHON_VERSION} AS runtime
 ARG APP_RELEASE=dev
+ARG APP_VERSION=0.0.0
 ENV APP_RELEASE=${APP_RELEASE}
+ENV APP_VERSION=${APP_VERSION}
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH="/opt/venv/bin:$PATH"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \

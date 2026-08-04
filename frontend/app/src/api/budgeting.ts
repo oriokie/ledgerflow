@@ -1,8 +1,16 @@
 import { api } from "./client";
-import type { Budget, BudgetStatus } from "./types";
+import type { SmartBudgetProposal, Budget, BudgetStatus } from "./types";
 
 export const budgetingApi = {
   listBudgets: () => api.get<Budget[]>("/budgeting/budgets/"),
+  /** Recomputed from live data on every call and stored nowhere — looking
+   * never commits anyone to anything. */
+  suggestBudget: () => api.get<SmartBudgetProposal>("/budgeting/budgets/suggest/"),
+  applySuggestedBudget: (startsOn?: string) =>
+    api.post<{ budget: Budget; proposal: SmartBudgetProposal }>(
+      "/budgeting/budgets/suggest/",
+      startsOn ? { starts_on: startsOn } : {},
+    ),
   createBudget: (payload: { name: string; currency: string; starts_on: string; period?: string }) =>
     api.post<Budget>("/budgeting/budgets/", payload),
 

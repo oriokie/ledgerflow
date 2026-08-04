@@ -111,6 +111,7 @@ class InsightKind(models.TextChoices):
 
     SPENDING_ANOMALY = "spending_anomaly", "Spending anomaly"
     OVERSPENDING = "overspending", "Overspending warning"
+    OVERSPEND_PACE = "overspend_pace", "On pace to overspend"
     BUDGET_RECOMMENDATION = "budget_recommendation", "Budget recommendation"
     SAVINGS_OPPORTUNITY = "savings_opportunity", "Savings opportunity"
     DUPLICATE_TRANSACTION = "duplicate_transaction", "Possible duplicate"

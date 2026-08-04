@@ -1285,3 +1285,32 @@ export interface WorkspaceAISettingsInput {
   /** Omit to leave the stored key untouched; "" removes it. */
   api_key?: string;
 }
+
+/** One proposed budget line, with the reasoning that produced it. */
+export interface SmartBudgetLine {
+  category_id: string;
+  category_name: string;
+  limit_minor: number;
+  floor_minor: number;
+  history_minor: number;
+  observed_months: number[];
+  rationale: string;
+}
+
+/** A budget assembled from history, commitments, income and goals — a first
+ * draft the user applies and then owns, never a rule imposed on them. */
+export interface SmartBudgetProposal {
+  currency: string;
+  as_of: string;
+  months_considered: number;
+  income_minor: number;
+  income_known: boolean;
+  debt_minimums_minor: number;
+  savings_target_minor: number;
+  envelope_minor: number;
+  total_minor: number;
+  left_over_minor: number;
+  trim_factor: number;
+  deficit: boolean;
+  lines: SmartBudgetLine[];
+}

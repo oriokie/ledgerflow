@@ -94,6 +94,7 @@ def _budget_lines(as_of: date) -> tuple[dict, ...]:
                 if line.effective_limit_minor > 0
                 else 0.0
             ),
+            "period_start": budget.starts_on,
             "period_end": _budget_period_end(budget),
         }
         for line in lines

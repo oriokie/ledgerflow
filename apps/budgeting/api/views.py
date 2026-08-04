@@ -161,3 +161,79 @@ class BudgetStatusView(TenantScopedAPIView, APIView):
                 ],
             }
         )
+
+
+class SmartBudgetView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
+    """Propose a budget from history, commitments, income and goals — and
+    create it on request.
+
+    GET is a pure read: the proposal is recomputed from live data each time and
+    stored nowhere, so looking never commits anyone to anything. POST applies
+    the current proposal as a real budget the user then owns and edits.
+    """
+
+    permission_classes = [IsTenantMember]
+    throttle_scope = "write"
+    serializer_class = None  # bespoke shapes; see _serialize
+
+    @staticmethod
+    def _serialize(proposal) -> dict:
+        return {
+            "currency": proposal.currency,
+            "as_of": proposal.as_of.isoformat(),
+            "months_considered": proposal.months_considered,
+            "income_minor": proposal.income_minor,
+            "income_known": proposal.income_known,
+            "debt_minimums_minor": proposal.debt_minimums_minor,
+            "savings_target_minor": proposal.savings_target_minor,
+            "envelope_minor": proposal.envelope_minor,
+            "total_minor": proposal.total_minor,
+            "left_over_minor": proposal.left_over_minor,
+            "trim_factor": proposal.trim_factor,
+            "deficit": proposal.deficit,
+            "lines": [
+                {
+                    "category_id": line.category_id,
+                    "category_name": line.category_name,
+                    "limit_minor": line.limit_minor,
+                    "floor_minor": line.floor_minor,
+                    "history_minor": line.history_minor,
+                    "observed_months": line.observed_months,
+                    "rationale": line.rationale,
+                }
+                for line in proposal.lines
+            ],
+        }
+
+    def get(self, request):
+        from .. import smart
+
+        try:
+            proposal = smart.propose_budget()
+        except smart.NothingToProposeError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        return Response(self._serialize(proposal))
+
+    def post(self, request):
+        from .. import smart
+
+        starts_on = None
+        raw = request.data.get("starts_on")
+        if raw:
+            try:
+                starts_on = date.fromisoformat(str(raw))
+            except ValueError:
+                return Response(
+                    {"detail": "starts_on must be an ISO date (YYYY-MM-DD)."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        try:
+            proposal = smart.propose_budget()
+        except smart.NothingToProposeError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+
+        budget = smart.apply_proposal(proposal, starts_on=starts_on)
+        return Response(
+            {"budget": BudgetSerializer(budget).data, "proposal": self._serialize(proposal)},
+            status=status.HTTP_201_CREATED,
+        )
