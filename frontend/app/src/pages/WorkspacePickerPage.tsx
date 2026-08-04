@@ -32,7 +32,15 @@ const BACKEND_TYPE: Record<FormValues["type"], "personal" | "household"> = {
 
 export function WorkspacePickerPage() {
   const { workspaces, switchWorkspace, refreshWorkspaces } = useAuth();
-  const [creating, setCreating] = useState(workspaces.length === 0);
+  // Derived, not captured. `useState(workspaces.length === 0)` runs its
+  // initialiser only on the first render, so mounting while the session was
+  // still bootstrapping (workspaces still empty) latched "creating" on
+  // permanently — the picker then showed the create form forever, however
+  // many workspaces arrived afterwards, and creating one more never escaped
+  // it. `null` means "no explicit choice yet, follow the data".
+  const [creatingOverride, setCreatingOverride] = useState<boolean | null>(null);
+  const creating = creatingOverride ?? workspaces.length === 0;
+  const setCreating = setCreatingOverride;
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,

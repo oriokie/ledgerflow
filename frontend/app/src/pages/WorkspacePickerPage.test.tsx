@@ -9,13 +9,17 @@ vi.mock("../api/tenancy", () => ({
 
 const switchWorkspace = vi.fn();
 const refreshWorkspaces = vi.fn().mockResolvedValue(undefined);
+let mockWorkspaces: { tenant: { id: string; name: string; base_currency: string }; role: string }[] = [];
 vi.mock("../lib/AuthContext", () => ({
-  useAuth: () => ({ workspaces: [], switchWorkspace, refreshWorkspaces }),
+  useAuth: () => ({ workspaces: mockWorkspaces, switchWorkspace, refreshWorkspaces }),
 }));
 
 import { WorkspacePickerPage } from "./WorkspacePickerPage";
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockWorkspaces = [];
+});
 
 async function submit(user: ReturnType<typeof userEvent.setup>, type: string) {
   await user.type(screen.getByLabelText(/workspace name/i), "The Riveras");
@@ -75,5 +79,52 @@ describe("WorkspacePickerPage — workspace type mapping", () => {
 
     await submit(user, "family");
     expect(switchWorkspace).toHaveBeenCalledWith("new-workspace-id");
+  });
+});
+
+describe("WorkspacePickerPage — workspaces arriving after mount", () => {
+  const ws = (id: string, name: string) => ({
+    tenant: { id, name, base_currency: "USD" },
+    role: "owner",
+  });
+
+  it("shows the chooser once workspaces load, having mounted with none", () => {
+    // The session bootstraps asynchronously, so this page routinely renders
+    // first with an empty list and receives the real one a tick later. Reading
+    // that first empty render into useState latched the create form on
+    // permanently: the account had six workspaces and still saw "Create your
+    // first workspace", and creating a seventh never escaped it.
+    const { rerender } = render(<WorkspacePickerPage />);
+    expect(screen.getByRole("heading", { name: /create your first workspace/i })).toBeInTheDocument();
+
+    mockWorkspaces = [ws("t1", "Personal")];
+    rerender(<WorkspacePickerPage />);
+
+    expect(screen.getByRole("heading", { name: /choose a workspace/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Personal/ })).toBeInTheDocument();
+  });
+
+  it("still opens the form when the chooser's own button asks for it", async () => {
+    // The fix must not make the create form unreachable for someone who
+    // already has workspaces and wants another.
+    mockWorkspaces = [ws("t1", "Personal")];
+    const user = userEvent.setup();
+    render(<WorkspacePickerPage />);
+
+    await user.click(screen.getByRole("button", { name: /new workspace/i }));
+    expect(screen.getByRole("heading", { name: /new workspace/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/workspace name/i)).toBeInTheDocument();
+  });
+
+  it("keeps the form open across a re-render once it was explicitly opened", async () => {
+    mockWorkspaces = [ws("t1", "Personal")];
+    const user = userEvent.setup();
+    const { rerender } = render(<WorkspacePickerPage />);
+    await user.click(screen.getByRole("button", { name: /new workspace/i }));
+
+    mockWorkspaces = [ws("t1", "Personal"), ws("t2", "Household")];
+    rerender(<WorkspacePickerPage />);
+
+    expect(screen.getByLabelText(/workspace name/i)).toBeInTheDocument();
   });
 });

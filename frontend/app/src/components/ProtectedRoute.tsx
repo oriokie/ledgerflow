@@ -20,8 +20,14 @@ export function ProtectedRoute({
   requireWorkspace = true,
   publicFallback,
 }: Props) {
-  const { isAuthenticated, activeWorkspace, workspaces, user } = useAuth();
+  const { isAuthenticated, activeWorkspace, workspaces, user, isLoading } = useAuth();
   const location = useLocation();
+
+  // Nothing is known until bootstrap resolves: user, workspaces and the active
+  // tenant are all still empty. Deciding on that state sends a signed-in user
+  // to /login (or to the workspace picker) for the moment it takes to load,
+  // and a `replace` navigation cannot be taken back once the data arrives.
+  if (isLoading) return null;
 
   if (!isAuthenticated) {
     if (publicFallback) return <>{publicFallback}</>;
