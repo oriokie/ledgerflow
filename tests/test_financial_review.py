@@ -156,3 +156,55 @@ def test_api_refuses_an_unfinished_period_with_a_readable_reason(tenant_context)
     resp = client.get("/api/v1/intelligence/review/?period=2099-01")
     assert resp.status_code == 400
     assert "finished" in resp.data["detail"]
+
+
+# ------------------------------------------------------- subscriptions & fees
+def test_the_fee_audit_annualises_standing_orders():
+    """1,200/mo does not feel like a decision; 14,400/yr does. The section
+    exists to perform that conversion."""
+    from apps.finance.recurring import create_recurring_transaction
+
+    tenant = uuid.uuid4()
+    with tenant_scope(tenant):
+        account = _seed()
+        streaming = finance_services.create_category(
+            name="Streaming", kind=CategoryKind.EXPENSE, currency="USD"
+        )
+        create_recurring_transaction(
+            txn_type="expense",
+            financial_account=account,
+            category=streaming,
+            amount_minor=1_200,
+            currency="USD",
+            frequency="monthly",
+            starts_on=AS_OF,
+            memo="Streaming service",
+        )
+        document = review.compose(period_raw="2026-07", as_of=AS_OF)
+
+    section = document.sections["subscriptions"]
+    assert section is not None
+    assert section["count"] == 1
+    assert section["annual_total_minor"] == 14_400
+    assert section["top"][0]["name"] == "Streaming service"
+
+
+def test_no_standing_orders_and_no_rises_is_absence_not_a_zero():
+    tenant = uuid.uuid4()
+    with tenant_scope(tenant):
+        _seed()
+        document = review.compose(period_raw="2026-07", as_of=AS_OF)
+
+    assert document.sections["subscriptions"] is None
+
+
+def test_price_rises_reuse_the_coachs_definition():
+    """Two definitions of "price rise" in one product would eventually
+    disagree in public. The section must carry the coach's comparison, not a
+    second one — pinned structurally rather than re-tested behaviourally,
+    since the coach's own tests already cover the comparison."""
+    from pathlib import Path
+
+    source = Path("apps/intelligence/review.py").read_text()
+    section = source[source.index("def _subscriptions_section") :]
+    assert "_merchant_changes" in section.split("def _fi_section")[0]

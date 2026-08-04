@@ -7,6 +7,7 @@ export interface NotificationPreferences {
   email_types: string[];
   push_enabled: boolean;
   monthly_summary: boolean;
+  weekly_digest: boolean;
   budget_threshold: number;
   low_balance_minor: number | null;
   large_transaction_minor: number | null;

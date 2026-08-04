@@ -178,3 +178,25 @@ def send_monthly_summaries() -> dict:
             logger.exception("monthly summary failed for tenant %s", tenant_id)
             failed += 1
     return {"sent": sent, "tenants_failed": failed}
+
+
+@shared_task(name="notifications.send_weekly_digests")
+def send_weekly_digests() -> dict:
+    """The Monday note, workspace by workspace.
+
+    Same shape as the monthly summary run: one bad workspace logs and moves
+    on, because a single broken tenant must never cost every other household
+    its digest.
+    """
+    from apps.tenancy.models import Tenant
+
+    from .digest import send_weekly_digest_for_tenant
+
+    sent = failed = 0
+    for tenant_id in Tenant.objects.filter(is_active=True).values_list("id", flat=True):
+        try:
+            sent += send_weekly_digest_for_tenant(tenant_id=tenant_id)
+        except Exception:  # noqa: BLE001 — see docstring
+            logger.exception("weekly digest failed for tenant %s", tenant_id)
+            failed += 1
+    return {"sent": sent, "tenants_failed": failed}

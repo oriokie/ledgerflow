@@ -11,6 +11,7 @@ const prefs: { value: NotificationPreferences } = {
     email_types: [],
     push_enabled: true,
     monthly_summary: true,
+    weekly_digest: true,
     budget_threshold: 0.9,
     low_balance_minor: null,
     large_transaction_minor: null,
@@ -78,7 +79,7 @@ describe("NotificationPreferencesSection", () => {
 
   it("says the monthly summary needs email on", async () => {
     renderPanel();
-    expect(await screen.findByText(/needs email switched on/i)).toBeInTheDocument();
+    expect(await screen.findByText(/need email switched on/i)).toBeInTheDocument();
   });
 
   it("sends the resolved email list, not a diff", async () => {

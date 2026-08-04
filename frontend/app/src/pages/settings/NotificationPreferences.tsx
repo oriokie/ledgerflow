@@ -73,10 +73,18 @@ export function NotificationPreferencesSection() {
         One email on the 1st with last month&rsquo;s income, spending and net.
       </Text>
 
-      {!data.email_enabled && data.monthly_summary && (
-        <Banner tone="info">
-          The monthly summary needs email switched on above.
-        </Banner>
+      <Switch
+        checked={data.weekly_digest}
+        label="Weekly digest"
+        onChange={(e) => update.mutate({ weekly_digest: e.target.checked })}
+      />
+      <Text size="xs" tone="tertiary">
+        A short Monday note: safe to spend, last week&rsquo;s flows, what&rsquo;s due, and the
+        coach&rsquo;s top findings.
+      </Text>
+
+      {!data.email_enabled && (data.monthly_summary || data.weekly_digest) && (
+        <Banner tone="info">The summaries need email switched on above.</Banner>
       )}
 
       <table className="lf-notif-table">

@@ -125,6 +125,10 @@ class NotificationPreference(SoftDeletableModel):
     #: Monthly summary of the previous month. Independent of alerting: it is a
     #: report someone opted into, not an interruption.
     monthly_summary = models.BooleanField(default=True)
+    #: The Monday note: safe-to-spend, last week's flows, what's due this week,
+    #: and the coach's top findings. Same footing as the monthly summary — a
+    #: report, not an alert — and like it, gated behind email_enabled.
+    weekly_digest = models.BooleanField(default=True)
 
     class Meta:
         constraints = [

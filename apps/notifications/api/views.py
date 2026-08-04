@@ -152,6 +152,7 @@ class NotificationPreferenceSerializer(serializers.Serializer):
     )
     push_enabled = serializers.BooleanField(required=False)
     monthly_summary = serializers.BooleanField(required=False)
+    weekly_digest = serializers.BooleanField(required=False)
     budget_threshold = serializers.FloatField(required=False, min_value=0.1, max_value=2.0)
     low_balance_minor = serializers.IntegerField(required=False, allow_null=True, min_value=0)
     large_transaction_minor = serializers.IntegerField(required=False, allow_null=True, min_value=0)
@@ -183,6 +184,7 @@ class NotificationPreferenceView(TenantScopedAPIView, APIView):
             "email_types": (pref.email_types if pref else []) or [],
             "push_enabled": bool(pref.push_enabled) if pref else True,
             "monthly_summary": bool(pref.monthly_summary) if pref else True,
+            "weekly_digest": bool(pref.weekly_digest) if pref else True,
             "budget_threshold": pref.budget_threshold if pref else 0.9,
             "low_balance_minor": pref.low_balance_minor if pref else None,
             "large_transaction_minor": pref.large_transaction_minor if pref else None,

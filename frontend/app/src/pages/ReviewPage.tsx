@@ -37,6 +37,17 @@ interface ReviewDocument {
       target_minor: number;
       currency: string;
     }[];
+    subscriptions: {
+      count: number;
+      annual_total_minor: number;
+      top: { name: string; annual_minor: number; amount_minor: number; frequency: string }[];
+      price_rises: {
+        payee: string;
+        previous_minor: number;
+        current_minor: number;
+        delta_pct: number;
+      }[];
+    } | null;
     fi: {
       fi_number_minor: number;
       progress_pct: number;
@@ -190,6 +201,43 @@ export function ReviewPage() {
               </Grid>
             )}
           </Card>
+
+          {data.sections.subscriptions && (
+            <Card title="Subscriptions & fees">
+              <p className="lf-review-figure">
+                {money(data.sections.subscriptions.annual_total_minor)}
+                <Text tone="tertiary" size="sm" as="span">
+                  {" "}
+                  a year across {data.sections.subscriptions.count} standing order
+                  {data.sections.subscriptions.count === 1 ? "" : "s"}
+                </Text>
+              </p>
+              {data.sections.subscriptions.top.map((sub) => (
+                <p key={sub.name} className="lf-review-mover">
+                  {sub.name}{" "}
+                  <span>
+                    {money(sub.annual_minor)}/yr
+                  </span>
+                </p>
+              ))}
+              {data.sections.subscriptions.price_rises.length > 0 && (
+                <>
+                  <Text tone="tertiary" size="xs" style={{ marginTop: "var(--lf-space-3)" }}>
+                    PRICES THAT MOVED ON YOU
+                  </Text>
+                  {data.sections.subscriptions.price_rises.map((rise) => (
+                    <p key={rise.payee} className="lf-review-mover">
+                      {rise.payee}{" "}
+                      <span>
+                        {money(rise.previous_minor)} → {money(rise.current_minor)} (+
+                        {Math.round(rise.delta_pct * 100)}%)
+                      </span>
+                    </p>
+                  ))}
+                </>
+              )}
+            </Card>
+          )}
 
           <Grid cols={2} gap={4}>
             {data.sections.debt && (

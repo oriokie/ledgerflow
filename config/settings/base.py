@@ -193,6 +193,12 @@ CELERY_BEAT_SCHEDULE = {
         # today's posted state rather than yesterday's.
         "schedule": crontab(hour=5, minute=30),
     },
+    "notifications-weekly-digest": {
+        "task": "notifications.send_weekly_digests",
+        # Monday 07:30 — after the 05:30 coach run, so "worth a look" carries
+        # this morning's findings, and early enough to shape the week it opens.
+        "schedule": crontab(hour=7, minute=30, day_of_week=1),
+    },
     "notifications-monthly-summary": {
         "task": "notifications.send_monthly_summaries",
         # 08:00 on the 1st. Early enough to be the first thing in the inbox on

@@ -120,6 +120,44 @@ def render_summary_text(summary: dict, *, currency: str, name: str = "") -> str:
     return "\n".join(lines)
 
 
+def render_summary_html(summary: dict, *, currency: str, name: str = "") -> str:
+    """HTML twin of the text summary, on the shared email layout."""
+    from . import email_html as h
+
+    net = summary["net_minor"]
+    saved = net > 0
+    verdict_amount = _money(abs(net), currency)
+    caption = (
+        f"put aside in {summary['month_label']}"
+        if saved
+        else f"spent beyond income in {summary['month_label']}"
+    )
+
+    pairs = [
+        ("Money in", _money(summary["income_minor"], currency)),
+        ("Money out", _money(summary["spending_minor"], currency)),
+        ("Net", _money(net, currency)),
+    ]
+    if summary["net_worth_minor"] is not None:
+        pairs.append(("Net worth", _money(summary["net_worth_minor"], currency)))
+
+    body = (
+        h.hero(verdict_amount, caption, tone="accent" if saved else "danger")
+        + h.figure_row(pairs)
+        + h.button("See the detail", build("reports"))
+    )
+    greeting_name = name or "there"
+    return h.wrap(
+        preheader=f"{verdict_amount} {caption}",
+        title=f"Hi {greeting_name} — your {summary['month_label']} summary",
+        body_html=body,
+        footer_links=[
+            ("Preferences", build("settings/preferences")),
+            ("Open the app", build("")),
+        ],
+    )
+
+
 def send_monthly_summary_for_tenant(*, tenant_id, as_of: date | None = None) -> int:
     """Email every opted-in member of one workspace. Returns how many were sent."""
     from apps.tenancy.models import Membership, Tenant
@@ -151,13 +189,18 @@ def send_monthly_summary_for_tenant(*, tenant_id, as_of: date | None = None) -> 
         text = render_summary_text(
             summary, currency=tenant.base_currency, name=membership.user.first_name or ""
         )
+        html = render_summary_html(
+            summary, currency=tenant.base_currency, name=membership.user.first_name or ""
+        )
         try:
-            EmailMultiAlternatives(
+            message = EmailMultiAlternatives(
                 subject=f"Your {summary['month_label']} summary",
                 body=text,
                 from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "reports@ledgerflow.app"),
                 to=[membership.user.email],
-            ).send(fail_silently=False)
+            )
+            message.attach_alternative(html, "text/html")
+            message.send(fail_silently=False)
             sent += 1
         except Exception as exc:  # noqa: BLE001
             logger.warning("monthly summary to %s failed: %s", membership.user_id, exc)

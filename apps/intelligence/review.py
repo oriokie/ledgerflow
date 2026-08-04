@@ -191,6 +191,54 @@ def _goals_section(period: ReviewPeriod) -> list[dict]:
     return out
 
 
+def _subscriptions_section() -> dict | None:
+    """The fee audit: what the standing orders cost per year, and which
+    recurring merchants raised their prices.
+
+    Annualising is the entire trick — 1,200 a month does not feel like a
+    decision, 14,400 a year does. This is the section that makes a review
+    feel like it paid for itself, because a cancelled subscription is the
+    rare finding that converts to money without any further discipline.
+
+    Price rises reuse the coach's merchant comparison (mean charge, last 30
+    days against the 30 before, both-windows-only) rather than re-deriving
+    one — two definitions of "price rise" in one product would eventually
+    disagree in public.
+    """
+    from . import coach_context
+
+    subscriptions = coach_context._subscriptions()
+    rises = [
+        change
+        for change in coach_context._merchant_changes(timezone.localdate())
+        if change.get("delta_pct", 0) > 0
+    ]
+    if not subscriptions and not rises:
+        return None
+    return {
+        "count": len(subscriptions),
+        "annual_total_minor": sum(s["annual_minor"] for s in subscriptions),
+        "top": [
+            {
+                "name": s["name"],
+                "annual_minor": s["annual_minor"],
+                "amount_minor": s["amount_minor"],
+                "frequency": s["frequency"],
+            }
+            for s in subscriptions[:5]
+        ],
+        "price_rises": [
+            {
+                "payee": change["payee"],
+                "previous_minor": change["previous_minor"],
+                "current_minor": change["current_minor"],
+                "delta_pct": change["delta_pct"],
+            }
+            for change in rises
+        ],
+    }
+
+
 def _fi_section() -> dict | None:
     try:
         projection = fi.project()
@@ -274,6 +322,7 @@ def compose(*, period_raw: str | None = None, as_of: date | None = None) -> Fina
         "movers": _movers(period, currency),
         "debt": _debt_section(period),
         "goals": _goals_section(period),
+        "subscriptions": _subscriptions_section(),
         "fi": _fi_section(),
         "actions": _actions(),
     }
