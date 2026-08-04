@@ -147,3 +147,103 @@ def event_catalogue() -> list[dict]:
             }
         )
     return out
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — simulation, sensitivity, risk and the decision assistant
+# ---------------------------------------------------------------------------
+class SimulationSerializer(serializers.Serializer):
+    months = serializers.IntegerField(min_value=1, max_value=MAX_HORIZON_MONTHS, default=120)
+    trials = serializers.IntegerField(min_value=1, max_value=5_000, default=1_000)
+    #: Part of the request *and* the response. A simulation nobody can
+    #: reproduce is one nobody can check or act on.
+    seed = serializers.IntegerField(default=12345)
+    return_volatility = serializers.FloatField(min_value=0, max_value=1, default=0.15)
+    inflation_volatility = serializers.FloatField(min_value=0, max_value=1, default=0.02)
+    income_shock_probability = serializers.FloatField(min_value=0, max_value=1, default=0.04)
+    #: Simulate a saved scenario rather than the bare position.
+    scenario_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+class SensitivitySerializer(serializers.Serializer):
+    months = serializers.IntegerField(min_value=1, max_value=MAX_HORIZON_MONTHS, default=120)
+
+
+class RiskQuerySerializer(serializers.Serializer):
+    """No inputs — risk is measured entirely from the recorded position."""
+
+
+class WhatIfSerializer(serializers.Serializer):
+    months = serializers.IntegerField(min_value=1, max_value=MAX_HORIZON_MONTHS, default=120)
+    inflation = serializers.FloatField(required=False, allow_null=True)
+    investment_return = serializers.FloatField(required=False, allow_null=True)
+    salary_growth = serializers.FloatField(required=False, allow_null=True)
+    rate_shift = serializers.FloatField(required=False, allow_null=True)
+
+
+class _DecisionSerializer(serializers.Serializer):
+    """Base for the named questions.
+
+    `explain` opts out of the LLM tier per request. The deterministic prose is
+    always produced either way, so turning it off costs nothing but latency.
+    """
+
+    explain = serializers.BooleanField(default=True)
+
+
+class AffordMortgageSerializer(_DecisionSerializer):
+    question = "Can I afford this mortgage?"
+    property_price_minor = serializers.IntegerField(min_value=0)
+    deposit_minor = serializers.IntegerField(min_value=0, default=0)
+    annual_rate = serializers.FloatField()
+    years = serializers.IntegerField(min_value=1, max_value=40, default=25)
+    annual_tax_minor = serializers.IntegerField(min_value=0, default=0)
+    annual_insurance_minor = serializers.IntegerField(min_value=0, default=0)
+
+
+class HowMuchHouseSerializer(_DecisionSerializer):
+    question = "How much house can I comfortably afford?"
+    annual_rate = serializers.FloatField()
+    years = serializers.IntegerField(min_value=1, max_value=40, default=25)
+    deposit_minor = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+
+
+class DebtOrInvestSerializer(_DecisionSerializer):
+    question = "Should I pay debt down or invest?"
+    monthly_amount_minor = serializers.IntegerField(min_value=1)
+    expected_return = serializers.FloatField()
+    months = serializers.IntegerField(min_value=1, max_value=MAX_HORIZON_MONTHS, default=120)
+
+
+class RetireSerializer(_DecisionSerializer):
+    question = "Can I retire when I want to?"
+    years_until = serializers.IntegerField(min_value=1, max_value=40)
+    monthly_income_needed_minor = serializers.IntegerField(min_value=0)
+    annual_return = serializers.FloatField(default=0.07)
+    annual_inflation = serializers.FloatField(default=0.05)
+    withdrawal_rate = serializers.FloatField(default=0.04)
+    monthly_pension_income_minor = serializers.IntegerField(min_value=0, default=0)
+
+
+class BuyOrRentSerializer(_DecisionSerializer):
+    question = "Should I buy or rent?"
+    property_price_minor = serializers.IntegerField(min_value=0)
+    deposit_minor = serializers.IntegerField(min_value=0, default=0)
+    annual_rate = serializers.FloatField()
+    monthly_rent_minor = serializers.IntegerField(min_value=0)
+    years = serializers.IntegerField(min_value=1, max_value=40, default=10)
+    annual_tax_minor = serializers.IntegerField(min_value=0, default=0)
+    annual_insurance_minor = serializers.IntegerField(min_value=0, default=0)
+    maintenance_rate = serializers.FloatField(default=0.01)
+
+
+#: Question slug -> (serialiser, evaluator name in `decisions`). One registry,
+#: so the URL surface, the catalogue endpoint and the dispatch cannot disagree
+#: about which questions exist.
+DECISION_SERIALIZERS = {
+    "afford-mortgage": (AffordMortgageSerializer, "can_i_afford_mortgage"),
+    "how-much-house": (HowMuchHouseSerializer, "how_much_house"),
+    "debt-or-invest": (DebtOrInvestSerializer, "debt_or_invest"),
+    "retire": (RetireSerializer, "can_i_retire"),
+    "buy-or-rent": (BuyOrRentSerializer, "buy_or_rent"),
+}

@@ -181,3 +181,146 @@ export const projectionsApi = {
   calculator: <T>(slug: string, body: Record<string, unknown>) =>
     api.post<T>(`/projections/calculators/${slug}/`, body),
 };
+
+// ---------------------------------------------------------------------------
+// Phase 2 — decision support
+// ---------------------------------------------------------------------------
+export interface Percentiles {
+  p10: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p90: number;
+}
+
+export interface SimulationBand extends Percentiles {
+  month: number;
+}
+
+export interface SimulationResult {
+  currency: string;
+  trials: number;
+  seed: number;
+  months: number;
+  closing_net_worth: Percentiles;
+  trough: Percentiles;
+  success_probability: number;
+  failure_probability: number;
+  median_failure_month: number | null;
+  bands: SimulationBand[];
+  assumptions: string[];
+  deterministic: Projection | null;
+}
+
+export interface Swing {
+  lever: string;
+  label: string;
+  low_value: number;
+  high_value: number;
+  low_closing_minor: number;
+  high_closing_minor: number;
+  baseline_closing_minor: number;
+  spread_minor: number;
+  direction: "higher is better" | "higher is worse";
+}
+
+export interface SensitivityResult {
+  currency: string;
+  months: number;
+  baseline_closing_minor: number;
+  swings: Swing[];
+  notes: string[];
+}
+
+export interface WhatIfResult {
+  question: string;
+  changed: string;
+  baseline_closing_minor: number;
+  changed_closing_minor: number;
+  baseline_trough_minor: number;
+  changed_trough_minor: number;
+  introduces_shortfall: boolean;
+  delta_minor: number;
+  notes: string[];
+}
+
+export interface RiskFactor {
+  key: string;
+  label: string;
+  score: number;
+  value: number;
+  detail: string;
+  remedy: string;
+}
+
+export interface RiskProfile {
+  currency: string;
+  resilience: number;
+  headline: string;
+  factors: RiskFactor[];
+  notes: string[];
+}
+
+export type Verdict = "yes" | "yes_with_care" | "tight" | "no" | "unknown";
+
+export interface DecisionFinding {
+  label: string;
+  text: string;
+  amount_minor: number | null;
+  months: number | null;
+  percent: number | null;
+}
+
+export interface DecisionResult {
+  question: string;
+  verdict: Verdict;
+  headline: string;
+  confidence: "measured" | "mixed" | "assumed";
+  because: DecisionFinding[];
+  costs: DecisionFinding[];
+  risks: DecisionFinding[];
+  alternatives: DecisionFinding[];
+  assumptions: string[];
+  explanation: { paragraphs: string[]; llm_used: boolean; rejected_reason: string };
+  currency: string;
+}
+
+export interface QuestionField {
+  name: string;
+  required: boolean;
+  type: string;
+}
+
+export interface QuestionMeta {
+  slug: string;
+  question: string;
+  fields: QuestionField[];
+}
+
+export const advisorApi = {
+  simulate: (body: {
+    months?: number;
+    trials?: number;
+    seed?: number;
+    scenario_id?: string | null;
+  }) => api.post<SimulationResult>("/projections/simulate/", body),
+
+  sensitivity: (months = 120) =>
+    api.get<SensitivityResult>(`/projections/sensitivity/?months=${months}`),
+
+  whatIf: (body: {
+    months?: number;
+    inflation?: number;
+    investment_return?: number;
+    salary_growth?: number;
+    rate_shift?: number;
+  }) => api.post<WhatIfResult>("/projections/what-if/", body),
+
+  risk: () => api.get<RiskProfile>("/projections/risk/"),
+
+  /** The scenario builder's sibling: the question forms render from this. */
+  questions: () => api.get<{ results: QuestionMeta[] }>("/projections/questions/"),
+
+  ask: (slug: string, body: Record<string, unknown>) =>
+    api.post<DecisionResult>(`/projections/questions/${slug}/`, body),
+};

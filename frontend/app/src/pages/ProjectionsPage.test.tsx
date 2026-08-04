@@ -72,6 +72,12 @@ const scenarios: Scenario[] = [
 const run = vi.fn();
 
 vi.mock("../api/projections", () => ({
+  advisorApi: {
+    questions: () => Promise.resolve({ results: [] }),
+    simulate: () => Promise.resolve(null),
+    sensitivity: () => Promise.resolve(null),
+    risk: () => Promise.resolve(null),
+  },
   projectionsApi: {
     baseline: () => Promise.resolve(baseline),
     listScenarios: () => Promise.resolve({ results: scenarios }),

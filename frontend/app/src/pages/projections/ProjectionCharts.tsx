@@ -29,6 +29,21 @@ interface ChartProps {
   currency: string;
 }
 
+/**
+ * Keeps the first and last x-axis labels off the axes they sit beside.
+ *
+ * These are the only charts in the product that render y-axis tick labels —
+ * everything else uses `<YAxis hide />` — and they are consequently the only
+ * ones that can collide at the origin. Without the left padding the first tick
+ * is centred on the first data point, which sits flush against the y-axis, so
+ * half the label is drawn over the "0". The route audit measures exactly this
+ * and caught it on a workspace whose axis happened to start at zero.
+ *
+ * The y-labels stay because a forty-year net-worth line is unreadable without
+ * a scale; the summary above the chart only gives the endpoint.
+ */
+const X_AXIS_PADDING = { left: 22, right: 14 } as const;
+
 const tooltipStyle = {
   borderRadius: 8,
   border: "1px solid var(--lf-border-subtle)",
@@ -52,7 +67,13 @@ export function NetWorthChart({ projection, baseline, currency }: ChartProps) {
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid {...gridProps} />
-          <XAxis dataKey="label" tick={AXIS_TICK} {...axisLineProps} minTickGap={40} />
+          <XAxis
+            dataKey="label"
+            tick={AXIS_TICK}
+            {...axisLineProps}
+            minTickGap={40}
+            padding={X_AXIS_PADDING}
+          />
           <YAxis tick={AXIS_TICK} {...axisLineProps} tickFormatter={compactNumber} width={52} />
           <Tooltip
             contentStyle={tooltipStyle}
@@ -108,7 +129,13 @@ export function CashFlowProjectionChart({ projection, currency }: ChartProps) {
             </linearGradient>
           </defs>
           <CartesianGrid {...gridProps} />
-          <XAxis dataKey="label" tick={AXIS_TICK} {...axisLineProps} minTickGap={40} />
+          <XAxis
+            dataKey="label"
+            tick={AXIS_TICK}
+            {...axisLineProps}
+            minTickGap={40}
+            padding={X_AXIS_PADDING}
+          />
           <YAxis tick={AXIS_TICK} {...axisLineProps} tickFormatter={compactNumber} width={52} />
           <Tooltip
             contentStyle={tooltipStyle}
@@ -158,7 +185,13 @@ export function DebtTimelineChart({ projection, currency }: ChartProps) {
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid {...gridProps} />
-          <XAxis dataKey="label" tick={AXIS_TICK} {...axisLineProps} minTickGap={40} />
+          <XAxis
+            dataKey="label"
+            tick={AXIS_TICK}
+            {...axisLineProps}
+            minTickGap={40}
+            padding={X_AXIS_PADDING}
+          />
           <YAxis tick={AXIS_TICK} {...axisLineProps} tickFormatter={compactNumber} width={52} />
           <Tooltip
             contentStyle={tooltipStyle}
@@ -197,7 +230,13 @@ export function AssetMixChart({ projection, currency }: ChartProps) {
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid {...gridProps} />
-          <XAxis dataKey="label" tick={AXIS_TICK} {...axisLineProps} minTickGap={40} />
+          <XAxis
+            dataKey="label"
+            tick={AXIS_TICK}
+            {...axisLineProps}
+            minTickGap={40}
+            padding={X_AXIS_PADDING}
+          />
           <YAxis tick={AXIS_TICK} {...axisLineProps} tickFormatter={compactNumber} width={52} />
           <Tooltip
             contentStyle={tooltipStyle}

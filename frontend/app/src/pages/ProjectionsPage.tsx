@@ -34,6 +34,8 @@ import {
   DebtTimelineChart,
   NetWorthChart,
 } from "./projections/ProjectionCharts";
+import { DecisionAssistant } from "./projections/DecisionAssistant";
+import { RiskAndSimulation } from "./projections/RiskAndSimulation";
 import { ScenarioBuilder } from "./projections/ScenarioBuilder";
 
 /** `SegmentedControl` is generic over a string union, so the horizon travels as
@@ -55,6 +57,16 @@ const CHART_TABS = [
 ] as const;
 
 type ChartTab = (typeof CHART_TABS)[number]["value"];
+
+/** The three questions the page answers, in the order people ask them: where
+ * is this going, what should I do, and how sure are we. */
+const SECTIONS = [
+  { value: "projection", label: "Where this goes" },
+  { value: "decisions", label: "Should I?" },
+  { value: "confidence", label: "How sure" },
+] as const;
+
+type Section = (typeof SECTIONS)[number]["value"];
 
 function monthLabel(months: number | null, asOf: string): string {
   if (months === null) return "not within this window";
@@ -156,6 +168,7 @@ function ChartDeck({
 export function ProjectionsPage() {
   const [horizonValue, setHorizonValue] = useState<HorizonValue>("120");
   const horizon = Number(horizonValue);
+  const [section, setSection] = useState<Section>("projection");
   const [baseline, setBaseline] = useState<BaselineResponse | null>(null);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [catalogue, setCatalogue] = useState<EventKindMeta[]>([]);
@@ -287,6 +300,26 @@ export function ProjectionsPage() {
         }
       />
 
+      <Tabs<Section>
+        label="Projection section"
+        value={section}
+        onChange={setSection}
+        tabs={[...SECTIONS]}
+      />
+
+      {section === "decisions" && (
+        <div className="lf-section-body">
+          <DecisionAssistant />
+        </div>
+      )}
+
+      {section === "confidence" && (
+        <div className="lf-section-body">
+          <RiskAndSimulation months={horizon} />
+        </div>
+      )}
+
+      {section !== "projection" ? null : (
       <Stack gap={5}>
         <section>
           <ProjectionSummary projection={shown} currency={currency} />
@@ -400,6 +433,7 @@ export function ProjectionsPage() {
 
         <Assumptions projection={shown} />
       </Stack>
+      )}
     </>
   );
 }
