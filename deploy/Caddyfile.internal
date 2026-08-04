@@ -38,6 +38,29 @@
 	# --- Frontend: the built SPA, client-side routes falling back to index ---
 	handle {
 		root * /srv/frontend
+
+		# Cache policy is the deploy-latency policy, and it was missing: with
+		# no explicit header, the outer terminator's defaults applied (four
+		# hours on this host), which produced two symptoms that both read as
+		# "the deploy didn't work":
+		#
+		#  * /sw.js cached for hours meant returning visitors kept the OLD
+		#    service worker, which kept serving the OLD app shell — the new
+		#    release was live on the server and invisible in the browser.
+		#  * a cached index.html referenced hashed assets the new deploy had
+		#    already replaced; the request for the missing JS fell through
+		#    try_files to index.html, and the browser got HTML where it
+		#    expected a module — a white screen until the cache lapsed.
+		#
+		# Hashed assets are immutable by construction, so they get the year;
+		# everything else (index.html, sw.js, manifest) must revalidate every
+		# time. no-cache still allows conditional requests, and the ETags make
+		# those cheap — this costs one 304 per navigation, not a re-download.
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		@shell not path /assets/*
+		header @shell Cache-Control "no-cache"
+
 		try_files {path} /index.html
 		file_server
 	}
