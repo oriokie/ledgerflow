@@ -13,10 +13,21 @@ from tests.factories import MembershipFactory
 pytestmark = pytest.mark.django_db
 
 
-def _account(client, name="Checking", account_type="checking", currency="USD"):
+def _account(client, name="Checking", account_type="checking", currency="USD", opening=1_000_000):
+    """A funded account, because that is what a real one is.
+
+    A workspace blocks manual overdrafts by default, so an account with nothing
+    in it cannot record an expense — which is correct behaviour and a useless
+    fixture. Pass `opening=0` where the balance itself is what's being asserted.
+    """
     return client.post(
         "/api/v1/finance/accounts/",
-        {"name": name, "account_type": account_type, "currency": currency},
+        {
+            "name": name,
+            "account_type": account_type,
+            "currency": currency,
+            "opening_balance_minor": opening,
+        },
         format="json",
     ).data
 
@@ -30,8 +41,10 @@ def _category(client, name, kind, currency="USD"):
 # --------------------------------------------------------------- wallets
 def test_wallet_create_and_balances(tenant_context):
     membership, client = tenant_context
-    usd = _account(client, "US Checking", currency="USD")
-    eur = _account(client, "EU Checking", currency="EUR")
+    # Unfunded: this asserts the per-currency roll-up exactly, and it only
+    # posts income, so there is nothing for the overdraft guard to refuse.
+    usd = _account(client, "US Checking", currency="USD", opening=0)
+    eur = _account(client, "EU Checking", currency="EUR", opening=0)
     usd_income = _category(client, "USD In", "income", "USD")
     eur_income = _category(client, "EUR In", "income", "EUR")
 
@@ -664,7 +677,5 @@ def test_recurring_edit_rejects_what_would_reinterpret_history(tenant_context):
     assert resp.data["amount_minor"] == 1600
 
     # An amount below the minimum is refused rather than clamped.
-    bad = client.patch(
-        f"/api/v1/finance/recurring/{rec['id']}/", {"amount_minor": 0}, format="json"
-    )
+    bad = client.patch(f"/api/v1/finance/recurring/{rec['id']}/", {"amount_minor": 0}, format="json")
     assert bad.status_code == 400

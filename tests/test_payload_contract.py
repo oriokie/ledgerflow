@@ -90,7 +90,13 @@ def _seeded_workspace():
 
     account = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Current", "account_type": "checking", "currency": "USD"},
+        # Funded: a workspace blocks manual overdrafts by default.
+        {
+            "name": "Current",
+            "account_type": "checking",
+            "currency": "USD",
+            "opening_balance_minor": 1_000_000,
+        },
         format="json",
     ).data
     category = client.post(

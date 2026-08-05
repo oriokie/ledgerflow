@@ -255,9 +255,7 @@ def test_a_workspace_with_income_but_no_spending_has_no_measurable_savings_rate(
         checking = finance_services.create_financial_account(
             name="Checking", account_type=AccountType.CHECKING, currency="USD"
         )
-        salary = finance_services.create_category(
-            name="Salary", kind=CategoryKind.INCOME, currency="USD"
-        )
+        salary = finance_services.create_category(name="Salary", kind=CategoryKind.INCOME, currency="USD")
         # Two completed months of salary, no spending recorded at all.
         for month in (5, 6):
             finance_services.record_income(
@@ -282,9 +280,7 @@ def test_savings_rate_is_measured_once_both_halves_exist():
         checking = finance_services.create_financial_account(
             name="Checking", account_type=AccountType.CHECKING, currency="USD"
         )
-        salary = finance_services.create_category(
-            name="Salary", kind=CategoryKind.INCOME, currency="USD"
-        )
+        salary = finance_services.create_category(name="Salary", kind=CategoryKind.INCOME, currency="USD")
         groceries = finance_services.create_category(
             name="Groceries", kind=CategoryKind.EXPENSE, currency="USD"
         )
@@ -326,9 +322,7 @@ def test_the_current_partial_month_cannot_inflate_the_savings_rate():
         checking = finance_services.create_financial_account(
             name="Checking", account_type=AccountType.CHECKING, currency="USD"
         )
-        salary = finance_services.create_category(
-            name="Salary", kind=CategoryKind.INCOME, currency="USD"
-        )
+        salary = finance_services.create_category(name="Salary", kind=CategoryKind.INCOME, currency="USD")
         groceries = finance_services.create_category(
             name="Groceries", kind=CategoryKind.EXPENSE, currency="USD"
         )

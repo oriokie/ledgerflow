@@ -11,7 +11,13 @@ pytestmark = pytest.mark.django_db
 def _acct(client):
     return client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Checking", "account_type": "checking", "currency": "USD"},
+        # Funded: a workspace blocks manual overdrafts by default.
+        {
+            "name": "Checking",
+            "account_type": "checking",
+            "currency": "USD",
+            "opening_balance_minor": 1_000_000,
+        },
         format="json",
     ).data
 

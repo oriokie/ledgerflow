@@ -34,8 +34,8 @@ def test_create_account_and_list_balance(tenant_context):
 
 def test_expense_flow_updates_net_worth(tenant_context):
     membership, client = tenant_context
-    # Funded, because a manual expense may no longer overdraw an asset account
-    # once a workspace has the guard on — see tests/test_overdraft_policy.py.
+    # Funded: a workspace blocks manual overdrafts by default, so an account
+    # with nothing in it cannot record an expense.
     acct = client.post(
         "/api/v1/finance/accounts/",
         {
@@ -136,7 +136,13 @@ def test_budget_status_via_api(tenant_context):
     membership, client = tenant_context
     acct = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Checking", "account_type": "checking", "currency": "USD"},
+        # Funded: a workspace blocks manual overdrafts by default.
+        {
+            "name": "Checking",
+            "account_type": "checking",
+            "currency": "USD",
+            "opening_balance_minor": 1_000_000,
+        },
         format="json",
     ).data
     food = client.post(

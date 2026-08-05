@@ -1,10 +1,13 @@
 """The overdraft guard, and the workspace setting that governs it.
 
-These tests carry the weight for this feature. The shared `TenantFactory` turns
-`block_overdrafts` off, because the rest of the suite builds minimal ledgers
-where balances are incidental and would otherwise all be asserting this one
-rule — so the production default is proven *here*, explicitly, by constructing
-workspaces with the setting in each position.
+Every case here is explicit about which position the setting is in, rather than
+relying on the factory default — so these keep meaning what they say even if
+that default ever moves.
+
+The rest of the suite carries this rule incidentally: `TenantFactory` uses the
+production default, so every fixture that spends money funds its account first,
+and every one of those tests is also a check that the guard does not fire when
+it shouldn't.
 """
 
 from __future__ import annotations
@@ -135,9 +138,7 @@ def test_an_arranged_overdraft_is_a_real_ceiling():
         assert ok.amount_minor == -30_000
 
         with pytest.raises(fin.InsufficientFundsError):
-            fin.record_expense(
-                financial_account=account, category=category, amount_minor=1, occurred_at=WHEN
-            )
+            fin.record_expense(financial_account=account, category=category, amount_minor=1, occurred_at=WHEN)
 
 
 def test_a_credit_card_is_never_policed():
@@ -209,7 +210,7 @@ def test_an_owner_can_read_and_change_the_setting_over_http():
 
 
 def test_the_refusal_reaches_the_client_with_the_figures_behind_it():
-    """"Insufficient funds" alone leaves the user to work out which account and
+    """ "Insufficient funds" alone leaves the user to work out which account and
     by how much, so the 422 carries both."""
     membership = _workspace(block_overdrafts=True)
     client = _bearer_client(membership.user, tenant_id=membership.tenant_id)

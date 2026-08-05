@@ -28,7 +28,13 @@ def test_expense_in_non_base_currency_account(tenant_context):
     with _ctx(m):
         # base categories are USD (seeded); account is EUR
         cat = fin.create_category(name="Groceries", kind="expense", currency="USD")
-        eur = fin.create_financial_account(name="EU Checking", account_type="checking", currency="EUR")
+        # Funded: a workspace blocks manual overdrafts by default.
+        eur = fin.create_financial_account(
+            name="EU Checking",
+            account_type="checking",
+            currency="EUR",
+            opening_balance_minor=1_000_000,
+        )
         txn = fin.record_expense(
             financial_account=eur,
             category=cat,
@@ -39,7 +45,12 @@ def test_expense_in_non_base_currency_account(tenant_context):
         assert txn.currency == "EUR"
         assert txn.amount_minor == -5000
         # And a USD account against the same category still works.
-        usd = fin.create_financial_account(name="US Checking", account_type="checking", currency="USD")
+        usd = fin.create_financial_account(
+            name="US Checking",
+            account_type="checking",
+            currency="USD",
+            opening_balance_minor=1_000_000,
+        )
         txn2 = fin.record_expense(
             financial_account=usd,
             category=cat,

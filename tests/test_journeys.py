@@ -35,10 +35,17 @@ def _client(membership):
     return _bearer_client(membership.user, tenant_id=membership.tenant_id)
 
 
-def _account(client, name="Current", kind="checking"):
+def _account(client, name="Current", kind="checking", opening=1_000_000):
+    # Funded: a workspace blocks manual overdrafts by default, so an account
+    # with nothing in it cannot record an expense.
     r = client.post(
         "/api/v1/finance/accounts/",
-        {"name": name, "account_type": kind, "currency": "USD"},
+        {
+            "name": name,
+            "account_type": kind,
+            "currency": "USD",
+            "opening_balance_minor": opening,
+        },
         format="json",
     )
     assert r.status_code in (200, 201), r.data

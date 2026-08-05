@@ -38,19 +38,10 @@ class TenantFactory(DjangoModelFactory):
     name = factory.Sequence(lambda n: f"Household {n}")
     type = TenantType.PERSONAL
     base_currency = "USD"
-    #: Off by default here, unlike production, where it defaults to True.
-    #:
-    #: These fixtures build minimal ledgers: an account, a category, an expense,
-    #: with no opening balance because the balance is almost never what is being
-    #: tested. That is exactly the shape `block_overdrafts` refuses, so leaving
-    #: it on would make roughly a hundred unrelated tests assert the overdraft
-    #: guard instead of what they were written for — and every balance figure in
-    #: them would have to be rewritten around a funding amount.
-    #:
-    #: The production default is covered directly instead, by the tests in
-    #: `test_overdraft_policy.py`, which construct a workspace with the setting
-    #: on and one with it off and check both.
-    block_overdrafts = False
+    # `block_overdrafts` is deliberately NOT overridden: a test workspace gets
+    # the same policy a real signup gets. Fixtures fund their accounts instead,
+    # which is what a real household does — so every test that spends money is
+    # also, incidentally, a test that the guard doesn't fire when it shouldn't.
 
 
 class MembershipFactory(DjangoModelFactory):
