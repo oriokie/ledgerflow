@@ -55,7 +55,14 @@ def _workspace(transaction_count: int):
 
     account = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Current", "account_type": "checking", "currency": "USD"},
+        # Funded: a workspace blocks manual overdrafts by default, and these
+        # fixtures post hundreds of expenses to measure query counts.
+        {
+            "name": "Current",
+            "account_type": "checking",
+            "currency": "USD",
+            "opening_balance_minor": 1_000_000_000,
+        },
         format="json",
     ).data
     category = client.post(

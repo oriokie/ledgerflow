@@ -6,6 +6,8 @@ import type { Anomaly, CategorizationSuggestion, HealthScore, Recommendation } f
 const health: HealthScore = {
   score: 72,
   band: "good",
+  // Every component below is measured, so the score rests on the full weight.
+  coverage: 1,
   provider: "x",
   version: "1",
   components: [
