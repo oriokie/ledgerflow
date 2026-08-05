@@ -43,6 +43,84 @@ def cancel_recurring(*, rec: RecurringTransaction) -> None:
     rec.delete()
 
 
+#: Fields a caller may change on an existing template. `txn_type`, `currency`
+#: and `financial_account` are deliberately absent: every occurrence already
+#: posted is denominated in that currency, signed by that type and booked
+#: against that account, so changing one reinterprets history instead of
+#: correcting the plan. Those are a cancel-and-recreate, which leaves the
+#: posted transactions visibly attached to the old template.
+EDITABLE_FIELDS = frozenset(
+    {
+        "amount_minor",
+        "category",
+        "counter_account",
+        "payee",
+        "memo",
+        "frequency",
+        "interval",
+        "starts_on",
+        "ends_on",
+        "max_occurrences",
+    }
+)
+
+
+@transaction.atomic
+def update_recurring_transaction(*, rec: RecurringTransaction, **changes) -> RecurringTransaction:
+    """Edit a schedule going forward, leaving what it already posted alone.
+
+    The template is a plan, not ledger history — the same separation
+    ``IncomeSource`` keeps from ``IncomeReceipt``. Correcting the rent you pay
+    must change what gets posted next month, never rewrite the twelve months
+    already in the books.
+
+    Changing the cadence or the anchor recomputes ``next_run_on`` from the
+    anchor via ``nth_occurrence`` rather than nudging the stored date. Nudging
+    would drift: a schedule moved from monthly to quarterly after nine
+    occurrences must land a quarter after the *ninth* occurrence's anchor, not
+    a quarter after whatever date happened to be sitting in the column.
+    """
+    unknown = set(changes) - EDITABLE_FIELDS
+    if unknown:
+        raise RecurringError(f"Cannot change {', '.join(sorted(unknown))} on an existing schedule.")
+
+    for field, value in changes.items():
+        setattr(rec, field, value)
+
+    if rec.amount_minor <= 0:
+        raise RecurringError("Recurring amount must be positive.")
+    if rec.interval < 1:
+        raise RecurringError("Interval must be at least 1.")
+    if rec.frequency not in Frequency.values:
+        raise RecurringError(f"Unknown frequency {rec.frequency!r}.")
+    if rec.txn_type == RecurringType.TRANSFER and rec.counter_account_id is None:
+        raise RecurringError("A recurring transfer needs a counter_account.")
+    if rec.txn_type in (RecurringType.INCOME, RecurringType.EXPENSE) and rec.category_id is None:
+        raise RecurringError(f"A recurring {rec.txn_type} needs a category.")
+    if rec.ends_on is not None and rec.ends_on < rec.starts_on:
+        raise RecurringError("End date cannot be before the start date.")
+
+    # Re-anchor the next run whenever the cadence or the anchor moved. Counting
+    # from `occurrences_created` keeps every occurrence already posted valid and
+    # places the next one where the new schedule says it belongs.
+    if {"frequency", "interval", "starts_on"} & set(changes):
+        rec.next_run_on = nth_occurrence(
+            starts_on=rec.starts_on,
+            frequency=rec.frequency,
+            interval=rec.interval,
+            n=rec.occurrences_created,
+        )
+
+    # A schedule edited past its own end date is finished, not merely overdue.
+    if rec.ends_on is not None and rec.next_run_on > rec.ends_on:
+        rec.is_active = False
+    if rec.max_occurrences is not None and rec.occurrences_created >= rec.max_occurrences:
+        rec.is_active = False
+
+    rec.save()
+    return rec
+
+
 @transaction.atomic
 def create_recurring_transaction(
     *,

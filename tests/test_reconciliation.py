@@ -21,7 +21,14 @@ from tests.factories import MembershipFactory
 pytestmark = pytest.mark.django_db
 
 
-def _setup(balance=0):
+def _setup(balance=1_000_000):
+    """A funded account, because that is what a real one is.
+
+    A workspace blocks manual overdrafts by default, so an account with nothing
+    in it cannot record the expenses these tests reconcile. The figures asserted
+    below are sums of *cleared transactions*, not balances, so the opening
+    amount does not appear in any of them.
+    """
     membership = MembershipFactory()
     client = _bearer_client(membership.user, tenant_id=membership.tenant_id)
     account = client.post(

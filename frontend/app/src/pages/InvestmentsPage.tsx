@@ -1,5 +1,6 @@
 import { Plus, TagIcon, TrendingUp } from "lucide-react";
 import { useState } from "react";
+import { useAccounts } from "../hooks/useFinance";
 import { useHoldings, usePortfolio, usePortfolioHistory, useSecurities } from "../hooks/useInvestments";
 import { useAuth } from "../lib/AuthContext";
 import { Button, Card, EmptyState, Grid, Inline, PageHeader, SkeletonCard } from "../ui";
@@ -8,6 +9,7 @@ import {
   HoldingsTable,
   PerformanceChart,
   PortfolioSummaryCard,
+  IncomeModal,
   PriceModal,
   SecuritiesTable,
   SecurityModal,
@@ -27,11 +29,15 @@ export function InvestmentsPage() {
   const { data: holdings } = useHoldings();
   const { data: history } = usePortfolioHistory(12);
   const { data: securities } = useSecurities();
+  // Where a payment landed. Interest can be paid into any account, not only
+  // the brokerage that holds the security — an MMF often sweeps to current.
+  const { data: accounts } = useAccounts();
   const { activeWorkspace } = useAuth();
 
   const [tradeAction, setTradeAction] = useState<"buy" | "sell" | null>(null);
   const [showSecurity, setShowSecurity] = useState(false);
   const [showPrice, setShowPrice] = useState(false);
+  const [showIncome, setShowIncome] = useState(false);
 
   const currency = portfolio?.currency ?? activeWorkspace?.tenant.base_currency ?? "USD";
   const hasSecurities = (securities?.length ?? 0) > 0;
@@ -172,6 +178,17 @@ export function InvestmentsPage() {
                 >
                   Sell
                 </Button>
+                {/* Interest and dividends are how an MMF or a bond actually
+                    pays you, so recording one sits with the other holding
+                    actions rather than being buried elsewhere. */}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowIncome(true)}
+                  disabled={(holdings?.length ?? 0) === 0}
+                >
+                  Record payment
+                </Button>
               </Inline>
             </div>
             <HoldingsTable holdings={holdings ?? []} />
@@ -185,6 +202,12 @@ export function InvestmentsPage() {
         defaultCurrency={currency}
       />
       <PriceModal open={showPrice} onClose={() => setShowPrice(false)} holdings={holdings ?? []} />
+      <IncomeModal
+        open={showIncome}
+        onClose={() => setShowIncome(false)}
+        holdings={holdings ?? []}
+        accounts={accounts ?? []}
+      />
       <TradeModal
         open={tradeAction !== null}
         action={tradeAction ?? "buy"}

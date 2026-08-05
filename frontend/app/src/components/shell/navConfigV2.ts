@@ -7,6 +7,7 @@ import {
   Route,
   Target,
   Users,
+  HandCoins,
   TrendingDown,
   TrendingUp,
   Wallet,
@@ -67,6 +68,9 @@ export const NAV_SECTIONS_V2: NavSectionV2[] = [
       { to: "/goals", label: "Goals", icon: Target, metric: "goalProgress" },
       { to: "/investments", label: "Invest", icon: TrendingUp },
       { to: "/debt", label: "Debt", icon: TrendingDown },
+      // Next to Debt deliberately: they are the two directions of one
+      // question — who owes whom.
+      { to: "/receivables", label: "Owed to you", icon: HandCoins },
       // The section is named Trajectory and this is the only page that draws
       // one, so it belongs here rather than under Meaning: a projection is
       // where the money is going, not what it means.

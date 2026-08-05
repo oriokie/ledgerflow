@@ -38,6 +38,10 @@ class TenantFactory(DjangoModelFactory):
     name = factory.Sequence(lambda n: f"Household {n}")
     type = TenantType.PERSONAL
     base_currency = "USD"
+    # `block_overdrafts` is deliberately NOT overridden: a test workspace gets
+    # the same policy a real signup gets. Fixtures fund their accounts instead,
+    # which is what a real household does — so every test that spends money is
+    # also, incidentally, a test that the guard doesn't fire when it shouldn't.
 
 
 class MembershipFactory(DjangoModelFactory):

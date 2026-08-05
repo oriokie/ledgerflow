@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { Category, RecurringTransaction } from "../../api/types";
 import {
+  CADENCES,
   annualMinor,
+  cadenceByValue,
+  cadenceFor,
   cadenceLabel,
   monthlyMinor,
   recurringLabel,
@@ -78,7 +81,34 @@ describe("sortByMonthlyCost", () => {
 describe("cadenceLabel", () => {
   it("reads naturally for single and multi-interval schedules", () => {
     expect(cadenceLabel(rec({ frequency: "monthly", interval: 1 }))).toBe("Monthly");
-    expect(cadenceLabel(rec({ frequency: "weekly", interval: 2 }))).toBe("Every 2 weeks");
+    expect(cadenceLabel(rec({ frequency: "weekly", interval: 2 }))).toBe("Every two weeks");
+  });
+
+  it("names the cadences real bills actually use", () => {
+    expect(cadenceLabel(rec({ frequency: "monthly", interval: 3 }))).toBe("Quarterly");
+    expect(cadenceLabel(rec({ frequency: "monthly", interval: 4 }))).toBe("Every 4 months");
+    expect(cadenceLabel(rec({ frequency: "monthly", interval: 6 }))).toBe("Twice a year");
+  });
+
+  it("falls back to counting units for an interval nobody has a word for", () => {
+    expect(cadenceLabel(rec({ frequency: "monthly", interval: 5 }))).toBe("Every 5 months");
+  });
+});
+
+describe("cadence catalogue", () => {
+  it("round-trips a stored schedule back to the option that produced it", () => {
+    for (const cadence of CADENCES) {
+      const stored = rec({ frequency: cadence.frequency, interval: cadence.interval });
+      expect(cadenceFor(stored)?.value).toBe(cadence.value);
+      expect(cadenceByValue(cadence.value)).toEqual(cadence);
+    }
+  });
+
+  it("annualises the named cadences to the payments a year they describe", () => {
+    // 30,000 a quarter is 120,000 a year; twice a year is 60,000.
+    expect(annualMinor(rec({ frequency: "monthly", interval: 3, amount_minor: 30_000 }))).toBe(120_000);
+    expect(annualMinor(rec({ frequency: "monthly", interval: 6, amount_minor: 30_000 }))).toBe(60_000);
+    expect(annualMinor(rec({ frequency: "monthly", interval: 4, amount_minor: 30_000 }))).toBe(90_000);
   });
 });
 

@@ -288,6 +288,41 @@ class DividendView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
         )
 
 
+class InterestView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
+    """Record an interest payment from a holding — an MMF distribution, a bond
+    coupon. Same shape as a dividend; a separate endpoint because the two are
+    taxed and reported differently."""
+
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
+    serializer_class = DividendSerializer
+
+    def post(self, request):
+        s = DividendSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        v = s.validated_data
+        account = _resolve(FinancialAccount, v["financial_account_id"])
+        security = _resolve(Security, v["security_id"])
+        if account is None or security is None:
+            return Response({"detail": "Account or security not found."}, status=404)
+        try:
+            txn = services.record_interest(
+                financial_account=account,
+                security=security,
+                amount_minor=v["amount_minor"],
+                occurred_on=v.get("occurred_on"),
+                cash_account=(
+                    _resolve(FinancialAccount, v["cash_account_id"]) if v.get("cash_account_id") else None
+                ),
+                memo=v.get("memo", ""),
+            )
+        except services.InvestmentError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return Response(
+            {"id": txn.id, "amount_minor": txn.amount_minor, "occurred_on": txn.occurred_on},
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class SplitView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
     serializer_class = SplitSerializer

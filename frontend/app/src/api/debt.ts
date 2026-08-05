@@ -15,6 +15,29 @@ import type {
 
 export const debtApi = {
   debts: () => api.get<DebtView[]>("/debt/debts/"),
+
+  /**
+   * Create a debt: the liability account and its terms in one request.
+   *
+   * Terms are all optional, which is what makes an informal debt expressible —
+   * money borrowed from a friend has a name and an amount and nothing else.
+   */
+  createDebt: (payload: {
+    name: string;
+    currency: string;
+    balance_minor: number;
+    debt_kind?: string;
+    lender?: string;
+    apr?: string | number;
+    minimum_payment_minor?: number;
+    payment_day?: number | null;
+    original_principal_minor?: number | null;
+    notes?: string;
+  }) => api.post<DebtView>("/debt/debts/", payload),
+
+  /** Remove a debt outright. Distinct from `clearTerms`, which stops the
+   * planning but leaves the account owing. */
+  deleteDebt: (accountId: string) => api.delete<void>(`/debt/debts/${accountId}/`),
   /** Liability accounts that exist, whether or not anything is owed on them.
    * Distinct from `debts`, which is "what you owe" and excludes zero balances. */
   tracked: () => api.get<TrackedLiability[]>("/debt/debts/tracked/"),

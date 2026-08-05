@@ -12,10 +12,17 @@ from tests.factories import MembershipFactory
 pytestmark = pytest.mark.django_db
 
 
-def _mk_account(client, name="Checking", currency="USD", account_type="checking"):
+def _mk_account(client, name="Checking", currency="USD", account_type="checking", opening=1_000_000):
+    # Funded: a workspace blocks manual overdrafts by default, so an account
+    # with nothing in it cannot record an expense.
     return client.post(
         "/api/v1/finance/accounts/",
-        {"name": name, "account_type": account_type, "currency": currency},
+        {
+            "name": name,
+            "account_type": account_type,
+            "currency": currency,
+            "opening_balance_minor": opening,
+        },
         format="json",
     ).data
 

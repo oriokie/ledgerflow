@@ -2,6 +2,7 @@ export { DebtSummaryCard } from "./DebtSummaryCard";
 export { StrategyComparison } from "./StrategyComparison";
 export { PayoffCalendar } from "./PayoffCalendar";
 export { DebtTermsModal } from "./DebtTermsModal";
+export { CreateDebtModal } from "./CreateDebtModal";
 export { DebtStressCard } from "./DebtStressCard";
 export { BorrowingCostCard } from "./BorrowingCostCard";
 export { DebtAnalytics } from "./DebtAnalytics";

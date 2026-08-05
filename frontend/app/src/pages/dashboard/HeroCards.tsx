@@ -121,17 +121,27 @@ export function NetWorthCard({
 export function HealthCard({ health }: { health: HealthScore | undefined }) {
   const [open, setOpen] = useState(false);
 
-  if (!health) {
+  // A null score means the server measured too little of the picture to state
+  // one number. That is the same situation as having no score at all, and it
+  // must not be rendered as a figure — the old scorer's habit of filling gaps
+  // with flattering defaults is exactly what this replaces.
+  if (!health || health.score === null) {
+    const missing = (health?.components ?? []).filter((c) => c.score === null);
     return (
       <Card eyebrow="Financial health">
         <Text tone="secondary" size="sm">
-          Not enough data yet — add accounts and a few transactions.
+          {missing.length > 0
+            ? `Not enough data yet to score this. Still needed: ${missing
+                .map((c) => c.name.toLowerCase())
+                .join(", ")}.`
+            : "Not enough data yet — add accounts and a few transactions."}
         </Text>
       </Card>
     );
   }
 
-  const tone = health.score >= 70 ? "success" : health.score >= 45 ? "warning" : "danger";
+  const score = health.score;
+  const tone = score >= 70 ? "success" : score >= 45 ? "warning" : "danger";
 
   return (
     <Card>
@@ -140,7 +150,7 @@ export function HealthCard({ health }: { health: HealthScore | undefined }) {
       <Figure
         label="Financial health"
         size="hero"
-        value={Math.round(health.score)}
+        value={Math.round(score)}
         delta={<Badge tone={tone}>{health.band}</Badge>}
       />
 
@@ -163,14 +173,20 @@ export function HealthCard({ health }: { health: HealthScore | undefined }) {
 
           {open && (
             <div className="lf-disclosure-panel">
-              {health.components.map((c) => (
-                <Meter
-                  key={c.name}
-                  value={c.score}
-                  label={c.name}
-                  caption={`${Math.round(c.score)}`}
-                />
-              ))}
+              {health.components.map((c) =>
+                c.score === null ? (
+                  <Text key={c.name} tone="tertiary" size="sm">
+                    {c.name} — {c.detail}
+                  </Text>
+                ) : (
+                  <Meter
+                    key={c.name}
+                    value={c.score}
+                    label={c.name}
+                    caption={`${Math.round(c.score)}`}
+                  />
+                ),
+              )}
             </div>
           )}
         </>

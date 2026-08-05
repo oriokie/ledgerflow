@@ -34,6 +34,10 @@ from apps.common.tenant_context import use_tenant
 
 pytestmark = [pytest.mark.django_db(transaction=True), pytest.mark.slow]
 
+#: Opening balance for the contention fixtures. Large enough that the
+#: overdraft guard never fires, so what is measured is lost updates.
+OPENING = 10_000_000
+
 THREADS = 8
 
 
@@ -89,7 +93,12 @@ def test_concurrent_categorisation_does_not_lose_updates():
         bind_db_tenant(tenant_id)
         with use_tenant(tenant_id, actor_id=membership.user_id):
             account = finance_services.create_financial_account(
-                name="Current", account_type="checking", currency="USD"
+                name="Current",
+                account_type="checking",
+                currency="USD",
+                # Funded: a workspace blocks manual overdrafts by default, and
+                # this test posts many small expenses concurrently.
+                opening_balance_minor=10_000_000,
             )
             category = finance_services.create_category(name="Groceries", kind="expense", currency="USD")
             txn_ids = [
@@ -190,7 +199,12 @@ def test_concurrent_postings_to_one_account_keep_the_balance_correct():
         bind_db_tenant(tenant_id)
         with use_tenant(tenant_id, actor_id=membership.user_id):
             account = finance.create_financial_account(
-                name="Current", account_type="checking", currency="USD"
+                name="Current",
+                account_type="checking",
+                currency="USD",
+                # Funded: a workspace blocks manual overdrafts by default, and
+                # this test posts many small expenses concurrently.
+                opening_balance_minor=OPENING,
             )
             category = finance.create_category(name="Living", kind="expense", currency="USD")
             account_id, category_id = account.id, category.id
@@ -219,9 +233,9 @@ def test_concurrent_postings_to_one_account_keep_the_balance_correct():
         bind_db_tenant(tenant_id)
         with use_tenant(tenant_id, actor_id=membership.user_id):
             balance = AccountBalance.objects.get(account_id=ledger_account_id)
-    assert balance.balance_minor == -100 * THREADS, (
-        f"balance is {balance.balance_minor}, expected {-100 * THREADS} — "
-        "concurrent postings lost an update."
+    expected = OPENING - 100 * THREADS
+    assert balance.balance_minor == expected, (
+        f"balance is {balance.balance_minor}, expected {expected} — " "concurrent postings lost an update."
     )
 
 

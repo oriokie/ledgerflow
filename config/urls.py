@@ -29,6 +29,7 @@ api_v1_patterns = [
     path("receipts/", include("apps.receipts.api.urls")),
     path("goals/", include("apps.goals.api.urls")),
     path("income/", include("apps.income.api.urls")),
+    path("receivables/", include("apps.receivables.api.urls")),
     path("notifications/", include("apps.notifications.api.urls")),
     path("billing/", include("apps.billing.api.urls")),
     path("fx/", include("apps.fx.api.urls")),

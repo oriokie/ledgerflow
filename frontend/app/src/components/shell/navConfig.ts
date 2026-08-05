@@ -18,6 +18,7 @@ import {
   Sparkles,
   Zap,
   Target,
+  HandCoins,
   TrendingDown,
   TrendingUp,
   Users,
@@ -64,6 +65,9 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: "/goals", label: "Goals", icon: Target },
       { to: "/investments", label: "Investments", icon: TrendingUp },
       { to: "/debt", label: "Debt", icon: TrendingDown },
+      // Next to Debt deliberately: they are the two directions of one
+      // question — who owes whom.
+      { to: "/receivables", label: "Owed to you", icon: HandCoins },
       { to: "/projections", label: "Projections", icon: Route },
     ],
   },

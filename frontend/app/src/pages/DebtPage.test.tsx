@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -20,9 +20,17 @@ vi.mock("../hooks/useDebt", () => ({
   usePayoffPlan: () => ({ data: undefined }),
   useSetDebtTerms: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSimulateRefinance: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCreateDebt: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteDebt: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock("../api/debt", () => ({
   debtApi: { exportUrl: () => "/export.csv" },
+}));
+// The create-debt form defaults its currency to the workspace's.
+vi.mock("../lib/AuthContext", () => ({
+  useAuth: () => ({
+    activeWorkspace: { role: "owner", tenant: { id: "t1", base_currency: "USD" } },
+  }),
 }));
 
 import { DebtPage } from "./DebtPage";
@@ -91,22 +99,41 @@ describe("DebtPage — empty state", () => {
     summary.mockReturnValue(undefined);
     render(<DebtPage />, { wrapper });
 
-    expect(screen.getByRole("button", { name: /add a credit card or loan/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /add a debt/i })).toBeInTheDocument();
   });
 
-  it("the CTA actually navigates to where debt accounts are created", async () => {
+  it("the CTA opens the debt form rather than bouncing to the accounts page", async () => {
+    // Regression: this used to navigate to /accounts?add=1, which made a bare
+    // account with no terms and left the planner still empty — so the button
+    // read as broken.
     summary.mockReturnValue(undefined);
     const user = userEvent.setup();
     render(<DebtPage />, { wrapper });
 
-    await user.click(screen.getByRole("button", { name: /add a credit card or loan/i }));
-    expect(screen.getByText("Accounts page")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /add a debt/i }));
+    expect(screen.getByRole("dialog", { name: /add a debt/i })).toBeInTheDocument();
+    expect(screen.queryByText("Accounts page")).not.toBeInTheDocument();
   });
 
-  it("explains that debt is read from accounts rather than entered separately", () => {
+  it("asks only for a name and an amount, so an informal debt can be entered", async () => {
+    // A loan from a friend has no APR and no minimum payment. Requiring them
+    // would either block the entry or invite an invented figure.
+    summary.mockReturnValue(undefined);
+    const user = userEvent.setup();
+    render(<DebtPage />, { wrapper });
+
+    await user.click(screen.getByRole("button", { name: /add a debt/i }));
+    const dialog = screen.getByRole("dialog", { name: /add a debt/i });
+    expect(within(dialog).getByLabelText(/^name/i)).toBeRequired();
+    expect(within(dialog).getByLabelText(/amount owed/i)).toBeRequired();
+    expect(within(dialog).getByLabelText(/interest rate/i)).not.toBeRequired();
+    expect(within(dialog).getByLabelText(/minimum payment/i)).not.toBeRequired();
+  });
+
+  it("explains that adding a debt sets up its account too", () => {
     summary.mockReturnValue(undefined);
     render(<DebtPage />, { wrapper });
-    expect(screen.getByText(/reads from your accounts/i)).toBeInTheDocument();
+    expect(screen.getByText(/sets up the account behind it/i)).toBeInTheDocument();
   });
 });
 

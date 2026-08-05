@@ -210,8 +210,29 @@ export const financeExtendedApi = {
     memo?: string;
   }) => api.post<RecurringTransaction>("/finance/recurring/", payload),
 
-  updateRecurring: (recId: string, payload: { is_active: boolean }) =>
-    api.patch<RecurringTransaction>(`/finance/recurring/${recId}/`, payload),
+  /**
+   * Pause/resume, or edit the plan going forward.
+   *
+   * `txn_type`, `currency` and `financial_account_id` are absent on purpose:
+   * every occurrence the template already posted carries them, so changing one
+   * would reinterpret history rather than correct the plan. The server refuses
+   * them too — this type just stops the client asking.
+   */
+  updateRecurring: (
+    recId: string,
+    payload: {
+      is_active?: boolean;
+      amount_minor?: number;
+      category_id?: string | null;
+      counter_account_id?: string | null;
+      frequency?: string;
+      interval?: number;
+      starts_on?: string;
+      ends_on?: string | null;
+      max_occurrences?: number | null;
+      memo?: string;
+    },
+  ) => api.patch<RecurringTransaction>(`/finance/recurring/${recId}/`, payload),
 
   cancelRecurring: (recId: string) => api.delete<void>(`/finance/recurring/${recId}/`),
 

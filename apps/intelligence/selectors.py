@@ -17,7 +17,12 @@ from django.utils import timezone
 from apps.budgeting.models import Budget
 from apps.budgeting.selectors import budget_status
 from apps.finance.models import Transaction
-from apps.finance.selectors import cash_flow, net_worth
+
+# `_COUNTED` (posted + reconciled) is the finance layer's own definition of a
+# transaction that counts toward reported figures. Imported rather than
+# restated so this module cannot drift from it.
+from apps.finance.selectors import _COUNTED, cash_flow, net_worth
+from apps.ledger.models import AccountBalance
 
 from .protocols import AmountObservation, CashflowPoint, HealthInputs, RecommendationContext
 
@@ -81,13 +86,63 @@ def build_recommendation_context(*, as_of: date | None = None) -> Recommendation
     )
 
 
-def build_health_inputs(*, as_of: date | None = None) -> HealthInputs:
-    """Assemble the health scorer's five inputs from balances, budgets, cash
-    flow. Deterministic and explainable — each input traces to a real read."""
-    as_of = as_of or timezone.localdate()
+#: Trailing window, in whole months, for the rate-style health inputs.
+#:
+#: Whole months, and never the current one. Month-to-date was the single
+#: biggest distortion in the old score: on the 2nd of the month a household has
+#: banked its salary and paid almost nothing, so "income minus spending over
+#: income" read as a ~100% savings rate every month, then sank as the month
+#: wore on. A rate has to be measured over periods that have actually finished.
+HEALTH_WINDOW_MONTHS = 3
 
-    income, expense = _income_expense(as_of)
-    savings_rate = round((income - expense) / income, 3) if income > 0 else 0.0
+#: Fewest expense transactions in the window before the spending side is
+#: considered measured at all. One stray coffee does not establish what a
+#: household spends, and a savings rate computed against it would be a
+#: near-perfect score derived from a single row.
+MIN_EXPENSE_TXNS_FOR_RATE = 3
+
+
+def _completed_window(as_of: date, months: int) -> tuple[datetime, datetime]:
+    """[start, end) covering the `months` whole months before `as_of`'s month."""
+    end_date = as_of.replace(day=1)
+    start_date = end_date
+    for _ in range(months):
+        start_date = _prev_month_first(start_date)
+    tz = timezone.get_current_timezone()
+    return (
+        timezone.make_aware(datetime.combine(start_date, time.min), tz),
+        timezone.make_aware(datetime.combine(end_date, time.min), tz),
+    )
+
+
+def build_health_inputs(*, as_of: date | None = None) -> HealthInputs:
+    """Assemble the health scorer's five inputs from balances, budgets, cash flow.
+
+    Deterministic and explainable — each input traces to a real read, and any
+    input the data cannot support comes back as None rather than as a default
+    that reads like a pass. See `HealthInputs` for why that matters.
+    """
+    as_of = as_of or timezone.localdate()
+    start, end = _completed_window(as_of, HEALTH_WINDOW_MONTHS)
+
+    income = 0
+    expense = 0
+    for flow in cash_flow(start=start, end=end):
+        income += flow.income_minor
+        expense += abs(flow.expense_minor)  # expense_minor is signed negative
+
+    expense_txns = Transaction.objects.filter(
+        _COUNTED, transfer_group__isnull=True, amount_minor__lt=0, occurred_at__gte=start, occurred_at__lt=end
+    ).count()
+    spending_measured = expense_txns >= MIN_EXPENSE_TXNS_FOR_RATE
+
+    # Savings rate needs both halves: income to divide by, and enough spending
+    # on record for "what was left over" to mean anything. Income with no
+    # recorded spending is an incomplete picture, not a household that saved
+    # everything.
+    savings_rate = (
+        round(max(0.0, (income - expense) / income), 3) if income > 0 and spending_measured else None
+    )
 
     # assets vs liabilities from the materialized balances in ONE aggregate
     # query (was a per-account loop — an N+1 on the dashboard's hot path).
@@ -96,13 +151,27 @@ def build_health_inputs(*, as_of: date | None = None) -> HealthInputs:
     for nw in net_worth():
         assets += nw.assets_minor
         liabilities += nw.liabilities_minor
-    debt_to_asset = round(liabilities / assets, 3) if assets > 0 else 1.0
+    if assets <= 0 and liabilities <= 0:
+        debt_to_asset = None  # nothing on either side; no balance sheet to read
+    elif assets <= 0:
+        debt_to_asset = 1.0  # owes money against no assets — genuinely the worst case
+    else:
+        debt_to_asset = round(liabilities / assets, 3)
 
-    # emergency runway: months of spend covered by liquid assets
-    monthly_expense = expense or 1
-    coverage_months = round(assets / monthly_expense, 1) if monthly_expense else 0.0
+    # Emergency runway: months of *typical* spend covered by cash that can
+    # actually be reached. Two corrections to what this used to be — it counted
+    # every asset including investments and property, and it divided by
+    # `expense or 1`, so a household with no recorded spending scored infinite
+    # runway and full marks.
+    if spending_measured and expense > 0:
+        monthly_expense = expense / HEALTH_WINDOW_MONTHS
+        liquid = _liquid_assets_minor()
+        coverage_months = round(max(0, liquid) / monthly_expense, 1)
+    else:
+        coverage_months = None
 
-    # budget adherence: share of lines within limit
+    # Budget adherence: share of lines within limit. No budgets means nothing
+    # to keep to — not perfect adherence.
     within = 0
     total = 0
     for budget in Budget.objects.all():
@@ -110,17 +179,34 @@ def build_health_inputs(*, as_of: date | None = None) -> HealthInputs:
             total += 1
             if not line.over_budget:
                 within += 1
-    adherence = round(within / total, 3) if total else 1.0
-
-    stability = _income_stability(as_of)
+    adherence = round(within / total, 3) if total else None
 
     return HealthInputs(
         savings_rate=savings_rate,
         essential_coverage_months=coverage_months,
         budget_adherence=adherence,
         debt_to_asset=debt_to_asset,
-        income_stability=stability,
+        income_stability=_income_stability(as_of),
     )
+
+
+def _liquid_assets_minor() -> int:
+    """Cash reachable this week, across currencies.
+
+    An emergency fund is money you can spend on Tuesday. A pension, a house and
+    an index fund are assets but they are not a runway, and counting them was
+    what let a household with nothing set aside score full marks here.
+
+    Sums across currencies without FX, consistent with the other ratio inputs
+    (see `cash_flow`'s note) — the FX layer is the documented seam.
+    """
+    from apps.finance.selectors import _LIQUID_TYPES
+
+    total = AccountBalance.objects.filter(
+        account__financial_account__is_active=True,
+        account__financial_account__account_type__in=_LIQUID_TYPES,
+    ).aggregate(total=models.Sum("balance_minor"))["total"]
+    return total or 0
 
 
 def build_amount_observations(*, days: int = 120) -> list[AmountObservation]:
@@ -150,9 +236,14 @@ def build_amount_observations(*, days: int = 120) -> list[AmountObservation]:
 # --------------------------------------------------------------- helpers
 
 
-def _income_stability(as_of: date) -> float:
-    """1 - coefficient of variation of the last 3 months' income, clamped to
-    0..1. Steady income -> near 1; erratic -> near 0."""
+def _income_stability(as_of: date) -> float | None:
+    """1 - coefficient of variation of the last 3 months' income, clamped to 0..1.
+
+    Steady income -> near 1; erratic -> near 0. None when fewer than two of
+    those months carried any income at all: variance over one observation is
+    not "perfectly stable", it is unmeasured, and returning 1.0 for it credited
+    brand-new workspaces with the steadiest income in the product.
+    """
     import statistics
 
     monthly = []
@@ -168,9 +259,13 @@ def _income_stability(as_of: date) -> float:
         ).aggregate(total=Sum("amount_minor"))
         monthly.append(agg["total"] or 0)
         cursor = prev_start
-    if len(monthly) < 2 or statistics.fmean(monthly) == 0:
-        return 1.0
+
+    earning_months = [m for m in monthly if m > 0]
+    if len(earning_months) < 2:
+        return None
     mean = statistics.fmean(monthly)
+    if mean == 0:
+        return None
     cv = statistics.pstdev(monthly) / mean
     return round(max(0.0, min(1.0, 1 - cv)), 3)
 

@@ -7,6 +7,7 @@
  */
 
 export interface OnboardingState {
+  hasCurrency: boolean;
   hasAccount: boolean;
   hasTransaction: boolean;
   hasBudget: boolean;
@@ -21,6 +22,13 @@ export interface OnboardingStep {
   done: boolean;
   cta?: { label: string; to: string };
   secondary?: { label: string; to: string };
+  /**
+   * Handled by a control rendered inside the checklist rather than by
+   * navigating somewhere. Currency is the one setup decision with nowhere
+   * sensible to send someone — it is one field, and bouncing a first-time user
+   * into Settings to change it is how the step goes unfinished.
+   */
+  inline?: "currency";
 }
 
 /**
@@ -32,6 +40,16 @@ export interface OnboardingStep {
  */
 export function buildSteps(state: OnboardingState): OnboardingStep[] {
   return [
+    {
+      // First, because it is the assumption every later step inherits. An
+      // account, a budget and a goal all get created in *some* currency, and
+      // the cheapest moment to get that right is before any of them exist.
+      id: "currency",
+      title: "Choose your currency",
+      body: "Everything defaults to this — accounts, budgets, goals and every total. You can still hold accounts in other currencies.",
+      done: state.hasCurrency,
+      inline: "currency",
+    },
     {
       id: "account",
       title: "Add your first account",

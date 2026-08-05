@@ -58,6 +58,9 @@ def _compute_health_score() -> dict:
     return {
         "score": result.score,
         "band": result.band,
+        # `coverage` travels with the score so the client can qualify a partial
+        # figure rather than presenting it as the whole picture.
+        "coverage": result.coverage,
         "components": [asdict(c) for c in result.components],
         "provider": result.provenance.provider,
         "version": result.provenance.version,
@@ -122,8 +125,11 @@ def _compute_forecast() -> dict:
 
 
 class _HealthScoreResponse(serializers.Serializer):
-    score = serializers.IntegerField()
+    #: Null when too little is measurable to state a figure — the client must
+    #: render that absence, not substitute a zero.
+    score = serializers.IntegerField(allow_null=True)
     band = serializers.CharField()
+    coverage = serializers.FloatField()
     components = serializers.ListField(child=serializers.DictField())
     provider = serializers.CharField()
     version = serializers.CharField()

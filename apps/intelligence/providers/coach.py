@@ -541,7 +541,14 @@ class RuleBasedCoach:
         health = ctx.health
         if not health or not health.get("components"):
             return []
-        weakest = min(health["components"], key=lambda c: c.get("score", 100))
+        # Only components that were actually measured can be "weakest". An
+        # unscored one means the data is missing, which is a gap to fill rather
+        # than an area to improve — and ranking None alongside integers is how
+        # this used to raise a TypeError.
+        scored = [c for c in health["components"] if c.get("score") is not None]
+        if not scored or health.get("score") is None:
+            return []
+        weakest = min(scored, key=lambda c: c["score"])
         return [
             InsightCandidate(
                 kind=InsightKind.HEALTH_IMPROVEMENT,

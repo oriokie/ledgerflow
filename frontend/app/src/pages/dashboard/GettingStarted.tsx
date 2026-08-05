@@ -1,6 +1,84 @@
 import { ArrowRight, Check, X } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { ApiError } from "../../api/client";
+import { tenancyApi } from "../../api/tenancy";
+import { useAuth } from "../../lib/AuthContext";
+import { CURRENCY_OPTIONS } from "../../lib/currencies";
 import { buildSteps, type OnboardingState } from "./onboarding";
+
+/**
+ * The currency step, answered in place.
+ *
+ * Saving reloads rather than just updating context: the base currency is read
+ * at render time by nearly every screen and is baked into cached query data,
+ * so a soft update would leave half the app showing the old symbol. This is
+ * the same reason the settings panel reloads after the same change.
+ */
+function CurrencyStep({ onSaved }: { onSaved?: () => void }) {
+  const { activeWorkspace } = useAuth();
+  const tenant = activeWorkspace?.tenant;
+  const isOwner = activeWorkspace?.role === "owner";
+  const [code, setCode] = useState(tenant?.base_currency ?? "USD");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!tenant) return null;
+  if (!isOwner) {
+    return (
+      <p className="lf-onboard-step-body">
+        Your workspace is set to {tenant.base_currency}. Only an owner can change it.
+      </p>
+    );
+  }
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await tenancyApi.updateWorkspace(tenant.id, { base_currency: code });
+      onSaved?.();
+      window.location.reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Couldn't save your currency.");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="lf-onboard-cta-row">
+      <label className="lf-visually-hidden" htmlFor="onboard-currency">
+        Default currency
+      </label>
+      <select
+        id="onboard-currency"
+        className="lf-select"
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        disabled={saving}
+      >
+        {CURRENCY_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="lf-btn lf-btn--primary lf-btn--sm"
+        onClick={save}
+        disabled={saving}
+      >
+        {saving ? "Saving…" : "Use this currency"}
+      </button>
+      {error && (
+        <span className="lf-onboard-step-body" role="alert">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
 
 /**
  * First-run guidance, as a checklist that persists rather than a gate that
@@ -100,6 +178,7 @@ export function GettingStarted({
                   {step.done && <span className="lf-visually-hidden"> — done</span>}
                 </div>
                 <p className="lf-onboard-step-body">{step.body}</p>
+                {isCurrent && step.inline === "currency" && <CurrencyStep />}
                 {isCurrent && step.cta && (
                   <div className="lf-onboard-cta-row">
                     <Link className="lf-btn lf-btn--primary lf-btn--sm lf-onboard-cta" to={step.cta.to}>

@@ -123,6 +123,17 @@ class FinancialAccount(SoftDeletableModel):
     include_in_net_worth = models.BooleanField(default=True)
     include_in_budgets = models.BooleanField(default=True)
 
+    # --- overdraft ----------------------------------------------------------
+    # How far below zero this account is allowed to go, as a positive figure.
+    # Zero — the default — means a posting that would leave the account
+    # overdrawn is refused outright.
+    #
+    # A limit rather than a boolean because an arranged overdraft is a real
+    # arrangement with a real ceiling, and "may go negative: yes/no" cannot
+    # express it. Applies only to asset accounts; a credit card or loan is
+    # *supposed* to carry a balance owed, and is never checked.
+    overdraft_limit_minor = models.BigIntegerField(default=0)
+
     # Aggregation sync state
     external_id = models.CharField(max_length=128, blank=True, default="")
     last_synced_at = models.DateTimeField(null=True, blank=True)
@@ -134,6 +145,10 @@ class FinancialAccount(SoftDeletableModel):
 
     class Meta:
         constraints = [
+            models.CheckConstraint(
+                condition=models.Q(overdraft_limit_minor__gte=0),
+                name="faccount_overdraft_limit_non_negative",
+            ),
             models.UniqueConstraint(
                 fields=["tenant_id", "name"],
                 name="uniq_faccount_name",

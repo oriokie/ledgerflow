@@ -67,7 +67,13 @@ def test_cannot_delete_category_in_use():
     # build an account + category + a transaction using that category
     with use_tenant(m.tenant_id, actor_id=m.user_id), transaction.atomic():
         bind_db_tenant(m.tenant_id)
-        account = fin.create_financial_account(name="Checking", account_type="checking", currency="USD")
+        # Funded: a workspace blocks manual overdrafts by default.
+        account = fin.create_financial_account(
+            name="Checking",
+            account_type="checking",
+            currency="USD",
+            opening_balance_minor=1_000_000,
+        )
         category = fin.create_category(name="Rent", kind="expense", currency="USD")
         fin.record_expense(
             financial_account=account,

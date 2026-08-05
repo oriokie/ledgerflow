@@ -50,6 +50,7 @@ from apps.finance.models import (
     FinancialAccount,
     Payee,
     Transaction,
+    TransactionSource,
     TransactionStatus,
 )
 from apps.goals import services as goal_services
@@ -512,6 +513,7 @@ class Command(BaseCommand):
                 memo=memo,
                 idempotency_key=marker,
                 tenant_metadata={"seed": marker},
+                source=TransactionSource.IMPORTED,
             )
         return 1
 
@@ -529,6 +531,15 @@ class Command(BaseCommand):
                 payee=payee,
                 idempotency_key=marker,
                 tenant_metadata={"seed": marker},
+                # Backfilled history, not somebody typing today's payment.
+                #
+                # This is what the source field is *for*, and getting it wrong
+                # had a consequence: a workspace blocks manual overdrafts by
+                # default, and this generator models a household that dips
+                # below zero on a cash wallet now and then — so seeding failed
+                # outright. Marking it honestly fixes that and makes the demo
+                # ledger read the way a real backfilled one does.
+                source=TransactionSource.IMPORTED,
             )
         return 1
 
@@ -546,6 +557,7 @@ class Command(BaseCommand):
                 occurred_at=self._at(day, hour=10),
                 memo="Scheduled transfer",
                 idempotency_key=marker,
+                source=TransactionSource.IMPORTED,
             )
         return 2
 

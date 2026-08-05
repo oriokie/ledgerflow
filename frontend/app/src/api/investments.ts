@@ -50,7 +50,23 @@ export const investmentsApi = {
     security_id: string;
     amount_minor: number;
     occurred_on?: string;
+    memo?: string;
   }) => api.post("/investments/dividends/record/", payload),
+
+  /**
+   * Interest paid out by a holding — an MMF distribution, a bond coupon.
+   *
+   * Separate from a dividend rather than folded into it: the two are taxed and
+   * reported differently, and a fund paying monthly interest is a different
+   * cash-flow shape from an equity paying a discretionary dividend.
+   */
+  recordInterest: (payload: {
+    financial_account_id: string;
+    security_id: string;
+    amount_minor: number;
+    occurred_on?: string;
+    memo?: string;
+  }) => api.post("/investments/interest/record/", payload),
 
   dividends: (months = 12) =>
     api.get<{ currency: string; total_minor: number; by_security: { symbol: string; amount_minor: number }[] } | null>(

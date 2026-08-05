@@ -15,6 +15,7 @@ function health(over: Partial<HealthScore> = {}): HealthScore {
   return {
     score: 72,
     band: "good",
+    coverage: 1,
     provider: "x",
     version: "1",
     components: [

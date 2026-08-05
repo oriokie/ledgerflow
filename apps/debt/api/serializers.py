@@ -29,6 +29,22 @@ class DebtTermsSerializer(serializers.Serializer):
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
 
+class DebtCreateSerializer(DebtTermsSerializer):
+    """A whole debt in one request: what it is, what's owed, and its terms.
+
+    Inherits the terms so the two cannot drift, and adds only what the account
+    itself needs. Terms stay optional — money borrowed from a friend has a name
+    and an amount and nothing else, and that has to be enough.
+    """
+
+    name = serializers.CharField(max_length=120)
+    currency = serializers.CharField(max_length=3, min_length=3)
+    balance_minor = serializers.IntegerField(min_value=0)
+    #: Who it's owed to. Free text on purpose — a friend is not an institution
+    #: and forcing one into that table would be modelling the wrong thing.
+    lender = serializers.CharField(max_length=120, required=False, allow_blank=True, default="")
+
+
 class RateChangeSerializer(serializers.Serializer):
     """A rate effective from a date. Future dates are the point: a notified
     increase should shape the plan before it bites."""

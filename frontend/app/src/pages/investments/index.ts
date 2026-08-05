@@ -5,4 +5,5 @@ export { PerformanceChart } from "./PerformanceChart";
 export { TradeModal } from "./TradeModal";
 export { SecurityModal } from "./SecurityModal";
 export { PriceModal } from "./PriceModal";
+export { IncomeModal } from "./IncomeModal";
 export { SecuritiesTable } from "./SecuritiesTable";

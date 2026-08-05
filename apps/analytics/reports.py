@@ -855,7 +855,11 @@ def financial_health_report(filters: ReportFilters) -> ReportResult:
         }
         for component in score.components
     ]
-    rows.sort(key=lambda r: r["score"])
+    # Measured components first, weakest of them at the top; the ones with no
+    # basis sort to the end rather than being ranked against real scores. Their
+    # `detail` says what is missing, so they read as gaps to fill.
+    rows.sort(key=lambda r: (r["score"] is None, r["score"] if r["score"] is not None else 0))
+    weakest = next((r["label"] for r in rows if r["score"] is not None), None)
 
     return ReportResult(
         slug="financial_health",
@@ -863,10 +867,10 @@ def financial_health_report(filters: ReportFilters) -> ReportResult:
         currency=currency,
         start=start,
         end=end,
-        totals={"score": score.score, "band": score.band},
+        totals={"score": score.score, "band": score.band, "coverage": score.coverage},
         rows=rows,
         # Weakest first: where an improvement moves the number most.
-        meta={"weakest": rows[0]["label"] if rows else None},
+        meta={"weakest": weakest},
     )
 
 

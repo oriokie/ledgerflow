@@ -66,8 +66,14 @@ export function TransactionTable({
                 onChange={onToggleAll}
               />
             </th>
-            <th scope="col">Transaction</th>
+            <th scope="col" className="lf-txn-date">
+              Date
+            </th>
+            <th scope="col">Description</th>
             <th scope="col">Category</th>
+            <th scope="col" className="lf-txn-account">
+              Account
+            </th>
             <th scope="col" className="lf-col-amount">
               Amount
             </th>
@@ -99,24 +105,16 @@ export function TransactionTable({
                     onChange={() => onToggle(txn.id)}
                   />
                 </td>
+                {/* One fact per column, ledger-style. The date and account used
+                    to share a stacked sub-line under the description, which
+                    reads fine on a phone but makes the desktop table impossible
+                    to scan down a single column — the thing a spreadsheet is
+                    good at. The mobile breakpoint restacks them. */}
+                <td className="lf-txn-date">
+                  <span className="lf-cell-meta">{formatDate(txn.occurred_at)}</span>
+                </td>
                 <td>
                   <span className="lf-cell-primary">{describe(txn, catName)}</span>
-                  <br />
-                  <span className="lf-cell-meta">
-                    {formatDate(txn.occurred_at)}
-                    {account ? ` · ${account}` : ""}
-                    {/* A transfer posts as two rows, one per account, which is
-                        correct in the ledger and baffling in a list: the same
-                        money appears twice with no indication the two are one
-                        movement. Naming both ends on each leg makes the pair
-                        legible without pretending it is a single row. */}
-                    {isTransfer && counterAccount ? (
-                      <>
-                        {" "}
-                        <span aria-hidden="true">⇄</span> {counterAccount}
-                      </>
-                    ) : null}
-                  </span>
                 </td>
                 <td className="lf-txn-cat" onClick={(e) => e.stopPropagation()}>
                   {isTransfer ? (
@@ -136,6 +134,22 @@ export function TransactionTable({
                       ))}
                     </select>
                   )}
+                </td>
+                <td className="lf-txn-account">
+                  <span className="lf-cell-meta">
+                    {account ?? "—"}
+                    {/* A transfer posts as two rows, one per account, which is
+                        correct in the ledger and baffling in a list: the same
+                        money appears twice with no indication the two are one
+                        movement. Naming both ends on each leg makes the pair
+                        legible without pretending it is a single row. */}
+                    {isTransfer && counterAccount ? (
+                      <>
+                        {" "}
+                        <span aria-hidden="true">⇄</span> {counterAccount}
+                      </>
+                    ) : null}
+                  </span>
                 </td>
                 <td className="lf-col-amount">
                   <Money amountMinor={txn.amount_minor} currency={txn.currency} isTransfer={isTransfer} />
