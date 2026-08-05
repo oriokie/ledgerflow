@@ -187,6 +187,20 @@
   margin-top: 1px;
 }
 
+/* An inline link in body text is still a tap target, and at this font size its
+   natural box is 16px tall — under the 24px WCAG 2.5.8 (AA) floor the route
+   audit enforces. `inline-block` plus a matching min-height grows the hit area
+   without moving the text or breaking the sentence it sits in.
+   24px is the spec's figure rather than a brand value, so it is written
+   literally; `--lf-touch-target` (44px) is the separate, larger project
+   minimum for standalone controls and would look wrong mid-sentence. */
+.lf-worth-body a {
+  display: inline-block;
+  min-height: 24px;
+  line-height: 24px;
+  vertical-align: bottom;
+}
+
 /* ---------- suggestion ---------- */
 .lf-suggest-q {
   color: var(--lf-text-primary);
