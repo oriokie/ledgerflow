@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Category, FinancialAccount, Transaction } from "../../api/types";
 import { TransactionTable } from "./TransactionTable";
@@ -81,5 +81,35 @@ describe("TransactionTable", () => {
     const { onOpen } = setup(new Set());
     fireEvent.click(screen.getByText("Txn t2"));
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: "t2" }));
+  });
+});
+
+describe("the ledger grid", () => {
+  it("gives every fact its own column, so a column can be scanned down", () => {
+    // The date and account used to sit in a stacked sub-line under the
+    // description, which reads fine on a phone and makes the desktop table
+    // impossible to scan the way a spreadsheet is scanned.
+    setup(new Set());
+    const headers = screen.getAllByRole("columnheader").map((h) => h.textContent?.trim());
+    expect(headers).toEqual(["", "Date", "Description", "Category", "Account", "Amount"]);
+  });
+
+  it("puts the date and the account in their own cells", () => {
+    setup(new Set());
+    const row = screen.getByText("Txn t1").closest("tr")!;
+    const cells = within(row).getAllByRole("cell");
+    // checkbox, date, description, category, account, amount
+    expect(cells).toHaveLength(6);
+    expect(cells[1]).toHaveTextContent("Mar 2");
+    expect(cells[2]).toHaveTextContent("Txn t1");
+    expect(cells[4]).toHaveTextContent("Checking");
+  });
+
+  it("still names both ends of a transfer, on the leg that shows it", () => {
+    // A transfer posts as two rows, one per account. Naming both ends keeps
+    // the pair legible without pretending it is a single row.
+    setup(new Set());
+    const row = screen.getByText("Txn t3").closest("tr")!;
+    expect(within(row).getByText(/Transfer/)).toBeInTheDocument();
   });
 });

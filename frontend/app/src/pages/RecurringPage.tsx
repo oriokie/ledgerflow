@@ -1,8 +1,9 @@
 import { RefreshCw } from "lucide-react";
 import { useState } from "react";
+import type { RecurringTransaction } from "../api/types";
 import { useCategories, useCancelRecurring, useRecurring, useSetRecurringActive } from "../hooks/useFinance";
 import { Button, Card, EmptyState, PageHeader, SkeletonCard, useToast } from "../ui";
-import { CreateRecurringModal, SubscriptionInsight, SubscriptionRow, SubscriptionSummary } from "./recurring";
+import { RecurringModal, SubscriptionInsight, SubscriptionRow, SubscriptionSummary } from "./recurring";
 import { monthlyMinor } from "./recurring/recurringMath";
 
 /** `embedded` renders this page as a tab panel inside a hub (`/plan`,
@@ -15,6 +16,7 @@ export function RecurringPage({ embedded }: { embedded?: boolean } = {}) {
   const cancel = useCancelRecurring();
   const toast = useToast();
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<RecurringTransaction | null>(null);
 
   const list = recurring ?? [];
   // Biggest cost first — where the easiest savings are.
@@ -74,13 +76,15 @@ export function RecurringPage({ embedded }: { embedded?: boolean } = {}) {
                 categories={categories}
                 onSetActive={onSetActive}
                 onCancel={onCancel}
+                onEdit={setEditing}
               />
             ))}
           </Card>
         </div>
       ) : null}
 
-      <CreateRecurringModal open={showCreate} onClose={() => setShowCreate(false)} />
+      <RecurringModal open={showCreate} onClose={() => setShowCreate(false)} />
+      <RecurringModal open={!!editing} editing={editing} onClose={() => setEditing(null)} />
     </>
   );
 }

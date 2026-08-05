@@ -33,6 +33,13 @@ vi.mock("../hooks/useFinance", () => ({
   useCancelRecurring: () => ({ mutateAsync: vi.fn() }),
   useAccounts: () => ({ data: [] }),
   useCreateRecurring: () => ({ mutateAsync: vi.fn() }),
+  useUpdateRecurring: () => ({ mutateAsync: vi.fn() }),
+}));
+
+// The create/edit modal defaults its currency to the workspace's, so the page
+// now reaches into auth context even while the modal is closed.
+vi.mock("../lib/AuthContext", () => ({
+  useAuth: () => ({ activeWorkspace: { tenant: { id: "t1", base_currency: "USD" } } }),
 }));
 
 import { RecurringPage } from "./RecurringPage";

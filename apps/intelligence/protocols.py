@@ -121,27 +121,55 @@ class ForecastProvider(Protocol):
 # --------------------------------------------------------------------------- health scoring
 @dataclass(frozen=True, slots=True)
 class HealthInputs:
-    savings_rate: float  # 0..1 of income kept
-    essential_coverage_months: float  # emergency-fund runway
-    budget_adherence: float  # 0..1 of budget lines within limit
-    debt_to_asset: float  # liabilities / assets, 0..1+
-    income_stability: float  # 0..1, variance-derived
+    """The five measurements behind the score.
+
+    **Every field is nullable, and None means "no basis to judge this" — never
+    zero and never a flattering default.**
+
+    This is the correction to a real bug: each input used to fall back to a
+    value that read as perfect when the underlying data was simply absent. A
+    workspace with no budgets scored 100% budget adherence; one with no
+    recorded spending scored a 100% savings rate and an unlimited emergency
+    fund. The score was highest precisely when the product knew least, which is
+    the exact opposite of what a health score is for.
+
+    A caller that cannot measure something must pass None and let the scorer
+    say so, rather than substituting a number nobody earned.
+    """
+
+    savings_rate: float | None  # 0..1 of income kept
+    essential_coverage_months: float | None  # emergency-fund runway
+    budget_adherence: float | None  # 0..1 of budget lines within limit
+    debt_to_asset: float | None  # liabilities / assets, 0..1+
+    income_stability: float | None  # 0..1, variance-derived
 
 
 @dataclass(frozen=True, slots=True)
 class HealthComponent:
     name: str
-    score: int  # 0..100
+    #: None when the input was unavailable. The component is still returned —
+    #: with `detail` saying what is missing — because "we can't tell you yet,
+    #: and here's why" is more useful than a silently shorter list.
+    score: int | None
     weight: float
     detail: str
+
+    @property
+    def available(self) -> bool:
+        return self.score is not None
 
 
 @dataclass(frozen=True, slots=True)
 class HealthScore:
-    score: int  # 0..100 overall
-    band: str  # "needs attention" | "fair" | "good" | "excellent"
+    #: None when too little of the picture is measurable to state one number.
+    score: int | None
+    band: str  # "not enough data" | "needs attention" | "fair" | "good" | "excellent"
     components: tuple[HealthComponent, ...]
     provenance: Provenance
+    #: Share of total weight that was actually measurable, 0..1. Lets a caller
+    #: qualify the figure ("based on 3 of 5 measures") instead of presenting a
+    #: partial score as a complete one.
+    coverage: float = 1.0
 
 
 @runtime_checkable

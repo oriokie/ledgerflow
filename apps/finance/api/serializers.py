@@ -265,7 +265,29 @@ class RecurringSerializer(serializers.Serializer):
 
 
 class RecurringUpdateSerializer(serializers.Serializer):
-    is_active = serializers.BooleanField()
+    """Pause/resume, and edit the plan going forward.
+
+    Every field is optional: this endpoint serves both the one-field pause
+    toggle and the full edit form, and a partial PATCH must not clear whatever
+    it didn't mention. ``txn_type``, ``currency`` and ``financial_account_id``
+    are absent by design — see ``recurring.EDITABLE_FIELDS``.
+    """
+
+    is_active = serializers.BooleanField(required=False)
+    amount_minor = serializers.IntegerField(min_value=1, required=False)
+    category_id = serializers.UUIDField(required=False, allow_null=True)
+    counter_account_id = serializers.UUIDField(required=False, allow_null=True)
+    frequency = serializers.ChoiceField(choices=Frequency.choices, required=False)
+    interval = serializers.IntegerField(min_value=1, required=False)
+    starts_on = serializers.DateField(required=False)
+    ends_on = serializers.DateField(required=False, allow_null=True)
+    max_occurrences = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    memo = serializers.CharField(max_length=255, required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError("Nothing to change.")
+        return attrs
 
 
 # ------------------------------------------------------------------ calculations

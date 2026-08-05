@@ -1359,3 +1359,121 @@ def test_api_pdf_export(tenant_context):
 def test_api_pdf_is_204_without_debt(tenant_context):
     _, client = tenant_context
     assert client.get("/api/v1/debt/debts/payoff/export.pdf").status_code == 204
+
+
+# ----------------------------------------------------- creating a debt directly
+def test_a_debt_is_created_in_one_step(tenant_context):
+    """"Add a credit card or loan" used to send the user to the accounts screen.
+
+    A debt is a liability account *plus* terms, and making only the account left
+    the terms as a second job the user had to know to come back for — so the
+    button looked like it had done nothing but change the subject.
+    """
+    _, client = tenant_context
+    created = client.post(
+        "/api/v1/debt/debts/",
+        {
+            "name": "Visa",
+            "currency": "USD",
+            "balance_minor": 450_000,
+            "debt_kind": "credit_card",
+            "apr": "19.9",
+            "minimum_payment_minor": 15_000,
+            "payment_day": 12,
+        },
+        format="json",
+    )
+    assert created.status_code == 201, created.data
+    assert created.data["name"] == "Visa"
+    assert created.data["balance_minor"] == 450_000
+    assert created.data["apr"] == 19.9
+    assert created.data["has_terms"] is True
+
+    # It arrives in the planner immediately, terms and all.
+    listed = client.get("/api/v1/debt/debts/").data
+    assert [d["name"] for d in listed] == ["Visa"]
+
+
+def test_a_debt_to_a_friend_needs_no_terms(tenant_context):
+    """Money borrowed from a friend has a name and an amount and nothing else.
+
+    Requiring an APR or a minimum payment would either block the entry or invite
+    an invented figure, and an invented APR corrupts every payoff plan downstream.
+    """
+    _, client = tenant_context
+    created = client.post(
+        "/api/v1/debt/debts/",
+        {
+            "name": "Borrowed from Wanjiru",
+            "currency": "USD",
+            "balance_minor": 50_000,
+            "debt_kind": "other",
+            "lender": "Wanjiru",
+        },
+        format="json",
+    )
+    assert created.status_code == 201, created.data
+    assert created.data["balance_minor"] == 50_000
+    # A zero rate here is a fact, not a placeholder: the loan really is free.
+    assert created.data["apr"] == 0.0
+    assert created.data["minimum_payment_minor"] == 0
+
+
+def test_a_debt_can_be_edited_and_deleted(tenant_context):
+    _, client = tenant_context
+    created = client.post(
+        "/api/v1/debt/debts/",
+        {"name": "Car loan", "currency": "USD", "balance_minor": 900_000, "debt_kind": "vehicle loan",
+         "apr": "9.5", "minimum_payment_minor": 40_000},
+        format="json",
+    ).data
+    account_id = created["account_id"]
+
+    edited = client.put(
+        f"/api/v1/debt/debts/{account_id}/terms/",
+        {"apr": "7.25", "minimum_payment_minor": 45_000},
+        format="json",
+    )
+    assert edited.status_code == 200, edited.data
+    assert edited.data["apr"] == 7.25
+    assert edited.data["minimum_payment_minor"] == 45_000
+
+    gone = client.delete(f"/api/v1/debt/debts/{account_id}/")
+    assert gone.status_code == 204
+    assert client.get("/api/v1/debt/debts/").data == []
+
+
+def test_deleting_a_debt_with_history_archives_rather_than_erases(tenant_context):
+    """Immutable ledger lines cannot be orphaned, and reports that already
+    counted them must not silently change."""
+    from apps.finance.models import FinancialAccount
+
+    membership, client = tenant_context
+    created = client.post(
+        "/api/v1/debt/debts/",
+        {"name": "Store card", "currency": "USD", "balance_minor": 20_000, "debt_kind": "credit_card"},
+        format="json",
+    ).data
+    account_id = created["account_id"]
+    cat = client.post(
+        "/api/v1/finance/categories/", {"name": "Shopping", "kind": "expense", "currency": "USD"},
+        format="json",
+    ).data
+    client.post(
+        "/api/v1/finance/transactions/",
+        {
+            "type": "expense",
+            "financial_account_id": account_id,
+            "category_id": cat["id"],
+            "amount_minor": 5_000,
+            "occurred_at": "2026-01-15T12:00:00Z",
+        },
+        format="json",
+    )
+
+    assert client.delete(f"/api/v1/debt/debts/{account_id}/").status_code == 204
+
+    with tenant_scope(membership.tenant_id):
+        account = FinancialAccount.all_objects.get(id=account_id)
+        assert account.archived_at is not None, "history must survive the delete"
+        assert account.deleted_at is None

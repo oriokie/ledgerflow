@@ -52,6 +52,10 @@ def update_workspace(
     """Owner-only workspace settings update. Changing the base currency only
     affects how new categories/reporting default and how mixed-currency totals
     consolidate — existing transactions keep their own currency untouched."""
+    # Local imports: `create_workspace` takes a `timezone` *parameter*, so a
+    # module-level `from django.utils import timezone` would be shadowed there.
+    from django.utils import timezone
+
     from apps.fx.currencies import is_supported
 
     if not has_capability(actor_membership, Capability.WORKSPACE_MANAGE_MEMBERS):
@@ -67,6 +71,12 @@ def update_workspace(
             raise TenancyError(f"{code} isn't a supported currency.")
         tenant.base_currency = code
         fields.append("base_currency")
+        # Setting it through this path is always a deliberate act — settings or
+        # the first-run checklist — so it also records *that a choice was made*.
+        # Re-confirming the same code still counts: the point is that somebody
+        # was asked and answered, not that the answer changed.
+        tenant.base_currency_chosen_at = timezone.now()
+        fields.append("base_currency_chosen_at")
     if fields:
         fields.append("updated_at")
         tenant.save(update_fields=fields)

@@ -237,3 +237,124 @@ def test_suggestions_are_tenant_isolated():
     with tenant_scope(tenant_b):
         # RLS: tenant B sees none of tenant A's suggestions
         assert CategorizationSuggestion.objects.count() == 0
+
+
+# --------------------------------------------------------------- health inputs
+def test_a_workspace_with_income_but_no_spending_has_no_measurable_savings_rate():
+    """The reported bug: a 100% savings rate with nothing actually saved.
+
+    `(income - expense) / income` returns 1.0 whenever expenses are zero — and
+    for a workspace that has only ever recorded a payslip, zero expenses means
+    "we haven't been told", not "nothing was spent". Same for the emergency
+    fund, which used to divide assets by `expense or 1` and score full marks
+    against a denominator of one cent.
+    """
+    from apps.intelligence.selectors import build_health_inputs
+
+    with tenant_scope(uuid.uuid4()):
+        checking = finance_services.create_financial_account(
+            name="Checking", account_type=AccountType.CHECKING, currency="USD"
+        )
+        salary = finance_services.create_category(
+            name="Salary", kind=CategoryKind.INCOME, currency="USD"
+        )
+        # Two completed months of salary, no spending recorded at all.
+        for month in (5, 6):
+            finance_services.record_income(
+                financial_account=checking,
+                category=salary,
+                amount_minor=500_000,
+                occurred_at=datetime(2026, month, 1, tzinfo=UTC),
+            )
+
+        inputs = build_health_inputs(as_of=datetime(2026, 7, 15, tzinfo=UTC).date())
+
+    assert inputs.savings_rate is None, "no spending on record means the rate is unmeasured"
+    assert inputs.essential_coverage_months is None, "no spending means no runway to measure"
+    assert inputs.budget_adherence is None, "no budgets means nothing to adhere to"
+
+
+def test_savings_rate_is_measured_once_both_halves_exist():
+    """With real income and real spending, the rate is a genuine measurement."""
+    from apps.intelligence.selectors import build_health_inputs
+
+    with tenant_scope(uuid.uuid4()):
+        checking = finance_services.create_financial_account(
+            name="Checking", account_type=AccountType.CHECKING, currency="USD"
+        )
+        salary = finance_services.create_category(
+            name="Salary", kind=CategoryKind.INCOME, currency="USD"
+        )
+        groceries = finance_services.create_category(
+            name="Groceries", kind=CategoryKind.EXPENSE, currency="USD"
+        )
+        finance_services.record_income(
+            financial_account=checking,
+            category=salary,
+            amount_minor=1_000_000,
+            occurred_at=datetime(2026, 6, 1, tzinfo=UTC),
+        )
+        for day in (3, 10, 17, 24):
+            finance_services.record_expense(
+                financial_account=checking,
+                category=groceries,
+                amount_minor=50_000,
+                occurred_at=datetime(2026, 6, day, tzinfo=UTC),
+            )
+
+        inputs = build_health_inputs(as_of=datetime(2026, 7, 15, tzinfo=UTC).date())
+
+    # Kept 800,000 of 1,000,000.
+    assert inputs.savings_rate == 0.8
+    # 800,000 of liquid cash against 200,000 spent over a 3-month window
+    # (66,666.67 a month) is about 12 months of runway.
+    assert inputs.essential_coverage_months == pytest.approx(12.0, abs=0.1)
+
+
+def test_the_current_partial_month_cannot_inflate_the_savings_rate():
+    """Month-to-date was the other half of the bug.
+
+    Salary lands on the 1st and spending accumulates over the following weeks,
+    so a month-to-date rate read near 100% every month and fell as the month
+    went on. The window is whole months only, so today's payslip changes
+    nothing.
+    """
+    from apps.intelligence.selectors import build_health_inputs
+
+    as_of = datetime(2026, 7, 3, tzinfo=UTC).date()
+    with tenant_scope(uuid.uuid4()):
+        checking = finance_services.create_financial_account(
+            name="Checking", account_type=AccountType.CHECKING, currency="USD"
+        )
+        salary = finance_services.create_category(
+            name="Salary", kind=CategoryKind.INCOME, currency="USD"
+        )
+        groceries = finance_services.create_category(
+            name="Groceries", kind=CategoryKind.EXPENSE, currency="USD"
+        )
+        finance_services.record_income(
+            financial_account=checking,
+            category=salary,
+            amount_minor=400_000,
+            occurred_at=datetime(2026, 6, 1, tzinfo=UTC),
+        )
+        for day in (5, 12, 19):
+            finance_services.record_expense(
+                financial_account=checking,
+                category=groceries,
+                amount_minor=100_000,
+                occurred_at=datetime(2026, 6, day, tzinfo=UTC),
+            )
+        before = build_health_inputs(as_of=as_of).savings_rate
+
+        # July's salary arrives, and nothing has been spent out of it yet.
+        finance_services.record_income(
+            financial_account=checking,
+            category=salary,
+            amount_minor=400_000,
+            occurred_at=datetime(2026, 7, 1, tzinfo=UTC),
+        )
+        after = build_health_inputs(as_of=as_of).savings_rate
+
+    assert before == 0.25
+    assert after == before, "an unfinished month must not move a rate"

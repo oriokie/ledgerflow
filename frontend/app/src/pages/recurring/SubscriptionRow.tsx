@@ -1,4 +1,4 @@
-import { Pause, Play, Trash2 } from "lucide-react";
+import { Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Category, RecurringTransaction } from "../../api/types";
 import { formatAmount, formatDate } from "../../lib/money";
@@ -15,11 +15,14 @@ export function SubscriptionRow({
   categories,
   onSetActive,
   onCancel,
+  onEdit,
 }: {
   rec: RecurringTransaction;
   categories: Category[] | undefined;
   onSetActive: (recId: string, active: boolean) => Promise<unknown>;
   onCancel: (recId: string) => Promise<unknown>;
+  /** Absent where the row is read-only (the dashboard strip, digests). */
+  onEdit?: (rec: RecurringTransaction) => void;
 }) {
   const label = recurringLabel(rec, categories);
   const monthly = monthlyMinor(rec);
@@ -65,6 +68,13 @@ export function SubscriptionRow({
         </span>
       ) : (
         <span className="lf-sub-actions">
+          {onEdit && (
+            <IconButton
+              label={`Edit ${label}`}
+              icon={<Pencil size={15} strokeWidth={1.8} />}
+              onClick={() => onEdit(rec)}
+            />
+          )}
           <IconButton
             label={rec.is_active ? `Pause ${label}` : `Resume ${label}`}
             icon={rec.is_active ? <Pause size={15} strokeWidth={1.8} /> : <Play size={15} strokeWidth={1.8} />}

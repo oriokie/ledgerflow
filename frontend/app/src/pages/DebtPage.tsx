@@ -1,6 +1,5 @@
-import { CreditCard, Pencil } from "lucide-react";
+import { CreditCard, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import type { DebtView, PayoffStrategy } from "../api/types";
 import {
   useBorrowingCost,
@@ -8,6 +7,7 @@ import {
   useDebts,
   useDebtStress,
   useDebtSummary,
+  useDeleteDebt,
   usePayoffPlan,
   useTrackedLiabilities,
 } from "../hooks/useDebt";
@@ -18,6 +18,7 @@ import { Button, Card, EmptyState, Inline, Input, Money, PageHeader, SkeletonCar
 import {
   BorrowingCostCard,
   ConsolidationModal,
+  CreateDebtModal,
   DebtAnalytics,
   DebtStressCard,
   DebtSummaryCard,
@@ -37,12 +38,14 @@ import {
  * an ordering.
  */
 export function DebtPage() {
-  const navigate = useNavigate();
   const [strategy, setStrategy] = useState<PayoffStrategy>("avalanche");
   const [extraInput, setExtraInput] = useState("");
   const [editing, setEditing] = useState<DebtView | null>(null);
   const [refinancing, setRefinancing] = useState<DebtView | null>(null);
   const [consolidating, setConsolidating] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const deleteDebt = useDeleteDebt();
 
   const extraMinor = extraInput ? majorToMinor(Number(extraInput) || 0) : 0;
 
@@ -75,6 +78,16 @@ export function DebtPage() {
         title="Debt"
         eyebrow={summary ? plural(summary.debt_count, "debt") : undefined}
         description="What you owe, what it's costing, and the fastest way out."
+        actions={
+          // Only once there is something to add *to*. While the page is empty
+          // the empty state carries the CTA, and two identical buttons on one
+          // screen is the duplication the dashboard header already avoids.
+          summary ? (
+            <Button variant="primary" onClick={() => setCreating(true)}>
+              Add a debt
+            </Button>
+          ) : undefined
+        }
       />
 
       {isLoading && <SkeletonCard />}
@@ -102,11 +115,11 @@ export function DebtPage() {
             ))}
           </ul>
           <Inline gap={2}>
-            {/* `?add=1` opens the create form on arrival. Navigating to a bare
-                /accounts left the user on a page where they had to find the
-                button again — the CTA on a debt page should get you to adding a
-                debt, not just change the subject. */}
-            <Button variant="secondary" onClick={() => navigate("/accounts?add=1")}>
+            {/* Opens the debt form itself. This used to navigate to
+                /accounts?add=1, which created a bare account with no terms and
+                left the planner still empty — the button appeared to do nothing
+                but change the subject. */}
+            <Button variant="secondary" onClick={() => setCreating(true)}>
               Add a credit card or loan
             </Button>
           </Inline>
@@ -119,15 +132,15 @@ export function DebtPage() {
             icon={CreditCard}
             illustration="no-data"
             title="No debt tracked"
-            body="Credit cards and loans with a balance show up here once they're recorded — this page reads from your accounts rather than a separate list, so nothing gets entered twice."
+            body="Cards, loans, and money borrowed from someone you know. Adding one here sets up the account behind it too, so nothing gets entered twice."
             tips={[
-              "Add the interest rate and minimum payment once the account exists, to get a payoff plan.",
-              "Balances come from your transactions automatically.",
+              "Only a name and the amount owed are required — the rate and minimum payment can wait.",
+              "Balances update from your transactions automatically once it exists.",
               "The planner compares paying off the most expensive debt first against the smallest.",
             ]}
             action={
-              <Button variant="primary" onClick={() => navigate("/accounts?add=1")}>
-                Add a credit card or loan
+              <Button variant="primary" onClick={() => setCreating(true)}>
+                Add a debt
               </Button>
             }
           />
@@ -330,6 +343,37 @@ export function DebtPage() {
                           >
                             {debt.has_terms ? "Edit" : "Add terms"}
                           </Button>
+                          {/* Two-step, because deleting a debt takes its
+                              account with it. Where the account has posted
+                              transactions the server archives instead, so the
+                              history survives either way. */}
+                          {confirmDelete === debt.account_id ? (
+                            <>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                loading={deleteDebt.isPending}
+                                onClick={async () => {
+                                  await deleteDebt.mutateAsync(debt.account_id);
+                                  setConfirmDelete(null);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>
+                                Keep
+                              </Button>
+                            </>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setConfirmDelete(debt.account_id)}
+                              icon={<Trash2 size={14} aria-hidden="true" />}
+                            >
+                              Delete
+                            </Button>
+                          )}
                         </Inline>
                       </td>
                     </tr>
@@ -341,6 +385,7 @@ export function DebtPage() {
         </>
       )}
 
+      <CreateDebtModal open={creating} onClose={() => setCreating(false)} />
       <DebtTermsModal debt={editing} onClose={() => setEditing(null)} />
       <RefinanceModal debt={refinancing} onClose={() => setRefinancing(null)} />
       <ConsolidationModal

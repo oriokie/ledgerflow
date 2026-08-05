@@ -159,6 +159,85 @@ def set_debt_terms(
     return profile
 
 
+#: Which ledger account type backs each kind of debt.
+#:
+#: Everything that is not a revolving card is a loan as far as the ledger is
+#: concerned — a mortgage, a car loan and money borrowed from a friend all
+#: behave identically (a balance owed that gets paid down). They differ only in
+#: their terms, which is exactly what `DebtProfile` is for.
+_ACCOUNT_TYPE_FOR_KIND = {
+    DebtKind.CREDIT_CARD: AccountType.CREDIT_CARD,
+    DebtKind.BNPL: AccountType.CREDIT_CARD,
+}
+
+
+@transaction.atomic
+def create_debt(
+    *,
+    name: str,
+    currency: str,
+    balance_minor: int,
+    debt_kind: str = DebtKind.OTHER,
+    lender: str = "",
+    **terms,
+) -> DebtProfile:
+    """Create a debt in one step: the liability account and its terms together.
+
+    This is the gap behind "add a credit card or loan takes me back to opening
+    an account". A debt *is* a liability account plus terms, but the only route
+    to one was to create a bare account on another screen, come back, and add
+    terms as a second job — so the button appeared to do nothing except change
+    the subject.
+
+    **Terms are all optional**, which is what makes an informal debt possible.
+    Money borrowed from a friend has a name, an amount and nothing else: no
+    APR, no minimum payment, no statement day. Demanding those would either
+    block the entry or invite invented numbers, and an invented APR quietly
+    corrupts every payoff plan it touches. A zero APR here is a real fact — the
+    loan genuinely costs nothing — not a placeholder.
+    """
+    from apps.finance import services as finance_services
+
+    if balance_minor < 0:
+        raise DebtError("A debt balance is given as a positive amount owed.")
+
+    account = finance_services.create_financial_account(
+        name=name,
+        account_type=_ACCOUNT_TYPE_FOR_KIND.get(debt_kind, AccountType.LOAN),
+        currency=currency,
+        # A liability's opening balance is what is *owed*, posted against
+        # opening equity — see `set_opening_balance`, which handles the
+        # direction. Nothing here writes a balance directly.
+        opening_balance_minor=balance_minor,
+        notes=f"Owed to {lender}" if lender else "",
+    )
+    return set_debt_terms(financial_account=account, debt_kind=debt_kind, **terms)
+
+
+@transaction.atomic
+def delete_debt(*, financial_account: FinancialAccount) -> None:
+    """Remove a debt entirely — terms and account.
+
+    An account that has posted transactions is **archived, not deleted**.
+    Deleting it would orphan immutable ledger lines and tear a hole in every
+    historical report that already counted them. Archiving stops it appearing
+    anywhere current while leaving the history intact and auditable, which is
+    the same rule the accounts screen follows.
+    """
+    from django.utils import timezone
+
+    from apps.finance.models import Transaction
+
+    clear_debt_terms(financial_account=financial_account)
+
+    if Transaction.objects.filter(financial_account=financial_account).exists():
+        financial_account.archived_at = timezone.now()
+        financial_account.is_active = False
+        financial_account.save(update_fields=["archived_at", "is_active", "updated_at"])
+    else:
+        financial_account.delete()
+
+
 @transaction.atomic
 def clear_debt_terms(*, financial_account: FinancialAccount) -> None:
     """Remove the terms. The account and its history are untouched — you stop

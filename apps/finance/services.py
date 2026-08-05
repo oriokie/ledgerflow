@@ -66,6 +66,110 @@ class CurrencyMismatchError(FinanceError): ...
 class CategoryKindError(FinanceError): ...
 
 
+class InsufficientFundsError(FinanceError):
+    """A posting that would take an asset account past its overdraft limit.
+
+    Its own class, not a bare `FinanceError`, because callers need to tell it
+    apart: this is the one failure a user can fix by choosing a different
+    account or a smaller amount, and the API turns it into a specific message
+    naming the account and the shortfall.
+    """
+
+    def __init__(self, message: str, *, account_name: str, available_minor: int, shortfall_minor: int):
+        super().__init__(message)
+        self.account_name = account_name
+        self.available_minor = available_minor
+        self.shortfall_minor = shortfall_minor
+
+
+def _assert_sufficient_funds(
+    account: FinancialAccount, amount_minor: int, source: str = TransactionSource.MANUAL
+) -> None:
+    """Refuse a withdrawal that would overdraw `account`.
+
+    Three deliberate exemptions, each because refusing would be the worse error:
+
+    * **Liability accounts.** A credit card or loan going further into the red
+      is the entire point of a credit card or loan. Blocking it would make the
+      product unable to record the debts it exists to help pay off.
+
+    * **Anything not typed in by hand.** An import, a bank sync or a
+      reconciliation is recording what *already happened*; the money has moved
+      whether or not the ledger likes it. Refusing there would leave the books
+      disagreeing with the bank, which is far worse than a negative balance —
+      and it would break a backfill of last year's statement against an account
+      opened at today's figure.
+
+    * **Recurring materialization.** A standing order that overdraws you is
+      real life, and that is exactly when a user needs to see it. Silently
+      halting the schedule would hide it.
+
+    So this guards the case the user actually meets: deliberately entering a
+    payment the account cannot cover.
+
+    The check reads the materialized balance, which the ledger updates in the
+    same transaction as the entry that moved it, so it cannot pass on a stale
+    figure within a request. Two concurrent postings could still both pass;
+    the resulting overdraft would be one transaction deep and immediately
+    visible, which is the same guarantee a real bank gives.
+    """
+    if source != TransactionSource.MANUAL:
+        return
+    if account.account_type not in _ASSET_TYPES:
+        return
+
+    balance = (
+        AccountBalance.objects.filter(account_id=account.ledger_account_id)
+        .values_list("balance_minor", flat=True)
+        .first()
+        or 0
+    )
+
+    # Only police an account whose balance we actually know.
+    #
+    # A zero balance is ambiguous: it is both "the account is empty" and "no
+    # opening balance was ever recorded", and the second is common — plenty of
+    # people track what they spend without ever telling the product what they
+    # started with. Refusing there would make the product unusable for them to
+    # no benefit, since the figure being defended is not a real one. An account
+    # already below zero is likewise past the point this check can help.
+    #
+    # So the rule is: if the account holds money, a manual withdrawal may not
+    # take it past its overdraft limit. If it doesn't, the entry is recorded
+    # and the negative balance is shown.
+    if balance <= 0:
+        return
+
+    floor = -account.overdraft_limit_minor
+    if balance - amount_minor >= floor:
+        return
+
+    available = balance + account.overdraft_limit_minor
+    raise InsufficientFundsError(
+        f"{account.name} doesn't have the funds for this. "
+        f"It holds {_fmt_minor(balance)} {account.currency}"
+        + (
+            f" plus an overdraft of {_fmt_minor(account.overdraft_limit_minor)}"
+            if account.overdraft_limit_minor
+            else ""
+        )
+        + f", and this would need {_fmt_minor(amount_minor)}.",
+        account_name=account.name,
+        available_minor=available,
+        shortfall_minor=amount_minor - available,
+    )
+
+
+def _fmt_minor(amount_minor: int) -> str:
+    """Minor units as a plain decimal string, for error messages only.
+
+    Deliberately not locale- or currency-aware: this feeds an exception message
+    that names the currency code separately, and pulling formatting machinery
+    into the service layer to render an error would be the wrong dependency.
+    """
+    return f"{amount_minor / 100:,.2f}"
+
+
 # --------------------------------------------------------------------------- accounts
 @transaction.atomic
 def create_financial_account(
@@ -461,6 +565,7 @@ def record_expense(
         raise FinanceError("Expense amount must be positive; sign is applied by the engine.")
     if category.kind != CategoryKind.EXPENSE:
         raise CategoryKindError("record_expense requires an expense category.")
+    _assert_sufficient_funds(financial_account, amount_minor, source)
     currency = financial_account.currency
     category_ledger = _category_ledger_for(category, currency)
 
@@ -569,6 +674,7 @@ def record_transfer(
         raise FinanceError("Transfer amount must be positive.")
     if from_account.id == to_account.id:
         raise FinanceError("Cannot transfer to the same account.")
+    _assert_sufficient_funds(from_account, amount_minor, source)
     currency = _require_same_currency(from_account.currency, to_account.currency)
 
     entry = ledger_services.post_journal_entry(

@@ -1054,3 +1054,101 @@ def test_net_worth_overlay_is_zero_without_investments(tenant_context):
     usd = next(r for r in client.get("/api/v1/finance/net-worth/").data if r["currency"] == "USD")
     assert usd["unrealized_gain_minor"] == 0
     assert usd["market_net_minor"] == usd["net_minor"]
+
+
+# ------------------------------------------------------------------- interest
+def test_interest_from_an_mmf_or_bond_is_recorded_against_the_holding(tenant):
+    """`InvestmentTransactionType.INTEREST` existed but nothing could create one.
+
+    A money-market fund or a bond pays periodically — that is the whole point of
+    holding one — and there was no way to record it against the security that
+    generated it.
+    """
+    from apps.investments.models import InvestmentTransaction, InvestmentTransactionType
+
+    with tenant_scope(tenant):
+        account = _brokerage()
+        mmf = _security(symbol="MMF", asset_class=AssetClass.CASH_EQUIVALENT, sector="")
+        services.buy(
+            financial_account=account, security=mmf, quantity=Decimal("1000"), amount_minor=100_000
+        )
+        before = selectors.holding_cost_basis_minor(Holding.objects.get())
+
+        txn = services.record_interest(financial_account=account, security=mmf, amount_minor=850)
+
+        assert txn.txn_type == InvestmentTransactionType.INTEREST
+        assert InvestmentTransaction.objects.filter(
+            txn_type=InvestmentTransactionType.INTEREST
+        ).count() == 1
+        # Interest is a return *on* the investment, never added to its cost.
+        assert selectors.holding_cost_basis_minor(Holding.objects.get()) == before
+
+        income_line = LedgerLine.objects.get(entry=txn.journal_entry, account__kind=AccountKind.INCOME)
+        assert income_line.direction == Direction.CREDIT
+        assert income_line.amount_minor == 850
+        # Booked apart from dividends: taxed and reported differently.
+        assert "Investment interest" in income_line.account.name
+
+
+def test_investment_income_reaches_the_cash_flow(tenant):
+    """It used to move the balance but appear in no cash-flow figure.
+
+    Dividends and interest posted a journal entry and nothing else, while cash
+    flow, the transaction list and every income total read `finance.Transaction`
+    — so the money arrived invisibly.
+    """
+    from datetime import datetime
+
+    with tenant_scope(tenant):
+        account = _brokerage()
+        mmf = _security(symbol="MMF", asset_class=AssetClass.CASH_EQUIVALENT, sector="")
+        equity = _security(symbol="ACME")
+        services.buy(
+            financial_account=account, security=mmf, quantity=Decimal("1000"), amount_minor=100_000
+        )
+        services.buy(
+            financial_account=account, security=equity, quantity=Decimal("10"), amount_minor=50_000
+        )
+
+        today = timezone.localdate()
+        services.record_interest(
+            financial_account=account, security=mmf, amount_minor=850, occurred_on=today
+        )
+        services.record_dividend(
+            financial_account=account, security=equity, amount_minor=1_200, occurred_on=today
+        )
+
+        start = timezone.make_aware(datetime.combine(today, datetime.min.time()))
+        end = start + timedelta(days=1)
+        flows = finance_selectors.cash_flow(start=start, end=end)
+
+    usd = next(f for f in flows if f.currency == "USD")
+    assert usd.income_minor == 2_050, "both the coupon and the dividend are income"
+
+
+def test_recording_the_same_interest_payment_twice_posts_it_once(tenant):
+    """Idempotency has to cover the domain row as well as the ledger entry, or
+    a retried request doubles the income without doubling the balance."""
+    with tenant_scope(tenant):
+        account = _brokerage()
+        mmf = _security(symbol="MMF", asset_class=AssetClass.CASH_EQUIVALENT, sector="")
+        services.buy(
+            financial_account=account, security=mmf, quantity=Decimal("1000"), amount_minor=100_000
+        )
+        on = date(2026, 3, 31)
+        for _ in range(2):
+            services.record_interest(
+                financial_account=account, security=mmf, amount_minor=850, occurred_on=on
+            )
+
+        from apps.finance.models import Transaction as FinanceTransaction
+
+        assert FinanceTransaction.objects.filter(amount_minor=850).count() == 1
+
+
+def test_interest_is_refused_when_it_is_not_positive(tenant):
+    with tenant_scope(tenant):
+        account = _brokerage()
+        mmf = _security(symbol="MMF", asset_class=AssetClass.CASH_EQUIVALENT, sector="")
+        with pytest.raises(services.InvestmentError):
+            services.record_interest(financial_account=account, security=mmf, amount_minor=0)

@@ -8,7 +8,18 @@ from ..models import Invitation, Membership, Tenant, TenantType
 class TenantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tenant
-        fields = ["id", "name", "type", "base_currency", "default_locale", "default_timezone", "created_at"]
+        fields = [
+            "id",
+            "name",
+            "type",
+            "base_currency",
+            # The client needs to know whether the currency was *chosen* or
+            # merely defaulted, so first-run setup can ask exactly once.
+            "base_currency_chosen_at",
+            "default_locale",
+            "default_timezone",
+            "created_at",
+        ]
 
 
 class WorkspaceMembershipSerializer(serializers.ModelSerializer):

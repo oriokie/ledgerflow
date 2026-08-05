@@ -8,12 +8,14 @@ from rest_framework.views import APIView
 from apps.billing.plan_catalogue import PlanFeature
 from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin, require_feature
 from apps.finance.models import FinancialAccount
+from apps.finance.services import FinanceError
 from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
 
 from .. import payoff, selectors, services
 from .serializers import (
     ConsolidationSerializer,
+    DebtCreateSerializer,
     DebtTermsSerializer,
     OffsetAccountsSerializer,
     PayoffQuerySerializer,
@@ -63,16 +65,45 @@ def _view_out(v) -> dict:
     }
 
 
-class DebtListView(TenantScopedAPIView, APIView):
-    """Every outstanding liability, with terms where they've been recorded."""
+class DebtListView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
+    """Every outstanding liability, and the one place a new one is created."""
 
     permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
     required_role = Role.VIEWER
-    serializer_class = None
+    serializer_class = DebtCreateSerializer
 
     @extend_schema(operation_id="debts_list")
     def get(self, request):
         return Response([_view_out(v) for v in selectors.debt_views()])
+
+    @extend_schema(operation_id="debts_create")
+    def post(self, request):
+        """Create the liability account and its terms together.
+
+        Previously the debt page could only send the user to the accounts
+        screen to make a bare account, leaving terms as a second job they had
+        to know to come back for.
+        """
+        s = DebtCreateSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        v = dict(s.validated_data)
+        try:
+            profile = services.create_debt(
+                name=v.pop("name"),
+                currency=v.pop("currency").upper(),
+                balance_minor=v.pop("balance_minor"),
+                lender=v.pop("lender", ""),
+                **v,
+            )
+        except (services.DebtError, FinanceError) as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
+        account_id = str(profile.financial_account_id)
+        view = next((x for x in selectors.debt_views() if x.account_id == account_id), None)
+        return Response(
+            _view_out(view) if view else {"account_id": account_id},
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class DebtTermsView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
@@ -100,6 +131,26 @@ class DebtTermsView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
         if account is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         services.clear_debt_terms(financial_account=account)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DebtDetailView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
+    """Delete a debt outright — the account as well as its terms.
+
+    Distinct from `DELETE .../terms/`, which only stops the planning and leaves
+    the account owing. This is for a debt entered by mistake, or one that is
+    settled and finished with.
+    """
+
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.DEBT_PLANNER)]
+    serializer_class = None
+
+    @extend_schema(operation_id="debt_delete")
+    def delete(self, request, account_id):
+        account = FinancialAccount.objects.filter(id=account_id).first()
+        if account is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        services.delete_debt(financial_account=account)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

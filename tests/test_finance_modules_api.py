@@ -579,3 +579,92 @@ def test_recurring_pause_and_cancel(tenant_context):
         client.patch(f"/api/v1/finance/recurring/{rec_id}/", {"is_active": True}, format="json").status_code
         == 404
     )
+
+
+def test_recurring_can_be_edited_after_it_has_posted(tenant_context):
+    """A schedule is a plan; correcting it changes what happens next.
+
+    The rent went up and the cadence moved from monthly to quarterly. Both are
+    edits to the plan, and neither is allowed to touch what the template has
+    already posted.
+    """
+    _, client = tenant_context
+    acct = _account(client)
+    cat = _category(client, "Housing", "expense")
+    rec = client.post(
+        "/api/v1/finance/recurring/",
+        {
+            "txn_type": "expense",
+            "financial_account_id": acct["id"],
+            "category_id": cat["id"],
+            "amount_minor": 120_000,
+            "currency": "USD",
+            "frequency": "monthly",
+            "starts_on": "2026-01-01",
+            "memo": "Rent",
+        },
+        format="json",
+    ).data
+    rec_id = rec["id"]
+
+    edited = client.patch(
+        f"/api/v1/finance/recurring/{rec_id}/",
+        {"amount_minor": 135_000, "memo": "Rent (rise from Jan)"},
+        format="json",
+    )
+    assert edited.status_code == 200, edited.data
+    assert edited.data["amount_minor"] == 135_000
+    assert edited.data["memo"] == "Rent (rise from Jan)"
+    # A partial edit leaves everything it didn't mention alone.
+    assert edited.data["frequency"] == "monthly"
+    assert edited.data["is_active"] is True
+
+    # Cadence change re-anchors the next run from `starts_on`, not from
+    # whatever date was sitting in the column.
+    requartered = client.patch(
+        f"/api/v1/finance/recurring/{rec_id}/",
+        {"frequency": "monthly", "interval": 3},
+        format="json",
+    )
+    assert requartered.status_code == 200, requartered.data
+    assert requartered.data["interval"] == 3
+    assert str(requartered.data["next_run_on"]) == "2026-01-01"
+
+
+def test_recurring_edit_rejects_what_would_reinterpret_history(tenant_context):
+    """Currency and type are not editable — every posted occurrence carries
+    them, so a change would rewrite the books rather than correct the plan."""
+    _, client = tenant_context
+    acct = _account(client)
+    cat = _category(client, "Streaming", "expense")
+    rec = client.post(
+        "/api/v1/finance/recurring/",
+        {
+            "txn_type": "expense",
+            "financial_account_id": acct["id"],
+            "category_id": cat["id"],
+            "amount_minor": 1500,
+            "currency": "USD",
+            "frequency": "monthly",
+            "starts_on": "2026-01-01",
+        },
+        format="json",
+    ).data
+
+    # Unknown/!editable keys are ignored by the serializer, so the schedule is
+    # unchanged rather than silently re-denominated.
+    resp = client.patch(
+        f"/api/v1/finance/recurring/{rec['id']}/",
+        {"currency": "KES", "txn_type": "income", "amount_minor": 1600},
+        format="json",
+    )
+    assert resp.status_code == 200, resp.data
+    assert resp.data["currency"] == "USD"
+    assert resp.data["txn_type"] == "expense"
+    assert resp.data["amount_minor"] == 1600
+
+    # An amount below the minimum is refused rather than clamped.
+    bad = client.patch(
+        f"/api/v1/finance/recurring/{rec['id']}/", {"amount_minor": 0}, format="json"
+    )
+    assert bad.status_code == 400

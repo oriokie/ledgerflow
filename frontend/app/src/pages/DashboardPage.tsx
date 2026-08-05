@@ -54,7 +54,7 @@ const PERIOD_OPTIONS: { value: PeriodKey; label: string }[] = [
 ];
 
 export function DashboardPage() {
-  const { user } = useAuth();
+  const { user, activeWorkspace } = useAuth();
   const [period, setPeriod] = useState<PeriodKey>("this-month");
   const range = useMemo(() => periodRange(period), [period]);
   const hello = useMemo(() => greeting(), []);
@@ -93,6 +93,9 @@ export function DashboardPage() {
   const hasAccount = (accounts?.length ?? 0) > 0;
   const hasTransaction = (recentTx?.results.length ?? 0) > 0;
   const onboarding = {
+    // Null means nobody has been asked yet, so the step stays open. An
+    // existing workspace that predates the field is genuinely in that state.
+    hasCurrency: !!activeWorkspace?.tenant.base_currency_chosen_at,
     hasAccount,
     hasTransaction,
     hasBudget: (budgets?.length ?? 0) > 0,

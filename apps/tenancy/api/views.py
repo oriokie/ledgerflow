@@ -239,6 +239,7 @@ class WorkspaceDetailView(APIView):
                 "name": tenant.name,
                 "type": tenant.type,
                 "base_currency": tenant.base_currency,
+                "base_currency_chosen_at": tenant.base_currency_chosen_at,
             }
         )
 

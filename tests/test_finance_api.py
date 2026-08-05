@@ -34,9 +34,16 @@ def test_create_account_and_list_balance(tenant_context):
 
 def test_expense_flow_updates_net_worth(tenant_context):
     membership, client = tenant_context
+    # Funded, because a manual expense may no longer overdraw an asset account
+    # — see test_manual_expense_cannot_overdraw_an_account.
     acct = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Checking", "account_type": "checking", "currency": "USD"},
+        {
+            "name": "Checking",
+            "account_type": "checking",
+            "currency": "USD",
+            "opening_balance_minor": 20000,
+        },
         format="json",
     ).data
     cat = client.post(
@@ -61,7 +68,7 @@ def test_expense_flow_updates_net_worth(tenant_context):
 
     nw = client.get("/api/v1/finance/net-worth/")
     assert nw.status_code == 200
-    assert nw.data[0]["net_minor"] == -5000
+    assert nw.data[0]["net_minor"] == 15000
 
 
 def test_transfer_endpoint(tenant_context):
@@ -261,3 +268,127 @@ def test_a_transaction_says_whether_it_needs_review_and_why(tenant_context):
     rows = resp.data["results"]
     assert rows and all(r["needs_review"] for r in rows)
     assert rows[0]["review_reason"] == "Ambiguous payee"
+
+
+def test_manual_expense_cannot_overdraw_an_account(tenant_context):
+    """The reported bug: the product let an account be spent past empty.
+
+    The refusal names the account and the shortfall, because "insufficient
+    funds" on its own leaves the user to work out which account and by how much.
+    """
+    _, client = tenant_context
+    acct = client.post(
+        "/api/v1/finance/accounts/",
+        {
+            "name": "Checking",
+            "account_type": "checking",
+            "currency": "USD",
+            "opening_balance_minor": 10_000,
+        },
+        format="json",
+    ).data
+    cat = client.post(
+        "/api/v1/finance/categories/",
+        {"name": "Groceries", "kind": "expense", "currency": "USD"},
+        format="json",
+    ).data
+
+    over = client.post(
+        "/api/v1/finance/transactions/",
+        {
+            "type": "expense",
+            "financial_account_id": acct["id"],
+            "category_id": cat["id"],
+            "amount_minor": 25_000,
+            "occurred_at": "2026-01-15T12:00:00Z",
+        },
+        format="json",
+    )
+    assert over.status_code == 422, over.data
+    assert over.data["code"] == "insufficient_funds"
+    assert over.data["account_name"] == "Checking"
+    assert over.data["available_minor"] == 10_000
+    assert over.data["shortfall_minor"] == 15_000
+    assert "Checking" in over.data["detail"]
+
+    # Spending down to exactly zero is fine — it is the step past it that isn't.
+    exact = client.post(
+        "/api/v1/finance/transactions/",
+        {
+            "type": "expense",
+            "financial_account_id": acct["id"],
+            "category_id": cat["id"],
+            "amount_minor": 10_000,
+            "occurred_at": "2026-01-15T12:00:00Z",
+        },
+        format="json",
+    )
+    assert exact.status_code == 201, exact.data
+
+
+def test_a_credit_card_is_allowed_to_go_negative(tenant_context):
+    """Carrying a balance is what a credit card is for; blocking it would make
+    the product unable to record the debts its planner exists to pay off."""
+    _, client = tenant_context
+    card = client.post(
+        "/api/v1/finance/accounts/",
+        {"name": "Visa", "account_type": "credit_card", "currency": "USD"},
+        format="json",
+    ).data
+    cat = client.post(
+        "/api/v1/finance/categories/",
+        {"name": "Groceries", "kind": "expense", "currency": "USD"},
+        format="json",
+    ).data
+
+    spend = client.post(
+        "/api/v1/finance/transactions/",
+        {
+            "type": "expense",
+            "financial_account_id": card["id"],
+            "category_id": cat["id"],
+            "amount_minor": 25_000,
+            "occurred_at": "2026-01-15T12:00:00Z",
+        },
+        format="json",
+    )
+    assert spend.status_code == 201, spend.data
+
+
+def test_an_arranged_overdraft_is_honoured(tenant_context):
+    """`overdraft_limit_minor` is a real ceiling, not a yes/no."""
+    from apps.finance.models import FinancialAccount
+    from tests.utils import tenant_scope
+
+    membership, client = tenant_context
+    acct = client.post(
+        "/api/v1/finance/accounts/",
+        {
+            "name": "Current",
+            "account_type": "checking",
+            "currency": "USD",
+            "opening_balance_minor": 10_000,
+        },
+        format="json",
+    ).data
+    cat = client.post(
+        "/api/v1/finance/categories/",
+        {"name": "Groceries", "kind": "expense", "currency": "USD"},
+        format="json",
+    ).data
+    with tenant_scope(membership.tenant_id):
+        FinancialAccount.objects.filter(id=acct["id"]).update(overdraft_limit_minor=20_000)
+
+    # 10,000 held + 20,000 arranged = 30,000 available.
+    within = client.post(
+        "/api/v1/finance/transactions/",
+        {
+            "type": "expense",
+            "financial_account_id": acct["id"],
+            "category_id": cat["id"],
+            "amount_minor": 30_000,
+            "occurred_at": "2026-01-15T12:00:00Z",
+        },
+        format="json",
+    )
+    assert within.status_code == 201, within.data

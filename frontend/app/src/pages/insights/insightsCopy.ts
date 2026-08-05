@@ -9,6 +9,7 @@ const BAND_HEADLINE: Record<string, string> = {
   good: "You're in good shape overall.",
   fair: "You're doing okay, with a little room to improve.",
   "needs attention": "A few things could use your attention.",
+  "not enough data": "There isn't enough recorded yet to score your finances honestly.",
 };
 
 export function bandTone(band: string): Tone {
@@ -23,37 +24,50 @@ export function bandLabel(band: string): string {
   return band.charAt(0).toUpperCase() + band.slice(1);
 }
 
+/** A component with a real measurement behind it. */
+export type MeasuredComponent = HealthScoreComponent & { score: number };
+
 export interface HealthSummary {
-  score: number;
+  /** Null when the score couldn't honestly be stated. */
+  score: number | null;
   band: string;
   bandLabel: string;
   headline: string;
   tone: Tone;
-  strength: HealthScoreComponent | null;
-  watch: HealthScoreComponent | null;
+  strength: MeasuredComponent | null;
+  watch: MeasuredComponent | null;
+  /** Components with no basis yet — shown as gaps to fill, not as failures. */
+  missing: HealthScoreComponent[];
 }
 
 /** Reduce the 5-part score to a plain-language read: one clear strength and,
- * if anything's lagging, one thing to watch. */
+ * if anything's lagging, one thing to watch.
+ *
+ * Only *measured* components are eligible to be either. A component with no
+ * data behind it is neither a strength nor a weakness — it's a gap, and it is
+ * reported separately so "we haven't been told" never reads as "you're doing
+ * well here". */
 export function healthSummary(health: HealthScore | undefined): HealthSummary | null {
   if (!health) return null;
-  const components = [...health.components];
-  const strength = components.length
-    ? components.reduce((best, c) => (c.score > best.score ? c : best))
+  const measured = health.components.filter((c): c is MeasuredComponent => c.score !== null);
+  const missing = health.components.filter((c) => c.score === null);
+  const strength = measured.length
+    ? measured.reduce((best, c) => (c.score > best.score ? c : best))
     : null;
-  const lowest = components.length
-    ? components.reduce((worst, c) => (c.score < worst.score ? c : worst))
+  const lowest = measured.length
+    ? measured.reduce((worst, c) => (c.score < worst.score ? c : worst))
     : null;
   // Only flag a watch-out if it's genuinely lagging.
   const watch = lowest && lowest.score < 60 ? lowest : null;
   return {
-    score: Math.round(health.score),
+    score: health.score === null ? null : Math.round(health.score),
     band: health.band,
     bandLabel: bandLabel(health.band),
     headline: BAND_HEADLINE[health.band.toLowerCase()] ?? "Here's how your money is doing.",
     tone: bandTone(health.band),
     strength,
     watch,
+    missing,
   };
 }
 

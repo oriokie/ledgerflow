@@ -23,6 +23,9 @@ const ProjectionsPage = lazy(() =>
 const DebtPage = lazy(() => import("./pages/DebtPage").then((m) => ({ default: m.DebtPage })));
 const InvestmentsPage = lazy(() => import("./pages/InvestmentsPage").then((m) => ({ default: m.InvestmentsPage })));
 const IncomePage = lazy(() => import("./pages/IncomePage").then((m) => ({ default: m.IncomePage })));
+const ReceivablesPage = lazy(() =>
+  import("./pages/ReceivablesPage").then((m) => ({ default: m.ReceivablesPage })),
+);
 const CoachPage = lazy(() => import("./pages/CoachPage").then((m) => ({ default: m.CoachPage })));
 const CashflowPage = lazy(() => import("./pages/CashflowPage").then((m) => ({ default: m.CashflowPage })));
 const BudgetsPage = lazy(() => import("./pages/BudgetsPage").then((m) => ({ default: m.BudgetsPage })));
@@ -181,6 +184,7 @@ export default function App() {
           <Route path="/investments" element={<InvestmentsPage />} />
           <Route path="/income" element={<IncomePage />} />
           <Route path="/debt" element={<DebtPage />} />
+          <Route path="/receivables" element={<ReceivablesPage />} />
           <Route path="/accounts" element={<AccountsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/goals" element={<GoalsPage />} />

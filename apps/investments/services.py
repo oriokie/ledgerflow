@@ -40,6 +40,8 @@ from django.utils import timezone
 
 from apps.common import audit
 from apps.finance.models import FinancialAccount
+from apps.finance.models import Transaction as FinanceTransaction
+from apps.finance.models import TransactionStatus
 from apps.ledger import services as ledger_services
 from apps.ledger.models import Account as LedgerAccount
 from apps.ledger.models import AccountKind, Direction
@@ -65,6 +67,7 @@ class InvestmentError(Exception): ...
 _INVESTMENT_ASSET = "Investments"
 _REALIZED_GAIN = "Realised investment gains"
 _DIVIDEND_INCOME = "Dividend income"
+_INTEREST_INCOME = "Investment interest"
 _INVESTMENT_FEES = "Investment fees"
 
 
@@ -90,6 +93,18 @@ def realized_gain_account(currency: str) -> LedgerAccount:
 
 def dividend_income_account(currency: str) -> LedgerAccount:
     return _system_account(_DIVIDEND_INCOME, AccountKind.INCOME, currency)
+
+
+def interest_income_account(currency: str) -> LedgerAccount:
+    """Interest earned on a holding — an MMF distribution, a bond coupon.
+
+    Kept apart from dividend income rather than lumped in with it. They are
+    taxed differently in most jurisdictions, and a money-market fund paying
+    monthly interest is a fundamentally different cash-flow shape from an
+    equity paying a discretionary dividend twice a year. Reporting has to be
+    able to tell them apart.
+    """
+    return _system_account(_INTEREST_INCOME, AccountKind.INCOME, currency)
 
 
 def investment_fee_account(currency: str) -> LedgerAccount:
@@ -398,6 +413,88 @@ def sell(
     )
 
 
+def _record_investment_income(
+    *,
+    financial_account: FinancialAccount,
+    security: Security,
+    amount_minor: int,
+    txn_type: str,
+    income_account: LedgerAccount,
+    occurred_on: date | None,
+    cash_account: FinancialAccount | None,
+    memo: str,
+    default_memo: str,
+    idem_prefix: str,
+    idempotency_key: str | None,
+) -> InvestmentTransaction:
+    """Post an income distribution from a holding: dividend or interest.
+
+    Shared because the two differ only in which income account they credit and
+    what they are called. The accounting, the cash-flow visibility and the
+    idempotency shape are identical, and two copies of that would drift.
+    """
+    if amount_minor <= 0:
+        raise InvestmentError(f"{default_memo.split(' ')[0]} amount must be positive.")
+
+    occurred_on = occurred_on or timezone.localdate()
+    holding = _get_or_create_holding(financial_account=financial_account, security=security)
+    currency = security.currency
+    destination = cash_account or financial_account
+    occurred_at = timezone.make_aware(
+        timezone.datetime.combine(occurred_on, timezone.datetime.min.time())
+    )
+
+    entry = ledger_services.post_journal_entry(
+        occurred_at=occurred_at,
+        lines=[
+            LineInput(
+                account_id=str(destination.ledger_account_id),
+                direction=Direction.DEBIT,
+                amount_minor=amount_minor,
+            ),
+            LineInput(
+                account_id=str(income_account.id),
+                direction=Direction.CREDIT,
+                amount_minor=amount_minor,
+            ),
+        ],
+        idempotency_key=idempotency_key or f"{idem_prefix}:{holding.id}:{occurred_on}:{amount_minor}",
+        memo=memo or default_memo,
+    )
+
+    # Surface it as a domain Transaction as well as a ledger entry.
+    #
+    # Without this the money reached the account's *balance* but never appeared
+    # in cash flow, the transaction list, or any income figure — because all of
+    # those read `finance.Transaction`, not the ledger. Investment income was
+    # therefore invisible everywhere a user would look for it, which for an MMF
+    # paying monthly interest is most of what the holding does.
+    #
+    # Guarded on the entry so a retried request cannot produce a second row
+    # against the same idempotent posting.
+    if not FinanceTransaction.objects.filter(journal_entry=entry).exists():
+        FinanceTransaction.objects.create(
+            financial_account=destination,
+            journal_entry=entry,
+            amount_minor=amount_minor,  # signed: money in
+            currency=currency,
+            occurred_at=occurred_at,
+            posted_at=timezone.now(),
+            status=TransactionStatus.POSTED,
+            memo=memo or default_memo,
+        )
+
+    return InvestmentTransaction.objects.create(
+        holding=holding,
+        txn_type=txn_type,
+        occurred_on=occurred_on,
+        amount_minor=amount_minor,
+        currency=currency,
+        memo=memo,
+        journal_entry=entry,
+    )
+
+
 @transaction.atomic
 def record_dividend(
     *,
@@ -415,40 +512,57 @@ def record_dividend(
     further investment in it — capitalising it would understate every subsequent
     gain and overstate the position's cost.
     """
-    if amount_minor <= 0:
-        raise InvestmentError("Dividend amount must be positive.")
-
-    occurred_on = occurred_on or timezone.localdate()
-    holding = _get_or_create_holding(financial_account=financial_account, security=security)
-    currency = security.currency
-    destination = cash_account or financial_account
-
-    entry = ledger_services.post_journal_entry(
-        occurred_at=timezone.make_aware(timezone.datetime.combine(occurred_on, timezone.datetime.min.time())),
-        lines=[
-            LineInput(
-                account_id=str(destination.ledger_account_id),
-                direction=Direction.DEBIT,
-                amount_minor=amount_minor,
-            ),
-            LineInput(
-                account_id=str(dividend_income_account(currency).id),
-                direction=Direction.CREDIT,
-                amount_minor=amount_minor,
-            ),
-        ],
-        idempotency_key=idempotency_key or f"inv-div:{holding.id}:{occurred_on}:{amount_minor}",
-        memo=memo or f"Dividend from {security.symbol}",
+    return _record_investment_income(
+        financial_account=financial_account,
+        security=security,
+        amount_minor=amount_minor,
+        txn_type=InvestmentTransactionType.DIVIDEND,
+        income_account=dividend_income_account(security.currency),
+        occurred_on=occurred_on,
+        cash_account=cash_account,
+        memo=memo,
+        default_memo=f"Dividend from {security.symbol}",
+        idem_prefix="inv-div",
+        idempotency_key=idempotency_key,
     )
 
-    return InvestmentTransaction.objects.create(
-        holding=holding,
-        txn_type=InvestmentTransactionType.DIVIDEND,
-        occurred_on=occurred_on,
+
+@transaction.atomic
+def record_interest(
+    *,
+    financial_account: FinancialAccount,
+    security: Security,
+    amount_minor: int,
+    occurred_on: date | None = None,
+    cash_account: FinancialAccount | None = None,
+    memo: str = "",
+    idempotency_key: str | None = None,
+) -> InvestmentTransaction:
+    """Interest paid out by a holding — an MMF distribution, a bond coupon.
+
+    `InvestmentTransactionType.INTEREST` existed from the start but nothing
+    could produce one: there was no service and no endpoint, so the periodic
+    payments that are the *entire point* of a money-market fund or a bond had
+    nowhere to go. A user could only record them as unrelated manual income,
+    which severed them from the holding that generated them.
+
+    Like a dividend, interest is a return *on* the investment and is never
+    added to cost basis. Reinvested interest is two events, not one — this,
+    then a buy — and recording it that way keeps both the income and the larger
+    position true.
+    """
+    return _record_investment_income(
+        financial_account=financial_account,
+        security=security,
         amount_minor=amount_minor,
-        currency=currency,
+        txn_type=InvestmentTransactionType.INTEREST,
+        income_account=interest_income_account(security.currency),
+        occurred_on=occurred_on,
+        cash_account=cash_account,
         memo=memo,
-        journal_entry=entry,
+        default_memo=f"Interest from {security.symbol}",
+        idem_prefix="inv-int",
+        idempotency_key=idempotency_key,
     )
 
 

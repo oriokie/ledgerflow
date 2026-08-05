@@ -35,8 +35,12 @@ def tenant():
 
 
 def _account(name="Checking"):
+    # Funded well past anything these fixtures spend. They post months of
+    # history without the matching income, so a realistic opening balance would
+    # run the account dry and trip the overdraft guard — which is a fact about
+    # the fixture, not about the budget maths under test.
     return finance_services.create_financial_account(
-        name=name, account_type=AccountType.CHECKING, currency="USD", opening_balance_minor=1_000_000
+        name=name, account_type=AccountType.CHECKING, currency="USD", opening_balance_minor=100_000_000
     )
 
 

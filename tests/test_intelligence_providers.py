@@ -155,8 +155,56 @@ def test_health_components_are_transparent():
     # overall is the weighted mean of the component scores
     expected = round(sum(c.score * c.weight for c in result.components))
     assert result.score == expected
+    assert result.coverage == 1.0
     for component in result.components:
         assert component.detail  # every component explains itself
+
+
+def test_an_unmeasurable_component_is_not_scored_as_perfect():
+    """The bug this replaced: absent data read as full marks.
+
+    A workspace with no budgets scored 100% budget adherence, which pushed the
+    overall score *up* for having less information in it.
+    """
+    scored = WeightedHealthScorer().score(
+        HealthInputs(
+            savings_rate=0.10,
+            essential_coverage_months=3,
+            budget_adherence=None,  # no budgets exist
+            debt_to_asset=0.3,
+            income_stability=0.7,
+        )
+    )
+    adherence = next(c for c in scored.components if c.name == "Budget adherence")
+    assert adherence.score is None
+    assert adherence.available is False
+    assert "no budgets" in adherence.detail.lower()
+
+    # It is excluded from the mean, not counted as 100 and not counted as 0.
+    measured = [c for c in scored.components if c.score is not None]
+    expected = round(
+        sum(c.score * c.weight for c in measured) / sum(c.weight for c in measured)
+    )
+    assert scored.score == expected
+    assert scored.coverage == round(1.0 - WEIGHTS["budget_adherence"], 3)
+
+
+def test_a_workspace_with_almost_no_data_gets_no_score_rather_than_a_flattering_one():
+    """An empty workspace used to score well. Now it declines to score."""
+    result = WeightedHealthScorer().score(
+        HealthInputs(
+            savings_rate=None,
+            essential_coverage_months=None,
+            budget_adherence=None,
+            debt_to_asset=0.0,
+            income_stability=None,
+        )
+    )
+    assert result.score is None
+    assert result.band == "not enough data"
+    # It still explains itself: every component says what is missing.
+    assert all(c.detail for c in result.components)
+    assert result.coverage == WEIGHTS["debt_load"]
 
 
 # --------------------------------------------------------------- anomaly

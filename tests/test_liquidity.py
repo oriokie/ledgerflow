@@ -15,6 +15,7 @@ from apps.billing.models import BillingInterval, Plan, PlanTier
 from apps.common.rls import bind_db_tenant
 from apps.common.tenant_context import use_tenant
 from apps.finance import services as fin
+from apps.finance.models import TransactionSource
 
 pytestmark = pytest.mark.django_db
 
@@ -27,7 +28,14 @@ def _ctx(membership):
 
 
 def _seed_history(membership, monthly_income=500_000, monthly_expense=650_000, months=3):
-    """An account plus `months` full months of income/spending history."""
+    """An account plus `months` full months of income/spending history.
+
+    Posted as `IMPORTED`, because that is what this is: months of past activity
+    being backfilled, not a user entering today's payment. It also has to be —
+    these fixtures deliberately model a household spending more than it earns,
+    and the overdraft guard only refuses *manual* postings precisely so that
+    recording what already happened stays possible.
+    """
     with _ctx(membership):
         acct = fin.create_financial_account(name="Checking", account_type="checking", currency="USD")
         cat_in = fin.create_category(name="Pay", kind="income", currency="USD")
@@ -41,6 +49,7 @@ def _seed_history(membership, monthly_income=500_000, monthly_expense=650_000, m
                 amount_minor=monthly_income,
                 occurred_at=when,
                 memo=f"salary {m}",
+                source=TransactionSource.IMPORTED,
             )
             fin.record_expense(
                 financial_account=acct,
@@ -48,6 +57,7 @@ def _seed_history(membership, monthly_income=500_000, monthly_expense=650_000, m
                 amount_minor=monthly_expense,
                 occurred_at=when + timedelta(days=1),
                 memo=f"living {m}",
+                source=TransactionSource.IMPORTED,
             )
     return acct
 

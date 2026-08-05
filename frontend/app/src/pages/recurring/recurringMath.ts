@@ -73,19 +73,70 @@ export function sortByMonthlyCost(list: RecurringTransaction[]): RecurringTransa
 }
 
 const UNIT: Record<Freq, string> = { daily: "day", weekly: "week", monthly: "month", yearly: "year" };
-const ADJECTIVE: Record<Freq, string> = {
-  daily: "Daily",
-  weekly: "Weekly",
-  monthly: "Monthly",
-  yearly: "Yearly",
-};
 
-/** Human cadence label, e.g. "Monthly" or "Every 2 weeks". */
-export function cadenceLabel(rec: Pick<RecurringTransaction, "frequency" | "interval">): string {
-  const f = rec.frequency as Freq;
+/**
+ * The cadences a person actually gets billed on, as (frequency × interval).
+ *
+ * The server stores a base unit and a multiplier, which between them already
+ * express every one of these — quarterly *is* monthly×3. So this catalogue is
+ * a naming layer, not a schema change: no migration, and a schedule already
+ * stored as monthly×3 starts reading "Quarterly" without being touched.
+ *
+ * Quarterly, four-monthly and semiannual are here because real bills use them
+ * — school fees a term at a time, insurance premiums, land rates, bond coupons
+ * — and without them the only way to enter one was to misstate the cadence,
+ * which then misstates every annualised figure derived from it.
+ *
+ * "Triannual" is deliberately not used as a label: it reads as both "three
+ * times a year" and "every three years". `Every 4 months` says which.
+ */
+export interface Cadence {
+  /** Stable key for a <Select>. */
+  value: string;
+  label: string;
+  frequency: Freq;
+  interval: number;
+}
+
+export const CADENCES: readonly Cadence[] = [
+  { value: "daily", label: "Daily", frequency: "daily", interval: 1 },
+  { value: "weekly", label: "Weekly", frequency: "weekly", interval: 1 },
+  { value: "fortnightly", label: "Every two weeks", frequency: "weekly", interval: 2 },
+  { value: "monthly", label: "Monthly", frequency: "monthly", interval: 1 },
+  { value: "bimonthly", label: "Every two months", frequency: "monthly", interval: 2 },
+  { value: "quarterly", label: "Quarterly", frequency: "monthly", interval: 3 },
+  { value: "four_monthly", label: "Every 4 months", frequency: "monthly", interval: 4 },
+  { value: "semiannual", label: "Twice a year", frequency: "monthly", interval: 6 },
+  { value: "yearly", label: "Yearly", frequency: "yearly", interval: 1 },
+] as const;
+
+export const CADENCE_OPTIONS = CADENCES.map((c) => ({ value: c.value, label: c.label }));
+
+/** The catalogue entry for a stored (frequency, interval) pair, if it has a name. */
+export function cadenceFor(
+  rec: Pick<RecurringTransaction, "frequency" | "interval">,
+): Cadence | undefined {
   const n = rec.interval || 1;
-  if (n === 1) return ADJECTIVE[f] ?? rec.frequency;
-  return `Every ${n} ${UNIT[f] ?? rec.frequency}s`;
+  return CADENCES.find((c) => c.frequency === rec.frequency && c.interval === n);
+}
+
+/** The catalogue entry for a <Select> value. */
+export function cadenceByValue(value: string): Cadence | undefined {
+  return CADENCES.find((c) => c.value === value);
+}
+
+/**
+ * Human cadence label, e.g. "Monthly", "Quarterly" or "Every 5 months".
+ *
+ * Named cadences win; anything else falls back to counting units, so a
+ * schedule stored with an interval nobody has a word for still describes
+ * itself honestly rather than being rounded to the nearest named one.
+ */
+export function cadenceLabel(rec: Pick<RecurringTransaction, "frequency" | "interval">): string {
+  const named = cadenceFor(rec);
+  if (named) return named.label;
+  const n = rec.interval || 1;
+  return `Every ${n} ${UNIT[rec.frequency as Freq] ?? rec.frequency}s`;
 }
 
 /** Best display label for a schedule: memo, else its category, else a fallback. */

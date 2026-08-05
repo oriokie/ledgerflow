@@ -336,6 +336,20 @@ export function useSetRecurringActive() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["recurring"] }),
   });
 }
+export function useUpdateRecurring() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      recId,
+      ...payload
+    }: { recId: string } & Parameters<typeof financeExtendedApi.updateRecurring>[1]) =>
+      financeExtendedApi.updateRecurring(recId, payload),
+    // An edited schedule changes what is projected to be posted, so the money
+    // views have to be refetched alongside the list — not just the list.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["recurring"] }),
+    onSettled: () => invalidateMoneyViews(queryClient),
+  });
+}
 export function useCancelRecurring() {
   const queryClient = useQueryClient();
   return useMutation({

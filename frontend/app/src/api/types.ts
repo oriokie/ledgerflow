@@ -43,6 +43,12 @@ export interface Tenant {
   name: string;
   type: string;
   base_currency: string;
+  /**
+   * When an owner actually chose the base currency, as against inheriting the
+   * "USD" default. Null means nobody has been asked yet — which is what lets
+   * first-run setup ask exactly once instead of every time.
+   */
+  base_currency_chosen_at: string | null;
   default_locale: string;
   default_timezone: string;
 }
@@ -183,14 +189,21 @@ export interface Forecast {
 
 export interface HealthScoreComponent {
   name: string;
-  score: number;
+  /** Null when there was no basis to measure it. `detail` says what's missing. */
+  score: number | null;
   weight: number;
   detail: string;
 }
 
 export interface HealthScore {
-  score: number;
+  /**
+   * Null when too little of the picture is measurable to state one number.
+   * Render the absence — a zero here would be a claim nobody made.
+   */
+  score: number | null;
   band: string;
+  /** Share of the score's total weight that was measurable, 0..1. */
+  coverage: number;
   components: HealthScoreComponent[];
   provider: string;
   version: string;

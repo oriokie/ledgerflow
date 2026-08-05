@@ -41,6 +41,18 @@ class Tenant(UUIDModel, TimestampedModel):
     type = models.CharField(max_length=16, choices=TenantType.choices, default=TenantType.PERSONAL)
     # Config-over-hardcode: workspace defaults for localization live on the tenant.
     base_currency = models.CharField(max_length=3, default="USD")
+    #: When an owner actually *chose* the base currency, as against inheriting
+    #: the "USD" default above.
+    #:
+    #: The default has to be some currency, so `base_currency` alone cannot
+    #: distinguish "the user picked dollars" from "nobody has been asked yet" —
+    #: and that difference is the whole point of putting the choice in first-run
+    #: setup. Null means unasked, and the setup checklist keeps asking.
+    #:
+    #: Nullable rather than a boolean with a default: an existing workspace has
+    #: genuinely never been asked, and backfilling it to True would silently
+    #: assert a choice its owner never made.
+    base_currency_chosen_at = models.DateTimeField(null=True, blank=True)
     default_locale = models.CharField(max_length=10, default="en-US")
     default_timezone = models.CharField(max_length=64, default="UTC")
     billing_email = models.EmailField(blank=True, default="")

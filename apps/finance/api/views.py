@@ -75,7 +75,18 @@ from .serializers import (
 
 
 def _finance_error(exc) -> Response:
-    return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+    body = {"detail": str(exc)}
+    # An overdraft refusal carries the figures behind it, so the client can
+    # offer the fix ("you're 1,200 short") rather than only repeating the
+    # sentence. `code` lets the UI single it out from other 422s.
+    if isinstance(exc, services.InsufficientFundsError):
+        body |= {
+            "code": "insufficient_funds",
+            "account_name": exc.account_name,
+            "available_minor": exc.available_minor,
+            "shortfall_minor": exc.shortfall_minor,
+        }
+    return Response(body, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 def _parse_txn_filters(request) -> selectors.TransactionFilters:
@@ -682,8 +693,12 @@ class RecurringView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
 
 
 class RecurringDetailView(TenantScopedAPIView, APIView):
-    """Pause/resume (PATCH is_active) or cancel (DELETE) a schedule — the levers
-    for trimming recurring spend."""
+    """Edit (PATCH), pause/resume (PATCH is_active) or cancel (DELETE) a
+    schedule — the levers for correcting and trimming recurring spend.
+
+    Editing changes the plan from here on; it never rewrites the occurrences
+    already posted from the template. See ``recurring.update_recurring_transaction``.
+    """
 
     permission_classes = [IsTenantMember]
     required_role = Role.MEMBER
@@ -695,7 +710,30 @@ class RecurringDetailView(TenantScopedAPIView, APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         s = RecurringUpdateSerializer(data=request.data)
         s.is_valid(raise_exception=True)
-        rec = recurring_service.set_recurring_active(rec=rec, active=s.validated_data["is_active"])
+        v = dict(s.validated_data)
+
+        # Pausing is its own operation, not a field edit: it has to work on a
+        # schedule whose plan is otherwise untouched, and it is the one change
+        # that must never re-anchor `next_run_on`.
+        active = v.pop("is_active", None)
+
+        if v:
+            changes = {}
+            if "category_id" in v:
+                cid = v.pop("category_id")
+                changes["category"] = Category.objects.filter(id=cid).first() if cid else None
+            if "counter_account_id" in v:
+                aid = v.pop("counter_account_id")
+                changes["counter_account"] = _visible_accounts().filter(id=aid).first() if aid else None
+            changes.update(v)
+            try:
+                rec = recurring_service.update_recurring_transaction(rec=rec, **changes)
+            except services.FinanceError as exc:
+                return _finance_error(exc)
+
+        if active is not None:
+            rec = recurring_service.set_recurring_active(rec=rec, active=active)
+
         return Response(RecurringSerializer(rec).data)
 
     def delete(self, request, rec_id):

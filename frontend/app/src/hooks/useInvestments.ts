@@ -90,3 +90,14 @@ export function useRecordDividend() {
     },
   });
 }
+
+export function useRecordInterest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: investmentsApi.recordInterest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PREFIX] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+    },
+  });
+}

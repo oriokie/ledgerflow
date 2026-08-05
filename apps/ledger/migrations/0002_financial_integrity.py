@@ -92,5 +92,12 @@ class Migration(migrations.Migration):
         ("finance", "0001_initial"),
         ("budgeting", "0001_initial"),
         ("common", "0001_initial"),
+        # `RLS_TABLES` above names two intelligence tables, so they have to
+        # exist before this runs. Without this dependency the graph was free to
+        # schedule it first and a fresh database failed to build with
+        # `relation "intelligence_categorizationsuggestion" does not exist` —
+        # it only ever worked because INSTALLED_APPS order happened to break
+        # the tie the right way, which is not a guarantee.
+        ("intelligence", "0001_initial"),
     ]
     operations = [migrations.RunPython(apply_integrity, revert_integrity)]

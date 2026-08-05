@@ -34,7 +34,15 @@ vi.mock("../hooks/useIntelligence", () => ({
   useSpendingTrend: () => ({ data: undefined }),
 }));
 vi.mock("../lib/AuthContext", () => ({
-  useAuth: () => ({ user: { first_name: "Sam", email: "sam@example.com" } }),
+  useAuth: () => ({
+    user: { first_name: "Sam", email: "sam@example.com" },
+    // `base_currency_chosen_at: null` is the state of a workspace whose owner
+    // has not been asked yet, so the currency step is outstanding throughout.
+    activeWorkspace: {
+      role: "owner",
+      tenant: { id: "t1", base_currency: "USD", base_currency_chosen_at: null },
+    },
+  }),
 }));
 vi.mock("../hooks/useEntitlements", () => ({
   useAiEnabled: () => ({ aiEnabled: true, isLoading: false }),
@@ -65,7 +73,9 @@ describe("DashboardPage", () => {
     renderDash();
     expect(screen.getByText(/Sam/)).toBeInTheDocument();
     expect(screen.getByText(/let's get you set up/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /add account/i })).toBeInTheDocument();
+    // Currency comes first: everything created later is denominated in it.
+    expect(screen.getByText(/choose your currency/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /use this currency/i })).toBeInTheDocument();
   });
 
   it("renders the full dashboard once an account and activity exist", () => {
@@ -90,7 +100,7 @@ describe("DashboardPage", () => {
     // Budgets, goals and sharing are still outstanding, so guidance stays —
     // previously it vanished here, exactly when the user knew least about them.
     expect(screen.getByText(/let's get you set up/i)).toBeInTheDocument();
-    expect(screen.getByText("2 of 5 done")).toBeInTheDocument();
+    expect(screen.getByText("2 of 6 done")).toBeInTheDocument();
     // Guidance and real data coexist rather than one hiding the other.
     expect(screen.getByRole("group", { name: /time period/i })).toBeInTheDocument();
   });

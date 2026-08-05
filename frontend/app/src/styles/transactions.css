@@ -248,6 +248,65 @@
   box-shadow: inset 3px 0 0 0 var(--lf-action-primary);
 }
 
+/* ---------- ledger grid ----------
+   The transaction list is the one table people read the way they read a
+   spreadsheet: down a column, comparing figures, for far more rows at a time
+   than any other screen. So it gets spreadsheet affordances — real cell
+   gridlines, tight rows, banded stripes to hold the eye on a line, and
+   tabular figures so digits align in the amount column.
+
+   Deliberately *not* an editable grid: the category cell is the one field
+   people fix in bulk and it already edits in place, while everything else
+   opens the detail panel where the full context is. */
+.lf-txn-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.lf-txn-table th,
+.lf-txn-table td {
+  border-right: 1px solid var(--lf-border-subtle);
+  padding-block: var(--lf-space-2);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.lf-txn-table th:last-child,
+.lf-txn-table td:last-child {
+  border-right: 0;
+}
+
+/* Zebra banding. Declared before the selection rule so that rule still wins —
+   a selected row must read as selected whichever band it lands on. */
+.lf-txn-table tbody tr:nth-child(even) {
+  background: var(--lf-bg-sunken);
+}
+
+/* The description is the one column allowed to be long; it truncates rather
+   than forcing the grid to reflow around a wordy memo. */
+.lf-txn-table td .lf-cell-primary {
+  display: block;
+  max-width: 42ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lf-txn-date {
+  width: 6.5rem;
+}
+
+.lf-txn-account {
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Digits must line up column-wise or the figures can't be compared at a
+   glance, which is the entire reason this column exists. */
+.lf-txn-table .lf-col-amount {
+  font-variant-numeric: tabular-nums;
+}
+
 /* The inline category select sits inside a dense row — it shouldn't carry the
    full form-control chrome until the user reaches for it. */
 .lf-txn-cat-select {
@@ -269,7 +328,10 @@
   height: 32px;
 }
 
-/* mobile reflow: stack the row, keep checkbox + amount on the first line */
+/* mobile reflow: stack the row, keep checkbox + amount on the first line.
+   The grid treatment above is a desktop affordance — six ruled columns on a
+   375px screen is unreadable, so the row goes back to being a stacked card and
+   the date and account rejoin the description as a meta line. */
 @media (max-width: 767px) {
   .lf-txn-table thead {
     display: none;
@@ -285,6 +347,23 @@
     display: block;
     padding: 0;
     border: 0;
+    white-space: normal;
+  }
+  .lf-txn-table td .lf-cell-primary {
+    max-width: none;
+  }
+  /* Date and account share the line under the description rather than each
+     taking a full row of their own. */
+  .lf-txn-table td.lf-txn-date {
+    grid-row: 2;
+    grid-column: 2;
+    width: auto;
+  }
+  .lf-txn-table td.lf-txn-account {
+    grid-row: 2;
+    grid-column: 3;
+    max-width: none;
+    text-align: right;
   }
   .lf-txn-table td.lf-txn-cat {
     grid-column: 2 / -1;

@@ -70,6 +70,32 @@ export function useSetDebtTerms() {
   });
 }
 
+export function useCreateDebt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: debtApi.createDebt,
+    // A new debt creates a real liability account, so accounts and net worth
+    // move too — not just the debt views.
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PREFIX] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["net-worth"] });
+    },
+  });
+}
+
+export function useDeleteDebt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId: string) => debtApi.deleteDebt(accountId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PREFIX] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["net-worth"] });
+    },
+  });
+}
+
 /** The Debt Stress Score. Always arrives with its derivation attached. */
 export function useDebtStress() {
   const { activeWorkspace } = useAuth();
