@@ -48,6 +48,7 @@ def update_workspace(
     actor_membership: Membership,
     name: str | None = None,
     base_currency: str | None = None,
+    block_overdrafts: bool | None = None,
 ) -> Tenant:
     """Owner-only workspace settings update. Changing the base currency only
     affects how new categories/reporting default and how mixed-currency totals
@@ -77,6 +78,11 @@ def update_workspace(
         # was asked and answered, not that the answer changed.
         tenant.base_currency_chosen_at = timezone.now()
         fields.append("base_currency_chosen_at")
+    if block_overdrafts is not None:
+        # Turning this off never rewrites anything already posted — it only
+        # changes what the product will accept from here on.
+        tenant.block_overdrafts = block_overdrafts
+        fields.append("block_overdrafts")
     if fields:
         fields.append("updated_at")
         tenant.save(update_fields=fields)

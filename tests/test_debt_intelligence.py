@@ -1363,7 +1363,7 @@ def test_api_pdf_is_204_without_debt(tenant_context):
 
 # ----------------------------------------------------- creating a debt directly
 def test_a_debt_is_created_in_one_step(tenant_context):
-    """"Add a credit card or loan" used to send the user to the accounts screen.
+    """ "Add a credit card or loan" used to send the user to the accounts screen.
 
     A debt is a liability account *plus* terms, and making only the account left
     the terms as a second job the user had to know to come back for — so the
@@ -1423,8 +1423,14 @@ def test_a_debt_can_be_edited_and_deleted(tenant_context):
     _, client = tenant_context
     created = client.post(
         "/api/v1/debt/debts/",
-        {"name": "Car loan", "currency": "USD", "balance_minor": 900_000, "debt_kind": "vehicle loan",
-         "apr": "9.5", "minimum_payment_minor": 40_000},
+        {
+            "name": "Car loan",
+            "currency": "USD",
+            "balance_minor": 900_000,
+            "debt_kind": "vehicle loan",
+            "apr": "9.5",
+            "minimum_payment_minor": 40_000,
+        },
         format="json",
     ).data
     account_id = created["account_id"]
@@ -1456,7 +1462,8 @@ def test_deleting_a_debt_with_history_archives_rather_than_erases(tenant_context
     ).data
     account_id = created["account_id"]
     cat = client.post(
-        "/api/v1/finance/categories/", {"name": "Shopping", "kind": "expense", "currency": "USD"},
+        "/api/v1/finance/categories/",
+        {"name": "Shopping", "kind": "expense", "currency": "USD"},
         format="json",
     ).data
     client.post(

@@ -1069,17 +1069,13 @@ def test_interest_from_an_mmf_or_bond_is_recorded_against_the_holding(tenant):
     with tenant_scope(tenant):
         account = _brokerage()
         mmf = _security(symbol="MMF", asset_class=AssetClass.CASH_EQUIVALENT, sector="")
-        services.buy(
-            financial_account=account, security=mmf, quantity=Decimal("1000"), amount_minor=100_000
-        )
+        services.buy(financial_account=account, security=mmf, quantity=Decimal("1000"), amount_minor=100_000)
         before = selectors.holding_cost_basis_minor(Holding.objects.get())
 
         txn = services.record_interest(financial_account=account, security=mmf, amount_minor=850)
 
         assert txn.txn_type == InvestmentTransactionType.INTEREST
-        assert InvestmentTransaction.objects.filter(
-            txn_type=InvestmentTransactionType.INTEREST
-        ).count() == 1
+        assert InvestmentTransaction.objects.filter(txn_type=InvestmentTransactionType.INTEREST).count() == 1
         # Interest is a return *on* the investment, never added to its cost.
         assert selectors.holding_cost_basis_minor(Holding.objects.get()) == before
 
@@ -1103,17 +1099,11 @@ def test_investment_income_reaches_the_cash_flow(tenant):
         account = _brokerage()
         mmf = _security(symbol="MMF", asset_class=AssetClass.CASH_EQUIVALENT, sector="")
         equity = _security(symbol="ACME")
-        services.buy(
-            financial_account=account, security=mmf, quantity=Decimal("1000"), amount_minor=100_000
-        )
-        services.buy(
-            financial_account=account, security=equity, quantity=Decimal("10"), amount_minor=50_000
-        )
+        services.buy(financial_account=account, security=mmf, quantity=Decimal("1000"), amount_minor=100_000)
+        services.buy(financial_account=account, security=equity, quantity=Decimal("10"), amount_minor=50_000)
 
         today = timezone.localdate()
-        services.record_interest(
-            financial_account=account, security=mmf, amount_minor=850, occurred_on=today
-        )
+        services.record_interest(financial_account=account, security=mmf, amount_minor=850, occurred_on=today)
         services.record_dividend(
             financial_account=account, security=equity, amount_minor=1_200, occurred_on=today
         )
@@ -1132,9 +1122,7 @@ def test_recording_the_same_interest_payment_twice_posts_it_once(tenant):
     with tenant_scope(tenant):
         account = _brokerage()
         mmf = _security(symbol="MMF", asset_class=AssetClass.CASH_EQUIVALENT, sector="")
-        services.buy(
-            financial_account=account, security=mmf, quantity=Decimal("1000"), amount_minor=100_000
-        )
+        services.buy(financial_account=account, security=mmf, quantity=Decimal("1000"), amount_minor=100_000)
         on = date(2026, 3, 31)
         for _ in range(2):
             services.record_interest(

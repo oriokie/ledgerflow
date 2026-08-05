@@ -17,6 +17,7 @@ from django.utils import timezone
 from apps.budgeting.models import Budget
 from apps.budgeting.selectors import budget_status
 from apps.finance.models import Transaction
+
 # `_COUNTED` (posted + reconciled) is the finance layer's own definition of a
 # transaction that counts toward reported figures. Imported rather than
 # restated so this module cannot drift from it.

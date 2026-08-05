@@ -85,9 +85,18 @@ class InsufficientFundsError(FinanceError):
 def _assert_sufficient_funds(
     account: FinancialAccount, amount_minor: int, source: str = TransactionSource.MANUAL
 ) -> None:
-    """Refuse a withdrawal that would overdraw `account`.
+    """Refuse a manual withdrawal that would overdraw `account`.
 
-    Three deliberate exemptions, each because refusing would be the worse error:
+    **Any** manual posting that would take an asset account past its overdraft
+    limit is refused, including one against an account already empty or already
+    negative. An earlier version only policed accounts that currently held
+    money, on the reasoning that a zero balance might just mean "no opening
+    balance was ever recorded" — but that let the first overdraft through on
+    exactly the accounts most likely to be mistracked, which is backwards. The
+    escape hatch for those users is now an explicit workspace setting rather
+    than a silent hole in the rule.
+
+    Three exemptions remain, each because refusing would be the worse error:
 
     * **Liability accounts.** A credit card or loan going further into the red
       is the entire point of a credit card or loan. Blocking it would make the
@@ -104,8 +113,7 @@ def _assert_sufficient_funds(
       real life, and that is exactly when a user needs to see it. Silently
       halting the schedule would hide it.
 
-    So this guards the case the user actually meets: deliberately entering a
-    payment the account cannot cover.
+    …plus the workspace's own `block_overdrafts`, which an owner can turn off.
 
     The check reads the materialized balance, which the ledger updates in the
     same transaction as the entry that moved it, so it cannot pass on a stale
@@ -125,23 +133,14 @@ def _assert_sufficient_funds(
         or 0
     )
 
-    # Only police an account whose balance we actually know.
-    #
-    # A zero balance is ambiguous: it is both "the account is empty" and "no
-    # opening balance was ever recorded", and the second is common — plenty of
-    # people track what they spend without ever telling the product what they
-    # started with. Refusing there would make the product unusable for them to
-    # no benefit, since the figure being defended is not a real one. An account
-    # already below zero is likewise past the point this check can help.
-    #
-    # So the rule is: if the account holds money, a manual withdrawal may not
-    # take it past its overdraft limit. If it doesn't, the entry is recorded
-    # and the negative balance is shown.
-    if balance <= 0:
-        return
-
     floor = -account.overdraft_limit_minor
     if balance - amount_minor >= floor:
+        return
+
+    # Only now is the workspace policy worth a query. Checking it up front
+    # would cost a lookup on every expense a household ever records, to answer
+    # a question that only matters for the few that would breach.
+    if not _overdrafts_are_blocked():
         return
 
     available = balance + account.overdraft_limit_minor
@@ -158,6 +157,27 @@ def _assert_sufficient_funds(
         available_minor=available,
         shortfall_minor=amount_minor - available,
     )
+
+
+def _overdrafts_are_blocked() -> bool:
+    """The current workspace's overdraft policy.
+
+    **No workspace means no policy**, and the posting goes through. That is not
+    a hole: the model field defaults to True, so every real workspace blocks
+    until its owner says otherwise, and an interactive request always resolves
+    to one. Reaching here without a workspace means the caller is a management
+    command, a background job or a test harness — the same category as the
+    import exemption above, where the job is to record what happened rather
+    than to authorise it.
+    """
+    from apps.common.tenant_context import get_current_tenant_id
+    from apps.tenancy.models import Tenant
+
+    tenant_id = get_current_tenant_id()
+    if tenant_id is None:
+        return False
+    blocked = Tenant.objects.filter(id=tenant_id).values_list("block_overdrafts", flat=True).first()
+    return bool(blocked)
 
 
 def _fmt_minor(amount_minor: int) -> str:
@@ -477,7 +497,7 @@ def archive_category(*, category: Category) -> None:
     in_use = Transaction.objects.filter(category=category).exists()
     if in_use:
         raise FinanceError(
-            "This category is used by existing transactions. Recategorize them first, " "then delete it."
+            "This category is used by existing transactions. Recategorize them first, then delete it."
         )
 
     category.delete()  # soft delete

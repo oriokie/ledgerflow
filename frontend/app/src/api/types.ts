@@ -49,6 +49,8 @@ export interface Tenant {
    * first-run setup ask exactly once instead of every time.
    */
   base_currency_chosen_at: string | null;
+  /** Whether a manual posting that would overdraw an asset account is refused. */
+  block_overdrafts: boolean;
   default_locale: string;
   default_timezone: string;
 }

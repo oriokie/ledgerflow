@@ -230,6 +230,7 @@ class WorkspaceDetailView(APIView):
                 actor_membership=membership,
                 name=request.data.get("name"),
                 base_currency=request.data.get("base_currency"),
+                block_overdrafts=request.data.get("block_overdrafts"),
             )
         except TenancyError as exc:
             return _tenancy_error_response(exc)
@@ -240,6 +241,7 @@ class WorkspaceDetailView(APIView):
                 "type": tenant.type,
                 "base_currency": tenant.base_currency,
                 "base_currency_chosen_at": tenant.base_currency_chosen_at,
+                "block_overdrafts": tenant.block_overdrafts,
             }
         )
 

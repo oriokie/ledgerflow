@@ -132,7 +132,10 @@ class WeightedHealthScorer(HealthScoreProvider):
             )
         # 20% of income kept -> full marks.
         return HealthComponent(
-            "Savings rate", _clamp_score(min(rate / 0.20, 1.0) * 100), weight, f"Keeping {rate * 100:.0f}% of income."
+            "Savings rate",
+            _clamp_score(min(rate / 0.20, 1.0) * 100),
+            weight,
+            f"Keeping {rate * 100:.0f}% of income.",
         )
 
     @staticmethod

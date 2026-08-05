@@ -39,9 +39,8 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.common import audit
-from apps.finance.models import FinancialAccount
+from apps.finance.models import FinancialAccount, TransactionStatus
 from apps.finance.models import Transaction as FinanceTransaction
-from apps.finance.models import TransactionStatus
 from apps.ledger import services as ledger_services
 from apps.ledger.models import Account as LedgerAccount
 from apps.ledger.models import AccountKind, Direction
@@ -440,9 +439,7 @@ def _record_investment_income(
     holding = _get_or_create_holding(financial_account=financial_account, security=security)
     currency = security.currency
     destination = cash_account or financial_account
-    occurred_at = timezone.make_aware(
-        timezone.datetime.combine(occurred_on, timezone.datetime.min.time())
-    )
+    occurred_at = timezone.make_aware(timezone.datetime.combine(occurred_on, timezone.datetime.min.time()))
 
     entry = ledger_services.post_journal_entry(
         occurred_at=occurred_at,

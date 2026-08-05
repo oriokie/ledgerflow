@@ -39,21 +39,18 @@ def test_a_claim_records_who_owes_what():
 
 def test_a_claim_against_nobody_is_refused():
     """A receivable's whole purpose is to be chaseable."""
-    with tenant_scope(uuid.uuid4()):
-        with pytest.raises(services.ReceivableError):
-            _lend(counterparty="   ")
+    with tenant_scope(uuid.uuid4()), pytest.raises(services.ReceivableError):
+        _lend(counterparty="   ")
 
 
 def test_money_cannot_be_owed_back_before_it_went_out():
-    with tenant_scope(uuid.uuid4()):
-        with pytest.raises(services.ReceivableError):
-            _lend(due_on=date(2026, 1, 1))
+    with tenant_scope(uuid.uuid4()), pytest.raises(services.ReceivableError):
+        _lend(due_on=date(2026, 1, 1))
 
 
 def test_a_claim_needs_a_positive_amount():
-    with tenant_scope(uuid.uuid4()):
-        with pytest.raises(services.ReceivableError):
-            _lend(amount=0)
+    with tenant_scope(uuid.uuid4()), pytest.raises(services.ReceivableError):
+        _lend(amount=0)
 
 
 # ----------------------------------------------------------------- repayments
@@ -161,7 +158,7 @@ def test_overdue_is_counted_from_the_agreed_date():
 
 
 def test_summary_is_absent_rather_than_zeroed_when_nothing_is_recorded():
-    """"You are owed nothing" and "you haven't told us about anything" are
+    """ "You are owed nothing" and "you haven't told us about anything" are
     different statements, and only one of them is a finding."""
     with tenant_scope(uuid.uuid4()):
         assert selectors.summary() is None
@@ -172,9 +169,7 @@ def test_summary_separates_outstanding_overdue_and_written_off():
         _lend("Wanjiru", 50_000, due_on=date(2026, 2, 10))  # overdue by as_of
         _lend("Otieno", 30_000, due_on=date(2026, 12, 1))  # not yet due
         settled = _lend("Achieng", 10_000)
-        services.record_repayment(
-            receivable=settled, amount_minor=10_000, received_on=date(2026, 2, 1)
-        )
+        services.record_repayment(receivable=settled, amount_minor=10_000, received_on=date(2026, 2, 1))
         lost = _lend("Kamau", 5_000)
         services.write_off(receivable=lost)
 

@@ -62,6 +62,23 @@ class Tenant(UUIDModel, TimestampedModel):
     #: backfill that would invent data for anyone who never told us.
     country = models.CharField(max_length=2, blank=True, default="")
     is_active = models.BooleanField(default=True)
+    #: Whether to refuse a manual posting that would overdraw an asset account.
+    #:
+    #: Defaults to True because the safer behaviour should be the one you get
+    #: without knowing the setting exists: a household that types a payment its
+    #: account cannot cover is nearly always making a mistake, and finding out
+    #: at the moment of entry is the whole point.
+    #:
+    #: It is a *choice* rather than a rule because the honest cases against it
+    #: are real — an account whose opening balance was never recorded, cash
+    #: tracked loosely, or a bank whose informal overdraft has no stated
+    #: ceiling. Those users would otherwise be locked out of recording their
+    #: own spending, so the escape hatch is theirs to take rather than
+    #: something the product decides for them.
+    #:
+    #: Per-account `overdraft_limit_minor` is the finer instrument: this is
+    #: "police my balances at all", that is "and here is my arranged limit".
+    block_overdrafts = models.BooleanField(default=True)
     #: Per-workspace opt-out for AI-touched insights and narration, independent
     #: of whatever the deployment has configured. Provider, model and API key
     #: stay deployment-level (env vars) deliberately — a member choosing where

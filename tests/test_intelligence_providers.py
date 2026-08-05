@@ -182,9 +182,7 @@ def test_an_unmeasurable_component_is_not_scored_as_perfect():
 
     # It is excluded from the mean, not counted as 100 and not counted as 0.
     measured = [c for c in scored.components if c.score is not None]
-    expected = round(
-        sum(c.score * c.weight for c in measured) / sum(c.weight for c in measured)
-    )
+    expected = round(sum(c.score * c.weight for c in measured) / sum(c.weight for c in measured))
     assert scored.score == expected
     assert scored.coverage == round(1.0 - WEIGHTS["budget_adherence"], 3)
 

@@ -30,9 +30,7 @@ def _get(receivable_id) -> Receivable | None:
 
 
 def _view_for(receivable_id) -> dict | None:
-    view = next(
-        (v for v in selectors.receivable_views() if v.receivable_id == str(receivable_id)), None
-    )
+    view = next((v for v in selectors.receivable_views() if v.receivable_id == str(receivable_id)), None)
     return _out(view) if view else None
 
 

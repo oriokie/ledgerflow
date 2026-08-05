@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { tenancyApi } from "../../../api/tenancy";
 import { ApiError } from "../../../api/client";
 import { useAuth } from "../../../lib/AuthContext";
-import { Badge, Banner, Button, Input, Select, Text, useToast } from "../../../ui";
+import { Badge, Banner, Button, Input, Select, Switch, Text, useToast } from "../../../ui";
 import { CURRENCY_OPTIONS } from "../../../lib/currencies";
 import { DangerZone, SettingsAdvanced, SettingsRow, SettingsSection } from "../components";
 
@@ -20,6 +20,30 @@ export function WorkspacePanel() {
   const baseCurrency = tenant?.base_currency ?? "USD";
   const [savingCurrency, setSavingCurrency] = useState(false);
   const [savedCurrency, setSavedCurrency] = useState(false);
+  const [blockOverdrafts, setBlockOverdrafts] = useState(tenant?.block_overdrafts ?? true);
+  const [savingOverdrafts, setSavingOverdrafts] = useState(false);
+
+  /**
+   * Saved optimistically and reverted on failure.
+   *
+   * Unlike the base currency this needs no reload: nothing is cached against
+   * it and it only governs what the server will accept from the next posting
+   * onward. Anything already recorded stays exactly as it is.
+   */
+  const saveBlockOverdrafts = async (next: boolean) => {
+    if (!tenant) return;
+    setBlockOverdrafts(next);
+    setSavingOverdrafts(true);
+    setError(null);
+    try {
+      await tenancyApi.updateWorkspace(tenant.id, { block_overdrafts: next });
+    } catch (err) {
+      setBlockOverdrafts(!next);
+      setError(err instanceof ApiError ? err.detail : "Couldn't change that setting.");
+    } finally {
+      setSavingOverdrafts(false);
+    }
+  };
 
   const saveBaseCurrency = async (code: string) => {
     if (!tenant || code === tenant.base_currency) return;
@@ -103,6 +127,24 @@ export function WorkspacePanel() {
           ) : (
             <Text tone="secondary" size="sm">
               {tenant?.base_currency ?? "—"}
+            </Text>
+          )}
+        </SettingsRow>
+        <SettingsRow
+          title="Stop me overdrawing an account"
+          description="Refuses a payment you enter by hand that an account can't cover. Imports, bank syncs and recurring charges are always recorded — they're reporting what already happened. Credit cards and loans are never affected."
+        >
+          {isOwner ? (
+            <Switch
+              checked={blockOverdrafts}
+              disabled={savingOverdrafts}
+              onChange={(e) => saveBlockOverdrafts(e.target.checked)}
+              label={blockOverdrafts ? "On" : "Off"}
+              aria-label="Stop me overdrawing an account"
+            />
+          ) : (
+            <Text tone="secondary" size="sm">
+              {tenant?.block_overdrafts ? "On" : "Off"}
             </Text>
           )}
         </SettingsRow>

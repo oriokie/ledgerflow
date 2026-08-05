@@ -340,8 +340,7 @@ def income_sources_report(filters: ReportFilters) -> ReportResult:
         meta={
             # Named because it changes what the numbers mean, not just how they
             # look.
-            "concentrated": largest_share
-            >= 80,
+            "concentrated": largest_share >= 80,
         },
     )
 

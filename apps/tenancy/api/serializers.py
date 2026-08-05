@@ -16,6 +16,7 @@ class TenantSerializer(serializers.ModelSerializer):
             # The client needs to know whether the currency was *chosen* or
             # merely defaulted, so first-run setup can ask exactly once.
             "base_currency_chosen_at",
+            "block_overdrafts",
             "default_locale",
             "default_timezone",
             "created_at",

@@ -150,9 +150,7 @@ class Repayment(SoftDeletableModel):
 
     class Meta:
         constraints = [
-            models.CheckConstraint(
-                condition=models.Q(amount_minor__gt=0), name="repayment_amount_positive"
-            ),
+            models.CheckConstraint(condition=models.Q(amount_minor__gt=0), name="repayment_amount_positive"),
         ]
         indexes = [
             models.Index(fields=["tenant_id", "receivable", "-received_on"], name="repayment_hist_idx"),

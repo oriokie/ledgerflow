@@ -122,9 +122,7 @@ def summary(*, as_of: date | None = None) -> ReceivableSummary | None:
         currency=currency,
         outstanding_minor=sum(v.outstanding_minor for v in live),
         overdue_minor=sum(v.outstanding_minor for v in overdue),
-        settled_minor=sum(
-            v.principal_minor for v in scoped if v.status == ReceivableStatus.SETTLED
-        ),
+        settled_minor=sum(v.principal_minor for v in scoped if v.status == ReceivableStatus.SETTLED),
         written_off_minor=sum(
             v.outstanding_minor for v in scoped if v.status == ReceivableStatus.WRITTEN_OFF
         ),
@@ -144,7 +142,5 @@ def total_outstanding_minor(currency: str) -> int:
     """
     rows = Receivable.objects.filter(currency=currency, status=ReceivableStatus.OUTSTANDING)
     principal = rows.aggregate(total=Sum("principal_minor"))["total"] or 0
-    repaid = (
-        Repayment.objects.filter(receivable__in=rows).aggregate(total=Sum("amount_minor"))["total"] or 0
-    )
+    repaid = Repayment.objects.filter(receivable__in=rows).aggregate(total=Sum("amount_minor"))["total"] or 0
     return max(0, principal - repaid)
