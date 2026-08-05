@@ -309,16 +309,27 @@ def build_cashflow_history(*, months: int = 6, as_of: date | None = None) -> lis
 
 
 def net_worth_history(*, months: int = 12, as_of: date | None = None) -> list[dict]:
-    """Net-worth as a dated monthly series, reconstructed from the immutable
-    ledger. For each month end we sum every account's signed cash-flow up to
-    that point (assets add, liabilities subtract), giving a running net figure.
+    """Net-worth as a dated monthly series.
+
+    The account half is reconstructed from the immutable ledger: for each month
+    end we sum every account's signed cash-flow up to that point (assets add,
+    liabilities subtract), giving a running net figure.
+
+    Owned assets — a house, a car — cannot be reconstructed that way, because
+    their worth changes without a posting. They are **interpolated between
+    valuations** instead, and never extrapolated past the last one: continuing a
+    trend beyond the final real figure would invent growth nobody measured, and
+    would mean this chart drawn today showed a different past than the same
+    chart drawn next year. See `assets.selectors.value_at`.
 
     Single-currency assumption noted (same as the rest of intelligence): the
     per-currency FX consolidation layer is the documented seam. Costs one
-    grouped query per month boundary — `months` is small.
+    grouped query per month boundary — `months` is small — plus one pass over
+    assets for the whole series.
     """
+    from apps.assets import selectors as asset_selectors
     from apps.finance.models import FinancialAccount
-    from apps.finance.selectors import _ASSET_TYPES
+    from apps.finance.selectors import _ASSET_TYPES, _dominant_liquid_currency
 
     as_of = as_of or timezone.localdate()
     accounts = list(FinancialAccount.objects.all())
@@ -332,6 +343,15 @@ def net_worth_history(*, months: int = 12, as_of: date | None = None) -> list[di
         nxt = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
         boundaries.append(nxt)
         month_start = _prev_month_first(month_start)
+
+    # One pass over assets for every boundary, rather than a query per asset
+    # per month.
+    currency = _dominant_liquid_currency()
+    asset_values = (
+        asset_selectors.total_value_on([b - timedelta(days=1) for b in sorted(boundaries)], currency=currency)
+        if currency
+        else {}
+    )
 
     for boundary in sorted(boundaries):
         rows = (
@@ -349,12 +369,18 @@ def net_worth_history(*, months: int = 12, as_of: date | None = None) -> list[di
             else:
                 # liability txns are signed like cash flow; owed balance is the negative
                 liabilities += -total
+        on = boundary - timedelta(days=1)
+        owned = asset_values.get(on, 0)
         series.append(
             {
-                "as_of": (boundary - timedelta(days=1)).isoformat(),
-                "assets_minor": assets,
+                "as_of": on.isoformat(),
+                "assets_minor": assets + owned,
                 "liabilities_minor": liabilities,
-                "net_minor": assets - liabilities,
+                "net_minor": assets + owned - liabilities,
+                # Broken out so a chart can show what is ledger-true and what is
+                # an estimate between valuations, rather than presenting both
+                # with the same confidence.
+                "asset_value_minor": owned,
             }
         )
     return series
