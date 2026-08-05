@@ -33,6 +33,7 @@ export function SafeToSpend() {
 
   return (
     <Card
+      accent="money"
       title="Safe to spend"
       action={
         <Link className="lf-section-link" to="/cashflow">

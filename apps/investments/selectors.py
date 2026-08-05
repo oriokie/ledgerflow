@@ -348,11 +348,21 @@ def _quantity_at(holding: Holding, as_of: date) -> Decimal:
     ):
         if txn.txn_type == InvestmentTransactionType.BUY:
             quantity += txn.quantity
-        elif txn.txn_type == InvestmentTransactionType.SELL:
+        elif txn.txn_type in (
+            InvestmentTransactionType.SELL,
+            # A redemption retires units just as a sale does. Missing it here
+            # would leave a matured bond showing a position it no longer has.
+            InvestmentTransactionType.REDEMPTION,
+        ):
             quantity -= txn.quantity
         elif txn.txn_type == InvestmentTransactionType.SPLIT:
             quantity += txn.quantity
     return quantity
+
+
+def holding_quantity(holding: Holding) -> Decimal:
+    """Units held right now."""
+    return _quantity_at(holding, timezone.localdate())
 
 
 def _cost_at(holding: Holding, as_of: date) -> int:
@@ -450,3 +460,158 @@ def unrealized_gain_for_net_worth(*, currency: str) -> int:
             continue
         total += valuation.unrealized_gain_minor
     return total
+
+
+# ------------------------------------------------------------------ income views
+@dataclass(frozen=True, slots=True)
+class IncomeView:
+    """What one income-producing holding pays, and how certain that is.
+
+    `scheduled_*` is populated only for a fixed coupon. `realised_yield_bp` is
+    populated only where there is real history to measure. The two are never
+    both a guess dressed as the other, and a caller that renders whichever is
+    present cannot accidentally quote a money-market fund's last month forward
+    as though it were a promise.
+    """
+
+    security_id: str
+    symbol: str
+    name: str
+    currency: str
+    income_kind: str
+    quantity: str
+
+    #: Contractual, and only for `coupon`.
+    coupon_rate_bp: int | None
+    payment_frequency: str | None
+    matures_on: date | None
+    next_payment_on: date | None
+    next_payment_minor: int | None
+    #: Principal not yet returned. None when the instrument has no face value.
+    outstanding_principal_minor: int | None
+
+    #: Measured, for everything that cannot be scheduled.
+    received_minor: int
+    received_over_days: int
+    realised_yield_bp: int | None
+
+    @property
+    def is_projectable(self) -> bool:
+        return self.next_payment_on is not None
+
+
+def _distributions(holding: Holding, since: date) -> list[tuple[date, int]]:
+    """Income actually received from a holding — coupons, interest, dividends.
+
+    Redemptions are excluded on purpose: principal coming back is not income,
+    and counting it as a distribution would report a maturing bond as though it
+    had paid a spectacular final dividend.
+    """
+    rows = InvestmentTransaction.objects.filter(
+        holding=holding,
+        occurred_on__gte=since,
+        txn_type__in=[
+            InvestmentTransactionType.DIVIDEND,
+            InvestmentTransactionType.INTEREST,
+        ],
+    ).order_by("occurred_on")
+    return [(t.occurred_on, t.amount_minor) for t in rows]
+
+
+def income_views(*, as_of: date | None = None, window_days: int = 365) -> list[IncomeView]:
+    """Every holding that pays, or is contracted to.
+
+    Holdings with no terms and no distribution history are omitted rather than
+    listed as paying nothing: an equity that has never paid a dividend has no
+    income story, and a row of dashes for it is noise on a screen about income.
+    """
+    from .income import coupon_schedule, next_payment, realised_yield_bp
+    from .models import IncomeKind, RedemptionSchedule, SecurityTerms
+
+    as_of = as_of or timezone.localdate()
+    since = as_of - timedelta(days=window_days)
+
+    terms_by_security = {str(t.security_id): t for t in SecurityTerms.objects.select_related("security")}
+    redemptions: dict[str, list[tuple[date, int]]] = {}
+    for row in RedemptionSchedule.objects.all():
+        redemptions.setdefault(str(row.security_id), []).append((row.on_date, row.portion_bp))
+
+    views: list[IncomeView] = []
+    for holding in Holding.objects.select_related("security", "financial_account"):
+        security = holding.security
+        terms = terms_by_security.get(str(security.id))
+        received = _distributions(holding, since)
+        quantity = _quantity_at(holding, as_of)
+
+        if terms is None and not received:
+            continue
+
+        kind = terms.income_kind if terms else IncomeKind.NONE
+        next_on: date | None = None
+        next_minor: int | None = None
+        outstanding: int | None = None
+
+        # A schedule is drawn for a fixed coupon and for nothing else.
+        if (
+            terms
+            and kind == IncomeKind.COUPON
+            and terms.face_value_minor
+            and terms.coupon_rate_bp is not None
+            and terms.payment_frequency
+            and terms.matures_on
+            and quantity > 0
+        ):
+            payments = coupon_schedule(
+                face_value_minor=terms.face_value_minor,
+                quantity=quantity,
+                coupon_rate_bp=terms.coupon_rate_bp,
+                payment_frequency=terms.payment_frequency,
+                issued_on=terms.issued_on or as_of,
+                matures_on=terms.matures_on,
+                redemptions=redemptions.get(str(security.id)),
+            )
+            upcoming = next_payment(payments, on_or_after=as_of)
+            if upcoming:
+                next_on = upcoming.on_date
+                next_minor = upcoming.total_minor
+                outstanding = upcoming.outstanding_minor + upcoming.principal_minor
+
+        received_total = sum(amount for _, amount in received)
+        over_days = (as_of - since).days
+        yield_bp = realised_yield_bp(
+            distributions=received,
+            average_balance_minor=holding_cost_basis_minor(holding),
+            over_days=over_days,
+        )
+
+        views.append(
+            IncomeView(
+                security_id=str(security.id),
+                symbol=security.symbol,
+                name=security.name,
+                currency=security.currency,
+                income_kind=kind,
+                quantity=str(quantity),
+                coupon_rate_bp=terms.coupon_rate_bp if terms else None,
+                payment_frequency=terms.payment_frequency if terms else None,
+                matures_on=terms.matures_on if terms else None,
+                next_payment_on=next_on,
+                next_payment_minor=next_minor,
+                outstanding_principal_minor=outstanding,
+                received_minor=received_total,
+                received_over_days=over_days,
+                realised_yield_bp=yield_bp,
+            )
+        )
+
+    # Contracted payments first, soonest due at the top; measured-only after.
+    views.sort(key=lambda v: (v.next_payment_on is None, v.next_payment_on or as_of, -v.received_minor))
+    return views
+
+
+def upcoming_income(*, days: int = 90, as_of: date | None = None) -> list[IncomeView]:
+    """Scheduled payments falling due within `days`. Coupons only, by
+    construction — nothing else has a date that can be stated in advance."""
+    as_of = as_of or timezone.localdate()
+    horizon = as_of + timedelta(days=days)
+    return [v for v in income_views(as_of=as_of) if v.next_payment_on and v.next_payment_on <= horizon]

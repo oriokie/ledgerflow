@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from ..models import Compounding, DebtKind, PayoffStrategy, RateSource
+from ..models import Compounding, DebtKind, InterestMethod, PayoffStrategy, RateSource
 
 
 class DebtTermsSerializer(serializers.Serializer):
@@ -15,6 +15,12 @@ class DebtTermsSerializer(serializers.Serializer):
     payment_day = serializers.IntegerField(min_value=1, max_value=28, required=False, allow_null=True)
     original_principal_minor = serializers.IntegerField(min_value=0, required=False, allow_null=True)
     opened_on = serializers.DateField(required=False, allow_null=True)
+    #: The form asks in years; months is what's stored, because 18- and
+    #: 30-month terms are ordinary and a fractional year is worse to keep.
+    term_months = serializers.IntegerField(min_value=1, max_value=1200, required=False, allow_null=True)
+    interest_method = serializers.ChoiceField(choices=InterestMethod.choices, required=False)
+    credit_limit_minor = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    statement_day = serializers.IntegerField(min_value=1, max_value=28, required=False, allow_null=True)
     promotional_apr = serializers.DecimalField(
         max_digits=6, decimal_places=3, min_value=0, required=False, allow_null=True
     )

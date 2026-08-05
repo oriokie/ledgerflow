@@ -16,7 +16,10 @@ from ..models import InvestmentTransaction, Security
 from .serializers import (
     DividendSerializer,
     PriceSerializer,
+    RedemptionScheduleSerializer,
+    RedemptionSerializer,
     SecurityCreateSerializer,
+    SecurityTermsSerializer,
     SecurityUpdateSerializer,
     SplitSerializer,
     TradeSerializer,
@@ -321,6 +324,130 @@ class InterestView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
             {"id": txn.id, "amount_minor": txn.amount_minor, "occurred_on": txn.occurred_on},
             status=status.HTTP_201_CREATED,
         )
+
+
+def _income_out(v) -> dict:
+    return {
+        "security_id": v.security_id,
+        "symbol": v.symbol,
+        "name": v.name,
+        "currency": v.currency,
+        "income_kind": v.income_kind,
+        "quantity": v.quantity,
+        "coupon_rate_bp": v.coupon_rate_bp,
+        "payment_frequency": v.payment_frequency,
+        "matures_on": v.matures_on,
+        "next_payment_on": v.next_payment_on,
+        "next_payment_minor": v.next_payment_minor,
+        "outstanding_principal_minor": v.outstanding_principal_minor,
+        "received_minor": v.received_minor,
+        "received_over_days": v.received_over_days,
+        "realised_yield_bp": v.realised_yield_bp,
+        # Travels with the figures so a client cannot re-derive it wrongly:
+        # only a fixed coupon has a payment that may be stated in advance.
+        "is_projectable": v.is_projectable,
+    }
+
+
+class SecurityTermsView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
+    """The contract behind an income-producing security."""
+
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
+    serializer_class = SecurityTermsSerializer
+
+    @extend_schema(operation_id="security_terms_set")
+    def put(self, request, security_id):
+        security = _resolve(Security, security_id)
+        if security is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        s = SecurityTermsSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            services.set_security_terms(security=security, **s.validated_data)
+        except services.InvestmentError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RedemptionScheduleView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
+    """The dates on which part of the principal comes back."""
+
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
+    serializer_class = RedemptionScheduleSerializer
+
+    @extend_schema(operation_id="redemption_schedule_set")
+    def put(self, request, security_id):
+        security = _resolve(Security, security_id)
+        if security is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        s = RedemptionScheduleSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        entries = [(e["on_date"], e["portion_bp"]) for e in s.validated_data["entries"]]
+        try:
+            services.set_redemption_schedule(security=security, entries=entries)
+        except services.InvestmentError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RedemptionView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
+    """Record principal handed back — a partial redemption, or maturity."""
+
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
+    serializer_class = RedemptionSerializer
+
+    @extend_schema(operation_id="redemption_record")
+    def post(self, request):
+        s = RedemptionSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        v = s.validated_data
+        account = _resolve(FinancialAccount, v["financial_account_id"])
+        security = _resolve(Security, v["security_id"])
+        if account is None or security is None:
+            return Response({"detail": "Account or security not found."}, status=404)
+        try:
+            txn = services.record_redemption(
+                financial_account=account,
+                security=security,
+                amount_minor=v["amount_minor"],
+                quantity=v.get("quantity"),
+                occurred_on=v.get("occurred_on"),
+                cash_account=(
+                    _resolve(FinancialAccount, v["cash_account_id"]) if v.get("cash_account_id") else None
+                ),
+                memo=v.get("memo", ""),
+            )
+        except services.InvestmentError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return Response(
+            {"id": txn.id, "amount_minor": txn.amount_minor, "occurred_on": txn.occurred_on},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class IncomeScheduleView(TenantScopedAPIView, APIView):
+    """What the portfolio pays, and how certain each figure is.
+
+    One endpoint for all three instrument shapes, because the client's question
+    is the same for all of them — "what does this pay me?" — and the answer's
+    *certainty* is a field rather than a different URL.
+    """
+
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
+    required_role = Role.VIEWER
+    serializer_class = None
+
+    @extend_schema(operation_id="investment_income")
+    def get(self, request):
+        days = request.query_params.get("days")
+        if days:
+            try:
+                rows = selectors.upcoming_income(days=int(days))
+            except ValueError:
+                return Response({"detail": "days must be a number"}, status=400)
+        else:
+            rows = selectors.income_views()
+        return Response([_income_out(v) for v in rows])
 
 
 class SplitView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):

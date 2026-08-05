@@ -28,6 +28,7 @@ export function UpcomingBills({ bills, currency }: { bills: Bill[] | undefined; 
 
   return (
     <Card
+      accent="plan"
       title="Upcoming bills"
       action={
         <Link to="/bills" className="lf-section-link">

@@ -57,6 +57,26 @@ class DebtView:
     next_rate_change_on: date | None = None
     next_rate_apr: Decimal | None = None
 
+    # --- kind-specific terms -------------------------------------------------
+    #: Term loans only. None on a card, which revolves and has no term.
+    term_months: int | None = None
+    interest_method: str = "reducing"
+    #: Revolving credit only.
+    credit_limit_minor: int | None = None
+    statement_day: int | None = None
+
+    @property
+    def utilisation_pct(self) -> float | None:
+        """Share of the credit limit in use.
+
+        `None` without a limit, which is most debts: a loan has no headroom to
+        report, and a card whose limit nobody recorded cannot have one computed.
+        Reporting 0% for either would read as "plenty of room".
+        """
+        if not self.credit_limit_minor or self.credit_limit_minor <= 0:
+            return None
+        return round(max(0.0, self.balance_minor / self.credit_limit_minor * 100), 1)
+
     @property
     def percent_repaid(self) -> float | None:
         """How far through, when the original principal is known.
@@ -183,6 +203,10 @@ def debt_views(*, as_of: date | None = None) -> list[DebtView]:
                 payment_day=profile.payment_day if profile else None,
                 original_principal_minor=profile.original_principal_minor if profile else None,
                 include_in_payoff=profile.include_in_payoff if profile else True,
+                term_months=profile.term_months if profile else None,
+                interest_method=profile.interest_method if profile else "reducing",
+                credit_limit_minor=profile.credit_limit_minor if profile else None,
+                statement_day=profile.statement_day if profile else None,
                 custom_priority=profile.custom_priority if profile else 100,
                 monthly_interest_minor=interest,
                 # No minimum recorded means we can't judge it either way, so

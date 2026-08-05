@@ -23,7 +23,7 @@ export function CashFlowSummary({
   const rate = savingsRate(income, expense);
 
   return (
-    <Card>
+    <Card accent="money">
       <FigureRow>
         {/* `tone` carries the in/out reading; `neutral` keeps Money from
             colouring it a second time and fighting the token. */}

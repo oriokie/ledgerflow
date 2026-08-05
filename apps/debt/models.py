@@ -63,6 +63,26 @@ class PayoffStrategy(models.TextChoices):
     CUSTOM = "custom", "Custom order"
 
 
+class InterestMethod(models.TextChoices):
+    """How the interest on a loan is worked out.
+
+    The single most consequential field on a loan, and the one people are most
+    often surprised by. On a **reducing balance** loan interest is charged on
+    what is still owed, so it falls as the balance does — the arrangement most
+    bank loans and every mortgage use. On a **flat rate** loan interest is
+    charged on the *original* principal for the whole term, so the same rate
+    costs roughly twice as much; it is common in informal and asset-finance
+    lending and is usually quoted without saying so.
+
+    Recording which one applies is what lets the payoff planner tell the truth.
+    Assuming reducing balance for a flat-rate loan understates its cost for the
+    entire term, and the error grows with the term.
+    """
+
+    REDUCING = "reducing", "Reducing balance"
+    FLAT = "flat", "Flat rate"
+
+
 class Compounding(models.TextChoices):
     """How often the lender adds interest to the balance.
 
@@ -111,6 +131,42 @@ class DebtProfile(SoftDeletableModel):
     original_principal_minor = models.BigIntegerField(null=True, blank=True)
     opened_on = models.DateField(null=True, blank=True)
 
+    # --- term ---------------------------------------------------------------
+    #: How long the debt runs, in months. Optional, because a credit card has no
+    #: term at all — it revolves — and demanding one would mean inventing a
+    #: number for the commonest debt there is.
+    #:
+    #: Stored in months rather than years even though people say "a five-year
+    #: loan": 18- and 30-month terms are ordinary, and a fractional year is a
+    #: worse thing to store than a whole month. The form asks in years and
+    #: multiplies.
+    #:
+    #: Where it is known it is worth a great deal — with a principal and a rate
+    #: it determines the scheduled repayment, so the planner can state what the
+    #: debt costs without waiting to observe a payment.
+    term_months = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    #: Reducing balance or flat rate. Only meaningful for a term loan; a card
+    #: charges on the balance by definition. Defaults to reducing, which is
+    #: both the commoner arrangement and the more conservative assumption —
+    #: mistaking a flat loan for reducing understates its cost, so the default
+    #: errs toward the number the lender is more likely to have quoted.
+    interest_method = models.CharField(
+        max_length=10, choices=InterestMethod.choices, default=InterestMethod.REDUCING
+    )
+
+    # --- revolving credit ---------------------------------------------------
+    #: The ceiling on a card or line of credit. Null where there is none, or
+    #: none is known. Used for utilisation, which is a real signal about
+    #: borrowing headroom that a balance alone cannot give.
+    credit_limit_minor = models.BigIntegerField(null=True, blank=True)
+
+    #: Day of the month the statement closes, 1-28. Distinct from
+    #: `payment_day`: the statement date decides what lands on the bill, the
+    #: due date decides when it must be paid, and they are typically three
+    #: weeks apart.
+    statement_day = models.PositiveSmallIntegerField(null=True, blank=True)
+
     #: Some debts are interest-free for a window — BNPL almost always, credit
     #: cards on a promotional rate. After this date `apr` applies.
     promotional_apr_until = models.DateField(null=True, blank=True)
@@ -151,6 +207,19 @@ class DebtProfile(SoftDeletableModel):
             models.CheckConstraint(condition=models.Q(apr__gte=0), name="debt_apr_non_negative"),
             models.CheckConstraint(
                 condition=models.Q(minimum_payment_minor__gte=0), name="debt_min_non_negative"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(term_months__isnull=True) | models.Q(term_months__gt=0),
+                name="debt_term_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(credit_limit_minor__isnull=True) | models.Q(credit_limit_minor__gt=0),
+                name="debt_credit_limit_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(statement_day__isnull=True)
+                | models.Q(statement_day__gte=1, statement_day__lte=28),
+                name="debt_statement_day_in_range",
             ),
             models.CheckConstraint(
                 condition=models.Q(payment_day__isnull=True)

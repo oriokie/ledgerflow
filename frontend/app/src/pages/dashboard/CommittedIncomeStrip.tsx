@@ -23,6 +23,7 @@ export function CommittedIncomeStrip() {
 
   return (
     <Card
+      accent="money"
       title="Committed income"
       action={
         <Link className="lf-section-link" to="/income">
