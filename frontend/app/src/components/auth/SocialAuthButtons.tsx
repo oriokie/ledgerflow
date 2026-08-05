@@ -57,20 +57,28 @@ export function SocialAuthButtons({ disabled }: { disabled?: boolean }) {
   };
 
   return (
-    <Stack gap={2}>
-      {PROVIDERS.map((p) => (
-        <button
-          key={p.id}
-          type="button"
-          className="lf-social-btn"
-          disabled={disabled || busy !== null}
-          aria-busy={busy === p.id}
-          onClick={() => start(p.id)}
-        >
-          {p.mark}
-          {p.label}
-        </button>
-      ))}
+    <Stack gap={3}>
+      {/* Icon-only circles in a centred row, per the reference layout.
+          The label moves to `aria-label` rather than being dropped — the mark
+          alone is not a name, and "Continue with Google" is what a screen
+          reader has to hear. `title` gives sighted users the same words on
+          hover, since the icon carries no text. */}
+      <div className="lf-social-row">
+        {PROVIDERS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className="lf-social-btn"
+            disabled={disabled || busy !== null}
+            aria-busy={busy === p.id}
+            aria-label={p.label}
+            title={p.label}
+            onClick={() => start(p.id)}
+          >
+            {p.mark}
+          </button>
+        ))}
+      </div>
       {error && <Banner tone="info">{error}</Banner>}
     </Stack>
   );

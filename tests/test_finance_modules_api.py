@@ -679,3 +679,34 @@ def test_recurring_edit_rejects_what_would_reinterpret_history(tenant_context):
     # An amount below the minimum is refused rather than clamped.
     bad = client.patch(f"/api/v1/finance/recurring/{rec['id']}/", {"amount_minor": 0}, format="json")
     assert bad.status_code == 400
+
+
+def test_the_csv_import_offers_a_template(tenant_context):
+    """A format described only in prose is one people get wrong on the first
+    try and then blame the importer for."""
+    _, client = tenant_context
+
+    resp = client.get("/api/v1/finance/transactions/import/")
+    assert resp.status_code == 200
+    assert resp["Content-Type"] == "text/csv"
+    assert "ledgerflow-import-template.csv" in resp["Content-Disposition"]
+
+    body = resp.content.decode()
+    header, *rows = [line for line in body.splitlines() if line]
+    assert header == "date,amount,description,external_id"
+    # Two examples, and the pair is the point: sign is direction, which is the
+    # one rule about this format that cannot be guessed from the header.
+    assert len(rows) == 2
+    assert rows[0].split(",")[1].startswith("-"), "money out"
+    assert not rows[1].split(",")[1].startswith("-"), "money in"
+
+
+def test_the_template_columns_are_the_ones_the_importer_accepts(tenant_context):
+    """The template and the parser must not drift; they share a module so that
+    is structural, and this is the check that keeps it so."""
+    from apps.finance.import_csv import _ALIASES, TEMPLATE_HEADER
+
+    for column in TEMPLATE_HEADER:
+        assert column in _ALIASES, f"{column} is not a column the importer knows"
+    # Everything the importer *requires* has to be in the template.
+    assert {"date", "amount", "description"} <= set(TEMPLATE_HEADER)

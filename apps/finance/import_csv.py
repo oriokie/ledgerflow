@@ -62,6 +62,32 @@ _ALIASES = {
 }
 
 
+#: The canonical header, and one example row per sign.
+#:
+#: Handed to users as a downloadable template. The importer accepts any of the
+#: aliases above, but somebody starting from scratch needs *one* answer rather
+#: than a list of things that would also work — and the two example rows carry
+#: the only rule that isn't guessable: sign is direction, so a negative amount
+#: is money out and a positive one is money in.
+TEMPLATE_HEADER = ["date", "amount", "description", "external_id"]
+TEMPLATE_ROWS = [
+    ["2026-01-15", "-42.50", "Naivas — groceries", "REF-00001"],
+    ["2026-01-25", "3200.00", "Salary — January", "REF-00002"],
+]
+
+
+def template_csv() -> str:
+    """The blank import template, as CSV text."""
+    import csv
+    import io
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(TEMPLATE_HEADER)
+    writer.writerows(TEMPLATE_ROWS)
+    return buf.getvalue()
+
+
 def _resolve_columns(header: list[str]) -> dict[str, str]:
     lower = {h.lower().strip(): h for h in header}
     resolved: dict[str, str] = {}

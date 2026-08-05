@@ -1,16 +1,20 @@
 /* ==========================================================================
-   Auth — premium split-screen shell.
-   Left: dark ink brand panel with ambient verdant glow, a faint ledger grid,
-   and a rotating famous quote on money. Right: the form, clean and focused.
-   Collapses to a single centered column under 900px.
+   Auth — split screen, form first.
+   Left: the form, on the page surface, with pill fields and a full-width
+   primary. Right: an inset rounded showcase panel in a soft accent tint,
+   holding the illustration, a floating figure card, and a rotating quote with
+   position dots beneath.
+   Collapses to a single centered column under 900px, panel hidden.
    ========================================================================== */
 
 .lf-auth-shell {
   min-height: 100vh;
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: minmax(380px, 44%) minmax(0, 1fr);
-  background: var(--lf-bg-app);
+  /* The form column is the narrower of the two and comes first in both the
+     DOM and the visual order, so keyboard order and reading order agree. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  background: var(--lf-bg-surface);
 }
 
 /* ---------------------------------------------------------- brand panel --- */
@@ -18,73 +22,60 @@
 .lf-auth-panel {
   position: relative;
   overflow: hidden;
-  background:
-    linear-gradient(160deg, #10131f 0%, #151928 45%, #17233a 100%);
-  color: #f2f4f8;
   display: flex;
-
-  /* Scoped light tokens. The panel's background is hand-tuned and theme-
-     invariant, so the theme's own inverse tokens can't be used here — in dark
-     mode they flip dark. Named-colour mixes keep the ratchet clean and give
-     the illustration (which draws entirely from tokens) light strokes instead
-     of the near-black it was drawing on navy. */
-  --lf-text-primary: color-mix(in srgb, white 95%, transparent);
-  --lf-text-secondary: color-mix(in srgb, white 74%, transparent);
-  --lf-text-tertiary: color-mix(in srgb, white 55%, transparent);
-  --lf-bg-surface: color-mix(in srgb, white 12%, transparent);
-  --lf-border-subtle: color-mix(in srgb, white 16%, transparent);
-  /* The projected hue, lifted to read on navy without losing its identity.
-     Mixed from the primitive, not from itself — a custom property that
-     references its own name is a cycle, which resolves to invalid and would
-     strip the projected figure of any colour at all. */
-  --lf-certainty-projected: color-mix(in srgb, var(--lf-horizon-600) 40%, white);
-}
-
-/* ambient light: a soft verdant bloom + a faint cool counter-glow */
-.lf-auth-panel-glow {
-  position: absolute;
-  inset: 0;
+  /* Inset with a generous radius, so it reads as a card sitting on the page
+     rather than a second half of it. */
+  margin: var(--lf-space-5);
+  border-radius: 28px;
+  /* A soft wash of the brand hue. Mixed against the surface rather than
+     hard-coded, so it stays a *tint* in both themes instead of turning into a
+     light slab on a dark page. */
   background:
-    radial-gradient(52% 42% at 18% 82%, rgba(14, 122, 95, 0.38), transparent 70%),
-    radial-gradient(40% 34% at 86% 12%, rgba(84, 110, 255, 0.16), transparent 70%);
-  pointer-events: none;
+    radial-gradient(
+      120% 90% at 50% 8%,
+      color-mix(in srgb, var(--lf-verdant-600) 16%, var(--lf-bg-surface)),
+      color-mix(in srgb, var(--lf-verdant-600) 9%, var(--lf-bg-surface))
+    );
+
 }
 
-/* a whisper of ledger grid — the product's soul, at 3% */
-.lf-auth-panel-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-  background-size: 44px 44px;
-  /* Not a colour: inside a mask, the channel that matters is alpha, and #000
-     is simply "fully opaque here". Tokenising it would make the mask follow
-     the theme, which is exactly what it must not do. */
-  mask-image: radial-gradient(80% 80% at 50% 40%, #000 30%, transparent 100%);
-  pointer-events: none;
+/* The stage: illustration with the figure card floating over its lower edge,
+   exactly the relationship the reference layout uses. */
+.lf-auth-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: var(--lf-space-8);
+}
+
+.lf-auth-illus {
+  max-width: min(100%, 26rem);
 }
 
 .lf-auth-panel-inner {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: clamp(32px, 5vw, 64px);
+  align-items: center;
+  justify-content: center;
+  gap: var(--lf-space-6);
+  padding: clamp(32px, 4vw, 56px);
   width: 100%;
 }
 
 .lf-auth-panel-tagline {
   font-size: var(--lf-text-sm);
-  color: rgba(242, 244, 248, 0.55);
+  color: var(--lf-text-tertiary);
   letter-spacing: 0.01em;
 }
 
 /* ---------------------------------------------------------------- quote --- */
 
 .lf-quote {
-  margin: auto 0;
+  margin: 0;
   max-width: 26rem;
+  text-align: center;
   opacity: 0;
   transform: translateY(6px);
   transition:
@@ -102,14 +93,35 @@
   line-height: 1.35;
   font-weight: var(--lf-weight-medium);
   letter-spacing: var(--lf-tracking-tight);
-  color: #f7f8fb;
+  color: var(--lf-text-primary);
   text-wrap: balance;
 }
 
 .lf-quote-author {
-  margin-top: var(--lf-space-4);
+  margin-top: var(--lf-space-3);
   font-size: var(--lf-text-sm);
-  color: rgba(242, 244, 248, 0.62);
+  color: var(--lf-text-tertiary);
+}
+
+/* Position dots for the rotation. The active one stretches rather than merely
+   changing colour, so which is current survives being read without colour. */
+.lf-quote-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: var(--lf-space-5);
+}
+.lf-quote-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--lf-radius-full);
+  background: color-mix(in srgb, var(--lf-text-primary) 22%, transparent);
+  transition: width 260ms var(--lf-ease-out), background-color 260ms var(--lf-ease-out);
+}
+.lf-quote-dot[data-active="true"] {
+  width: 18px;
+  background: var(--lf-text-primary);
 }
 
 /* ------------------------------------------------------------ form side --- */
@@ -118,32 +130,72 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--lf-space-8) var(--lf-space-6);
+  padding: var(--lf-space-8) clamp(var(--lf-space-6), 5vw, 72px);
 }
 
 .lf-auth-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
 }
 
+/* No card chrome on the form side. The reference sets the form directly on the
+   page and lets the panel opposite carry the surface, which is what stops the
+   screen reading as two competing boxes. */
 .lf-auth-form-card {
-  padding: var(--lf-space-7, 28px);
-  box-shadow: var(--lf-shadow-raised);
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
 }
 
-/* The settled/projected pair at the foot of the panel. */
+/* ---- the reference's shape language, scoped to the auth screens ----------
+   Pill fields and a pill primary. Scoped rather than applied to the design
+   system's own controls: this is the shape of the *sign-in* screen, and
+   rounding every input in the product to match it would be a far larger claim
+   than the one being made here. */
+
+.lf-auth-form-card .lf-input,
+.lf-auth-form-card .lf-select {
+  border-radius: var(--lf-radius-full);
+  min-height: 52px;
+  padding-inline: var(--lf-space-5);
+}
+
+/* The reveal toggle rides inside the pill, so it needs to clear the larger
+   inset the pill introduces. */
+.lf-auth-form-card .lf-password-toggle {
+  right: var(--lf-space-4);
+}
+
+.lf-auth-form-card .lf-btn--primary {
+  border-radius: var(--lf-radius-full);
+  min-height: 52px;
+  font-size: var(--lf-text-base);
+}
+
+/* The headline. Large and tight, the way the reference leads. */
+.lf-auth-title {
+  font-size: clamp(2rem, 3.4vw, 2.75rem);
+  line-height: 1.08;
+  letter-spacing: var(--lf-tracking-tight);
+  font-weight: var(--lf-weight-bold, 700);
+}
+
+/* The floating figure card, overlapping the illustration's lower edge. */
 .lf-auth-specimen {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
   display: flex;
-  flex-wrap: wrap;
   align-items: flex-end;
-  gap: var(--lf-space-5);
-  padding-top: var(--lf-space-4);
-  border-top: 1px solid var(--lf-border-subtle);
-}
-
-.lf-auth-specimen .lf-auth-panel-tagline {
-  flex-basis: 100%;
-  margin: 0;
+  gap: var(--lf-space-6);
+  padding: var(--lf-space-4) var(--lf-space-5);
+  border-radius: var(--lf-radius-lg, 16px);
+  background: var(--lf-bg-surface);
+  border: 1px solid var(--lf-border-subtle);
+  box-shadow: var(--lf-shadow-raised);
+  white-space: nowrap;
 }
 
 /* brand */

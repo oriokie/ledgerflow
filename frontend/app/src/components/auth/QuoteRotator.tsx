@@ -26,6 +26,16 @@ export function QuoteRotator() {
   const quote = FINANCE_QUOTES[index];
   return (
     <figure className="lf-quote" data-entering={entering} aria-hidden="true">
+      {/* Position dots. The reference layout has carousel dots under its
+          illustration; here they mark where the rotation actually is, so they
+          report something true rather than being decoration shaped like a
+          control. Not interactive — there is nothing to click, and a dot that
+          looks pressable but isn't is worse than no dot. */}
+      <div className="lf-quote-dots">
+        {FINANCE_QUOTES.map((q, i) => (
+          <span key={q.author + i} className="lf-quote-dot" data-active={i === index} />
+        ))}
+      </div>
       <blockquote className="lf-quote-text">&ldquo;{quote.text}&rdquo;</blockquote>
       <figcaption className="lf-quote-author">&mdash; {quote.author}</figcaption>
     </figure>

@@ -40,6 +40,20 @@ def _free_plan():
     )
 
 
+def _live_plan():
+    """A plan on a tier the product actually sells."""
+    return Plan.objects.create(
+        tier=PlanTier.BASIC,
+        name="Basic",
+        price_minor=300,
+        currency="USD",
+        interval=BillingInterval.MONTHLY,
+        max_members=1,
+        max_accounts=5,
+        sort_order=0,
+    )
+
+
 def _paid_plan(price=900):
     return Plan.objects.create(
         tier=PlanTier.PLUS,
@@ -66,13 +80,29 @@ def _bearer(user, tenant_id):
 
 # --------------------------------------------------------------------------- plans
 def test_plans_are_public():
-    _free_plan()
+    _live_plan()
     from rest_framework.test import APIClient
 
     # No auth, no tenant header — the catalog is public.
     resp = APIClient().get("/api/v1/billing/plans/")
     assert resp.status_code == 200
     assert len(resp.json()) == 1
+
+
+def test_the_public_catalogue_does_not_offer_retired_tiers():
+    """`is_active` and "still for sale" are different facts.
+
+    A retired plan row stays active so the subscriptions pointing at it keep
+    resolving their features — conflating the two is what put Free, Family and
+    Business back on the pricing page next to the two plans actually sold.
+    """
+    from rest_framework.test import APIClient
+
+    _live_plan()
+    _free_plan()  # legacy tier, still active for the rows that reference it
+
+    tiers = {p["tier"] for p in APIClient().get("/api/v1/billing/plans/").json()}
+    assert tiers == {"basic"}
 
 
 # --------------------------------------------------------------------------- subscribe

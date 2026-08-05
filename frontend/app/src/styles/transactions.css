@@ -446,3 +446,15 @@
   text-transform: uppercase;
   color: var(--lf-certainty-pending);
 }
+
+/* The template offer in the import modal — a row, so the explanation and the
+   download sit together rather than the button floating under a paragraph. */
+.lf-import-template {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-4);
+  padding: var(--lf-space-3);
+  border: 1px dashed var(--lf-border-default);
+  border-radius: var(--lf-radius-md);
+}
