@@ -766,11 +766,18 @@ class NetWorthView(TenantScopedAPIView, APIView):
     serializer_class = None
 
     def get(self, request):
+        from apps.assets import selectors as asset_selectors
         from apps.investments import selectors as investment_selectors
 
         rows = []
         for n in selectors.net_worth():
             unrealized = investment_selectors.unrealized_gain_for_net_worth(currency=n.currency)
+            # Assets a household owns but does not transact through — a house, a
+            # car. A second overlay rather than a ledger balance, for the same
+            # reason as the first: their worth changes because somebody
+            # re-estimated it, not because money moved. Unvalued assets
+            # contribute nothing, so this never claims a value nobody supplied.
+            owned = asset_selectors.total_value_minor(currency=n.currency)
             rows.append(
                 {
                     "currency": n.currency,
@@ -779,8 +786,9 @@ class NetWorthView(TenantScopedAPIView, APIView):
                     "net_minor": n.net_minor,
                     # The overlay: what the same position is worth today.
                     "unrealized_gain_minor": unrealized,
-                    "market_assets_minor": n.assets_minor + unrealized,
-                    "market_net_minor": n.net_minor + unrealized,
+                    "asset_value_minor": owned,
+                    "market_assets_minor": n.assets_minor + unrealized + owned,
+                    "market_net_minor": n.net_minor + unrealized + owned,
                 }
             )
         return Response(rows)

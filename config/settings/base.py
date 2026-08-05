@@ -71,6 +71,7 @@ LOCAL_APPS = [
     "apps.goals",
     "apps.income",
     "apps.receivables",
+    "apps.assets",
     "apps.notifications",
     "apps.billing",
     "apps.platform_admin",
