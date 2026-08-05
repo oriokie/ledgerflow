@@ -1436,6 +1436,23 @@ class TransactionImportView(TenantScopedAPIView, APIView):
     required_role = Role.MEMBER
     serializer_class = None
 
+    @extend_schema(operation_id="transaction_import_template")
+    def get(self, request):
+        """The blank template, as a CSV download.
+
+        A file format described only in prose is one people get wrong on the
+        first try and then blame the importer for. Served from the same module
+        that parses it, so the columns handed out cannot drift from the columns
+        accepted.
+        """
+        from django.http import HttpResponse
+
+        from .. import import_csv
+
+        response = HttpResponse(import_csv.template_csv(), content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="ledgerflow-import-template.csv"'
+        return response
+
     def post(self, request):
         from .. import import_csv
 

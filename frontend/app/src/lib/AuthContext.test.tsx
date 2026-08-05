@@ -87,3 +87,59 @@ describe("AuthContext.completeLogin — the shared session funnel", () => {
     expect(screen.getByTestId("authed")).toHaveTextContent("false");
   });
 });
+
+describe("the session becomes visible all at once", () => {
+  beforeEach(() => {
+    vi.mocked(tokenStore.setTokens).mockReset();
+    vi.mocked(tenantStore.setActive).mockReset();
+    vi.mocked(tenancyApi.listWorkspaces).mockReset();
+  });
+
+  it("never renders an authenticated user who has no workspace", async () => {
+    // Regression: the login flash. `applySession` used to set the user, then
+    // await the workspace list — so for one network round-trip the app was
+    // authenticated with `workspaces: []`. LoginPage saw that and navigated to
+    // `/`, ProtectedRoute saw no active workspace and redirected to
+    // `/workspaces`, and the picker rendered until the response landed. That
+    // was the page flashing past on sign-in.
+    const user = userEvent.setup();
+
+    // Hold the workspace fetch open so the half-built state, if it existed,
+    // would have to be rendered.
+    let release: (v: unknown) => void = () => {};
+    const pending = new Promise((resolve) => {
+      release = resolve;
+    });
+    vi.mocked(tenancyApi.listWorkspaces).mockImplementation(async () => {
+      await pending;
+      return [{ tenant: { id: "t1", name: "Demo", base_currency: "USD" }, role: "owner" }] as never;
+    });
+
+    // Every render is sampled, so a single bad frame is caught rather than
+    // just the state it settles on.
+    const frames: { authed: boolean; count: number }[] = [];
+    function Watcher() {
+      const { isAuthenticated, workspaces, completeLogin } = useAuth();
+      frames.push({ authed: isAuthenticated, count: workspaces.length });
+      return (
+        <button onClick={() => completeLogin(OK_RESPONSE)}>go</button>
+      );
+    }
+
+    render(
+      <AuthProvider>
+        <Watcher />
+      </AuthProvider>,
+    );
+
+    await user.click(screen.getByText("go"));
+    release(null);
+
+    await waitFor(() => {
+      expect(frames.at(-1)).toEqual({ authed: true, count: 1 });
+    });
+
+    const halfBuilt = frames.filter((f) => f.authed && f.count === 0);
+    expect(halfBuilt).toEqual([]);
+  });
+});

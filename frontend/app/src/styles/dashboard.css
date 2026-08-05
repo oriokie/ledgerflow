@@ -280,8 +280,95 @@
   }
 }
 
+/* Sections used to sit two full steps apart, which on a wide screen left the
+   dashboard as a narrow ribbon of cards separated by bands of empty page. The
+   gap is now one step, and the grid below is what actually closes the space —
+   spacing alone cannot fix a single-column layout. */
 .lf-dash-section {
-  margin-bottom: var(--lf-space-8);
+  margin-bottom: var(--lf-space-4);
+}
+
+/* ---------- the dashboard grid ----------
+   Cards flow into columns instead of stacking full-width. Two on a laptop,
+   three on a wide monitor, one on a phone. `align-items: start` matters:
+   without it every card in a row stretches to the tallest, which is how a
+   two-line summary ends up as tall as a calendar. */
+.lf-dash-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--lf-space-4);
+  align-items: start;
+  margin-bottom: var(--lf-space-4);
+}
+
+/* The canonical breakpoints, not hand-picked widths — `check_style_tokens`
+   enforces the six in tokens.css, and 900/1440 were two more off-scale values
+   of exactly the kind that ratchet exists to stop. */
+@media (min-width: 1024px) {
+  .lf-dash-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1600px) {
+  .lf-dash-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Anything with its own internal chart or table needs the full row — a
+   calendar squeezed into a third of the width is unreadable. */
+.lf-dash-grid > .lf-dash-wide {
+  grid-column: 1 / -1;
+}
+
+/* ---------- accents ----------
+   A colour wash keyed to what the card is *about*, never to how important it
+   is. See the note on `Card`'s `accent` prop.
+
+   Two surfaces, both mixed against the card's own background so they follow
+   the theme instead of being a light slab in dark mode: a very light body wash
+   that is felt rather than seen, and a saturated top edge that is the part the
+   eye actually reads. Text colour is untouched — the contrast floors are
+   measured against the surface, and tinting the surface *and* the ink is how a
+   palette quietly fails them. */
+.lf-card--accent {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--lf-accent-hue) 5%, var(--lf-bg-surface));
+  border-color: color-mix(in srgb, var(--lf-accent-hue) 22%, var(--lf-border-subtle));
+}
+
+.lf-card--accent::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--lf-accent-hue);
+}
+
+/* The five meanings, drawn from the palette *primitives* rather than the status
+   aliases. That distinction matters: `--lf-status-warning` on a debt card would
+   tint every debt as an alarm, and most debts are not one. These say what the
+   card is about, and nothing about whether it is going well.
+
+   Reusing existing hues also means the contrast and colour-vision floors
+   already verified for them continue to hold — no new colour enters the
+   palette here. */
+.lf-card--accent[data-accent="money"] {
+  --lf-accent-hue: var(--lf-verdant-600);
+}
+.lf-card--accent[data-accent="spend"] {
+  --lf-accent-hue: var(--lf-horizon-600);
+}
+.lf-card--accent[data-accent="save"] {
+  --lf-accent-hue: var(--lf-jade-600);
+}
+.lf-card--accent[data-accent="debt"] {
+  --lf-accent-hue: var(--lf-ochre-600);
+}
+.lf-card--accent[data-accent="plan"] {
+  --lf-accent-hue: var(--lf-horizon-600);
 }
 
 /* Chart wrapper that keeps a healthy aspect ratio and never overflows. */

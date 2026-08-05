@@ -26,6 +26,7 @@ from .models import (
     SubscriptionStatus,
     WebhookEvent,
 )
+from .plan_catalogue import LIVE_TIERS
 from .providers import get_provider
 from .providers.base import PaymentError
 
@@ -35,7 +36,22 @@ class BillingError(Exception): ...
 
 # --------------------------------------------------------------------------- plans
 def list_plans(*, currency: str = "USD") -> list[Plan]:
-    return list(Plan.objects.filter(is_active=True, currency=currency).order_by("sort_order", "price_minor"))
+    """The catalogue as offered for sale.
+
+    Filtered to `LIVE_TIERS`, not merely to `is_active`. The two mean different
+    things and conflating them is what put retired tiers back on the pricing
+    page: a legacy plan row stays active so the subscriptions pointing at it
+    keep resolving their features, which is not the same as still selling it.
+
+    So this is the *sales* view. Anything needing "every plan that exists",
+    including retired ones — the admin console, a subscription's own plan —
+    queries `Plan` directly and gets the whole catalogue.
+    """
+    return list(
+        Plan.objects.filter(is_active=True, currency=currency, tier__in=LIVE_TIERS).order_by(
+            "sort_order", "price_minor"
+        )
+    )
 
 
 logger = logging.getLogger("ledgerflow.billing")

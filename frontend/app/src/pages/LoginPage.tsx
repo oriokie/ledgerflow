@@ -116,9 +116,11 @@ export function LoginPage() {
       <form onSubmit={onSubmitCredentials} noValidate>
         <Stack gap={4}>
           <div>
-            <Heading level={1}>Log in</Heading>
-            <Text size="sm" tone="secondary">
-              Welcome back. Your ledger is where you left it.
+            <Heading level={1} className="lf-auth-title">
+              Welcome back!
+            </Heading>
+            <Text size="sm" tone="secondary" style={{ marginTop: "var(--lf-space-3)" }}>
+              Your ledger is where you left it. Sign in to pick up the thread.
             </Text>
           </div>
 

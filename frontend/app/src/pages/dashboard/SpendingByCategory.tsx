@@ -19,7 +19,7 @@ export function SpendingByCategory({
 
   if (ranked.length === 0) {
     return (
-      <Card title="Where money goes">
+      <Card accent="spend" title="Where money goes">
         <EmptyState
           icon={PieChart}
           title="No spending yet"
@@ -32,7 +32,7 @@ export function SpendingByCategory({
   const shown = expanded ? ranked : ranked.slice(0, PREVIEW);
 
   return (
-    <Card title="Where money goes">
+    <Card accent="spend" title="Where money goes">
       <div className="lf-catbar-list" style={{ marginTop: "var(--lf-space-2)" }}>
         {shown.map((c) => (
           <div key={c.category_id} className="lf-catbar-row">

@@ -172,23 +172,17 @@ export function DashboardPage() {
             </div>
           )}
 
-          {/* Tier 2 — this period's cash flow */}
-          <div className="lf-dash-section">
+          {/* Tier 2 — this period in three reads, side by side.
+              Cash flow is what happened, safe-to-spend answers "can I buy
+              this?" today, committed income is how much of the month is
+              already spoken for. They were three full-width bands stacked down
+              the page; they are one row, because they are one thought.
+              The committed strip renders nothing until income is recorded —
+              "0% committed" derived from an absence reads as a clean bill of
+              health, which is the opposite of what it means. */}
+          <div className="lf-dash-grid">
             <CashFlowSummary cashFlow={primaryCashFlow} currency={primaryCurrency} />
-          </div>
-
-          {/* Tier 2a½ — the one number that answers "can I buy this?".
-              Placed above the committed strip: safe-to-spend is the day's
-              question, committed income is the month's. */}
-          <div className="lf-dash-section">
             <SafeToSpend />
-          </div>
-
-          {/* Tier 2b — how much of the month is already spoken for.
-              Renders nothing until income is recorded: "0% committed" derived
-              from an absence reads as a clean bill of health, which is the
-              opposite of what it means. */}
-          <div className="lf-dash-section">
             <CommittedIncomeStrip />
           </div>
 
@@ -197,8 +191,9 @@ export function DashboardPage() {
               payday?" is a more urgent question than "how did last quarter
               look?", and it's the one a monthly summary can't answer. */}
           {cashflowCalendar && (
-            <div className="lf-dash-section">
+            <div className="lf-dash-section lf-dash-wide">
               <Card
+                accent="plan"
                 title="Cash flow calendar"
                 action={
                   <Link className="lf-link" to="/cashflow">
@@ -228,11 +223,9 @@ export function DashboardPage() {
           </div>
 
           {/* Tier 5 — planning progress */}
-          <div className="lf-dash-section">
-            <Grid cols={2} gap={4}>
-              <BudgetProgress budget={firstBudget} status={budgetStatus} currency={primaryCurrency} />
-              <GoalsProgress goals={goals} currency={primaryCurrency} />
-            </Grid>
+          <div className="lf-dash-grid">
+            <BudgetProgress budget={firstBudget} status={budgetStatus} currency={primaryCurrency} />
+            <GoalsProgress goals={goals} currency={primaryCurrency} />
           </div>
 
           {/* Tier 6 — insights */}
@@ -242,6 +235,7 @@ export function DashboardPage() {
           {(topInsights?.length ?? 0) > 0 && (
             <div className="lf-dash-section">
               <Card
+                accent="plan"
                 title="From your coach"
                 action={
                   <Link className="lf-link" to="/coach">

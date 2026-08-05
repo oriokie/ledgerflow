@@ -195,6 +195,11 @@ export const financeExtendedApi = {
     payload: { category_id?: string | null; payee_id?: string | null; memo?: string },
   ) => api.patch(`/finance/transactions/${txnId}/`, payload),
 
+  /** The blank CSV import template, as text. Served by the same module that
+   *  parses uploads, so the columns handed out cannot drift from the columns
+   *  accepted. */
+  importTemplate: () => getBlob("/finance/transactions/import/"),
+
   listRecurring: () => api.get<RecurringTransaction[]>("/finance/recurring/"),
   createRecurring: (payload: {
     txn_type: string;

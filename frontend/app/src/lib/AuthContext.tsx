@@ -77,17 +77,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [bootstrap]);
 
   // Every successful auth path (password, MFA, OAuth, passkey) ends here: persist
-  // tokens, set the user, load workspaces, and pick an active one. Keeping this in
-  // one place means new sign-in methods can't drift from the established session shape.
+  // tokens, load workspaces, and publish the whole session at once. Keeping this
+  // in one place means new sign-in methods can't drift from the established
+  // session shape.
+  //
+  // **The order matters, and it was the login flash.** Setting the user first
+  // flips `isAuthenticated` to true while `workspaces` is still empty, and the
+  // await below leaves that half-built state on screen for a whole network
+  // round-trip. In that window `LoginPage` sees an authenticated user and
+  // navigates to `/`, `ProtectedRoute` sees no active workspace and redirects
+  // to `/workspaces`, and the picker renders — until the response lands and it
+  // bounces on to the dashboard. That was the page flashing past on sign-in.
+  //
+  // Fetching before the first `setState` closes the window: React batches the
+  // updates below into one render, so the session becomes visible complete or
+  // not at all, and there is no moment where a signed-in user has no workspace.
   const applySession = useCallback(async (res: AuthTokens) => {
     tokenStore.setTokens(res.access, res.refresh);
-    setUser(res.user);
     const ws = await tenancyApi.listWorkspaces();
+    if (ws.length > 0) tenantStore.setActive(ws[0].tenant.id);
+
+    setUser(res.user);
     setWorkspaces(ws);
-    if (ws.length > 0) {
-      tenantStore.setActive(ws[0].tenant.id);
-      setActiveTenantId(ws[0].tenant.id);
-    }
+    if (ws.length > 0) setActiveTenantId(ws[0].tenant.id);
   }, []);
 
   // Turn any login response into a uniform result: either the session is

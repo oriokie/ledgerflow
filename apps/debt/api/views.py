@@ -44,6 +44,13 @@ def _view_out(v) -> dict:
         # say how far through you are.
         "percent_repaid": v.percent_repaid,
         "include_in_payoff": v.include_in_payoff,
+        "term_months": v.term_months,
+        "interest_method": v.interest_method,
+        "credit_limit_minor": v.credit_limit_minor,
+        "statement_day": v.statement_day,
+        # Headroom on a card, as a share of the limit. Null without a limit —
+        # a balance alone cannot say how much room is left.
+        "utilisation_pct": v.utilisation_pct,
         "has_terms": v.profile_id is not None,
         "compounding": v.compounding,
         "offset_minor": v.offset_minor,

@@ -280,6 +280,8 @@
 .lf-strength-seg[data-on="strong"] { background: var(--lf-verdant-600); }
 
 /* ---------- Social auth buttons ---------- */
+/* The labelled variant, still used by the passkey button — it has words, and a
+   circle would crush them. */
 .lf-social-btn {
   display: inline-flex;
   align-items: center;
@@ -289,7 +291,7 @@
   min-height: var(--lf-touch-target);
   padding: var(--lf-space-2) var(--lf-space-4);
   border: 1px solid var(--lf-action-secondary-border);
-  border-radius: var(--lf-radius-md);
+  border-radius: var(--lf-radius-full);
   background: var(--lf-action-secondary-bg);
   color: var(--lf-text-primary);
   font-size: var(--lf-text-base);
@@ -297,6 +299,23 @@
   font-family: var(--lf-font-body);
   cursor: pointer;
   transition: background var(--lf-duration-fast) var(--lf-ease-out), border-color var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+/* Icon-only circles in a centred row, per the reference layout. Scoped to the
+   row so it cannot catch labelled buttons that share the class — which is
+   exactly what it did to the passkey button on the first pass. */
+.lf-social-row {
+  display: flex;
+  justify-content: center;
+  gap: var(--lf-space-3);
+}
+
+.lf-social-row .lf-social-btn {
+  width: var(--lf-touch-target);
+  height: var(--lf-touch-target);
+  min-height: 0;
+  padding: 0;
+  gap: 0;
 }
 
 .lf-social-btn:hover {

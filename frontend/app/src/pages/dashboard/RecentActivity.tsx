@@ -31,6 +31,7 @@ export function RecentActivity({
 
   return (
     <Card
+      accent="spend"
       title="Recent activity"
       action={
         <Link to="/transactions" className="lf-section-link">

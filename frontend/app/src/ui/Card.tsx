@@ -18,6 +18,18 @@ interface CardProps {
   prominence?: "default" | "primary" | "quiet";
   /** Lifts on hover and takes a focus ring. Only for cards that DO something. */
   interactive?: boolean;
+  /**
+   * A colour wash keyed to what the card is *about* — money in, spending,
+   * saving, debt, planning.
+   *
+   * Deliberately not a hierarchy signal. The rule this component states is
+   * "hierarchy through material, never through colour", and this does not break
+   * it: an accent says which *kind* of number is inside, the way money-in is
+   * already verdant and money-out already ink, while `prominence` continues to
+   * be the only thing that says which card matters most. Two cards with
+   * different accents are equally important and about different things.
+   */
+  accent?: "money" | "spend" | "save" | "debt" | "plan";
   /** Separate the header from the body with a rule (use for lists/tables). */
   ruledHeader?: boolean;
   onClick?: () => void;
@@ -41,6 +53,7 @@ export function Card({
   highlight,
   prominence = "default",
   interactive,
+  accent,
   ruledHeader,
   onClick,
   className,
@@ -54,6 +67,7 @@ export function Card({
     prominence === "primary" && "lf-card--primary",
     prominence === "quiet" && "lf-card--quiet",
     (interactive || clickable) && "lf-card--interactive",
+    accent && `lf-card--accent`,
     className,
   );
 
@@ -82,6 +96,7 @@ export function Card({
       <button
         type="button"
         className={classes}
+        data-accent={accent}
         style={{ ...inlineStyle, textAlign: "start", font: "inherit", width: "100%" }}
         onClick={onClick}
       >
@@ -91,7 +106,7 @@ export function Card({
   }
 
   return (
-    <div className={classes} style={inlineStyle}>
+    <div className={classes} data-accent={accent} style={inlineStyle}>
       {body}
     </div>
   );

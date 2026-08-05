@@ -39,6 +39,10 @@ def set_debt_terms(
     payment_day: int | None = None,
     original_principal_minor: int | None = None,
     opened_on: date | None = None,
+    term_months: int | None = None,
+    interest_method: str | None = None,
+    credit_limit_minor: int | None = None,
+    statement_day: int | None = None,
     promotional_apr: Decimal | float | str | None = None,
     promotional_apr_until: date | None = None,
     custom_priority: int | None = None,
@@ -145,6 +149,30 @@ def set_debt_terms(
         if not (1 <= annual_fee_month <= 12):
             raise DebtError("Annual fee month must be between 1 and 12.")
         profile.annual_fee_month = annual_fee_month
+
+    if term_months is not None:
+        if term_months <= 0:
+            raise DebtError("A term must be at least one month.")
+        profile.term_months = term_months
+
+    if interest_method is not None:
+        from .models import InterestMethod
+
+        if interest_method not in InterestMethod.values:
+            raise DebtError(f"Unknown interest method {interest_method!r}.")
+        profile.interest_method = interest_method
+
+    if credit_limit_minor is not None:
+        if credit_limit_minor <= 0:
+            raise DebtError("A credit limit must be greater than zero.")
+        profile.credit_limit_minor = credit_limit_minor
+
+    if statement_day is not None:
+        if not (1 <= statement_day <= 28):
+            # Capped at 28 for the same reason as the payment day: a statement
+            # that silently skips February is a real bug, not a rare one.
+            raise DebtError("Statement day must be between 1 and 28.")
+        profile.statement_day = statement_day
 
     if opened_on is not None:
         profile.opened_on = opened_on

@@ -1484,3 +1484,84 @@ def test_deleting_a_debt_with_history_archives_rather_than_erases(tenant_context
         account = FinancialAccount.all_objects.get(id=account_id)
         assert account.archived_at is not None, "history must survive the delete"
         assert account.deleted_at is None
+
+
+# ------------------------------------------------- term and kind-specific fields
+def test_a_loan_records_its_term_and_how_interest_is_worked_out(tenant_context):
+    """Reducing balance versus flat rate is the field people are most often
+    surprised by: the same rate on a flat loan costs roughly twice as much, and
+    it is usually quoted without saying so."""
+    _, client = tenant_context
+    created = client.post(
+        "/api/v1/debt/debts/",
+        {
+            "name": "Car loan",
+            "currency": "USD",
+            "balance_minor": 900_000,
+            "debt_kind": "vehicle loan",
+            "apr": "14.0",
+            "minimum_payment_minor": 25_000,
+            # The form asks in years; months is what's stored.
+            "term_months": 48,
+            "interest_method": "flat",
+        },
+        format="json",
+    )
+    assert created.status_code == 201, created.data
+    assert created.data["term_months"] == 48
+    assert created.data["interest_method"] == "flat"
+    # A loan has no credit limit, so no utilisation can be computed for it.
+    assert created.data["utilisation_pct"] is None
+
+
+def test_a_card_records_its_limit_and_statement_day(tenant_context):
+    """A card has no term — it revolves — but it does have headroom, which a
+    balance alone cannot report."""
+    _, client = tenant_context
+    created = client.post(
+        "/api/v1/debt/debts/",
+        {
+            "name": "Visa",
+            "currency": "USD",
+            "balance_minor": 250_000,
+            "debt_kind": "credit_card",
+            "apr": "19.9",
+            "credit_limit_minor": 1_000_000,
+            "statement_day": 12,
+            "payment_day": 28,
+        },
+        format="json",
+    )
+    assert created.status_code == 201, created.data
+    assert created.data["credit_limit_minor"] == 1_000_000
+    assert created.data["statement_day"] == 12
+    assert created.data["utilisation_pct"] == 25.0
+    assert created.data["term_months"] is None
+
+
+def test_utilisation_is_absent_rather_than_zero_without_a_limit(tenant_context):
+    """Reporting 0% for a card whose limit nobody recorded would read as
+    "plenty of room"."""
+    _, client = tenant_context
+    created = client.post(
+        "/api/v1/debt/debts/",
+        {"name": "Store card", "currency": "USD", "balance_minor": 50_000, "debt_kind": "credit_card"},
+        format="json",
+    ).data
+    assert created["utilisation_pct"] is None
+
+
+def test_the_term_survives_an_edit(tenant_context):
+    _, client = tenant_context
+    created = client.post(
+        "/api/v1/debt/debts/",
+        {"name": "Loan", "currency": "USD", "balance_minor": 500_000, "term_months": 24},
+        format="json",
+    ).data
+    edited = client.put(
+        f"/api/v1/debt/debts/{created['account_id']}/terms/",
+        {"apr": "9.0", "term_months": 36},
+        format="json",
+    )
+    assert edited.status_code == 200, edited.data
+    assert edited.data["term_months"] == 36

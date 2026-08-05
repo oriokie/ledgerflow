@@ -49,11 +49,14 @@ from apps.ledger.services import LineInput
 from .models import (
     AssetClass,
     Holding,
+    IncomeKind,
     InvestmentTransaction,
     InvestmentTransactionType,
     Lot,
     PriceQuote,
+    RedemptionSchedule,
     Security,
+    SecurityTerms,
 )
 
 
@@ -561,6 +564,196 @@ def record_interest(
         idem_prefix="inv-int",
         idempotency_key=idempotency_key,
     )
+
+
+# ------------------------------------------------------------------------ terms
+@transaction.atomic
+def set_security_terms(
+    *,
+    security: Security,
+    income_kind: str = IncomeKind.NONE,
+    face_value_minor: int | None = None,
+    coupon_rate_bp: int | None = None,
+    payment_frequency: str | None = None,
+    issued_on: date | None = None,
+    matures_on: date | None = None,
+    dividend_on_average_balance: bool = False,
+    notes: str = "",
+) -> SecurityTerms:
+    """Record what an instrument has agreed to pay.
+
+    A fixed coupon needs all four of face, rate, frequency and maturity before
+    anything can be projected from it — a schedule missing one of them is not a
+    partial schedule, it is a guess. The other kinds need none of it, and
+    demanding a rate for a money-market fund would be asking the user to invent
+    the very number the fund refuses to promise.
+    """
+    if income_kind == IncomeKind.COUPON:
+        missing = [
+            name
+            for name, value in (
+                ("face value", face_value_minor),
+                ("coupon rate", coupon_rate_bp),
+                ("payment frequency", payment_frequency),
+                ("maturity date", matures_on),
+            )
+            if value in (None, "")
+        ]
+        if missing:
+            raise InvestmentError(
+                "A fixed coupon needs " + ", ".join(missing) + " before it can be scheduled."
+            )
+        if issued_on and matures_on and matures_on < issued_on:
+            raise InvestmentError("An instrument cannot mature before it was issued.")
+
+    terms, _ = SecurityTerms.all_objects.update_or_create(
+        security=security,
+        defaults={
+            "income_kind": income_kind,
+            "face_value_minor": face_value_minor,
+            "coupon_rate_bp": coupon_rate_bp,
+            # "" is this field's empty, not None — see the model.
+            "payment_frequency": payment_frequency or "",
+            "issued_on": issued_on,
+            "matures_on": matures_on,
+            "dividend_on_average_balance": dividend_on_average_balance,
+            "notes": notes,
+            "deleted_at": None,
+            "deleted_by_id": None,
+        },
+    )
+    return terms
+
+
+@transaction.atomic
+def set_redemption_schedule(
+    *, security: Security, entries: list[tuple[date, int]]
+) -> list[RedemptionSchedule]:
+    """Replace the partial-redemption dates for a security.
+
+    Replace rather than append: a schedule is a single statement of what the
+    offer document says, and merging edits into it is how a duplicate tranche
+    ends up silently doubling a repayment.
+    """
+    total = sum(portion for _, portion in entries)
+    if total > 10_000:
+        raise InvestmentError("Scheduled redemptions add up to more than the whole principal.")
+    for _, portion in entries:
+        if portion <= 0:
+            raise InvestmentError("A redemption must return some principal.")
+
+    RedemptionSchedule.objects.filter(security=security).delete()
+    return [
+        RedemptionSchedule.objects.create(security=security, on_date=on_date, portion_bp=portion)
+        for on_date, portion in sorted(entries)
+    ]
+
+
+@transaction.atomic
+def record_redemption(
+    *,
+    financial_account: FinancialAccount,
+    security: Security,
+    amount_minor: int,
+    quantity: Decimal | None = None,
+    occurred_on: date | None = None,
+    cash_account: FinancialAccount | None = None,
+    memo: str = "",
+    idempotency_key: str | None = None,
+) -> InvestmentTransaction:
+    """Principal handed back — a partial redemption, or maturity.
+
+    **Not a sale.** Nothing was sold: the issuer repaid at par, on a date fixed
+    when the instrument was bought. Booking it as a disposal would compute a
+    realised gain against cost basis and report profit on getting your own money
+    back. So the asset is relieved at cost for the units retired and no gain is
+    posted; where redemption is above or below par, the difference is a real
+    gain or loss and rides on the balancing line, exactly as a sale's does.
+
+    `quantity` omitted means the whole position matured.
+    """
+    if amount_minor <= 0:
+        raise InvestmentError("A redemption must return some money.")
+
+    occurred_on = occurred_on or timezone.localdate()
+    holding = _get_or_create_holding(financial_account=financial_account, security=security)
+    currency = security.currency
+    destination = cash_account or financial_account
+
+    held = selectors_holding_quantity(holding)
+    retiring = held if quantity is None else Decimal(quantity)
+    if retiring <= 0:
+        raise InvestmentError("There is nothing left to redeem on this holding.")
+    if retiring > held:
+        raise InvestmentError(f"Only {held} units are held; cannot redeem {retiring}.")
+
+    disposals = _consume_lots_fifo(holding=holding, quantity=retiring)
+    cost = sum(d.cost_minor for d in disposals)
+    difference = amount_minor - cost
+
+    occurred_at = timezone.make_aware(timezone.datetime.combine(occurred_on, timezone.datetime.min.time()))
+    lines = [
+        LineInput(
+            account_id=str(destination.ledger_account_id),
+            direction=Direction.DEBIT,
+            amount_minor=amount_minor,
+        ),
+        LineInput(
+            account_id=str(investment_asset_account(currency).id),
+            direction=Direction.CREDIT,
+            amount_minor=cost,
+        ),
+    ]
+    if difference:
+        # Redeemed above or below par. Real income (or a real loss), and the
+        # only signed figure in the posting.
+        lines.append(
+            LineInput(
+                account_id=str(realized_gain_account(currency).id),
+                direction=Direction.CREDIT if difference > 0 else Direction.DEBIT,
+                amount_minor=abs(difference),
+            )
+        )
+
+    entry = ledger_services.post_journal_entry(
+        occurred_at=occurred_at,
+        lines=lines,
+        idempotency_key=idempotency_key or f"inv-red:{holding.id}:{occurred_on}:{amount_minor}",
+        memo=memo or f"Redemption of {security.symbol}",
+    )
+
+    # Principal coming back is money arriving, so it belongs in cash flow like
+    # any other receipt — the same omission that made dividends invisible.
+    if not FinanceTransaction.objects.filter(journal_entry=entry).exists():
+        FinanceTransaction.objects.create(
+            financial_account=destination,
+            journal_entry=entry,
+            amount_minor=amount_minor,
+            currency=currency,
+            occurred_at=occurred_at,
+            posted_at=timezone.now(),
+            status=TransactionStatus.POSTED,
+            memo=memo or f"Redemption of {security.symbol}",
+        )
+
+    return InvestmentTransaction.objects.create(
+        holding=holding,
+        txn_type=InvestmentTransactionType.REDEMPTION,
+        occurred_on=occurred_on,
+        quantity=retiring,
+        amount_minor=amount_minor,
+        realized_gain_minor=difference or None,
+        currency=currency,
+        memo=memo,
+        journal_entry=entry,
+    )
+
+
+def selectors_holding_quantity(holding: Holding) -> Decimal:
+    """Units still held. Imported lazily to keep selectors out of the write path."""
+    from .selectors import holding_quantity
+
+    return holding_quantity(holding)
 
 
 @transaction.atomic

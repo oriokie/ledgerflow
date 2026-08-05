@@ -8,6 +8,9 @@ vi.mock("../../hooks/useRoutePrefetch", () => ({ useRoutePrefetch: () => () => {
 vi.mock("../../hooks/useRailMetrics", () => ({ useRailMetrics: () => ({}), metricFor: () => undefined }));
 vi.mock("../../lib/featureFlags", () => ({ useFlag: () => [false, vi.fn()] }));
 vi.mock("../../lib/pinnedViews", () => ({ usePinnedViews: () => ({ pinned: [] }) }));
+// The rail now carries a plan card, which reads the subscription through
+// react-query. These tests render the rail bare, with no QueryClientProvider.
+vi.mock("../../hooks/useBilling", () => ({ useSubscription: () => ({ data: null, isLoading: false }) }));
 vi.mock("../../hooks/useEntitlements", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../hooks/useEntitlements")>();
   return {

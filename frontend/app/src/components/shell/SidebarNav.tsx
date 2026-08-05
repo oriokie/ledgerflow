@@ -4,6 +4,7 @@ import { useRoutePrefetch } from "../../hooks/useRoutePrefetch";
 import { usePinnedViews } from "../../lib/pinnedViews";
 import { metricFor, useRailMetrics } from "../../hooks/useRailMetrics";
 import { useFlag } from "../../lib/featureFlags";
+import { PlanCard } from "./PlanCard";
 import { useAuth } from "../../lib/AuthContext";
 import { FEATURE_BY_PATH, useFeatures } from "../../hooks/useEntitlements";
 import { AppVersion } from "./AppVersion";
@@ -46,6 +47,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
       {navV2 && <PinnedSection onNavigate={onNavigate} />}
+      <PlanCard onNavigate={onNavigate} />
       {sections.map((section) => (
         <div key={section.label} className="lf-rail-section">
           <p className="lf-rail-section-label">{section.label}</p>
