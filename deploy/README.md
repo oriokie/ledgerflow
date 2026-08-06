@@ -181,6 +181,73 @@ docker compose -f $CF up -d --build          # redeploy after a code change
 docker compose -f $CF down                   # stop (data volumes persist)
 ```
 
+### Knowing when it breaks, and why
+
+Three tools, installed by `setup.sh`/`provision.sh` but each runnable on its own.
+
+```bash
+sudo bash deploy/doctor.sh              # what is wrong, right now
+sudo bash deploy/firewall-docker.sh     # reconcile the host firewall with Docker
+sudo bash deploy/install-monitor.sh     # alert me when the site stops serving
+```
+
+**`doctor.sh`** walks the stack bottom-up — host, packet forwarding, containers,
+whether the app can actually open a socket to Postgres and Redis, then the public
+endpoints. The first failure is nearly always the real one; everything below it
+tends to be a consequence. Run it whenever something looks wrong, and after any
+firewall change.
+
+**`firewall-docker.sh`** is the preventative half. Every host firewall — CSF, UFW,
+firewalld — rebuilds the iptables ruleset on reload, and unless told otherwise it
+rebuilds it *without* the chains Docker installed when the daemon started. Docker
+never finds out, because it only writes those rules at startup. The containers keep
+running and every connection between them times out.
+
+That is not a hypothetical: it took this application down for about six hours on
+2026-08-06. The tell is distinctive and misleading — `docker compose ps` shows
+Postgres healthy while the app cannot reach it, and restarting the containers
+changes nothing, because the containers were never the problem. `systemctl restart
+docker` is what actually fixes it, by making the daemon reinstall its rules.
+
+The script detects whichever firewall is present, applies that firewall's idiom for
+permitting the container bridge, and then **tests that a container really can reach
+the database** rather than trusting the config it just wrote. On CSF it also writes
+`/etc/csf/csfpost.sh`, which CSF runs after every rebuild — so the rules come back
+even if someone later turns its `DOCKER` option off again.
+
+**`install-monitor.sh`** sets up a systemd timer that probes `/readyz/` every minute
+and alerts after three consecutive failures (~3 minutes), with `doctor.sh` output in
+the alert body so the cause arrives with the notification. Configure at least one
+channel in `.env` first — it refuses to install otherwise, because a monitor with
+nobody to tell looks like coverage on the next incident review and isn't:
+
+```bash
+ALERT_WEBHOOK_URL=https://hooks.slack.com/services/...   # Slack, Discord, ntfy
+# and/or
+ALERT_EMAIL_TO=you@example.com
+ALERT_SMTP_URL=smtps://smtp.example.com:465
+ALERT_SMTP_USER=apikey
+ALERT_SMTP_PASSWORD=...
+```
+
+Prove it reaches you before trusting it — a webhook URL with a typo is
+indistinguishable from "no outages yet":
+
+```bash
+sudo bash deploy/install-monitor.sh --test
+```
+
+> **This monitor cannot report a dead host.** It runs on the machine it watches, so
+> power loss, a network outage or a full disk produce silence rather than an alert —
+> and silence is not evidence of health. Pair it with an external check
+> (Healthchecks.io, UptimeRobot, BetterStack) pointed at `https://$DOMAIN/readyz/`.
+> The on-host monitor tells you *why*; the external one tells you *at all*.
+
+Why `/readyz/` and not `/healthz/`: liveness deliberately checks nothing external, so
+that a database outage doesn't make Docker restart every replica at once. It returns a
+confident 200 while the app cannot reach Postgres. Readiness touches the database, the
+cache and migration state — the things that actually went dark.
+
 ### Filling in the optional integrations
 
 The generated `.env` has empty placeholders for SMTP (invitation/notification

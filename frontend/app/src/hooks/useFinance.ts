@@ -138,6 +138,42 @@ export function useImportTransactionsCsv() {
   });
 }
 
+/** Parse-and-describe only. No mutation, so no cache invalidation — nothing
+ *  has changed yet, and that is the entire point of the step. */
+export function usePreviewMpesaStatement() {
+  return useMutation({
+    mutationFn: ({ file, password }: { file: File; password: string }) =>
+      financeApi.previewMpesaStatement(file, password),
+  });
+}
+
+export function useImportMpesaStatement() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      accountId,
+      file,
+      password,
+      fromDate,
+      toDate,
+      trackOverdraftAsDebt,
+    }: {
+      accountId: string;
+      file: File;
+      password: string;
+      fromDate?: string;
+      toDate?: string;
+      trackOverdraftAsDebt?: boolean;
+    }) =>
+      financeApi.importMpesaStatement(accountId, file, password, {
+        fromDate,
+        toDate,
+        trackOverdraftAsDebt,
+      }),
+    onSuccess: () => invalidateMoneyViews(queryClient),
+  });
+}
+
 export function useNetWorth() {
   const { activeWorkspace } = useAuth();
   return useQuery({

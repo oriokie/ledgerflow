@@ -1030,6 +1030,27 @@ docker compose -f "$COMPOSE_FILE" exec -T web python manage.py migrate --no-inpu
 docker compose -f "$COMPOSE_FILE" exec -T web python manage.py collectstatic --no-input >/dev/null
 docker compose -f "$COMPOSE_FILE" exec -T web python manage.py seed_plans
 
+# A host firewall that does not know about Docker will, on its next reload,
+# rebuild the ruleset without the chains Docker installed at daemon start —
+# and Docker will not notice, because it only writes them when it starts. The
+# containers keep running and every connection between them times out. That is
+# a six-hour outage on this application already (2026-08-06), and the state it
+# leaves behind is deliberately misleading: `docker compose ps` shows the
+# database healthy while the app cannot reach it.
+#
+# Reconciled here, at the end, because the bridge has to exist before a
+# firewall can be told to permit it — and because the script can then prove a
+# container really does reach Postgres rather than trusting the config it just
+# wrote. Never fatal, for the same reason as the isolation check below: the
+# stack is up, and aborting does not un-break anything.
+bold ""
+bold "Firewall and container networking"
+if ! bash "$(dirname "${BASH_SOURCE[0]}")/firewall-docker.sh"; then
+  echo
+  warn "Container networking could not be verified — see above."
+  warn "The stack may work now and fail on the firewall's next reload."
+fi
+
 # Tenant isolation is row-level security, and PostgreSQL disables it silently
 # for superuser and BYPASSRLS roles — no error, no log line, queries just start
 # returning other tenants' rows. The bundled database's POSTGRES_USER is a

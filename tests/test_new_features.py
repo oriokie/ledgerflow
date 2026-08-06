@@ -173,6 +173,39 @@ def test_csv_import_is_idempotent():
         assert r2.skipped_duplicate == 3
 
 
+def test_a_row_failing_in_the_database_does_not_abort_the_csv_import():
+    """Regression: the per-row `except` sat inside the function's atomic block
+    with no savepoint.
+
+    The failure has to come from a statement *outside* the posting services —
+    they are each `@transaction.atomic`, so an error inside one rolls back to
+    its own savepoint and leaves the transaction healthy. The exposed statement
+    is the `txn.save()` that stamps `external_id`, and a CSV is free to carry an
+    id longer than the 128-character column. Without a savepoint that error
+    marks the whole transaction broken, every later query raises
+    TransactionManagementError, and the importer reports rows it never wrote.
+    """
+    from apps.finance import import_csv
+    from apps.finance.models import Transaction
+
+    tid = uuid.uuid4()
+    with tenant_scope(tid):
+        checking = finance_services.create_financial_account(
+            name="Checking", account_type=AccountType.CHECKING, currency="USD"
+        )
+        csv_text = (
+            "date,amount,description,external_id\n"
+            f"2026-01-05,-42.50,Coffee shop,{'x' * 200}\n"
+            "2026-01-06,-18.00,Lunch,good-1\n"
+            "2026-01-07,2500.00,Paycheck,good-2\n"
+        )
+        result = import_csv.import_transactions_csv(financial_account=checking, file_content=csv_text)
+
+        assert len(result.errors) == 1, result.errors
+        assert result.imported == 2, "the rows after the failure must still land"
+        assert Transaction.objects.filter(financial_account=checking).count() == 2
+
+
 def test_csv_import_reports_bad_rows():
     from apps.finance import import_csv
 

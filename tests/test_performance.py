@@ -256,19 +256,32 @@ def test_csv_import_cost_is_linear_not_quadratic():
 
     # The measured constant, pinned so it cannot drift upward unnoticed.
     #
-    # ~15 queries per row is *linear*, which is the property that matters — but
+    # ~20 queries per row is *linear*, which is the property that matters — but
     # it is not cheap. Each imported row is a real ledger posting: a journal
     # entry, its lines, an account lock, a balance update and a dedupe check.
-    # A year of statements (~2,000 rows) is therefore ~30,000 queries, and the
+    # A year of statements (~2,000 rows) is therefore ~40,000 queries, and the
     # measured 80-row batch already takes a second.
     #
-    # That is acceptable for the CSV path people run occasionally and would not
-    # be for a nightly bank-feed sync across every tenant. Batching the postings
-    # is the fix when aggregation arrives; until then this assertion makes the
-    # cost visible instead of surprising.
-    assert per_row_large < 20, (
-        f"import now costs {per_row_large:.1f} queries per row (was ~15). "
-        "Something added per-row work to the ingestion path."
+    # Two of those queries are a SAVEPOINT and its RELEASE, added deliberately.
+    # Without them a row that fails in the database poisons the surrounding
+    # transaction, every later row raises TransactionManagementError, and the
+    # importer reports rows it never wrote — so the alternative to this cost is
+    # not a faster importer but a lying one. Measured: 18.1/row without,
+    # 20.1/row with.
+    #
+    # The figure was ~15 when this test was written and was ~18 before the
+    # savepoint landed, so the ingestion path had already grown quietly under
+    # the old ceiling of 20. The ceiling below is set close to the real number
+    # rather than generously, because headroom is exactly what let that happen.
+    #
+    # This is acceptable for the CSV and statement paths people run
+    # occasionally, and would not be for a nightly bank-feed sync across every
+    # tenant. Batching the postings is the fix when aggregation arrives; until
+    # then this assertion keeps the cost visible instead of surprising.
+    assert per_row_large < 22, (
+        f"import now costs {per_row_large:.1f} queries per row (was ~20, of which "
+        "2 are the deliberate per-row savepoint). Something added further per-row "
+        "work to the ingestion path."
     )
 
 
