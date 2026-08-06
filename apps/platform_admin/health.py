@@ -208,6 +208,78 @@ def integrations() -> list[dict]:
     ]
 
 
+# ---------------------------------------------------------------- monitoring
+def monitoring() -> dict:
+    """Is anything actually watching this deployment, and can it reach anyone?
+
+    Reported in the admin panel because "no monitoring configured" is invisible
+    by construction: a deployment with none looks exactly like a deployment
+    that has simply had no incidents. On 2026-08-06 this application was down
+    for six hours and the first thing that noticed was a person trying to log
+    in. That is the state this component exists to make visible.
+
+    Two independent layers, and the distinction matters:
+
+    * **on-host alerting** (`ALERT_WEBHOOK_URL` / `ALERT_EMAIL_TO`) tells you
+      *why* something broke, with diagnosis attached. It cannot report a dead
+      host, because it dies with it.
+    * **the heartbeat** (`MONITOR_HEARTBEAT_URL`) is a dead-man's switch: the
+      monitor pings it after every successful probe, and an external service
+      raises the alarm when the pings stop. Silence becomes the signal, which is
+      the only arrangement that survives the host disappearing.
+
+    Configuration is read from the environment the app already has — the same
+    `.env` the monitor sources — so this reports what is genuinely set rather
+    than what somebody intended.
+    """
+    import os
+
+    def _set(name: str) -> bool:
+        return bool((os.environ.get(name) or "").strip())
+
+    webhook = _set("ALERT_WEBHOOK_URL")
+    email = _set("ALERT_EMAIL_TO") and _set("ALERT_SMTP_URL")
+    heartbeat = _set("MONITOR_HEARTBEAT_URL")
+    local_alerting = webhook or email
+
+    # UNKNOWN rather than DEGRADED for the unconfigured cases, following this
+    # module's own convention: `overall()` deliberately lets unknown pass, and
+    # "we have not set up alerting" is a gap to close, not a live incident.
+    # Reporting it as degraded would make the rollup permanently amber on every
+    # fresh install and teach operators to ignore the colour that matters.
+    if local_alerting and heartbeat:
+        status, detail = OK, "On-host alerting and an external heartbeat are both configured."
+    elif local_alerting:
+        status, detail = (
+            UNKNOWN,
+            "On-host alerting is configured, but no heartbeat. A dead host would "
+            "fail silently — nothing would be left running to send the alert.",
+        )
+    elif heartbeat:
+        status, detail = (
+            UNKNOWN,
+            "A heartbeat is configured, but no on-host alerting. You would learn "
+            "that something is wrong without learning what.",
+        )
+    else:
+        status, detail = (
+            UNKNOWN,
+            "Nothing is watching this deployment. An outage would be noticed by "
+            "whoever next tries to use it.",
+        )
+
+    return {
+        "name": "monitoring",
+        "status": status,
+        "detail": detail,
+        "channels": {
+            "webhook": webhook,
+            "email": email,
+            "heartbeat": heartbeat,
+        },
+    }
+
+
 # -------------------------------------------------------------------- alerts
 def alerts() -> list[dict]:
     """Things an operator should look at right now.
@@ -294,6 +366,7 @@ def snapshot() -> dict:
         _probe("queues", queues),
         _probe("storage", storage),
         _probe("outbox", outbox),
+        _probe("monitoring", monitoring),
     ]
     try:
         integration_rows = integrations()
