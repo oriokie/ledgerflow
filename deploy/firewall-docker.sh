@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # LedgerFlow — teach the host firewall about Docker, and prove it worked.
 #
-#   sudo bash deploy/firewall-docker.sh          # detect, reconcile, verify
-#   sudo bash deploy/firewall-docker.sh --check  # verify only, change nothing
+#   sudo bash deploy/firewall-docker.sh               # detect, reconcile, verify
+#   sudo bash deploy/firewall-docker.sh --check       # report only, change nothing
+#   sudo bash deploy/firewall-docker.sh --no-repair   # configure, but never restart Docker
+#
+# Exit codes: 0 healthy · 1 container networking broken · 2 healthy but the
+# stack is not yet on the pinned bridge (recreate the network when convenient).
 #
 # Why this exists
 # ---------------
@@ -50,7 +54,13 @@ SUBNET="${DOCKER_SUBNET:-172.28.0.0/16}"
 DOCKER_RANGE="172.16.0.0/12"
 
 CHECK_ONLY=0
-[ "${1:-}" = "--check" ] && CHECK_ONLY=1
+NO_REPAIR=0
+for arg in "$@"; do
+  case "$arg" in
+    --check)      CHECK_ONLY=1 ;;
+    --no-repair)  NO_REPAIR=1 ;;
+  esac
+done
 
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 ok()   { printf '\033[32m  ✓ %s\033[0m\n' "$*"; }
@@ -248,6 +258,83 @@ except Exception as exc:
   return $failed
 }
 
+# Does the device the firewall was just pointed at actually exist? Writing a
+# rule for a bridge that does not exist yet is how the config and the running
+# stack drift apart without anything looking wrong.
+verify_bridge_exists() {
+  if ip link show "$BRIDGE" >/dev/null 2>&1; then
+    ok "The bridge $BRIDGE exists."
+    return 0
+  fi
+  warn "The firewall now allows $BRIDGE, but no such device exists yet."
+  info "The stack is still on its old network. Until it is recreated, the rules"
+  info "written above protect a bridge nothing is using — and the old one is no"
+  info "longer named in the config."
+  echo
+  info "Recreate it, with the profiles the stack was brought up with:"
+  print_recreate_commands
+  return 1
+}
+
+print_recreate_commands() {
+  # Profiles are not optional. Without them `down` leaves db and the internal
+  # proxy running on the old network while everything else moves to the new
+  # one, and they cannot then reach each other. This mirrors cd-agent.sh.
+  cat <<'RECREATE'
+      cd "$(dirname "$0")/.."
+      set -a; . .env; set +a
+      PROFILES="internal"; [ "${WEB_SERVER:-existing}" = "caddy" ] && PROFILES="caddy"
+      [ "${DB_MODE:-bundled}" = "bundled" ] && PROFILES="$PROFILES,bundled-db"
+      export COMPOSE_PROFILES="$PROFILES"
+      docker compose -f deploy/docker-compose.server.yml down --remove-orphans
+      docker compose -f deploy/docker-compose.server.yml up -d
+RECREATE
+  info 'Data is safe: "down" without -v never touches the pgdata volume.'
+}
+
+# Put Docker's flushed rules back, rather than advising somebody to.
+#
+# This script's whole job is to make container networking work, and it already
+# mutates the host — it rewrites csf.conf and reloads CSF. Detecting the exact
+# fault it exists to fix, knowing the one-line remedy, and then printing that
+# remedy as a warning among four green ticks is how an operator reads it as
+# advisory, runs "docker compose down", and finds that "up" cannot recreate the
+# network because the chain it jumps to no longer exists. That is not a
+# hypothetical: it is the 2026-08-06 second outage.
+#
+# Restarting Docker restarts this host's containers and nothing else. Against a
+# host where "docker compose up" is already impossible, that is the cheaper
+# side of the trade by a wide margin.
+repair_docker_chains() {
+  if [ "$CHECK_ONLY" -eq 1 ]; then
+    info "(--check: would restart Docker to reinstate its chains)"
+    return 1
+  fi
+  if [ "$NO_REPAIR" -eq 1 ]; then
+    warn "Docker's chains are missing and --no-repair was given."
+    info "Run: systemctl restart docker"
+    return 1
+  fi
+
+  warn "Docker's chains are missing — restarting Docker to reinstate them."
+  info "This restarts the containers on this host. Nothing else is affected."
+  if ! systemctl restart docker; then
+    die "Could not restart Docker. Run 'systemctl status docker' — nothing below will work until it starts."
+  fi
+
+  # Give the daemon a moment to write its rules before re-checking.
+  for _ in $(seq 1 15); do
+    iptables -S 2>/dev/null | grep -q 'DOCKER-USER' && break
+    sleep 1
+  done
+  if iptables -S 2>/dev/null | grep -q 'DOCKER-USER'; then
+    ok "Docker restarted and its chains are back."
+    return 0
+  fi
+  warn "Docker restarted but its chains are still missing."
+  return 1
+}
+
 # ------------------------------------------------------------------- main
 bold ""
 bold "Docker and the host firewall"
@@ -275,21 +362,49 @@ fi
 bold ""
 bold "Verifying"
 status=0
-verify_forward_chain          || status=1
-verify_docker_chains          || status=1
+verify_forward_chain || status=1
+
+# Repaired rather than reported. The failure this detects makes `docker compose
+# up` impossible, so leaving the host in it — with the remedy printed as a
+# warning among green ticks — is how the operator proceeds to `down` and
+# discovers there is no way back up.
+if ! verify_docker_chains; then
+  if repair_docker_chains; then
+    verify_docker_chains || status=1
+  else
+    status=1
+  fi
+fi
+
 verify_container_connectivity || status=1
 
+# Checked last, and separately from the rest: this one is not a fault in the
+# firewall, it is the firewall being correct about a state the stack has not
+# caught up with yet.
+bridge_missing=0
+verify_bridge_exists || bridge_missing=1
+
 bold ""
-if [ "$status" -eq 0 ]; then
+if [ "$status" -eq 0 ] && [ "$bridge_missing" -eq 0 ]; then
   ok "Container networking is intact."
   echo
   exit 0
 fi
 
+if [ "$status" -eq 0 ] && [ "$bridge_missing" -eq 1 ]; then
+  # Everything works; the config is simply ahead of the running stack. That is
+  # a real thing to act on but not an outage, and calling it one would train
+  # people to ignore the times it is.
+  warn "Container networking works, but the stack is not on the pinned bridge yet."
+  echo
+  exit 2
+fi
+
 warn "Container networking is NOT healthy."
 echo
-info "Most likely fix, in order:"
-info "  1. systemctl restart docker      # re-inserts Docker's flushed rules"
-info "  2. bash deploy/doctor.sh         # full diagnosis if that is not enough"
+info "Next steps, in order:"
+info "  1. bash deploy/doctor.sh         # full diagnosis, bottom of the stack up"
+info "  2. recreate the network, with profiles:"
+print_recreate_commands
 echo
 exit 1

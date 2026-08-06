@@ -215,6 +215,37 @@ the database** rather than trusting the config it just wrote. On CSF it also wri
 `/etc/csf/csfpost.sh`, which CSF runs after every rebuild — so the rules come back
 even if someone later turns its `DOCKER` option off again.
 
+### Recreating the stack's network
+
+Some changes — renaming the bridge, changing the subnet — need the compose
+network recreated, which means a `down` and an `up`. **Always set the profiles
+first:**
+
+```bash
+cd /path/to/ledgerflow
+set -a; . .env; set +a
+PROFILES="internal"; [ "${WEB_SERVER:-existing}" = "caddy" ] && PROFILES="caddy"
+[ "${DB_MODE:-bundled}" = "bundled" ] && PROFILES="$PROFILES,bundled-db"
+export COMPOSE_PROFILES="$PROFILES"
+
+docker compose -f deploy/docker-compose.server.yml down --remove-orphans
+docker compose -f deploy/docker-compose.server.yml up -d
+```
+
+Without the profiles, `down` skips `db` and the internal proxy — they sit behind
+`bundled-db` and `internal` — so they stay on the *old* network while everything
+else comes up on the new one, and then cannot reach each other. This is the same
+logic `cd-agent.sh` runs on every deploy, which is why the agent never hits it.
+
+Run `firewall-docker.sh` **before** the `down`, and act on what it says. If it
+reports Docker's chains are missing it will now restart Docker itself; if you
+pass `--no-repair`, do it by hand before going any further. Bringing the stack
+down while those chains are absent leaves you unable to bring it back up —
+`docker compose up` cannot create a network when the chain it jumps to does not
+exist.
+
+`down` without `-v` never touches volumes, so Postgres data is safe.
+
 **`install-monitor.sh`** sets up a systemd timer that probes `/readyz/` every minute
 and alerts after three consecutive failures (~3 minutes), with `doctor.sh` output in
 the alert body so the cause arrives with the notification. Configure at least one
