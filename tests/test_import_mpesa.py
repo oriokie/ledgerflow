@@ -420,10 +420,13 @@ def _patched_parser(monkeypatch):
     )
     statement.declared_paid_in_minor = 90000
     statement.declared_withdrawn_minor = 30700
-    monkeypatch.setattr(
+    # Both call sites: the service parses for the preview, and the view parses
+    # directly before handing the rows to the task.
+    for target in (
         "apps.finance.import_mpesa_service.parse_statement",
-        lambda file_bytes, password="": statement,
-    )
+        "apps.finance.import_mpesa.parse_statement",
+    ):
+        monkeypatch.setattr(target, lambda file_bytes, password="": statement)
     return statement
 
 
@@ -458,24 +461,49 @@ def test_import_requires_an_account(tenant_context, _patched_parser):
     assert "account_id" in resp.data["detail"]
 
 
-def test_import_posts_and_is_idempotent_over_http(tenant_context, _patched_parser):
+def test_import_is_queued_rather_than_run_in_the_request(tenant_context, _patched_parser, settings):
+    """The request parses and hands off. A real statement is ~25 seconds of
+    posting against gunicorn's 30s timeout, so doing the work inline returned a
+    500 for an import that was actually succeeding."""
+    settings.CELERY_TASK_ALWAYS_EAGER = True
     membership, client = tenant_context
     with tenant_scope(membership.tenant_id):
         account = _mpesa_account()
 
     payload = {"file": _fake_pdf(), "password": "not-the-real-one", "account_id": str(account.id)}
     resp = client.post("/api/v1/finance/transactions/import/mpesa/", payload, format="multipart")
-    assert resp.status_code == 201, resp.data
-    assert resp.data["imported"] == 3
-    assert resp.data["reconciles"] is True
 
-    again = client.post(
-        "/api/v1/finance/transactions/import/mpesa/",
-        {"file": _fake_pdf(), "password": "not-the-real-one", "account_id": str(account.id)},
-        format="multipart",
-    )
-    assert again.data["imported"] == 0
-    assert again.data["skipped_duplicate"] == 3
+    assert resp.status_code == 202, resp.data
+    assert resp.data["queued"] is True
+    assert resp.data["rows_found"] == 3
+    # Reconciliation is known before the work runs, because parsing happened
+    # here — so the user still learns immediately if the file was misread.
+    assert resp.data["reconciles"] is True
+    assert resp.data["task_id"]
+
+    # And the rows really did land, eagerly, through the task.
+    with tenant_scope(membership.tenant_id):
+        assert Transaction.objects.filter(financial_account=account).count() == 3
+
+
+def test_the_queued_import_is_still_idempotent(tenant_context, _patched_parser, settings):
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+    membership, client = tenant_context
+    with tenant_scope(membership.tenant_id):
+        account = _mpesa_account()
+
+    body = lambda: {  # noqa: E731
+        "file": _fake_pdf(),
+        "password": "not-the-real-one",
+        "account_id": str(account.id),
+    }
+    client.post("/api/v1/finance/transactions/import/mpesa/", body(), format="multipart")
+    client.post("/api/v1/finance/transactions/import/mpesa/", body(), format="multipart")
+
+    with tenant_scope(membership.tenant_id):
+        assert (
+            Transaction.objects.filter(financial_account=account).count() == 3
+        ), "the second run must post nothing new"
 
 
 def test_a_missing_file_is_refused(tenant_context):
@@ -709,8 +737,8 @@ def test_blank_dates_mean_no_bound_not_year_one(tenant_context, _patched_parser)
         },
         format="multipart",
     )
-    assert resp.status_code == 201, resp.data
-    assert resp.data["imported"] == 3
+    assert resp.status_code == 202, resp.data
+    assert resp.data["rows_found"] == 3
 
 
 def test_preview_reports_a_daily_histogram(tenant_context, _patched_parser):

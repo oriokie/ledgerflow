@@ -174,3 +174,109 @@ def reconcile_balances_for_tenant(tenant_id: str) -> int:
                         dedupe_key=f"ledger.drift:{account.id}:{after}",
                     )
     return drifted
+
+
+@shared_task(
+    name="finance.import_mpesa_statement",
+    bind=True,
+    max_retries=0,  # see below
+    acks_late=True,
+)
+def import_mpesa_statement_task(self, tenant_id: str, account_id: str, payload: dict) -> dict:
+    """Post an already-parsed M-Pesa statement to the ledger, off the request.
+
+    **Why this is a task at all.** A real statement is 866 rows, each a genuine
+    double-entry posting — a journal entry, its lines, an account lock, a
+    balance update and a dedupe check. Measured end to end that is ~25 seconds
+    on a developer laptop with a local database, and gunicorn is configured with
+    `--timeout 30`. On a server it goes over, the worker is killed mid-import,
+    and the user gets a 500 from a request that was actually working. That is
+    the bug this fixes.
+
+    The second reason matters as much: the request was holding one of four
+    gunicorn workers for its whole duration. Two concurrent imports left the
+    entire application running on half its capacity, which is felt as "the site
+    is slow" by everybody, not just the person importing.
+
+    **Parsing stays in the request.** It costs ~6 seconds, comfortably inside
+    the timeout, and doing it there means the statement password is used and
+    dropped in the web process — it never goes near the queue. What travels is
+    the parsed rows: still the user's financial data, but no credential.
+
+    **`max_retries=0` is deliberate.** The import is idempotent by row, so a
+    retry would be safe for the ledger — but a failure here is almost always
+    something a retry cannot fix (a currency mismatch, an unreadable statement),
+    and silently re-running a 25-second job three times makes the queue the
+    problem too. Failures are recorded and surfaced instead.
+    """
+    from apps.finance.import_mpesa_service import import_parsed_statement
+    from apps.finance.models import FinancialAccount
+
+    tenant_uuid = uuid.UUID(str(tenant_id))
+    statement = _statement_from_payload(payload)
+
+    try:
+        with transaction.atomic():
+            bind_db_tenant(tenant_uuid)
+            with use_tenant(tenant_uuid, actor_id=payload.get("actor_id")):
+                account = FinancialAccount.objects.get(id=account_id)
+                result = import_parsed_statement(
+                    financial_account=account,
+                    statement=statement,
+                    from_date=_as_date(payload.get("from_date")),
+                    to_date=_as_date(payload.get("to_date")),
+                )
+        logger.info(
+            "mpesa import: tenant %s imported %d of %d rows",
+            tenant_uuid,
+            result.imported,
+            result.rows_found,
+        )
+        return result.as_dict()
+    except Exception:
+        logger.exception("mpesa import failed for tenant %s", tenant_uuid)
+        raise
+
+
+def _as_date(value):
+    from datetime import date as _date
+
+    if not value:
+        return None
+    return _date.fromisoformat(str(value))
+
+
+def _statement_from_payload(payload: dict):
+    """Rebuild a `ParsedStatement` from the JSON that crossed the queue.
+
+    Explicit rather than pickled: Celery's JSON serializer is the safe default
+    and worth keeping, and a dataclass reconstructed field by field fails loudly
+    if the shape ever changes, where a pickle would fail obscurely at a much
+    worse moment.
+    """
+    from datetime import datetime
+
+    from apps.finance.import_mpesa import MpesaKind, MpesaRow, ParsedStatement
+
+    rows = [
+        MpesaRow(
+            receipt=r["receipt"],
+            completed_at=datetime.fromisoformat(r["completed_at"]),
+            details=r["details"],
+            status=r["status"],
+            amount_minor=int(r["amount_minor"]),
+            balance_minor=r.get("balance_minor"),
+            kind=MpesaKind(r["kind"]),
+            counterparty=r.get("counterparty", ""),
+        )
+        for r in payload["rows"]
+    ]
+    return ParsedStatement(
+        rows=rows,
+        customer_name=payload.get("customer_name", ""),
+        mobile_number=payload.get("mobile_number", ""),
+        period_start=payload.get("period_start", ""),
+        period_end=payload.get("period_end", ""),
+        declared_paid_in_minor=payload.get("declared_paid_in_minor"),
+        declared_withdrawn_minor=payload.get("declared_withdrawn_minor"),
+    )

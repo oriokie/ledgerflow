@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ApiError } from "../../api/client";
-import type { MpesaImportResult, MpesaPreview } from "../../api/finance";
+import type { MpesaImportQueued, MpesaPreview } from "../../api/finance";
 import { useAccounts, useImportMpesaStatement, usePreviewMpesaStatement } from "../../hooks/useFinance";
 import { AlertTriangle, CheckCircle2, HelpCircle } from "lucide-react";
 import { Banner, Button, Input, Select, Stack, Table, Text } from "../../ui";
@@ -67,7 +67,7 @@ export function MpesaImportPanel() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [parsed, setParsed] = useState<MpesaPreview | null>(null);
-  const [result, setResult] = useState<MpesaImportResult | null>(null);
+  const [result, setResult] = useState<MpesaImportQueued | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // M-Pesa is shillings. Offering a dollar account would invite an import that
@@ -281,49 +281,37 @@ function PreviewSummary({ parsed }: { parsed: MpesaPreview }) {
   );
 }
 
-function MpesaResult({ result }: { result: MpesaImportResult }) {
+function MpesaResult({ result }: { result: MpesaImportQueued }) {
   return (
     <Stack gap={3}>
       <div className="lf-insight lf-insight--good">
         <p className="lf-insight-title">
-          Imported {result.imported}
-          {result.skipped_duplicate > 0 && ` · skipped ${result.skipped_duplicate} already there`}
+          {result.rows_found} transactions are being imported
         </p>
         <p className="lf-insight-body">
-          {result.auto_categorised} categorised automatically · {result.payees_created} new payees ·{" "}
-          {money(result.charges_minor)} in M-Pesa charges
+          {result.detail} Fuliza is recorded as borrowing rather than income, and anything you
+          have already imported is skipped.
         </p>
-        {/* Stated whenever the import covered less than the file, so nobody is
-            left wondering where the other rows went. */}
-        {result.rows_in_range < result.rows_found && (
-          <p className="lf-insight-body">
-            {result.rows_found - result.rows_in_range} of {result.rows_found} rows fell outside{" "}
-            {result.from_date || "the start"} – {result.to_date || "the end"} and were not imported.
-          </p>
-        )}
       </div>
 
-      {(result.overdraft_advanced_minor > 0 || result.overdraft_repaid_minor > 0) && (
-        <div className="lf-insight">
-          <p className="lf-insight-title">Fuliza recorded as debt</p>
-          <p className="lf-insight-body">
-            {money(result.overdraft_advanced_minor)} borrowed, {money(result.overdraft_repaid_minor)} repaid. Neither
-            counts towards your income or spending.
-          </p>
-        </div>
+      {/* Reconciliation is known before the work runs, because parsing happened
+          in the request. So the one thing the user most needs to hear — "we
+          read your whole statement correctly" — does not have to wait. */}
+      {result.reconciles === true && (
+        <Text tone="tertiary" size="xs">
+          The totals matched the statement, so every row was read.
+        </Text>
       )}
-
-      {result.notices.map((notice) => (
-        <Banner key={notice} tone="warning">
-          {notice}
-        </Banner>
-      ))}
-
-      {result.errors.length > 0 && (
+      {result.reconciles === false && (
         <Banner tone="danger">
-          {result.errors.length} row{result.errors.length === 1 ? "" : "s"} could not be posted — e.g. receipt{" "}
-          {result.errors[0].receipt}: {result.errors[0].error}
+          <strong>Some rows could not be read.</strong> {result.discrepancy}. Please send this
+          statement to support rather than relying on the import.
         </Banner>
+      )}
+      {result.reconciles === null && (
+        <Text tone="tertiary" size="xs">
+          This statement printed no totals, so there was nothing to verify the parse against.
+        </Text>
       )}
     </Stack>
   );

@@ -1561,8 +1561,8 @@ class MpesaImportView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="mpesa_import")
     def post(self, request):
-        from ..import_mpesa import MpesaParseError
-        from ..import_mpesa_service import import_mpesa_statement, preview_statement
+        from ..import_mpesa import MpesaParseError, parse_statement
+        from ..import_mpesa_service import preview_statement
 
         upload = request.FILES.get("file")
         if upload is None:
@@ -1617,14 +1617,58 @@ class MpesaImportView(TenantScopedAPIView, APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            result = import_mpesa_statement(
-                financial_account=account,
-                file_bytes=file_bytes,
-                password=password,
-                from_date=from_date,
-                to_date=to_date,
-                track_overdraft_as_debt=str(request.data.get("track_overdraft_as_debt", "true")).lower()
-                not in {"0", "false", "no"},
+            # Parsed here, posted in a task. A real statement is 866 rows and
+            # ~25 seconds of double-entry posting, against gunicorn's 30s
+            # timeout — the request was being killed mid-import and returning a
+            # 500 for work that was actually succeeding. Parsing costs ~6s,
+            # comfortably inside the timeout, and keeping it here means the
+            # statement password is used and dropped in the web process rather
+            # than travelling to the queue.
+            from apps.common.tenant_context import get_current_actor_id, require_current_tenant_id
+            from apps.finance.tasks import import_mpesa_statement_task
+
+            statement = parse_statement(file_bytes, password)
+            payload = {
+                "rows": [
+                    {
+                        "receipt": r.receipt,
+                        "completed_at": r.completed_at.isoformat(),
+                        "details": r.details,
+                        "status": r.status,
+                        "amount_minor": r.amount_minor,
+                        "balance_minor": r.balance_minor,
+                        "kind": str(r.kind),
+                        "counterparty": r.counterparty,
+                    }
+                    for r in statement.rows
+                ],
+                "customer_name": statement.customer_name,
+                "mobile_number": statement.mobile_number,
+                "period_start": statement.period_start,
+                "period_end": statement.period_end,
+                "declared_paid_in_minor": statement.declared_paid_in_minor,
+                "declared_withdrawn_minor": statement.declared_withdrawn_minor,
+                "from_date": from_date.isoformat() if from_date else None,
+                "to_date": to_date.isoformat() if to_date else None,
+                "actor_id": str(get_current_actor_id() or ""),
+            }
+
+            task = import_mpesa_statement_task.delay(
+                str(require_current_tenant_id()), str(account.id), payload
+            )
+            return Response(
+                {
+                    "queued": True,
+                    "task_id": task.id,
+                    "rows_found": len(statement.rows),
+                    "reconciles": statement.reconciles,
+                    "discrepancy": statement.discrepancy(),
+                    "detail": (
+                        f"Importing {len(statement.rows)} transactions in the background. "
+                        "They will appear in your ledger shortly."
+                    ),
+                },
+                status=status.HTTP_202_ACCEPTED,
             )
         except MpesaParseError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -1634,8 +1678,6 @@ class MpesaImportView(TenantScopedAPIView, APIView):
             # somebody's bank statement.
             password = ""
             del file_bytes
-
-        return Response(result.as_dict(), status=status.HTTP_201_CREATED)
 
 
 class CashflowStatementView(TenantScopedAPIView, APIView):

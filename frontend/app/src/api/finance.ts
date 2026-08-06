@@ -38,6 +38,18 @@ export interface MpesaPreview {
   last_seen: string | null;
 }
 
+/** The import is queued, not performed inline: a real statement is ~25 seconds
+ *  of double-entry posting against a 30s request timeout. Reconciliation is
+ *  still known immediately, because parsing happens in the request. */
+export interface MpesaImportQueued {
+  queued: true;
+  task_id: string;
+  rows_found: number;
+  reconciles: boolean | null;
+  discrepancy: string;
+  detail: string;
+}
+
 export interface MpesaImportResult {
   imported: number;
   skipped_duplicate: number;
@@ -195,7 +207,7 @@ export const financeApi = {
     // statement from any particular date.
     if (opts.fromDate) form.append("from_date", opts.fromDate);
     if (opts.toDate) form.append("to_date", opts.toDate);
-    return postForm<MpesaImportResult>("/finance/transactions/import/mpesa/", form);
+    return postForm<MpesaImportQueued>("/finance/transactions/import/mpesa/", form);
   },
 
   netWorth: () => api.get<NetWorthByCurrency[]>("/finance/net-worth/"),
