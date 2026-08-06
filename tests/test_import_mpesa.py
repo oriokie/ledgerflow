@@ -15,7 +15,7 @@ books quietly rather than loudly:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 
@@ -330,25 +330,37 @@ def test_non_kes_account_is_refused():
 
 
 def test_one_bad_row_does_not_abort_the_import():
-    """Regression: catching a database error inside the outer atomic block
-    poisoned the transaction, so a single bad row 800 rows in aborted
-    everything while reporting itself as one skipped line."""
+    """Regression: the per-row `except` sat inside the outer atomic block with
+    no savepoint.
+
+    The failure must come from a statement *outside* the posting services —
+    each is `@transaction.atomic`, so an error raised inside one rolls back to
+    its own savepoint harmlessly. The exposed statement is `_stamp`, whose bare
+    `save()` writes `external_id` into a 128-character column. A receipt long
+    enough to overflow it reproduces exactly the shape of failure seen against
+    a real statement: without a savepoint the transaction is marked broken, and
+    every later row raises TransactionManagementError instead of importing.
+    """
     tenant = TenantFactory()
     with tenant_scope(tenant.id):
         account = _mpesa_account()
         statement = _statement(
             [
-                _row("A1", -700, "Pay Bill Charge"),
-                _row("A2", 90000, "Salary Payment from 504900 - EXAMPLE BANK via API."),
+                _row("R" * 200, -700, "Pay Bill Charge", when=datetime(2026, 6, 1, 9, 0)),
+                _row(
+                    "A2",
+                    90000,
+                    "Salary Payment from 504900 - EXAMPLE BANK via API.",
+                    when=datetime(2026, 6, 2, 9, 0),
+                ),
+                _row("A3", -1500, "Pay Bill Charge", when=datetime(2026, 6, 3, 9, 0)),
             ]
         )
-        # Force the first row to fail inside the DB by making its memo absurd.
-        object.__setattr__(statement.rows[0], "details", "x" * 100_000)
 
         result = import_parsed_statement(financial_account=account, statement=statement)
-        assert result.imported == 1, result.errors
-        assert len(result.errors) == 1
-        assert Transaction.objects.filter(financial_account=account).count() == 1
+        assert len(result.errors) == 1, result.errors
+        assert result.imported == 2, "rows after the failure must still land"
+        assert Transaction.objects.filter(financial_account=account).count() == 2
 
 
 # ------------------------------------------------------------------ helpers
@@ -452,9 +464,7 @@ def test_import_posts_and_is_idempotent_over_http(tenant_context, _patched_parse
         account = _mpesa_account()
 
     payload = {"file": _fake_pdf(), "password": "not-the-real-one", "account_id": str(account.id)}
-    resp = client.post(
-        "/api/v1/finance/transactions/import/mpesa/", payload, format="multipart"
-    )
+    resp = client.post("/api/v1/finance/transactions/import/mpesa/", payload, format="multipart")
     assert resp.status_code == 201, resp.data
     assert resp.data["imported"] == 3
     assert resp.data["reconciles"] is True
@@ -470,9 +480,7 @@ def test_import_posts_and_is_idempotent_over_http(tenant_context, _patched_parse
 
 def test_a_missing_file_is_refused(tenant_context):
     _, client = tenant_context
-    resp = client.post(
-        "/api/v1/finance/transactions/import/mpesa/", {"password": "x"}, format="multipart"
-    )
+    resp = client.post("/api/v1/finance/transactions/import/mpesa/", {"password": "x"}, format="multipart")
     assert resp.status_code == 400
 
 
@@ -509,3 +517,218 @@ def test_a_bad_password_reports_plainly(tenant_context, monkeypatch):
     )
     assert resp.status_code == 400
     assert "password" in resp.data["detail"].lower()
+
+
+# ------------------------------------------------------------- date window
+#
+# The window exists for one reason: a transaction somebody typed in has no
+# external_id and never will, so the importer's idempotency cannot see it. A
+# statement overlapping a hand-tracked period records that period twice.
+def test_a_start_date_excludes_earlier_rows():
+    tenant = TenantFactory()
+    with tenant_scope(tenant.id):
+        account = _mpesa_account()
+        statement = _statement(
+            [
+                _row("A1", -10000, "Pay Bill Charge", when=datetime(2026, 5, 10, 9, 0)),
+                _row("A2", -20000, "Pay Bill Charge", when=datetime(2026, 6, 15, 9, 0)),
+                _row("A3", -30000, "Pay Bill Charge", when=datetime(2026, 7, 20, 9, 0)),
+            ]
+        )
+        result = import_parsed_statement(
+            financial_account=account, statement=statement, from_date=date(2026, 6, 1)
+        )
+        assert result.rows_found == 3
+        assert result.rows_in_range == 2
+        assert result.imported == 2
+        assert Transaction.objects.filter(financial_account=account).count() == 2
+
+
+def test_both_bounds_are_inclusive():
+    """ "1 June to 30 June" means the whole of both days. An exclusive end
+    silently drops the last day's activity, which is the day people care most
+    about when they are catching up."""
+    tenant = TenantFactory()
+    with tenant_scope(tenant.id):
+        account = _mpesa_account()
+        statement = _statement(
+            [
+                _row("A1", -10000, "Pay Bill Charge", when=datetime(2026, 6, 1, 0, 5)),
+                _row("A2", -20000, "Pay Bill Charge", when=datetime(2026, 6, 30, 23, 55)),
+            ]
+        )
+        result = import_parsed_statement(
+            financial_account=account,
+            statement=statement,
+            from_date=date(2026, 6, 1),
+            to_date=date(2026, 6, 30),
+        )
+        assert result.imported == 2
+
+
+def test_reconciliation_still_describes_the_whole_statement():
+    """Regression guard. Reconciliation answers "did we read the file
+    correctly", which is about parsing, not about what the user kept. Checking
+    a filtered subset against the statement's printed totals would fail every
+    time a window was used, and would train people to ignore the one signal
+    that catches a genuinely broken parse."""
+    tenant = TenantFactory()
+    with tenant_scope(tenant.id):
+        account = _mpesa_account()
+        statement = _statement(
+            [
+                _row("A1", -10000, "Pay Bill Charge", when=datetime(2026, 5, 10, 9, 0)),
+                _row("A2", -20000, "Pay Bill Charge", when=datetime(2026, 7, 20, 9, 0)),
+            ]
+        )
+        statement.declared_paid_in_minor = 0
+        statement.declared_withdrawn_minor = 30000  # both rows
+
+        result = import_parsed_statement(
+            financial_account=account, statement=statement, from_date=date(2026, 7, 1)
+        )
+        assert result.imported == 1
+        assert result.reconciles is True, "the parse was complete; only the import was narrowed"
+
+
+def test_overlapping_manual_entries_are_flagged():
+    """The safety net for someone who does not set a window. Manual entries
+    cannot be matched against statement rows, so the honest move is to say so
+    rather than to guess or to silently double-count."""
+    tenant = TenantFactory()
+    with tenant_scope(tenant.id):
+        account = _mpesa_account()
+        groceries = finance_services.create_category(
+            name="Groceries", kind=CategoryKind.EXPENSE, currency="KES"
+        )
+        finance_services.record_expense(
+            financial_account=account,
+            category=groceries,
+            amount_minor=20000,
+            occurred_at=_aware_dt(2026, 6, 15),
+            memo="Typed in by hand",
+        )
+
+        result = import_parsed_statement(
+            financial_account=account,
+            statement=_statement(
+                [
+                    _row("A1", -10000, "Pay Bill Charge", when=datetime(2026, 6, 1, 9, 0)),
+                    _row("A2", -20000, "Pay Bill Charge", when=datetime(2026, 6, 30, 9, 0)),
+                ]
+            ),
+        )
+        assert any("did not come from a statement import" in n for n in result.notices)
+
+
+def test_no_overlap_warning_when_the_period_is_clean():
+    tenant = TenantFactory()
+    with tenant_scope(tenant.id):
+        account = _mpesa_account()
+        result = import_parsed_statement(
+            financial_account=account,
+            statement=_statement([_row("A1", -10000, "Pay Bill Charge", when=datetime(2026, 6, 1, 9, 0))]),
+        )
+        assert not any("did not come from a statement import" in n for n in result.notices)
+
+
+def test_reimporting_does_not_warn_about_its_own_earlier_rows():
+    """The warning must fire on *manual* entries only. If a second import
+    warned about the first import's rows, it would cry wolf on the single most
+    common action there is."""
+    tenant = TenantFactory()
+    with tenant_scope(tenant.id):
+        account = _mpesa_account()
+        statement = _statement([_row("A1", -10000, "Pay Bill Charge", when=datetime(2026, 6, 1, 9, 0))])
+        import_parsed_statement(financial_account=account, statement=statement)
+        second = import_parsed_statement(financial_account=account, statement=statement)
+        assert not any("did not come from a statement import" in n for n in second.notices)
+
+
+def test_window_is_reported_back():
+    tenant = TenantFactory()
+    with tenant_scope(tenant.id):
+        account = _mpesa_account()
+        result = import_parsed_statement(
+            financial_account=account,
+            statement=_statement([_row("A1", -10000, "Pay Bill Charge", when=datetime(2026, 6, 1, 9, 0))]),
+            from_date=date(2026, 5, 1),
+            to_date=date(2026, 6, 30),
+        )
+        assert result.as_dict()["from_date"] == "2026-05-01"
+        assert result.as_dict()["to_date"] == "2026-06-30"
+
+
+def test_bad_dates_are_refused_by_the_api(tenant_context, _patched_parser):
+    membership, client = tenant_context
+    with tenant_scope(membership.tenant_id):
+        account = _mpesa_account()
+
+    bad = client.post(
+        "/api/v1/finance/transactions/import/mpesa/",
+        {
+            "file": _fake_pdf(),
+            "password": "x",
+            "account_id": str(account.id),
+            "from_date": "15/06/2026",
+        },
+        format="multipart",
+    )
+    assert bad.status_code == 400
+    assert "YYYY-MM-DD" in bad.data["detail"]
+
+    backwards = client.post(
+        "/api/v1/finance/transactions/import/mpesa/",
+        {
+            "file": _fake_pdf(),
+            "password": "x",
+            "account_id": str(account.id),
+            "from_date": "2026-07-01",
+            "to_date": "2026-06-01",
+        },
+        format="multipart",
+    )
+    assert backwards.status_code == 400
+
+
+def test_blank_dates_mean_no_bound_not_year_one(tenant_context, _patched_parser):
+    """An empty form field is "no bound". Read as a date it would become
+    0001-01-01 and quietly exclude the entire statement."""
+    membership, client = tenant_context
+    with tenant_scope(membership.tenant_id):
+        account = _mpesa_account()
+
+    resp = client.post(
+        "/api/v1/finance/transactions/import/mpesa/",
+        {
+            "file": _fake_pdf(),
+            "password": "x",
+            "account_id": str(account.id),
+            "from_date": "",
+            "to_date": "",
+        },
+        format="multipart",
+    )
+    assert resp.status_code == 201, resp.data
+    assert resp.data["imported"] == 3
+
+
+def test_preview_reports_a_daily_histogram(tenant_context, _patched_parser):
+    """The client needs to say how many rows a chosen window covers. Shipping a
+    count per day is enough for that and small — a quarterly statement is about
+    ninety keys — where shipping every row would not be."""
+    _, client = tenant_context
+    resp = client.post(
+        "/api/v1/finance/transactions/import/mpesa/?preview=1",
+        {"file": _fake_pdf(), "password": "not-the-real-one"},
+        format="multipart",
+    )
+    assert resp.status_code == 200, resp.data
+    assert sum(resp.data["by_day"].values()) == resp.data["rows_found"]
+    assert resp.data["first_seen"] <= resp.data["last_seen"]
+
+
+def _aware_dt(y, m, d):
+    from django.utils import timezone as _tz
+
+    return _tz.make_aware(datetime(y, m, d, 12, 0), _tz.get_current_timezone())

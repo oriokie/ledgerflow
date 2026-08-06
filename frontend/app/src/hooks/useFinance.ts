@@ -154,13 +154,22 @@ export function useImportMpesaStatement() {
       accountId,
       file,
       password,
+      fromDate,
+      toDate,
       trackOverdraftAsDebt,
     }: {
       accountId: string;
       file: File;
       password: string;
+      fromDate?: string;
+      toDate?: string;
       trackOverdraftAsDebt?: boolean;
-    }) => financeApi.importMpesaStatement(accountId, file, password, trackOverdraftAsDebt),
+    }) =>
+      financeApi.importMpesaStatement(accountId, file, password, {
+        fromDate,
+        toDate,
+        trackOverdraftAsDebt,
+      }),
     onSuccess: () => invalidateMoneyViews(queryClient),
   });
 }

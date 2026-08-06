@@ -31,6 +31,9 @@ export interface MpesaPreview {
   reconciles: boolean | null;
   discrepancy: string;
   by_kind: Record<string, { count: number; total_minor: number }>;
+  /** Rows per calendar day (YYYY-MM-DD), so a chosen window can be counted
+   *  without shipping every row to the client. */
+  by_day: Record<string, number>;
   first_seen: string | null;
   last_seen: string | null;
 }
@@ -41,6 +44,10 @@ export interface MpesaImportResult {
   errors: { receipt: string; occurred_at: string; error: string }[];
   notices: string[];
   rows_found: number;
+  /** How many of rows_found fell inside the chosen window. */
+  rows_in_range: number;
+  from_date: string;
+  to_date: string;
   statement_period: string;
   reconciles: boolean | null;
   discrepancy: string;
@@ -173,12 +180,21 @@ export const financeApi = {
     return postForm<MpesaPreview>("/finance/transactions/import/mpesa/?preview=1", form);
   },
 
-  importMpesaStatement: (accountId: string, file: File, password: string, trackOverdraftAsDebt = true) => {
+  importMpesaStatement: (
+    accountId: string,
+    file: File,
+    password: string,
+    opts: { fromDate?: string; toDate?: string; trackOverdraftAsDebt?: boolean } = {},
+  ) => {
     const form = new FormData();
     form.append("file", file);
     form.append("password", password);
     form.append("account_id", accountId);
-    form.append("track_overdraft_as_debt", String(trackOverdraftAsDebt));
+    form.append("track_overdraft_as_debt", String(opts.trackOverdraftAsDebt ?? true));
+    // Sent only when set. A blank field means "no bound", which is a different
+    // statement from any particular date.
+    if (opts.fromDate) form.append("from_date", opts.fromDate);
+    if (opts.toDate) form.append("to_date", opts.toDate);
     return postForm<MpesaImportResult>("/finance/transactions/import/mpesa/", form);
   },
 

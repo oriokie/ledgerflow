@@ -1494,6 +1494,21 @@ class TransactionImportView(TenantScopedAPIView, APIView):
         return Response(result.as_dict(), status=status.HTTP_201_CREATED)
 
 
+def _parse_iso_date(raw):
+    """ "" or None -> None; 'YYYY-MM-DD' -> date. Anything else raises.
+
+    Blank is "no bound", which is different from a bad value: an empty form
+    field must not be read as 1 January of year one.
+    """
+    from datetime import date as _date
+
+    if raw in (None, ""):
+        return None
+    if isinstance(raw, _date):
+        return raw
+    return _date.fromisoformat(str(raw).strip())
+
+
 class MpesaImportView(TenantScopedAPIView, APIView):
     """Import a Safaricom M-Pesa PDF statement.
 
@@ -1556,10 +1571,30 @@ class MpesaImportView(TenantScopedAPIView, APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            # A window is the user's protection against double-counting a
+            # period they already entered by hand: an imported row carries an
+            # external_id and a typed one never will, so the two can never be
+            # reconciled automatically and both would survive.
+            try:
+                from_date = _parse_iso_date(request.data.get("from_date"))
+                to_date = _parse_iso_date(request.data.get("to_date"))
+            except ValueError:
+                return Response(
+                    {"detail": "from_date and to_date must be in YYYY-MM-DD form."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if from_date and to_date and from_date > to_date:
+                return Response(
+                    {"detail": "from_date is after to_date — that window contains nothing."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             result = import_mpesa_statement(
                 financial_account=account,
                 file_bytes=file_bytes,
                 password=password,
+                from_date=from_date,
+                to_date=to_date,
                 track_overdraft_as_debt=str(request.data.get("track_overdraft_as_debt", "true")).lower()
                 not in {"0", "false", "no"},
             )

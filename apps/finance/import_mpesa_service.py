@@ -33,6 +33,7 @@ than presenting the same 275 names for triage every month.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 
 from django.db import transaction
 from django.utils import timezone
@@ -74,6 +75,11 @@ class MpesaImportResult:
 
     statement_period: str = ""
     rows_found: int = 0
+    #: How many of `rows_found` fell inside the requested window. Equal to
+    #: rows_found when no window was given.
+    rows_in_range: int = 0
+    from_date: str = ""
+    to_date: str = ""
     #: True/False/None — None means the statement printed no totals to check.
     reconciles: bool | None = None
     discrepancy: str = ""
@@ -89,6 +95,9 @@ class MpesaImportResult:
             "errors": self.errors,
             "notices": self.notices,
             "rows_found": self.rows_found,
+            "rows_in_range": self.rows_in_range,
+            "from_date": self.from_date,
+            "to_date": self.to_date,
             "statement_period": self.statement_period,
             "reconciles": self.reconciles,
             "discrepancy": self.discrepancy,
@@ -109,10 +118,17 @@ def preview_statement(*, file_bytes: bytes, password: str = "") -> dict:
     """
     statement = parse_statement(file_bytes, password)
     by_kind: dict[str, dict] = {}
+    #: Rows per calendar day. Small — a quarterly statement spans ~92 keys — and
+    #: it lets the client show how many transactions a chosen date window
+    #: actually covers, instead of promising the whole statement and delivering
+    #: a subset.
+    by_day: dict[str, int] = {}
     for row in statement.rows:
         bucket = by_kind.setdefault(row.kind.value, {"count": 0, "total_minor": 0})
         bucket["count"] += 1
         bucket["total_minor"] += row.amount_minor
+        day = row.completed_at.date().isoformat()
+        by_day[day] = by_day.get(day, 0) + 1
 
     return {
         "customer_name": statement.customer_name,
@@ -125,8 +141,11 @@ def preview_statement(*, file_bytes: bytes, password: str = "") -> dict:
         "reconciles": statement.reconciles,
         "discrepancy": statement.discrepancy(),
         "by_kind": by_kind,
-        "first_seen": statement.rows[-1].completed_at.isoformat() if statement.rows else None,
-        "last_seen": statement.rows[0].completed_at.isoformat() if statement.rows else None,
+        "by_day": by_day,
+        # Derived from the rows rather than the printed header: the header is a
+        # requested range, and the rows are what is actually in the file.
+        "first_seen": min(r.completed_at for r in statement.rows).isoformat() if statement.rows else None,
+        "last_seen": max(r.completed_at for r in statement.rows).isoformat() if statement.rows else None,
     }
 
 
@@ -136,6 +155,8 @@ def import_mpesa_statement(
     file_bytes: bytes,
     password: str = "",
     track_overdraft_as_debt: bool = True,
+    from_date: date | None = None,
+    to_date: date | None = None,
 ) -> MpesaImportResult:
     """Import an M-Pesa PDF statement into `financial_account`.
 
@@ -146,6 +167,8 @@ def import_mpesa_statement(
         financial_account=financial_account,
         statement=parse_statement(file_bytes, password),
         track_overdraft_as_debt=track_overdraft_as_debt,
+        from_date=from_date,
+        to_date=to_date,
     )
 
 
@@ -155,14 +178,34 @@ def import_parsed_statement(
     financial_account: FinancialAccount,
     statement: ParsedStatement,
     track_overdraft_as_debt: bool = True,
+    from_date: date | None = None,
+    to_date: date | None = None,
 ) -> MpesaImportResult:
-    """Post an already-parsed statement.
+    """Post an already-parsed statement, optionally only part of it.
 
     Split out from the PDF path so the posting rules — the Fuliza direction,
     idempotency, category resolution — can be tested by constructing rows in
     code. That keeps the test suite free of a real statement fixture, which
     matters here: a genuine M-Pesa PDF is somebody's complete financial and
     social history, and it has no business living in a git repository.
+
+    Why a date window exists
+    ------------------------
+    Re-importing the *same* statement is already safe: identity is derived from
+    the row, so the second run skips everything. What that does not protect
+    against is the far more likely overlap — somebody who has been entering
+    transactions by hand since June, importing a statement that starts in May.
+    A hand-entered transaction has no `external_id`, so it can never match an
+    imported one, and June to August is silently recorded twice: once by the
+    person, once by the importer.
+
+    No amount of cleverness fixes that automatically. Guessing which manual
+    entry corresponds to which statement row means matching on date and amount,
+    which is wrong often enough to be worse than useless — two 200-shilling
+    payments on the same day are not unusual, and merging the wrong pair
+    destroys data the user typed themselves. So the window is the user's
+    decision, made with the facts in front of them, and `_warn_about_overlap`
+    tells them when it looks like they have chosen badly.
     """
     result = MpesaImportResult(
         rows_found=len(statement.rows),
@@ -180,15 +223,28 @@ def import_parsed_statement(
             f"{financial_account.currency}. Choose or create a KES account."
         )
 
+    # Reconciliation is computed over the *whole* statement, above, before any
+    # window is applied — it answers "did we read the file correctly", which is
+    # a question about parsing, not about what the user chose to keep. Checking
+    # a filtered subset against the statement's printed totals would fail every
+    # time a window was used, and would train people to ignore the one signal
+    # that catches a genuinely broken parse.
+    selected = [r for r in statement.rows if _within(r, from_date, to_date)]
+    result.rows_in_range = len(selected)
+    result.from_date = from_date.isoformat() if from_date else ""
+    result.to_date = to_date.isoformat() if to_date else ""
+
     fuliza = None
-    if track_overdraft_as_debt and any(r.kind in _OVERDRAFT for r in statement.rows):
+    if track_overdraft_as_debt and any(r.kind in _OVERDRAFT for r in selected):
         fuliza = _get_or_create_fuliza(financial_account.currency)
+
+    _warn_about_overlap(financial_account, selected, result)
 
     # Oldest first. The statement reads newest-first, but posting in reverse
     # means every intermediate balance the ledger computes is one that never
     # existed, and an overdraft guard or a reconciliation looking at the running
     # figure would be reading fiction.
-    for row in sorted(statement.rows, key=lambda r: r.completed_at):
+    for row in sorted(selected, key=lambda r: r.completed_at):
         if Transaction.objects.filter(
             financial_account=financial_account, external_id=row.external_id
         ).exists():
@@ -211,6 +267,61 @@ def import_parsed_statement(
 
     _add_overdraft_notice(fuliza, result)
     return result
+
+
+def _within(row: MpesaRow, from_date: date | None, to_date: date | None) -> bool:
+    """Is this row inside the requested window? Both bounds are inclusive,
+    because a person asking for "1 June to 30 June" means the whole of both
+    days, and an exclusive end silently drops the last day's activity."""
+    on = row.completed_at.date()
+    return not (from_date and on < from_date) and not (to_date and on > to_date)
+
+
+def _warn_about_overlap(
+    financial_account: FinancialAccount, selected: list[MpesaRow], result: MpesaImportResult
+) -> None:
+    """Say so when the window overlaps transactions the user entered by hand.
+
+    The importer's idempotency only recognises its own work: a row it posted
+    carries an `external_id`, and a second import of the same statement matches
+    on it. A transaction somebody typed in has no `external_id` and never will,
+    so nothing stops the same coffee appearing twice — once as they recorded it,
+    once as Safaricom did.
+
+    This does not refuse the import, because it cannot know: the manual entries
+    might be for a completely different account's activity, or deliberate
+    placeholders the user wants replaced. It states the fact and leaves the
+    judgement where it belongs.
+    """
+    if not selected:
+        return
+    # Localised through the same helper the posting path uses. Comparing the
+    # statement's naive timestamps directly against an aware column makes Django
+    # assume UTC, which in East Africa shifts the window by three hours and
+    # quietly mis-reports the overlap at both ends.
+    first = _aware(min(r.completed_at for r in selected))
+    last = _aware(max(r.completed_at for r in selected))
+
+    existing = (
+        Transaction.objects.filter(
+            financial_account=financial_account,
+            occurred_at__gte=first,
+            occurred_at__lte=last,
+            external_id="",
+        )
+        .exclude(source=TransactionSource.IMPORTED)
+        .count()
+    )
+    if existing == 0:
+        return
+
+    result.notices.append(
+        f"{existing} transaction{'s' if existing != 1 else ''} already recorded on this account "
+        f"between {first.date()} and {last.date()} did not come from a statement import, so the "
+        "importer cannot tell whether they are the same money. If you entered them by hand, "
+        "importing this period will record it twice — set a start date after your last manual "
+        "entry, or remove those entries first."
+    )
 
 
 def _add_overdraft_notice(fuliza: FinancialAccount | None, result: MpesaImportResult) -> None:

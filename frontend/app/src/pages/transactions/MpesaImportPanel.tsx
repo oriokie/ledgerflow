@@ -28,6 +28,26 @@ const money = (minor: number) =>
   (minor / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 /**
+ * How many rows a chosen date window covers, from the preview's per-day counts.
+ *
+ * Exported because this is the part worth testing on its own: both bounds are
+ * inclusive, an empty bound means "unbounded" rather than any particular date,
+ * and the comparison is lexicographic on YYYY-MM-DD — which is only correct
+ * because that format sorts the same way as the dates it represents. The button
+ * shows this number, so an off-by-one here is a promise the import then breaks.
+ */
+export function countInWindow(
+  byDay: Record<string, number>,
+  from: string,
+  to: string,
+): number {
+  return Object.entries(byDay).reduce(
+    (n, [day, count]) => ((!from || day >= from) && (!to || day <= to) ? n + count : n),
+    0,
+  );
+}
+
+/**
  * Two steps, and the split is deliberate.
  *
  * A statement is hundreds of rows covering months of someone's life. Importing
@@ -44,6 +64,8 @@ export function MpesaImportPanel() {
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState("");
   const [accountId, setAccountId] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [parsed, setParsed] = useState<MpesaPreview | null>(null);
   const [result, setResult] = useState<MpesaImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,12 +74,19 @@ export function MpesaImportPanel() {
   // is wrong by a factor of ~130 and looks entirely plausible on screen.
   const kesAccounts = accounts?.filter((a) => a.currency === "KES") ?? [];
 
+  const inRange = parsed === null ? null : countInWindow(parsed.by_day, fromDate, toDate);
+
   const onCheck = async () => {
     if (!file) return setError("Choose the statement PDF first.");
     setError(null);
     setResult(null);
     try {
-      setParsed(await preview.mutateAsync({ file, password }));
+      const p = await preview.mutateAsync({ file, password });
+      setParsed(p);
+      // Default to the statement's own span, so the fields read as "all of it"
+      // rather than as empty boxes the user has to decode.
+      if (p.first_seen) setFromDate(p.first_seen.slice(0, 10));
+      if (p.last_seen) setToDate(p.last_seen.slice(0, 10));
     } catch (err) {
       setParsed(null);
       setError(err instanceof ApiError ? err.detail : "Could not read that statement.");
@@ -66,9 +95,12 @@ export function MpesaImportPanel() {
 
   const onImport = async () => {
     if (!file || !accountId) return setError("Choose an account to import into.");
+    if (fromDate && toDate && fromDate > toDate) {
+      return setError("The start date is after the end date.");
+    }
     setError(null);
     try {
-      setResult(await runImport.mutateAsync({ accountId, file, password }));
+      setResult(await runImport.mutateAsync({ accountId, file, password, fromDate, toDate }));
       setParsed(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Import failed.");
@@ -126,9 +158,47 @@ export function MpesaImportPanel() {
               You have no account in KES. Create one first — M-Pesa statements are in shillings.
             </Banner>
           )}
-          <Button onClick={onImport} loading={runImport.isPending} disabled={!accountId}>
-            Import {parsed.rows_found} transactions
+
+          {/* The window matters more than it looks. Re-importing the same
+              statement is already safe, but a transaction typed in by hand
+              carries no statement id, so nothing can match it against a
+              statement row — and a period tracked both ways is counted twice. */}
+          <div className="lf-field-row">
+            <Input
+              label="Import from"
+              type="date"
+              value={fromDate}
+              min={parsed.first_seen?.slice(0, 10)}
+              max={parsed.last_seen?.slice(0, 10)}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+            <Input
+              label="Import until"
+              type="date"
+              value={toDate}
+              min={parsed.first_seen?.slice(0, 10)}
+              max={parsed.last_seen?.slice(0, 10)}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </div>
+          <Text tone="tertiary" size="xs">
+            Defaults to the whole statement. If you have already been recording this account by
+            hand, start the day after your last manual entry — importing a period you have already
+            tracked records it twice, and the importer cannot tell the two apart.
+          </Text>
+
+          <Button
+            onClick={onImport}
+            loading={runImport.isPending}
+            disabled={!accountId || inRange === 0}
+          >
+            Import {inRange ?? parsed.rows_found} transaction{(inRange ?? parsed.rows_found) === 1 ? "" : "s"}
           </Button>
+          {inRange === 0 && (
+            <Text tone="tertiary" size="xs">
+              No transactions fall inside those dates.
+            </Text>
+          )}
         </>
       )}
 
@@ -223,6 +293,14 @@ function MpesaResult({ result }: { result: MpesaImportResult }) {
           {result.auto_categorised} categorised automatically · {result.payees_created} new payees ·{" "}
           {money(result.charges_minor)} in M-Pesa charges
         </p>
+        {/* Stated whenever the import covered less than the file, so nobody is
+            left wondering where the other rows went. */}
+        {result.rows_in_range < result.rows_found && (
+          <p className="lf-insight-body">
+            {result.rows_found - result.rows_in_range} of {result.rows_found} rows fell outside{" "}
+            {result.from_date || "the start"} – {result.to_date || "the end"} and were not imported.
+          </p>
+        )}
       </div>
 
       {(result.overdraft_advanced_minor > 0 || result.overdraft_repaid_minor > 0) && (
