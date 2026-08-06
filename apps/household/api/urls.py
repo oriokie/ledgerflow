@@ -6,8 +6,10 @@ from .views import (
     AccountSharingView,
     ChangeRequestListView,
     ChangeRequestResolveView,
+    ContributionView,
     DependantDetailView,
     DependantListView,
+    HouseholdActivityView,
     HouseholdMembersView,
     HouseholdSummaryView,
     SharingBackfillView,
@@ -27,4 +29,6 @@ urlpatterns = [
         ChangeRequestResolveView.as_view(),
         name="change-request-resolve",
     ),
+    path("contributions/", ContributionView.as_view(), name="household-contributions"),
+    path("activity/", HouseholdActivityView.as_view(), name="household-activity"),
 ]

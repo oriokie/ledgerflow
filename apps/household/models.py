@@ -196,6 +196,161 @@ class AccountSharing(SoftDeletableModel):
         return self.is_joint or self.policy in WRITABLE_BY_HOUSEHOLD
 
 
+class ContributionAgreement(SoftDeletableModel):
+    """How this household has agreed to divide its shared costs.
+
+    One live agreement per household, superseded rather than edited: the terms
+    a couple were on last March is a fact about last March, and a fairness
+    figure computed against today's split would silently rewrite it. Superseding
+    keeps `effective_from` meaningful and makes "we changed this in June" a
+    thing the timeline can show.
+
+    `target_minor` is the monthly pot being funded. Nullable, and the null is
+    load-bearing: a household that has agreed *how* to split without agreeing
+    *how much* is a real state, and the engine derives the figure from shared
+    costs rather than inventing one.
+    """
+
+    mode = models.CharField(max_length=16, default="equal")
+    currency = models.CharField(max_length=3)
+    #: The monthly shared cost being funded. Null means "derive it".
+    target_minor = models.BigIntegerField(null=True, blank=True)
+    effective_from = models.DateField()
+    #: When the household wants to revisit this. Couples' incomes change and a
+    #: split agreed once tends to outlive its own fairness.
+    review_on = models.DateField(null=True, blank=True)
+    notes = models.CharField(max_length=500, blank=True, default="")
+    superseded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["tenant_id", "superseded_at"], name="contrib_agreement_live_idx"),
+        ]
+        ordering = ["-effective_from"]
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"{self.mode} from {self.effective_from}"
+
+
+class ContributionTerm(SoftDeletableModel):
+    """One member's side of an agreement.
+
+    Holds the per-mode inputs that have nowhere else to live: a stated amount
+    for FIXED, an agreed fraction for PERCENTAGE. EQUAL and INCOME_BASED need
+    neither — the first by definition, the second because it reads real income.
+
+    This supersedes `HouseholdProfile.contribution_share`, which predates it and
+    could only express a percentage. The read path falls back to that field when
+    no term exists, so existing households keep working and are migrated by use
+    rather than by a migration that would have to guess at intent.
+    """
+
+    agreement = models.ForeignKey(ContributionAgreement, on_delete=models.CASCADE, related_name="terms")
+    membership = models.ForeignKey(
+        "tenancy.Membership", on_delete=models.CASCADE, related_name="contribution_terms"
+    )
+    fixed_minor = models.BigIntegerField(null=True, blank=True)
+    share = models.DecimalField(max_digits=5, decimal_places=4, null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agreement", "membership"],
+                condition=models.Q(deleted_at__isnull=True),
+                name="uniq_term_per_member",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(fixed_minor__isnull=True) | models.Q(fixed_minor__gte=0),
+                name="contribution_fixed_non_negative",
+            ),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"{self.membership_id}: {self.share or self.fixed_minor}"
+
+
+class AuditAction(models.TextChoices):
+    CREATED = "created", "Created"
+    UPDATED = "updated", "Updated"
+    DELETED = "deleted", "Deleted"
+    APPROVED = "approved", "Approved"
+    DECLINED = "declined", "Declined"
+    SHARED = "shared", "Sharing changed"
+    CONTRIBUTED = "contributed", "Contributed"
+    PAID = "paid", "Paid"
+    INVITED = "invited", "Invited"
+    JOINED = "joined", "Joined"
+
+
+class AuditEvent(TenantOwnedModel):
+    """What happened in this household, who did it, and when.
+
+    "Nothing should happen silently" is a promise about trust, and trust needs
+    a record that cannot be tidied. So this is append-only in the strongest
+    sense the ORM allows: `save()` refuses to update an existing row and
+    `delete()` refuses outright. A log somebody can quietly edit after an
+    argument is worth less than no log, because it carries the authority of one
+    without the property that earns it.
+
+    Deliberately *not* soft-deletable for the same reason `ChangeRequest` is
+    not. Retention is a separate, explicit, tenant-wide operation — not
+    something a disagreement can reach.
+
+    `subject_type`/`subject_id` are a loose reference rather than a real FK: the
+    log outlives what it describes, and a cascade that deleted the record of a
+    deletion would be self-defeating.
+    """
+
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="household_audit_events",
+    )
+    #: Kept alongside the FK so the log still names a person after the account
+    #: is closed and the FK nulls out.
+    actor_label = models.CharField(max_length=120, blank=True, default="")
+    action = models.CharField(max_length=16, choices=AuditAction.choices)
+    subject_type = models.CharField(max_length=40)
+    subject_id = models.UUIDField(null=True, blank=True)
+    #: A complete sentence, written at write time. Rendering it later from the
+    #: parts would mean the log's wording drifts with the code, and an audit
+    #: entry that reads differently than when it was made is not much of one.
+    summary = models.CharField(max_length=255)
+    #: Before/after, amounts, whatever the action needs. Never secrets.
+    detail = models.JSONField(default=dict, blank=True)
+    #: True when this touched something not everyone in the household can see.
+    #: The event still exists — its existence is not the secret — but the
+    #: summary is written without the private specifics.
+    is_private = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["tenant_id", "-created_at"], name="audit_recent_idx"),
+            models.Index(fields=["tenant_id", "subject_type", "subject_id"], name="audit_subject_idx"),
+            models.Index(fields=["tenant_id", "action"], name="audit_action_idx"),
+        ]
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None and not self._state.adding:
+            raise ValueError(
+                "Audit events are append-only. Record a new event describing the "
+                "correction instead of editing the record of what happened."
+            )
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise ValueError(
+            "Audit events cannot be deleted. Retention is a tenant-wide policy "
+            "operation, not a per-record one."
+        )
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return self.summary
+
+
 class ChangeRequestStatus(models.TextChoices):
     PENDING = "pending", "Waiting for approval"
     APPROVED = "approved", "Approved"

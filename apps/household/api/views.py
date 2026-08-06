@@ -331,3 +331,145 @@ class ChangeRequestResolveView(TenantScopedAPIView, APIView):
         except change_requests.ChangeRequestError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
         return Response({"detail": f"Unknown action {action!r}."}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ContributionView(TenantScopedAPIView, APIView):
+    """How the household divides its shared costs, and how that is going.
+
+    GET returns the plan, the fairness comparison and the derived figures in
+    one response, because they are meaningless apart: a plan without actuals is
+    an aspiration, and actuals without a plan are a list of transfers.
+
+    PUT re-agrees the split. MEMBER, not admin — deciding how two people divide
+    their own costs is not a permission the person who set up billing should
+    hold over the other.
+    """
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.MEMBER
+    serializer_class = None
+
+    @extend_schema(operation_id="household_contributions")
+    def get(self, request):
+        from .. import contributions
+
+        overview = contributions.overview()
+        plan = overview.plan
+        fairness = overview.fairness
+        return Response(
+            {
+                "agreement_id": overview.agreement_id,
+                "review_on": overview.review_on,
+                "plan": {
+                    "mode": str(plan.mode),
+                    "currency": plan.currency,
+                    "target_minor": plan.target_minor,
+                    "is_complete": plan.is_complete,
+                    "shortfall_minor": plan.shortfall_minor,
+                    "blockers": list(plan.blockers),
+                    "notes": list(plan.notes),
+                    "contributions": [
+                        {
+                            "membership_id": c.membership_id,
+                            "display_name": c.display_name,
+                            "amount_minor": c.amount_minor,
+                            "share_of_total": c.share_of_total,
+                            "basis": c.basis,
+                        }
+                        for c in plan.contributions
+                    ],
+                },
+                "fairness": {
+                    "is_balanced": fairness.is_balanced,
+                    "summary": fairness.summary,
+                    "worst_gap_minor": fairness.worst_gap_minor,
+                    "lines": [
+                        {
+                            "membership_id": line.membership_id,
+                            "display_name": line.display_name,
+                            "expected_minor": line.expected_minor,
+                            "actual_minor": line.actual_minor,
+                            "delta_minor": line.delta_minor,
+                        }
+                        for line in fairness.lines
+                    ],
+                },
+                "derived_target_minor": overview.derived_target_minor,
+                "unattributed_income_minor": overview.unattributed_income_minor,
+            }
+        )
+
+    @extend_schema(operation_id="household_set_contributions")
+    def put(self, request):
+        from decimal import Decimal, InvalidOperation
+
+        from .. import contributions
+
+        terms: dict[str, dict] = {}
+        for membership_id, values in (request.data.get("terms") or {}).items():
+            entry: dict = {}
+            if values.get("share") not in (None, ""):
+                try:
+                    entry["share"] = Decimal(str(values["share"]))
+                except (InvalidOperation, TypeError):
+                    return Response(
+                        {"detail": f"{values['share']!r} is not a valid share."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            if values.get("fixed_minor") not in (None, ""):
+                entry["fixed_minor"] = int(values["fixed_minor"])
+            terms[str(membership_id)] = entry
+
+        try:
+            agreement = contributions.set_agreement(
+                mode=request.data.get("mode", ""),
+                currency=request.data.get("currency") or "KES",
+                target_minor=request.data.get("target_minor"),
+                review_on=request.data.get("review_on") or None,
+                notes=request.data.get("notes", ""),
+                terms=terms,
+            )
+        except contributions.ContributionError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"agreement_id": str(agreement.id)}, status=status.HTTP_200_OK)
+
+
+class HouseholdActivityView(TenantScopedAPIView, APIView):
+    """The household's activity log.
+
+    VIEWER, deliberately the lowest role that can read anything: an audit trail
+    only one party can consult is not a trust mechanism. Private events appear
+    with their summaries written to omit the specifics — see `audit.timeline`.
+    """
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.VIEWER
+    serializer_class = None
+
+    @extend_schema(operation_id="household_activity")
+    def get(self, request):
+        from .. import audit
+
+        try:
+            limit = min(int(request.query_params.get("limit", 100)), 500)
+        except (TypeError, ValueError):
+            limit = 100
+
+        events = audit.timeline(limit=limit, subject_type=request.query_params.get("subject_type"))
+        return Response(
+            [
+                {
+                    "id": str(e.id),
+                    "occurred_at": e.created_at,
+                    "actor": e.actor_label,
+                    "action": e.action,
+                    "subject_type": e.subject_type,
+                    "subject_id": str(e.subject_id) if e.subject_id else None,
+                    "summary": e.summary,
+                    "is_private": e.is_private,
+                    "detail": e.detail,
+                }
+                for e in events
+            ]
+        )
