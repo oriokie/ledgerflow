@@ -140,8 +140,23 @@ def _parse_txn_filters(request) -> selectors.TransactionFilters:
     )
 
 
-def _txn_out(txn: Transaction) -> dict:
-    return {
+def _txn_out(txn: Transaction, *, levels: dict | None = None) -> dict:
+    """One shape for a transaction, redacted for the acting household member.
+
+    Redaction happens *here*, at the single point every transaction response
+    passes through, rather than in each endpoint. Nine call sites format
+    transactions; asking each to remember which fields are sensitive is asking
+    for the one that forgets.
+
+    `levels` is an optimisation, not a switch. Passing the map from
+    `redaction_levels()` avoids a query per row on a listing; omitting it costs
+    a query and redacts anyway. Forgetting to pass it makes the endpoint
+    slower, never more revealing — which is the direction that mistake should
+    fail in.
+    """
+    from apps.household import transaction_privacy
+
+    payload = {
         "id": txn.id,
         "financial_account_id": txn.financial_account_id,
         "amount_minor": txn.amount_minor,
@@ -159,6 +174,9 @@ def _txn_out(txn: Transaction) -> dict:
         "review_reason": txn.review_reason,
         "memo": txn.memo,
     }
+    if levels is None:
+        levels = transaction_privacy.redaction_levels()
+    return transaction_privacy.apply(payload, levels.get(txn.id))
 
 
 def _account_payload(account: FinancialAccount) -> dict:
@@ -468,9 +486,19 @@ class TransactionView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
         allowed = _member_visible_ids()
         if allowed is not None:
             txns = txns.filter(financial_account_id__in=allowed)
+        # Then the line-level rule, inside accounts the member may already see.
+        # Only fully-private lines are dropped; partially-redacted ones stay and
+        # are blunted by `_txn_out`, because removing them would leave the same
+        # unexplained gap while telling the partner less.
+        from apps.household import transaction_privacy
+
+        txns = transaction_privacy.restrict_transactions(txns)
+
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(txns, request, view=self)
-        return paginator.get_paginated_response([_txn_out(t) for t in page])
+        # Levels fetched once for the page rather than once per row.
+        levels = transaction_privacy.redaction_levels()
+        return paginator.get_paginated_response([_txn_out(t, levels=levels) for t in page])
 
     def post(self, request):
         s = TransactionCreateSerializer(data=request.data)

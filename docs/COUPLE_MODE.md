@@ -129,6 +129,7 @@ Added in this phase:
 | `ApprovalRule` | an amount threshold above which the household checks with each other |
 | `SpendApproval` | one request to spend, or one flag on spending that already happened |
 | `ApprovalComment` | the thread on an approval; append-only |
+| `TransactionPrivacy` | a deliberate privacy choice about one line; rows exist only for exceptions |
 | `ContributionTerm` | one member's side — fixed amount or agreed share |
 | `AuditEvent` | append-only household activity log |
 
@@ -284,6 +285,59 @@ overspending it guards against.
 
 ---
 
+## 6b. Transaction-level privacy
+
+Account privacy decides whether a partner sees an account. This decides how much
+of a *line* they see inside an account they can already see. They compose,
+account first — a line in a private account is invisible whatever its own
+setting says.
+
+| Level | They see |
+|---|---|
+| `PRIVATE` | nothing; omitted from itemised listings |
+| `CATEGORY_ONLY` | the category, not the amount — the gift case |
+| `AMOUNT_ONLY` | the amount, not what it was — the hobby case |
+| `FULL` | everything (clears the mark) |
+
+**A row exists only for exceptions.** Accounts number in dozens; transactions in
+hundreds of thousands — one M-Pesa import adds 866. Storing only deliberate
+choices keeps the id set small enough to filter with, and means shipping this is
+inert: no existing transaction has a row.
+
+**Redaction happens at one choke point.** `_txn_out()` in the finance API is the
+single function every transaction response passes through, and it redacts there
+rather than in each of its nine call sites. The `levels` argument is an
+optimisation, not a switch — omitting it costs a query and redacts anyway, so
+forgetting makes an endpoint slower, never more revealing.
+
+**Your own marks never hide anything from you**, or marking a purchase private
+would make it vanish from your own ledger and read as data loss. **A partner
+cannot lift your mark** — a privacy setting the other party can remove is not
+one — and this is the single rule role seniority does not override.
+
+**Totals still include hidden lines.** A partner who cannot itemise a purchase
+must still see it in the month's outgoings, or the figures they *are* shown are
+wrong and they will act on them. Aggregate truth, itemised privacy — the same
+trade `all_account_ids()` makes.
+
+### The limitation, stated rather than hidden
+
+Hiding a line inside an account whose **balance** the partner can see does not
+hide its amount from anybody willing to subtract: the balance moved and the
+visible lines do not account for the difference.
+
+`PRIVATE` reliably conceals **what** something was. It conceals **how much**
+only on an account whose balance the partner cannot see. Genuinely private
+spending belongs on a private account; this feature is for keeping the *nature*
+of a purchase to yourself within shared money.
+
+This is asserted as a test
+(`test_hiding_a_line_does_not_hide_the_amount_from_arithmetic`) so that nobody
+later reads the feature as stronger than it is and builds a promise on it. The
+UI must not describe `PRIVATE` as "hidden completely" on a shared account.
+
+---
+
 ## 7. Permission model
 
 | Action | Minimum role | Extra rule |
@@ -380,7 +434,7 @@ relationship, and a product that editorialises there will be uninstalled.
 | Contribution engine, 4 modes + fairness | **built, this phase** |
 | Audit trail | **built, this phase** |
 | Approval thresholds, comments, expiry, suggestions | **built, this phase** |
-| Transaction-level privacy | designed, not built |
+| Transaction-level privacy | **built, this phase** |
 | Monthly financial meeting | designed, not built |
 | Per-member health scores | not built |
 | Couple AI coach, calendar, gamification | not built |

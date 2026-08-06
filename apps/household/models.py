@@ -351,6 +351,66 @@ class AuditEvent(TenantOwnedModel):
         return self.summary
 
 
+class TransactionVisibility(models.TextChoices):
+    """How much of one transaction the rest of the household may see.
+
+    Account-level policy decides whether a partner sees an account *at all*;
+    this narrows what they see of an individual line within an account they can
+    already see. The two compose — a transaction on a `PRIVATE` account is
+    invisible whatever this says, because the account already answered.
+    """
+
+    PRIVATE = "private", "Not shown to anyone else"
+    CATEGORY_ONLY = "category_only", "They see the category, not the amount"
+    AMOUNT_ONLY = "amount_only", "They see the amount, not what it was for"
+    FULL = "full", "Fully visible"
+
+
+class TransactionPrivacy(SoftDeletableModel):
+    """A deliberate privacy choice about one transaction.
+
+    **A row exists only when somebody has chosen something other than the
+    default.** That is what makes a side table viable here: accounts number in
+    the dozens, but transactions number in the hundreds of thousands — a single
+    M-Pesa import adds 866 — and a per-transaction column consulted on every
+    listing would be a column the whole product carries for one workspace type.
+    Storing only the exceptions keeps the id set small enough to filter with,
+    exactly as `visible_account_ids()` does for accounts.
+
+    The absence of a row therefore means *inherit* — as visible as the account
+    it sits in. That is also why shipping this is inert: no existing
+    transaction has a row, so nothing changes until somebody marks something.
+
+    **A known limitation, stated plainly.** Hiding a line inside an account
+    whose *balance* the partner can see does not hide the amount from a
+    determined reader: the balance moved and the visible lines do not account
+    for it. `PRIVATE` reliably conceals *what* something was; it conceals *how
+    much* only on an account the partner cannot see the balance of. The product
+    should not imply otherwise, and `docs/COUPLE_MODE.md` says so.
+    """
+
+    transaction = models.OneToOneField(
+        "finance.Transaction", on_delete=models.CASCADE, related_name="privacy"
+    )
+    #: Who marked it. Only they may change it back — a privacy setting a
+    #: partner can lift is not a privacy setting.
+    owner = models.ForeignKey(
+        "tenancy.Membership", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    level = models.CharField(
+        max_length=16, choices=TransactionVisibility.choices, default=TransactionVisibility.PRIVATE
+    )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["tenant_id", "level"], name="txn_privacy_level_idx"),
+            models.Index(fields=["tenant_id", "owner"], name="txn_privacy_owner_idx"),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"{self.transaction_id}: {self.level}"
+
+
 class ApprovalScope(models.TextChoices):
     """Which spending a threshold rule watches."""
 
