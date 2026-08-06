@@ -17,6 +17,40 @@ import type {
   Transaction,
 } from "./types";
 
+/** What a statement contains, before anything is written. */
+export interface MpesaPreview {
+  customer_name: string;
+  mobile_number: string;
+  period_start: string;
+  period_end: string;
+  rows_found: number;
+  paid_in_minor: number;
+  withdrawn_minor: number;
+  /** null when the statement printed no totals to check against — an honest
+   *  "cannot tell", which the UI must not render as a tick. */
+  reconciles: boolean | null;
+  discrepancy: string;
+  by_kind: Record<string, { count: number; total_minor: number }>;
+  first_seen: string | null;
+  last_seen: string | null;
+}
+
+export interface MpesaImportResult {
+  imported: number;
+  skipped_duplicate: number;
+  errors: { receipt: string; occurred_at: string; error: string }[];
+  notices: string[];
+  rows_found: number;
+  statement_period: string;
+  reconciles: boolean | null;
+  discrepancy: string;
+  overdraft_advanced_minor: number;
+  overdraft_repaid_minor: number;
+  charges_minor: number;
+  payees_created: number;
+  auto_categorised: number;
+}
+
 export interface TransactionFilters {
   account_id?: string;
   category_id?: string;
@@ -126,6 +160,27 @@ export const financeApi = {
       "/finance/transactions/import/",
       { account_id: accountId, content, default_category_id: defaultCategoryId },
     ),
+
+  /** Parse an M-Pesa statement and describe it, writing nothing.
+   *
+   *  The read-only half of a deliberately two-step flow: a statement is three
+   *  months of somebody's life and the import is hundreds of rows, so the
+   *  reconciliation check has to be visible before it happens, not after. */
+  previewMpesaStatement: (file: File, password: string) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("password", password);
+    return postForm<MpesaPreview>("/finance/transactions/import/mpesa/?preview=1", form);
+  },
+
+  importMpesaStatement: (accountId: string, file: File, password: string, trackOverdraftAsDebt = true) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("password", password);
+    form.append("account_id", accountId);
+    form.append("track_overdraft_as_debt", String(trackOverdraftAsDebt));
+    return postForm<MpesaImportResult>("/finance/transactions/import/mpesa/", form);
+  },
 
   netWorth: () => api.get<NetWorthByCurrency[]>("/finance/net-worth/"),
   netWorthBase: () => api.get<NetWorthBase>("/finance/net-worth/base/"),

@@ -4,8 +4,12 @@ import { financeExtendedApi } from "../../api/finance";
 import { useAccounts, useImportTransactionsCsv } from "../../hooks/useFinance";
 import { Download } from "lucide-react";
 import { Banner, Button, Input, Modal, Select, Stack, Text } from "../../ui";
+import { MpesaImportPanel } from "./MpesaImportPanel";
+
+type ImportSource = "csv" | "mpesa";
 
 export function ImportModal({ onClose }: { onClose: () => void }) {
+  const [source, setSource] = useState<ImportSource>("csv");
   const [downloading, setDownloading] = useState(false);
 
   /* Fetched rather than linked, because the endpoint is tenant-scoped and
@@ -47,12 +51,39 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal open onClose={onClose} title="Import transactions (CSV)">
-      <Stack gap={4}>
-        <Text tone="tertiary" size="sm">
-          Needs date, amount, and description columns (most bank exports work). Re-importing the same file is safe —
-          duplicates are skipped.
-        </Text>
+    <Modal open onClose={onClose} title="Import transactions">
+      {/* A radiogroup rather than tabs: the two importers take different files
+          and ask different questions, so this is a choice of what you have,
+          made once, not a pair of views to browse between. */}
+      <div className="lf-segmented" role="radiogroup" aria-label="What are you importing?">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={source === "csv"}
+          className={source === "csv" ? "is-active" : undefined}
+          onClick={() => setSource("csv")}
+        >
+          CSV file
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={source === "mpesa"}
+          className={source === "mpesa" ? "is-active" : undefined}
+          onClick={() => setSource("mpesa")}
+        >
+          M-Pesa statement
+        </button>
+      </div>
+
+      {source === "mpesa" ? (
+        <MpesaImportPanel />
+      ) : (
+        <Stack gap={4}>
+          <Text tone="tertiary" size="sm">
+            Needs date, amount, and description columns (most bank exports work). Re-importing the same file is safe —
+            duplicates are skipped.
+          </Text>
 
         {/* The template answers what prose cannot: the exact column names, and
             that the sign is the direction. Downloading beats reading. */}
@@ -97,8 +128,9 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
             )}
           </div>
         )}
-        {error && <Banner tone="danger">{error}</Banner>}
-      </Stack>
+          {error && <Banner tone="danger">{error}</Banner>}
+        </Stack>
+      )}
     </Modal>
   );
 }

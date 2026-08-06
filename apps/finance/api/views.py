@@ -1494,6 +1494,87 @@ class TransactionImportView(TenantScopedAPIView, APIView):
         return Response(result.as_dict(), status=status.HTTP_201_CREATED)
 
 
+class MpesaImportView(TenantScopedAPIView, APIView):
+    """Import a Safaricom M-Pesa PDF statement.
+
+    Separate from the CSV importer rather than a mode of it, because almost
+    nothing is shared: the file is an encrypted PDF, the identity of a row is
+    a composite key, and Fuliza rows have to become debt rather than income.
+
+    Two steps, deliberately. `?preview=1` parses and describes the file without
+    writing anything — uploading three months of your financial life is not a
+    step to take on trust, and the preview is what makes the reconciliation
+    check visible *before* 866 rows land in the books. POST without it imports.
+
+    The password is read from the request, used to decrypt, and dropped. It is
+    never stored, never logged, and never echoed back in a response.
+
+    MEMBER — it writes money movements.
+    """
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.MEMBER
+    serializer_class = None
+
+    @extend_schema(operation_id="mpesa_import")
+    def post(self, request):
+        from ..import_mpesa import MpesaParseError
+        from ..import_mpesa_service import import_mpesa_statement, preview_statement
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"detail": "Attach the M-Pesa statement PDF as 'file'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Safaricom statements run to a few hundred KB; a cap keeps a hostile
+        # or mistaken upload from becoming a memory problem, since parsing
+        # holds the whole document.
+        if upload.size and upload.size > 20 * 1024 * 1024:
+            return Response(
+                {"detail": "That file is larger than 20MB — it is unlikely to be a statement."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        password = request.data.get("password", "") or ""
+        file_bytes = upload.read()
+
+        preview = str(request.query_params.get("preview", "")).lower() in {"1", "true", "yes"}
+        try:
+            if preview:
+                return Response(
+                    preview_statement(file_bytes=file_bytes, password=password),
+                    status=status.HTTP_200_OK,
+                )
+
+            account_id = request.data.get("account_id")
+            account = _visible_accounts().filter(id=account_id).first() if account_id else None
+            if account is None:
+                return Response(
+                    {"detail": "account_id is required and must exist."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            result = import_mpesa_statement(
+                financial_account=account,
+                file_bytes=file_bytes,
+                password=password,
+                track_overdraft_as_debt=str(request.data.get("track_overdraft_as_debt", "true")).lower()
+                not in {"0", "false", "no"},
+            )
+        except MpesaParseError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        finally:
+            # Not security theatre: `request.data` can outlive this frame in
+            # error reporting and middleware, and this is a live credential for
+            # somebody's bank statement.
+            password = ""
+            del file_bytes
+
+        return Response(result.as_dict(), status=status.HTTP_201_CREATED)
+
+
 class CashflowStatementView(TenantScopedAPIView, APIView):
     """Monthly liquidity statement: inflow/outflow/net + ending liquid balance."""
 
