@@ -183,26 +183,35 @@ def import_transactions_csv(
             continue
 
         try:
-            if amount_minor < 0:
-                if default_category is None:
+            # Each row gets its own savepoint, which is what makes the
+            # "all-or-report" promise above actually true. Without one, a row
+            # that fails on a *database* error (rather than a parse error, which
+            # is caught further up) marks the enclosing atomic block as broken,
+            # and every subsequent query raises TransactionManagementError. The
+            # symptom is nasty: a single bad row part-way through aborts the
+            # whole import while reporting itself as one skipped line, so the
+            # caller is told 900 rows imported cleanly when none of them did.
+            with transaction.atomic():
+                if amount_minor < 0:
+                    if default_category is None:
+                        txn = _import_uncategorized(
+                            finance_services, financial_account, amount_minor, occurred_at, description
+                        )
+                    else:
+                        txn = finance_services.record_expense(
+                            financial_account=financial_account,
+                            category=default_category,
+                            amount_minor=abs(amount_minor),
+                            occurred_at=occurred_at,
+                            memo=description,
+                            source=TransactionSource.IMPORTED,
+                        )
+                else:
                     txn = _import_uncategorized(
                         finance_services, financial_account, amount_minor, occurred_at, description
                     )
-                else:
-                    txn = finance_services.record_expense(
-                        financial_account=financial_account,
-                        category=default_category,
-                        amount_minor=abs(amount_minor),
-                        occurred_at=occurred_at,
-                        memo=description,
-                        source=TransactionSource.IMPORTED,
-                    )
-            else:
-                txn = _import_uncategorized(
-                    finance_services, financial_account, amount_minor, occurred_at, description
-                )
-            txn.external_id = external_id
-            txn.save(update_fields=["external_id", "updated_at"])
+                txn.external_id = external_id
+                txn.save(update_fields=["external_id", "updated_at"])
             result.imported += 1
         except Exception as exc:  # noqa: BLE001 - report and continue
             result.errors.append({"line": line_no, "error": str(exc)})
