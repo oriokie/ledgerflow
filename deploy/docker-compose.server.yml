@@ -202,3 +202,32 @@ volumes:
   frontend:
   caddydata:
   caddyconfig:
+
+networks:
+  default:
+    # Pinned, and the pin is the point. Left to itself Compose invents both of
+    # these: an arbitrary free subnet, and a bridge device named after the
+    # network's random ID (br-28683d7b7b7c). Every host firewall that has to be
+    # told "let these containers talk to each other" must name one or the other
+    # — so with the defaults, any such rule silently stops matching the first
+    # time the network is recreated, and the containers lose the database with
+    # no configuration having visibly changed.
+    #
+    # That is not hypothetical: it is the 2026-08-06 outage. CSF rebuilt the
+    # ruleset, dropped Docker's FORWARD chain, and web/worker/beat sat there
+    # timing out on db:5432 while Postgres itself was perfectly healthy.
+    #
+    # Changing either value requires recreating the network (`docker compose
+    # down` then `up -d`), which is why they are pinned once, here, rather than
+    # adjusted casually. Keep them in step with deploy/firewall-docker.sh.
+    name: ledgerflow
+    driver: bridge
+    driver_opts:
+      # Linux caps interface names at 15 characters; this is 13.
+      com.docker.network.bridge.name: br-ledgerflow
+    ipam:
+      config:
+        # Overridable because a busy host may already route this range —
+        # anything inside 172.16.0.0/12 stays covered by the firewall rules
+        # deploy/firewall-docker.sh writes.
+        - subnet: ${DOCKER_SUBNET:-172.28.0.0/16}

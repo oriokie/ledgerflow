@@ -220,6 +220,21 @@ harden() {
   ufw allow OpenSSH >/dev/null 2>&1 || ufw allow 22/tcp
   ufw allow 80/tcp
   ufw allow 443/tcp
+
+  # Container traffic is forwarded traffic, and UFW's DEFAULT_FORWARD_POLICY is
+  # DROP. Allowing 80/443 says nothing about whether the app may reach its own
+  # database — so without this, enabling UFW below can sever the stack from
+  # Postgres while every port this script opened stays perfectly open. The
+  # symptom is a site that 502s with all containers running and healthy.
+  #
+  # Stated as a route rule on the bridge rather than by flipping the forward
+  # policy to ACCEPT, which would turn the host into a general-purpose router
+  # — a far larger change than "these containers may talk to each other".
+  # deploy/firewall-docker.sh re-applies and *verifies* this after launch.
+  log "Allowing forwarding on the container bridge (UFW blocks it by default)..."
+  ufw route allow in on br-ledgerflow out on br-ledgerflow >/dev/null 2>&1 || true
+  ufw route allow in on br-ledgerflow >/dev/null 2>&1 || true
+
   ufw --force enable
 
   log "Enabling unattended security upgrades..."
@@ -253,6 +268,14 @@ main() {
   write_env
   harden
   launch
+
+  # After launch, because the bridge must exist before the firewall can be
+  # told about it, and because this proves a container actually reaches
+  # Postgres instead of trusting that the rules above did what they claim.
+  log "Reconciling the host firewall with Docker..."
+  bash "$(dirname "${BASH_SOURCE[0]}")/firewall-docker.sh" \
+    || log "WARNING: container networking could not be verified — see above."
+
   cat <<EOF
 
 ============================================================================
