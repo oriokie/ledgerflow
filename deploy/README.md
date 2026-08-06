@@ -268,11 +268,46 @@ indistinguishable from "no outages yet":
 sudo bash deploy/install-monitor.sh --test
 ```
 
-> **This monitor cannot report a dead host.** It runs on the machine it watches, so
-> power loss, a network outage or a full disk produce silence rather than an alert —
-> and silence is not evidence of health. Pair it with an external check
-> (Healthchecks.io, UptimeRobot, BetterStack) pointed at `https://$DOMAIN/readyz/`.
-> The on-host monitor tells you *why*; the external one tells you *at all*.
+#### The heartbeat — the half that survives a dead host
+
+The on-host monitor cannot report its own machine dying: power loss, a network
+outage or a full disk produce silence rather than an alert, and silence is not
+evidence of health.
+
+`MONITOR_HEARTBEAT_URL` closes that, and it is one line of configuration:
+
+```bash
+MONITOR_HEARTBEAT_URL=https://hc-ping.com/<your-uuid>
+```
+
+After every **successful** probe the monitor pings that URL. The service on the
+other end alerts when the pings *stop* — a dead-man's switch, which inverts the
+failure mode: instead of needing a dying host to send its own obituary, silence
+itself becomes the signal.
+
+The ping is sent only on success, deliberately. One sent regardless of the
+result would keep the switch quiet while the site was down, which is worse than
+not having one at all.
+
+Any of these work, and none of them need code here — just the URL:
+
+| Service | What to create | Free tier |
+|---|---|---|
+| [Healthchecks.io](https://healthchecks.io) | a Check, period 5m, grace 5m | 20 checks |
+| [Better Stack](https://betterstack.com) | a Heartbeat monitor | yes |
+| [Cronitor](https://cronitor.io) | a Job/Heartbeat monitor | yes |
+| [UptimeRobot](https://uptimerobot.com) | a Heartbeat monitor | 50 monitors |
+
+Set the expected period to **5 minutes** with a few minutes' grace. The monitor
+pings every minute, so five missed pings is unambiguous rather than a blip.
+
+The two layers answer different questions and you want both: the on-host monitor
+tells you **why** something broke, with `doctor.sh` output attached; the
+heartbeat tells you **at all**, including when the host is gone.
+
+The admin panel reports whether each is configured — Platform → Health, the
+`monitoring` component — because a deployment with no alerting looks exactly
+like one that has simply had no incidents.
 
 Why `/readyz/` and not `/healthz/`: liveness deliberately checks nothing external, so
 that a database outage doesn't make Docker restart every replica at once. It returns a

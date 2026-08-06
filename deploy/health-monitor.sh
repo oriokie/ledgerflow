@@ -21,14 +21,24 @@
 # Readiness touches the database, the cache and the migration state, which is
 # precisely the set that went dark during the outage.
 #
-# Honest limitation, stated plainly
-# ---------------------------------
+# The limitation, and how the heartbeat answers it
+# ------------------------------------------------
 # This runs on the host it watches. If the machine loses power, loses its
-# network, or its disk fills to the point that systemd cannot start a unit,
-# there is nobody left to send the alert — silence from this monitor is not
-# evidence of health. An external check (Healthchecks.io, UptimeRobot,
-# BetterStack) is the only thing that detects total host death, and the two are
-# complements rather than alternatives. deploy/README.md documents the pairing.
+# network, or fills its disk to the point systemd cannot start a unit, there is
+# nobody left to send the alert — silence from this monitor is not evidence of
+# health.
+#
+# `MONITOR_HEARTBEAT_URL` closes that. After every *successful* probe the
+# monitor pings that URL; the service on the other end raises the alarm when
+# the pings stop. It is a dead-man's switch, and it inverts the failure mode:
+# instead of relying on a dying host to send its own obituary, silence itself
+# becomes the signal.
+#
+# One URL, no account plumbing in this repo, and it works with whatever the
+# operator already uses — Healthchecks.io, Better Stack, Cronitor, a plain
+# UptimeRobot heartbeat monitor. The ping is deliberately fire-and-forget: a
+# heartbeat service being down must never stop the local alerting that does not
+# depend on it.
 set -uo pipefail
 
 REPO_DIR="${LEDGERFLOW_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
@@ -123,6 +133,18 @@ notify_email() {
   rm -f "$msg"
 }
 
+# Tell the external watchdog we are alive *and* the site answered.
+heartbeat_ok() {
+  [ -n "${MONITOR_HEARTBEAT_URL:-}" ] || return 0
+  # Fire and forget, short timeout. If the watchdog is unreachable that is the
+  # watchdog's problem to report, not a reason to delay or fail this run.
+  curl -fsS -m 10 -o /dev/null "$MONITOR_HEARTBEAT_URL" 2>/dev/null \
+    && log "Heartbeat sent." \
+    || log "Heartbeat could not be sent (the watchdog will notice)."
+  return 0
+}
+
+
 alert() {
   local title="$1" body="$2"
   notify_webhook "$title" "$body"
@@ -157,6 +179,12 @@ save_state() {
 code="$(probe)"
 
 if [ "$code" = "200" ]; then
+  # Only on success, and this is the whole point: the heartbeat must mean "I
+  # checked and the site was up", not "this script ran". A ping sent regardless
+  # of the result would keep the dead-man's switch quiet while the site was
+  # down, which is worse than not having one.
+  heartbeat_ok
+
   if [ "$alerted" -eq 1 ]; then
     # Recovery matters as much as the alert. Without it the only way to learn
     # the site came back is to check by hand, which is the habit the monitor

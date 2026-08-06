@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { ApiError } from "../../api/client";
 import type {
+  HealthSnapshot,
   AuditRow,
   Coupon,
   DunningCase,
@@ -732,6 +733,71 @@ export function AdminCouponsPage() {
 }
 
 // ===================================================================== health
+/** Whether anything is watching this deployment, and which half.
+ *
+ * Surfaced on its own rather than left as one tile among the probes, because
+ * the two layers fail differently and an operator needs to know which one they
+ * are missing:
+ *
+ *   on-host alerting  tells you *why* something broke, with diagnosis attached
+ *                     — and dies with the host it runs on.
+ *   heartbeat         a dead-man's switch: the monitor pings an external
+ *                     service after each successful probe, and silence raises
+ *                     the alarm. The only layer that survives the host dying.
+ *
+ * "Not configured" is shown neutral, never red. It is a gap to close, not a
+ * live incident, and an amber panel on every fresh install teaches people to
+ * ignore the colour that matters.
+ */
+function MonitoringCard({ snapshot }: { snapshot: HealthSnapshot }) {
+  const component = snapshot.components.find((c) => c.name === "monitoring");
+  if (!component) return null;
+
+  const channels = (component.channels ?? {}) as Record<string, boolean>;
+  const layers = [
+    {
+      key: "on-host alerting",
+      on: Boolean(channels.webhook || channels.email),
+      says: "Tells you why — an alert carrying the diagnosis. Cannot report its own host dying.",
+    },
+    {
+      key: "external heartbeat",
+      on: Boolean(channels.heartbeat),
+      says: "Tells you at all — silence from the monitor raises the alarm. Survives the host.",
+    },
+  ];
+
+  return (
+    <Card title="Monitoring" ruledHeader>
+      <ul className="lf-admin-integrations">
+        {layers.map((layer) => (
+          <li key={layer.key}>
+            <span>
+              {layer.key}
+              <Text size="xs" tone="tertiary">
+                {layer.says}
+              </Text>
+            </span>
+            <Badge tone={layer.on ? "success" : "neutral"}>
+              {layer.on ? "configured" : "not configured"}
+            </Badge>
+          </li>
+        ))}
+      </ul>
+      {typeof component.detail === "string" && (
+        <Text size="xs" tone="tertiary">
+          {component.detail}
+        </Text>
+      )}
+      <Text size="xs" tone="tertiary">
+        Both are set in the server's <code>.env</code> — see deploy/README.md. A deployment with
+        neither looks exactly like one that has simply had no incidents.
+      </Text>
+    </Card>
+  );
+}
+
+
 export function AdminHealthPage() {
   const { data, isLoading } = useHealth();
   const { data: alerts } = usePlatformNotifications({ open: "true" });
@@ -764,6 +830,8 @@ export function AdminHealthPage() {
           </Card>
         ))}
       </Grid>
+
+      <MonitoringCard snapshot={data} />
 
       <Card title="Integrations" ruledHeader>
         <ul className="lf-admin-integrations">
