@@ -126,6 +126,9 @@ Added in this phase:
 | Model | Purpose |
 |---|---|
 | `ContributionAgreement` | how shared costs are divided; superseded, never edited |
+| `ApprovalRule` | an amount threshold above which the household checks with each other |
+| `SpendApproval` | one request to spend, or one flag on spending that already happened |
+| `ApprovalComment` | the thread on an approval; append-only |
 | `ContributionTerm` | one member's side — fixed amount or agreed share |
 | `AuditEvent` | append-only household activity log |
 
@@ -217,6 +220,70 @@ informative — and worse than one that says "something happened".
 
 ---
 
+## 6a. Amount-triggered approvals
+
+Separate from `AccountSharing`'s `APPROVAL_REQUIRED` policy, and deliberately
+so: that one asks *"may you touch this account"*, this one asks *"is this amount
+large enough that we should both know"*. A household can want either, both or
+neither.
+
+### The distinction that shapes everything
+
+LedgerFlow records money that has **already moved** — a statement import is
+history — and it also lets a partner ask **before** spending. These are
+different events:
+
+| Kind | Money moved? | Approving it means |
+|---|---|---|
+| `REQUESTED` | not yet | a decision: permits or prevents a purchase |
+| `FLAGGED` | already | a review: "I have seen this and I am content" |
+
+Collapsing them would let the interface claim it *blocked* a purchase it merely
+*noticed afterwards* — a claim the product cannot support and would be caught
+making at the worst possible moment. The wording generated for the audit trail
+differs by kind for exactly this reason: a request is "approved", a flag is
+"reviewed and accepted".
+
+### Rules
+
+Several may exist; the highest threshold at or below the amount wins, so "tell
+me over 20,000" and "give us longer over 100,000" do not fight. Amounts are
+compared as magnitudes, so a caller passing a signed ledger amount does not have
+to remember which sign spending has.
+
+**A rule never reaches a private account.** Making somebody approve spending on
+an account they cannot even see would be surveillance wearing a governance hat.
+
+**A workspace of one is never interrogated.** There is nobody to ask.
+
+### What silence means
+
+An unanswered request expires to `EXPIRED`, which is neither approved nor
+declined. Auto-approving defeats the mechanism; auto-declining lets one partner
+veto the other by saying nothing, turning an absence into a decision. Every
+expiry is audited, so the requester can tell "nobody answered" from "the product
+lost it".
+
+### What it does not do
+
+It does not stand between a user and their own ledger. `require_approval_for()`
+answers a question; acting on the answer is the caller's job. Nothing here
+posts, reverses or holds a transaction — a household rule that could silently
+prevent somebody accessing their own money is a bigger hazard than the
+overspending it guards against.
+
+### Other rules
+
+- Nobody approves their own **request** — a second pair of eyes you supply
+  yourself is decoration. Reviewing your own **flagged** spending is allowed,
+  because a flag is a notification and marking it seen decides nothing about
+  anybody else's money.
+- A suggestion (`"could you make it 30,000?"`) leaves the request **open**. It
+  is a step in a negotiation, not a verdict.
+- Only the requester may withdraw.
+
+---
+
 ## 7. Permission model
 
 | Action | Minimum role | Extra rule |
@@ -252,6 +319,9 @@ Added:
 | `/api/v1/household/contributions/` | `GET` | plan + fairness + derived figures, in one response |
 | `/api/v1/household/contributions/` | `PUT` | re-agrees the split, supersedes the previous |
 | `/api/v1/household/activity/` | `GET` | the audit timeline, filterable by subject |
+| `/api/v1/household/approval-rules/` | `GET` `POST` | spending thresholds |
+| `/api/v1/household/approvals/` | `GET` `POST` | open approvals and history; ask before spending |
+| `/api/v1/household/approvals/{id}/` | `POST` | approve, decline, suggest, withdraw or comment |
 
 Plan and fairness come back together because they are meaningless apart: a plan
 without actuals is an aspiration, and actuals without a plan are a list of
@@ -309,7 +379,7 @@ relationship, and a product that editorialises there will be uninstalled.
 | Dependants | **built** (pre-existing) |
 | Contribution engine, 4 modes + fairness | **built, this phase** |
 | Audit trail | **built, this phase** |
-| Approval *thresholds*, comments, expiry | designed, not built |
+| Approval thresholds, comments, expiry, suggestions | **built, this phase** |
 | Transaction-level privacy | designed, not built |
 | Monthly financial meeting | designed, not built |
 | Per-member health scores | not built |

@@ -473,3 +473,161 @@ class HouseholdActivityView(TenantScopedAPIView, APIView):
                 for e in events
             ]
         )
+
+
+class ApprovalRuleView(TenantScopedAPIView, APIView):
+    """The household's spending thresholds.
+
+    MEMBER, not admin: agreeing "let's check with each other over 20,000" is a
+    pact between partners, not a permission one holds over the other.
+    """
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.MEMBER
+    serializer_class = None
+
+    @extend_schema(operation_id="household_approval_rules")
+    def get(self, request):
+        from ..models import ApprovalRule
+
+        return Response(
+            [
+                {
+                    "id": str(r.id),
+                    "name": str(r),
+                    "scope": r.scope,
+                    "currency": r.currency,
+                    "min_amount_minor": r.min_amount_minor,
+                    "expires_after_hours": r.expires_after_hours,
+                    "is_active": r.is_active,
+                }
+                for r in ApprovalRule.objects.filter(is_active=True)
+            ]
+        )
+
+    @extend_schema(operation_id="household_create_approval_rule")
+    def post(self, request):
+        from ..models import ApprovalRule, ApprovalScope
+
+        try:
+            threshold = int(request.data.get("min_amount_minor", 0))
+        except (TypeError, ValueError):
+            return Response({"detail": "min_amount_minor must be a number."}, status=400)
+        if threshold <= 0:
+            return Response({"detail": "A threshold has to be above zero."}, status=400)
+
+        rule = ApprovalRule.objects.create(
+            name=request.data.get("name", ""),
+            scope=request.data.get("scope") or ApprovalScope.JOINT,
+            financial_account_id=request.data.get("financial_account_id") or None,
+            currency=(request.data.get("currency") or "KES")[:3].upper(),
+            min_amount_minor=threshold,
+            expires_after_hours=int(request.data.get("expires_after_hours") or 48),
+        )
+        from .. import audit
+        from ..models import AuditAction
+
+        audit.record(
+            action=AuditAction.CREATED,
+            subject_type="approval_rule",
+            subject_id=rule.id,
+            summary=f"Set an approval threshold at {rule.currency} {threshold / 100:,.0f}.",
+        )
+        return Response({"id": str(rule.id)}, status=status.HTTP_201_CREATED)
+
+
+class SpendApprovalListView(TenantScopedAPIView, APIView):
+    """Open approvals, and the history behind them."""
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.VIEWER
+    serializer_class = None
+
+    @extend_schema(operation_id="household_approvals")
+    def get(self, request):
+        from .. import approvals
+
+        rows = approvals.pending() if request.query_params.get("status") == "pending" else approvals.history()
+        return Response([_approval_json(a) for a in rows])
+
+    @extend_schema(operation_id="household_request_approval")
+    def post(self, request):
+        from .. import approvals
+
+        try:
+            approval = approvals.request_approval(
+                amount_minor=int(request.data.get("amount_minor", 0)),
+                currency=request.data.get("currency") or "KES",
+                description=request.data.get("description", ""),
+                account_id=request.data.get("financial_account_id") or None,
+                rule=approvals.matching_rule(
+                    amount_minor=int(request.data.get("amount_minor", 0)),
+                    account_id=request.data.get("financial_account_id") or None,
+                ),
+            )
+        except (approvals.ApprovalError, TypeError, ValueError) as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(_approval_json(approval), status=status.HTTP_201_CREATED)
+
+
+class SpendApprovalDetailView(TenantScopedAPIView, APIView):
+    """Answer an approval: approve, decline, suggest, withdraw, or comment."""
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.MEMBER
+    serializer_class = None
+
+    @extend_schema(operation_id="household_resolve_approval")
+    def post(self, request, approval_id):
+        from .. import approvals
+        from ..models import SpendApproval
+
+        approval = get_object_or_404(SpendApproval, id=approval_id)
+        action = (request.data.get("action") or "").lower()
+        note = request.data.get("note", "")
+
+        try:
+            if action == "approve":
+                approvals.approve(approval=approval, note=note)
+            elif action == "decline":
+                approvals.decline(approval=approval, note=note)
+            elif action == "withdraw":
+                approvals.withdraw(approval=approval)
+            elif action == "suggest":
+                approvals.suggest(
+                    approval=approval,
+                    amount_minor=int(request.data.get("amount_minor", 0)),
+                    note=note,
+                )
+            elif action == "comment":
+                approvals.comment(approval=approval, body=note)
+            else:
+                return Response(
+                    {"detail": "action must be approve, decline, suggest, withdraw or comment."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except (approvals.ApprovalError, TypeError, ValueError) as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        approval.refresh_from_db()
+        return Response(_approval_json(approval))
+
+
+def _approval_json(a) -> dict:
+    return {
+        "id": str(a.id),
+        "kind": a.kind,
+        "status": a.status,
+        "amount_minor": a.amount_minor,
+        "suggested_amount_minor": a.suggested_amount_minor,
+        "currency": a.currency,
+        "description": a.description,
+        "requested_by": a.requested_by_label,
+        "resolved_by": a.resolved_by_label,
+        "expires_at": a.expires_at,
+        "resolved_at": a.resolved_at,
+        "created_at": a.created_at,
+        "comments": [
+            {"author": c.author_label, "body": c.body, "at": c.created_at} for c in a.comments.all()
+        ],
+    }

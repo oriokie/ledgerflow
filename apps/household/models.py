@@ -351,6 +351,181 @@ class AuditEvent(TenantOwnedModel):
         return self.summary
 
 
+class ApprovalScope(models.TextChoices):
+    """Which spending a threshold rule watches."""
+
+    JOINT = "joint", "Money from joint accounts"
+    #: Everything the household can see. Deliberately does *not* reach private
+    #: accounts — a rule that made a partner approve spending on an account
+    #: they cannot even see would be surveillance wearing a governance hat.
+    SHARED = "shared", "Anything the household can see"
+    ACCOUNT = "account", "One specific account"
+
+
+class ApprovalRule(SoftDeletableModel):
+    """ "Ask me before spending more than this."
+
+    Amount-triggered, which is a different mechanism from `AccountSharing`'s
+    `APPROVAL_REQUIRED` policy and deliberately kept separate: that one asks
+    "may you touch *this account*", this one asks "is *this amount* large
+    enough that we should both know". A household can want either, both, or
+    neither, and folding them together would make each harder to reason about.
+
+    Several rules may exist. The one that applies to a given amount is the
+    highest `min_amount_minor` at or below it, so a household can say "tell me
+    over 20,000, and give us longer to think about it over 100,000" without the
+    rules fighting.
+    """
+
+    name = models.CharField(max_length=120, blank=True, default="")
+    scope = models.CharField(max_length=12, choices=ApprovalScope.choices, default=ApprovalScope.JOINT)
+    #: Only set when scope is ACCOUNT.
+    financial_account = models.ForeignKey(
+        "finance.FinancialAccount",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="approval_rules",
+    )
+    currency = models.CharField(max_length=3)
+    min_amount_minor = models.BigIntegerField()
+    #: How long the other partner has before the request goes stale. Not
+    #: "before it is approved" — see `ApprovalStatus.EXPIRED`.
+    expires_after_hours = models.PositiveIntegerField(default=48)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(min_amount_minor__gt=0),
+                name="approval_rule_threshold_positive",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["tenant_id", "is_active"], name="approval_rule_active_idx"),
+        ]
+        ordering = ["-min_amount_minor"]
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return self.name or f"over {self.min_amount_minor / 100:,.0f}"
+
+
+class ApprovalKind(models.TextChoices):
+    """Whether the money has moved yet, which is the whole distinction.
+
+    The product records spending that already happened — a statement import is
+    history, not a proposal — and it also lets somebody ask before spending. A
+    single "approval" that blurred the two would let the UI claim a purchase was
+    *blocked* when in truth it was merely *noticed* afterwards, which is a lie
+    about what the product did and would be discovered at the worst moment.
+    """
+
+    REQUESTED = "requested", "Asked before spending"
+    FLAGGED = "flagged", "Noticed after the money moved"
+
+
+class ApprovalStatus(models.TextChoices):
+    PENDING = "pending", "Waiting"
+    APPROVED = "approved", "Approved"
+    DECLINED = "declined", "Declined"
+    #: Nobody answered in time. Deliberately neither approved nor declined:
+    #: auto-approving would defeat the mechanism, and auto-declining would let
+    #: silence block a partner's spending. Silence means silence, and the
+    #: household can see that is what happened.
+    EXPIRED = "expired", "Nobody answered"
+    WITHDRAWN = "withdrawn", "Withdrawn by the requester"
+
+
+class SpendApproval(TenantOwnedModel):
+    """One request to spend, or one flag on spending that already happened.
+
+    `TenantOwnedModel` rather than soft-deletable, for the reason `ChangeRequest`
+    is: a declined request is part of the record of what was asked. Approval
+    history that a disagreement can tidy away is worth less than none.
+    """
+
+    kind = models.CharField(max_length=12, choices=ApprovalKind.choices)
+    status = models.CharField(max_length=12, choices=ApprovalStatus.choices, default=ApprovalStatus.PENDING)
+    rule = models.ForeignKey(
+        ApprovalRule, null=True, blank=True, on_delete=models.SET_NULL, related_name="approvals"
+    )
+
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="spend_approvals_requested"
+    )
+    requested_by_label = models.CharField(max_length=120, blank=True, default="")
+
+    financial_account = models.ForeignKey(
+        "finance.FinancialAccount", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    #: Set only for FLAGGED — the posting that tripped the rule.
+    transaction = models.ForeignKey(
+        "finance.Transaction", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    amount_minor = models.BigIntegerField()
+    currency = models.CharField(max_length=3)
+    description = models.CharField(max_length=255)
+    #: What the responder proposed instead, when they suggested a change rather
+    #: than answering yes or no. Kept beside the original so the thread shows
+    #: what was asked *and* what came back.
+    suggested_amount_minor = models.BigIntegerField(null=True, blank=True)
+
+    expires_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="spend_approvals_resolved",
+    )
+    resolved_by_label = models.CharField(max_length=120, blank=True, default="")
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["tenant_id", "status"], name="spend_approval_status_idx"),
+            models.Index(fields=["tenant_id", "-created_at"], name="spend_approval_recent_idx"),
+            models.Index(fields=["tenant_id", "expires_at"], name="spend_approval_expiry_idx"),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"{self.description} ({self.status})"
+
+    @property
+    def is_open(self) -> bool:
+        return self.status == ApprovalStatus.PENDING
+
+
+class ApprovalComment(TenantOwnedModel):
+    """A message on an approval.
+
+    Append-only like everything else in the approval path. A conversation about
+    money that one party can edit afterwards is not a conversation either of
+    them should rely on.
+    """
+
+    approval = models.ForeignKey(SpendApproval, on_delete=models.CASCADE, related_name="comments")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    author_label = models.CharField(max_length=120, blank=True, default="")
+    body = models.TextField()
+
+    class Meta:
+        indexes = [models.Index(fields=["tenant_id", "approval"], name="approval_comment_idx")]
+        ordering = ["created_at"]
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None and not self._state.adding:
+            raise ValueError("Approval comments are append-only.")
+        return super().save(*args, **kwargs)
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return self.body[:60]
+
+
 class ChangeRequestStatus(models.TextChoices):
     PENDING = "pending", "Waiting for approval"
     APPROVED = "approved", "Approved"

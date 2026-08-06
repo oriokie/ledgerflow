@@ -4,6 +4,7 @@ from django.urls import path
 
 from .views import (
     AccountSharingView,
+    ApprovalRuleView,
     ChangeRequestListView,
     ChangeRequestResolveView,
     ContributionView,
@@ -13,6 +14,8 @@ from .views import (
     HouseholdMembersView,
     HouseholdSummaryView,
     SharingBackfillView,
+    SpendApprovalDetailView,
+    SpendApprovalListView,
 )
 
 urlpatterns = [
@@ -31,4 +34,9 @@ urlpatterns = [
     ),
     path("contributions/", ContributionView.as_view(), name="household-contributions"),
     path("activity/", HouseholdActivityView.as_view(), name="household-activity"),
+    path("approval-rules/", ApprovalRuleView.as_view(), name="household-approval-rules"),
+    path("approvals/", SpendApprovalListView.as_view(), name="household-approvals"),
+    path(
+        "approvals/<uuid:approval_id>/", SpendApprovalDetailView.as_view(), name="household-approval-detail"
+    ),
 ]
