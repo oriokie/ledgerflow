@@ -44,6 +44,8 @@ import uuid
 
 from django.db.models import QuerySet
 
+from apps.common.tenant_context import cached_per_tenant_scope, invalidate_tenant_scope_cache
+
 from .models import TransactionPrivacy, TransactionVisibility
 
 #: Fields that reveal *what* a transaction was.
@@ -58,7 +60,11 @@ def _levels_by_transaction() -> dict[uuid.UUID, str]:
     Small by construction — only transactions somebody explicitly marked have a
     row. See the model for why that matters.
     """
-    return dict(TransactionPrivacy.objects.values_list("transaction_id", "level"))
+    # Read by both the filter and the redactor on every listing.
+    return cached_per_tenant_scope(
+        "txn_privacy_levels",
+        lambda: dict(TransactionPrivacy.objects.values_list("transaction_id", "level")),
+    )
 
 
 def _mine() -> set[uuid.UUID]:
@@ -73,8 +79,11 @@ def _mine() -> set[uuid.UUID]:
     membership = current_membership()
     if membership is None:
         return set()
-    return set(
-        TransactionPrivacy.objects.filter(owner_id=membership.id).values_list("transaction_id", flat=True)
+    return cached_per_tenant_scope(
+        f"txn_privacy_mine:{membership.id}",
+        lambda: set(
+            TransactionPrivacy.objects.filter(owner_id=membership.id).values_list("transaction_id", flat=True)
+        ),
     )
 
 
@@ -213,6 +222,12 @@ def set_level(*, transaction, level: str) -> TransactionPrivacy | None:
         and existing.owner_id != membership.id
     ):
         raise TransactionPrivacyError("Only the person who marked this private can change it.")
+
+    # Anything below changes the level map, so the memoised copy has to go or a
+    # read later in this same request would still see the old answer.
+    invalidate_tenant_scope_cache("txn_privacy_levels")
+    if membership is not None:
+        invalidate_tenant_scope_cache(f"txn_privacy_mine:{membership.id}")
 
     if level == TransactionVisibility.FULL:
         if existing is not None:

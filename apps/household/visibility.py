@@ -32,7 +32,12 @@ import uuid
 
 from django.db.models import Q, QuerySet
 
-from apps.common.tenant_context import get_current_actor_id, require_current_tenant_id
+from apps.common.tenant_context import (
+    cached_per_tenant_scope,
+    get_current_actor_id,
+    invalidate_tenant_scope_cache,
+    require_current_tenant_id,
+)
 from apps.tenancy.models import Membership
 
 from .models import (
@@ -60,7 +65,12 @@ def current_membership() -> Membership | None:
     actor_id = get_current_actor_id()
     if actor_id is None:
         return None
-    return Membership.objects.filter(user_id=actor_id, tenant_id=require_current_tenant_id()).first()
+    # Memoised: every guarded query asks who is acting, and the answer cannot
+    # change inside one request.
+    return cached_per_tenant_scope(
+        f"membership:{actor_id}",
+        lambda: Membership.objects.filter(user_id=actor_id, tenant_id=require_current_tenant_id()).first(),
+    )
 
 
 def is_single_member_workspace() -> bool:
@@ -76,10 +86,15 @@ def is_single_member_workspace() -> bool:
     platform's memberships, which made every personal workspace on any real
     deployment look shared and switched member filtering on for all of them.
     """
-    return Membership.objects.filter(tenant_id=require_current_tenant_id()).count() <= 1
+    # Asked by visible_account_ids, hidden_transaction_ids and
+    # redaction_levels — three times per listing before this was memoised.
+    return cached_per_tenant_scope(
+        "single_member_workspace",
+        lambda: Membership.objects.filter(tenant_id=require_current_tenant_id()).count() <= 1,
+    )
 
 
-def visible_account_ids() -> set[uuid.UUID] | None:
+def visible_account_ids() -> set[uuid.UUID] | None:  # noqa: D401
     """Financial account ids the current actor may see, or None for "all".
 
     `None` means no restriction applies — a single-member workspace — and is
@@ -89,16 +104,20 @@ def visible_account_ids() -> set[uuid.UUID] | None:
     if is_single_member_workspace():
         return None
 
-    membership = current_membership()
-    shared = Q(is_joint=True) | Q(policy__in=VISIBLE_TO_HOUSEHOLD)
-    if membership is not None:
-        # Your own accounts are always yours to see, whatever the policy says.
-        shared |= Q(owner_id=membership.id)
+    def _compute() -> set[uuid.UUID]:
+        membership = current_membership()
+        shared = Q(is_joint=True) | Q(policy__in=VISIBLE_TO_HOUSEHOLD)
+        if membership is not None:
+            # Your own accounts are always yours to see, whatever the policy says.
+            shared |= Q(owner_id=membership.id)
+        return (
+            set(AccountSharing.objects.filter(shared).values_list("financial_account_id", flat=True))
+            | _unregistered_account_ids()
+        )
 
-    return (
-        set(AccountSharing.objects.filter(shared).values_list("financial_account_id", flat=True))
-        | _unregistered_account_ids()
-    )
+    # Three queries behind this, and a listing consults it for the queryset and
+    # again for each lookup by id.
+    return cached_per_tenant_scope("visible_accounts", _compute)
 
 
 def _unregistered_account_ids() -> set[uuid.UUID]:
@@ -188,4 +207,6 @@ def ensure_sharing_rows(*, default_policy: str | None = None) -> int:
     for account in FinancialAccount.objects.exclude(id__in=registered):
         AccountSharing.objects.create(financial_account=account, policy=policy, is_joint=False, owner=None)
         created += 1
+    if created:
+        invalidate_tenant_scope_cache("visible_accounts")
     return created

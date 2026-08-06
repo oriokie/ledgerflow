@@ -223,6 +223,12 @@ class AccountSharingView(TenantScopedAPIView, APIView):
             # Claiming an unowned, non-joint account makes you its owner.
             sharing.owner = membership
         sharing.save()
+        # The visible-account set is memoised for the life of this request;
+        # changing a policy here must not leave a later read serving the answer
+        # from before the change.
+        from apps.common.tenant_context import invalidate_tenant_scope_cache
+
+        invalidate_tenant_scope_cache("visible_accounts")
         return Response(_sharing_out(sharing))
 
 
