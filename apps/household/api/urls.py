@@ -4,13 +4,18 @@ from django.urls import path
 
 from .views import (
     AccountSharingView,
+    ApprovalRuleView,
     ChangeRequestListView,
     ChangeRequestResolveView,
+    ContributionView,
     DependantDetailView,
     DependantListView,
+    HouseholdActivityView,
     HouseholdMembersView,
     HouseholdSummaryView,
     SharingBackfillView,
+    SpendApprovalDetailView,
+    SpendApprovalListView,
 )
 
 urlpatterns = [
@@ -26,5 +31,12 @@ urlpatterns = [
         "change-requests/<uuid:request_id>/<slug:action>/",
         ChangeRequestResolveView.as_view(),
         name="change-request-resolve",
+    ),
+    path("contributions/", ContributionView.as_view(), name="household-contributions"),
+    path("activity/", HouseholdActivityView.as_view(), name="household-activity"),
+    path("approval-rules/", ApprovalRuleView.as_view(), name="household-approval-rules"),
+    path("approvals/", SpendApprovalListView.as_view(), name="household-approvals"),
+    path(
+        "approvals/<uuid:approval_id>/", SpendApprovalDetailView.as_view(), name="household-approval-detail"
     ),
 ]

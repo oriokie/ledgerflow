@@ -15,6 +15,7 @@ import "./styles/components.css";
 import "./styles/app.css";
 import "./styles/auth.css";
 import "./styles/ui.css";
+import "./styles/household.css";
 import "./styles/shell.css";
 import "./styles/dashboard.css";
 import "./styles/cashflow-calendar.css";

@@ -1,6 +1,11 @@
 import { Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../api/client";
+import { activityApi, approvalApi, contributionApi } from "../api/household";
+import type { ActivityEvent, ContributionOverview, SpendApproval } from "../api/household";
+import { ActivityCard } from "./household/ActivityCard";
+import { ApprovalsCard } from "./household/ApprovalsCard";
+import { ContributionCard } from "./household/ContributionCard";
 import type {
   ChangeRequest,
   Dependant,
@@ -266,19 +271,32 @@ export function HouseholdPage() {
   const [summary, setSummary] = useState<HouseholdSummary | null>(null);
   const [dependants, setDependants] = useState<Dependant[]>([]);
   const [requests, setRequests] = useState<ChangeRequest[]>([]);
+  const [contributions, setContributions] = useState<ContributionOverview | null>(null);
+  const [approvals, setApprovals] = useState<SpendApproval[]>([]);
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const [s, d, r] = await Promise.all([
+      // Settled rather than all-or-nothing: these are independent surfaces,
+      // and a household should not lose its net worth because the activity
+      // feed timed out.
+      const [s, d, r, c, a, ev] = await Promise.allSettled([
         householdApi.summary(),
         householdApi.dependants(),
         changeRequestApi.list(),
+        contributionApi.get(),
+        approvalApi.list("pending"),
+        activityApi.list({ limit: 12 }),
       ]);
-      setSummary(s);
-      setDependants(d.results);
-      setRequests(r.results);
+      if (s.status === "rejected") throw s.reason;
+      setSummary(s.value);
+      if (d.status === "fulfilled") setDependants(d.value.results);
+      if (r.status === "fulfilled") setRequests(r.value.results);
+      if (c.status === "fulfilled") setContributions(c.value);
+      if (a.status === "fulfilled") setApprovals(a.value);
+      if (ev.status === "fulfilled") setActivity(ev.value);
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Couldn't load the household.");
@@ -359,6 +377,18 @@ export function HouseholdPage() {
           <Members summary={summary} />
           <Dependants items={dependants} onChanged={load} />
         </Grid>
+
+        {/* What the two of you act on, above the aggregates that give it
+            context. Approvals and activity share a column because both are
+            feeds; the split is the decision and gets the width. */}
+        <div className="lf-household-grid">
+          <Stack gap={4}>
+            {contributions && <ContributionCard data={contributions} onChanged={load} />}
+            <ApprovalsCard items={approvals} onChanged={load} />
+          </Stack>
+          <ActivityCard events={activity} />
+        </div>
+
 
         <Approvals items={requests} onChanged={load} />
 

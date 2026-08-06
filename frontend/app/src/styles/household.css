@@ -1,0 +1,126 @@
+/* Couple Mode — the household dashboard.
+ *
+ * Warm and collaborative rather than administrative: this screen is two people
+ * looking at their money together, and the visual register should be closer to
+ * a shared planner than to a bank statement. Only canonical breakpoints
+ * (480/640/768/1024/1280/1600) — `scripts/check_style_tokens.py` enforces it.
+ */
+
+/* --- the split bar: who covers what, at a glance ----------------------- */
+.lf-split-bar {
+  display: flex;
+  width: 100%;
+  height: 10px;
+  border-radius: var(--lf-radius-full);
+  overflow: hidden;
+  background: var(--lf-bg-subtle);
+  gap: 2px;
+}
+
+.lf-split-seg {
+  height: 100%;
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Distinct without being a traffic light: this is a division of labour, not a
+   scale of good to bad, so the segments must not read as ranked. */
+.lf-split-seg--0 { background: var(--lf-accent); }
+.lf-split-seg--1 { background: var(--lf-chart-3); }
+.lf-split-seg--2 { background: var(--lf-chart-4); }
+.lf-split-seg--3 { background: var(--lf-chart-5); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-split-seg { transition: none; }
+}
+
+.lf-contrib-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+}
+
+.lf-fair-line {
+  display: block;
+}
+
+/* --- approvals --------------------------------------------------------- */
+.lf-approval {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-3);
+  border: 1px solid var(--lf-border);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-surface);
+}
+
+.lf-approval-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+}
+
+.lf-approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-2);
+}
+
+/* --- the activity timeline --------------------------------------------- */
+.lf-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+}
+
+.lf-timeline-item {
+  position: relative;
+  display: flex;
+  gap: var(--lf-space-3);
+  padding-inline-start: var(--lf-space-3);
+}
+
+/* The connecting line is drawn from the dot rather than as a border on the
+   item, so the last entry does not trail off into nothing. */
+.lf-timeline-item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  inset-block: 14px -14px;
+  inset-inline-start: 3px;
+  width: 1px;
+  background: var(--lf-border);
+}
+
+.lf-timeline-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  margin-block-start: 6px;
+  margin-inline-start: -13px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-accent);
+}
+
+.lf-timeline-private {
+  color: var(--lf-text-tertiary);
+  vertical-align: baseline;
+}
+
+/* --- layout ------------------------------------------------------------ */
+.lf-household-grid {
+  display: grid;
+  gap: var(--lf-space-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .lf-household-grid {
+    grid-template-columns: 3fr 2fr;
+    align-items: start;
+  }
+}
