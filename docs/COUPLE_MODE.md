@@ -431,10 +431,11 @@ relationship, and a product that editorialises there will be uninstalled.
 | Privacy / sharing policies | **built** (pre-existing) |
 | Change-request approvals | **built** (pre-existing, policy-triggered) |
 | Dependants | **built** (pre-existing) |
-| Contribution engine, 4 modes + fairness | **built, this phase** |
-| Audit trail | **built, this phase** |
-| Approval thresholds, comments, expiry, suggestions | **built, this phase** |
-| Transaction-level privacy | **built, this phase** |
+| Contribution engine, 4 modes + fairness | **built** |
+| Audit trail | **built** |
+| Approval thresholds, comments, expiry, suggestions | **built** |
+| Transaction-level privacy | **built** |
+| Household dashboard (split, approvals, activity) | **built, this phase** |
 | Monthly financial meeting | designed, not built |
 | Per-member health scores | not built |
 | Couple AI coach, calendar, gamification | not built |
