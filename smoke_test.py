@@ -99,7 +99,14 @@ ok(
     f"no tenant header -> {no_tenant.status_code} {no_tenant.json()}",
 )
 
-# 5. Alice creates a ledger account inside her tenant (exercises RLS SET LOCAL + double-entry service).
+# 5. Baseline each tenant's accounts before Alice adds hers. Workspace creation
+#    auto-seeds default category accounts, so the baseline count isn't 0 — but
+#    it's the same set both before and after, which is what RLS isolation
+#    actually promises.
+bob_accs_before = client.get("/api/v1/ledger/accounts/", **auth(bob_access, bob_tenant)).json()
+alice_accs_before = client.get("/api/v1/ledger/accounts/", **auth(alice_access, alice_tenant)).json()
+
+# 6. Alice creates a ledger account inside her tenant (exercises RLS SET LOCAL + double-entry service).
 acc1 = client.post(
     "/api/v1/ledger/accounts/",
     {"name": "Checking", "kind": "asset", "currency": "USD"},
@@ -107,32 +114,40 @@ acc1 = client.post(
     **auth(alice_access, alice_tenant),
 )
 ok(acc1.status_code == 201, f"alice create account -> {acc1.status_code} {acc1.content[:300]}")
+alice_new_account_id = acc1.json()["id"]
 
-# 6. Bob cannot see Alice's tenant's accounts even if (hypothetically) he guessed the tenant id,
+# 7. Bob cannot see Alice's tenant's accounts even if (hypothetically) he guessed the tenant id,
 #    because IsTenantMember checks membership before RLS is even reached.
 cross = client.get("/api/v1/ledger/accounts/", **auth(bob_access, alice_tenant))
 ok(cross.status_code == 403, f"bob probing alice's tenant -> {cross.status_code} {cross.json()}")
 
-# 7. Bob lists accounts in HIS OWN tenant -> RLS must show zero of Alice's rows.
+# 8. Bob lists accounts in HIS OWN tenant -> RLS must show none of Alice's rows,
+#    and his own list must be untouched by what Alice just did.
 bob_accs = client.get("/api/v1/ledger/accounts/", **auth(bob_access, bob_tenant))
+bob_ids = {a["id"] for a in bob_accs.json()} if bob_accs.status_code == 200 else set()
 ok(
-    bob_accs.status_code == 200 and bob_accs.json() == [],
-    f"bob's tenant sees 0 accounts (RLS) -> {bob_accs.json()}",
+    bob_accs.status_code == 200
+    and alice_new_account_id not in bob_ids
+    and bob_accs.json() == bob_accs_before,
+    f"bob's tenant sees none of alice's accounts (RLS) -> {bob_accs.json()}",
 )
 
-# 8. Alice sees exactly her own account.
+# 9. Alice sees her own new account plus exactly what she had before it -- nothing more.
 alice_accs = client.get("/api/v1/ledger/accounts/", **auth(alice_access, alice_tenant))
+alice_ids = {a["id"] for a in alice_accs.json()} if alice_accs.status_code == 200 else set()
 ok(
-    alice_accs.status_code == 200 and len(alice_accs.json()) == 1,
-    f"alice sees her 1 account -> {alice_accs.json()}",
+    alice_accs.status_code == 200
+    and alice_new_account_id in alice_ids
+    and len(alice_accs.json()) == len(alice_accs_before) + 1,
+    f"alice sees her new account plus her prior {len(alice_accs_before)} -> {alice_accs.json()}",
 )
 
-# 9. Token refresh works. Rotation blacklists the old refresh and issues a new one.
+# 10. Token refresh works. Rotation blacklists the old refresh and issues a new one.
 refresh = client.post("/api/v1/auth/refresh/", {"refresh": alice_refresh}, content_type="application/json")
 ok(refresh.status_code == 200 and "access" in refresh.json(), f"token refresh -> {refresh.status_code}")
 rotated_refresh = refresh.json()["refresh"]
 
-# 10. Logout blacklists the (rotated) refresh token; reusing it must fail.
+# 11. Logout blacklists the (rotated) refresh token; reusing it must fail.
 logout = client.post(
     "/api/v1/auth/logout/",
     {"refresh": rotated_refresh},
@@ -143,7 +158,7 @@ ok(logout.status_code == 204, f"logout -> {logout.status_code}")
 reuse = client.post("/api/v1/auth/refresh/", {"refresh": rotated_refresh}, content_type="application/json")
 ok(reuse.status_code == 401, f"blacklisted refresh rejected -> {reuse.status_code}")
 
-# 11. Health check + OpenAPI schema are up.
+# 12. Health check + OpenAPI schema are up.
 health = client.get("/healthz/")
 ok(health.status_code == 200, f"health check -> {health.status_code}")
 schema = client.get("/api/schema/")
