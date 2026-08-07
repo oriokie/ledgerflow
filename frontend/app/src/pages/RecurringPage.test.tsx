@@ -52,8 +52,12 @@ describe("RecurringPage", () => {
     // Insight nudge mentions the count
     expect(screen.getByText(/2 subscriptions costing about/i)).toBeInTheDocument();
     // Priciest first
-    expect(screen.getByText("Gym")).toBeInTheDocument();
+    const gymRow = screen.getByText("Gym").closest(".lf-sub-row");
+    expect(gymRow).toBeInTheDocument();
     expect(screen.getByText("Netflix")).toBeInTheDocument();
-    expect(screen.getByText("$40.00/mo")).toBeInTheDocument();
+    // Money renders the cents in their own span (see Money's ".lf-amount-cents"
+    // convention, ui/Figure.test.tsx), so the figure is split across nodes —
+    // check the row's cost text rather than a single getByText string match.
+    expect(gymRow?.querySelector(".lf-sub-cost-main")?.textContent).toBe("$40.00/mo");
   });
 });

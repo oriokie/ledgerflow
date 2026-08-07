@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ApiError } from "../../api/client";
 import type { PlatformSetting } from "../../api/platform";
@@ -17,6 +17,7 @@ import {
   useToast,
 } from "../../ui";
 import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { ReasonDialog } from "../../components/admin/AdminShell";
 import { Illustration, ILLUSTRATION_STYLES } from "../../ui/illustration";
 
 const GROUP_LABELS: Record<string, string> = {
@@ -26,6 +27,18 @@ const GROUP_LABELS: Record<string, string> = {
   ai: "AI",
   operations: "Operations",
 };
+
+/** Fixed display order. Deriving this from whatever groups a given API
+ * response happens to include would let the sections reshuffle between
+ * visits — GROUP_LABELS is already a fixed sequence, so it doubles as one. */
+const GROUP_ORDER = Object.keys(GROUP_LABELS);
+
+/** Groups where a save can rotate a credential or flip a gate that changes
+ * what customers can do or where their data goes — the same bar as a Plan
+ * edit or a Tenant action, so they go through a reason prompt instead of
+ * straight to the API. Left ungated, the backend logs only the generic
+ * "Updated {key}.", which is indistinguishable from no audit trail at all. */
+const REASON_REQUIRED_GROUPS = new Set(["payments", "email", "ai"]);
 
 const GROUP_NOTES: Record<string, string> = {
   invoicing:
@@ -79,7 +92,7 @@ function SettingRow({
 }: {
   setting: PlatformSetting;
   disabled: boolean;
-  onSave: (key: string, value: unknown) => Promise<void>;
+  onSave: (key: string, value: unknown, label: string) => Promise<void>;
 }) {
   const isSecret = setting.kind === "secret";
   const [draft, setDraft] = useState<string>(
@@ -96,7 +109,7 @@ function SettingRow({
   }, [setting.value, dirty]);
 
   const commit = async (value: unknown) => {
-    await onSave(setting.key, value);
+    await onSave(setting.key, value, setting.label);
     setDirty(false);
     if (isSecret) setDraft("");
   };
@@ -208,24 +221,70 @@ export function AdminSettingsPage() {
   const write = useWriteSetting();
   const toast = useToast();
   const [error, setError] = useState<string | null>(null);
+  const [pendingSave, setPendingSave] = useState<{ key: string; value: unknown; label: string } | null>(
+    null,
+  );
+  const [reasonError, setReasonError] = useState<string | null>(null);
+  // The promise callbacks for the save a ReasonDialog is standing in for —
+  // a ref because they are invoked at most once and never rendered.
+  const pendingResolvers = useRef<{ resolve: () => void; reject: (err: unknown) => void } | null>(null);
 
   const editable = can("staff.manage");
 
   if (isLoading && !data) return <LoadingBlock label="Loading settings…" />;
 
   const settings = data?.settings ?? [];
-  const groups = [...new Set(settings.map((s) => s.group))];
+  const presentGroups = new Set(settings.map((s) => s.group));
+  const groups = [
+    ...GROUP_ORDER.filter((g) => presentGroups.has(g)),
+    ...[...presentGroups].filter((g) => !GROUP_ORDER.includes(g)),
+  ];
 
-  const save = async (key: string, value: unknown) => {
+  const save = async (key: string, value: unknown, reason?: string) => {
     setError(null);
     try {
-      await write.mutateAsync({ key, value });
+      const payload: { key: string; value: unknown; reason?: string } = { key, value };
+      if (reason) payload.reason = reason;
+      await write.mutateAsync(payload);
       toast(value === null ? "Reset to environment value" : "Saved", { tone: "success" });
     } catch (err) {
       const message = err instanceof ApiError ? err.detail : "Could not save.";
       setError(message);
       throw err;
     }
+  };
+
+  /** Payments, email and AI saves route through the reason prompt; everything
+   * else saves the moment it's changed, as before. Returns a promise that
+   * settles once the dialog is confirmed (and the save lands) or cancelled,
+   * so SettingRow's own dirty/draft bookkeeping stays correct either way. */
+  const requestSave = (group: string) => (key: string, value: unknown, label: string) => {
+    if (!REASON_REQUIRED_GROUPS.has(group)) return save(key, value);
+    setReasonError(null);
+    return new Promise<void>((resolve, reject) => {
+      pendingResolvers.current = { resolve, reject };
+      setPendingSave({ key, value, label });
+    });
+  };
+
+  const confirmPendingSave = async (reason: string) => {
+    if (!pendingSave) return;
+    try {
+      await save(pendingSave.key, pendingSave.value, reason);
+      pendingResolvers.current?.resolve();
+      pendingResolvers.current = null;
+      setPendingSave(null);
+    } catch (err) {
+      setReasonError(err instanceof ApiError ? String(err.detail) : "Could not save.");
+      // Leave the dialog open so the operator can retry without redoing the edit.
+    }
+  };
+
+  const cancelPendingSave = () => {
+    pendingResolvers.current?.reject(new Error("Save cancelled"));
+    pendingResolvers.current = null;
+    setPendingSave(null);
+    setReasonError(null);
   };
 
   return (
@@ -258,7 +317,7 @@ export function AdminSettingsPage() {
                   key={setting.key}
                   setting={setting}
                   disabled={!editable || write.isPending}
-                  onSave={save}
+                  onSave={requestSave(group)}
                 />
               ))}
           </div>
@@ -288,6 +347,19 @@ export function AdminSettingsPage() {
           </dd>
         </dl>
       </Card>
+
+      {pendingSave && (
+        <ReasonDialog
+          open
+          title={`Update ${pendingSave.label}`}
+          confirmLabel="Save"
+          pending={write.isPending}
+          error={reasonError}
+          onClose={cancelPendingSave}
+          onConfirm={confirmPendingSave}
+          description="Rotating a credential or changing what customers can use deserves the same justification as any other consequential change here — it's recorded in the audit log."
+        />
+      )}
     </Stack>
   );
 }

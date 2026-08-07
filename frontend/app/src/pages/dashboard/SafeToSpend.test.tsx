@@ -33,7 +33,11 @@ const renderCard = () =>
 describe("SafeToSpend", () => {
   it("shows the figure with the everyday-spending caveat when history exists", () => {
     renderCard();
-    expect(screen.getByText("$234.00")).toBeInTheDocument();
+    // The figure now renders through Figure/Money (certainty="projected"),
+    // which splits the cents into their own span (see Money's
+    // ".lf-amount-cents" convention, ui/Figure.test.tsx) — check the whole
+    // figure value rather than a single getByText string match.
+    expect(document.querySelector(".lf-figure-value")?.textContent).toBe("$234.00");
     expect(screen.getByText(/beyond your usual spending/i)).toBeInTheDocument();
   });
 

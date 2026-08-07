@@ -6,7 +6,7 @@ import { ApiError } from "../../api/client";
 import type { HoldingValuation } from "../../api/types";
 import { useRecordPrice } from "../../hooks/useInvestments";
 import { majorToMinor } from "../../lib/money";
-import { Banner, Button, Grid, Input, Modal, Select, Stack, Text } from "../../ui";
+import { Banner, Button, Grid, Input, Modal, Select, Stack, Text, useToast } from "../../ui";
 
 const schema = z.object({
   security_id: z.string().min(1, "Pick a holding."),
@@ -38,6 +38,7 @@ export function PriceModal({
   holdings: HoldingValuation[];
 }) {
   const recordPrice = useRecordPrice();
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -64,6 +65,7 @@ export function PriceModal({
         price_minor: majorToMinor(Number(values.price)),
         as_of: values.as_of || undefined,
       });
+      toast("Price updated");
       reset();
       onClose();
     } catch (err) {

@@ -51,15 +51,41 @@ export function DoodleGrowth(props: DoodleProps) {
 /** Two people, one lock: the auth surface. */
 export function DoodleShield(props: DoodleProps) {
   const ids = useDoodleIds();
-  const shield = "M118 44c11 7 21 10 29 10v27c0 19-13 30-29 37-16-7-29-18-29-37V54c8 0 18-3 29-10z";
+  const shield = "M118 38c12 8 23 12 32 12v30c0 21-14 33-32 40-18-7-32-19-32-40V50c9 0 20-4 32-12z";
   return (
     <DoodleScene {...props} ids={ids}>
-      <Wash tone={props.tone}>
+      <Wash tone={props.tone} rotate={2}>
         <path d={shield} />
       </Wash>
-      <path d={shield} />
-      <path d="M105 82l9 9 17-19" />
-      <Figure x={50} y={104} arms="up" tilt={2} scale={0.94} />
+      <path d={shield} transform="rotate(1.5 118 70)" />
+
+      {/* The lock — what the two people are gathered around. */}
+      <Wash tone={props.tone} dx={2} dy={4} rotate={-1}>
+        <rect x="102" y="66" width="32" height="26" rx="7" />
+        <path d="M110 66v-12a8 8 0 0116 0v12" />
+      </Wash>
+      <g transform="rotate(-1.5 118 78)">
+        <path d="M110 66v-12a8 8 0 0116 0v12" />
+        <rect x="102" y="66" width="32" height="26" rx="7" />
+        <circle cx="118" cy="78" r="4.5" />
+        <path d="M118 82v5" strokeWidth="2.6" />
+      </g>
+
+      {/* Verified — the check sits on the lock, not the shield outline. */}
+      <path d="M108 88l7 7 14-16" strokeWidth="3" opacity="0.85" />
+
+      {/* A dotted path back in: "welcome back" without spelling it out. */}
+      <path
+        d="M62 92c18-10 32-12 46-8"
+        strokeWidth="2.6"
+        opacity="0.42"
+        strokeDasharray="5 7"
+      />
+      <path d="M92 48v5M89 50.5h6" strokeWidth="2.4" opacity="0.5" />
+      <path d="M152 52l5-5" strokeWidth="2.4" opacity="0.45" />
+
+      <Figure x={38} y={104} arms="wave" tilt={-4} scale={0.96} />
+      <Figure x={162} y={106} arms="point" tilt={3} scale={0.9} flip />
     </DoodleScene>
   );
 }
@@ -223,6 +249,23 @@ export function DoodleBroken(props: DoodleProps) {
       <rect x="92" y="84" width="30" height="26" rx="7" transform="rotate(-11 92 84)" />
       <rect x="130" y="86" width="30" height="26" rx="7" transform="rotate(9 130 86)" />
       <Figure x={50} y={104} arms="up" tilt={-4} />
+    </DoodleScene>
+  );
+}
+
+/** Two people, under one roof. */
+export function DoodleTogether(props: DoodleProps) {
+  const ids = useDoodleIds();
+  const roof = "M56 84c8-26 30-40 44-40s36 14 44 40";
+  return (
+    <DoodleScene {...props} ids={ids}>
+      <Wash tone={props.tone}>
+        <path d={`${roof}v6H56z`} />
+      </Wash>
+      <path d={roof} />
+      <path d="M66 84v-2M134 84v-2" strokeWidth="2.6" opacity="0.5" />
+      <Figure x={78} y={112} arms="wave" tilt={-2} />
+      <Figure x={112} y={112} arms="point" tilt={2} flip />
     </DoodleScene>
   );
 }

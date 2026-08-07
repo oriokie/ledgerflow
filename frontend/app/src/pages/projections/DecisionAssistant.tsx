@@ -8,10 +8,13 @@ import { Badge, Banner, Button, Card, FormField, Input, Select, Stack, Text } fr
 /** Money fields are typed in whole units; rates as percentages. Same rule as
  * the scenario builder, and for the same reason: people say "5,000", not
  * "500000", and "9%", not "0.09". */
+function isMoney(name: string) {
+  return name.endsWith("_minor");
+}
 function toWire(name: string, raw: string): number {
   const n = Number(raw);
   if (Number.isNaN(n)) return 0;
-  if (name.endsWith("_minor")) return Math.round(n * 100);
+  if (isMoney(name)) return Math.round(n * 100);
   if (name.endsWith("_rate") || name.endsWith("_return")) return n / 100;
   return n;
 }
@@ -237,6 +240,7 @@ export function DecisionAssistant() {
                   type="number"
                   step="any"
                   required={field.required}
+                  amount={isMoney(field.name)}
                   value={values[field.name] ?? ""}
                   onChange={(e) => setValues({ ...values, [field.name]: e.target.value })}
                 />

@@ -463,6 +463,40 @@ export function BrokenScene(props: SceneProps) {
   );
 }
 
+/** Two masses, sharing one lit middle: a household. */
+export function TogetherScene(props: SceneProps) {
+  const ids = useSceneIds();
+  return (
+    <ClayScene {...props} ids={ids}>
+      <Occlusion ids={ids}>
+        <circle cx="82" cy="84" r="38" fill="var(--lf-text-primary)" />
+      </Occlusion>
+
+      {/* Two forms of the same material leaning into one shared space, rather
+          than two figures holding hands — the household is the overlap
+          itself, not either side alone. */}
+      <circle cx="122" cy="86" r="36" fill={`url(#${ids.bodySoft})`} />
+      <circle cx="82" cy="84" r="38" fill={`url(#${ids.body})`} />
+
+      {/* The shared middle, lit rather than merely overlapped, so the eye
+          reads it as the point of the drawing and not an accident of where
+          two circles happen to cross. */}
+      <circle cx="103" cy="85" r="19" fill={`url(#${ids.face})`} opacity="0.82" />
+      <circle cx="103" cy="85" r="19" fill={`url(#${ids.inset})`} opacity="0.16" />
+
+      <path
+        d="M66 66a38 38 0 0121-10"
+        fill="none"
+        stroke="var(--lf-bg-surface)"
+        strokeWidth="4"
+        strokeLinecap="round"
+        opacity="0.5"
+      />
+      <Rim ids={ids} d="M46 100a38 38 0 0028 30" />
+    </ClayScene>
+  );
+}
+
 /** A considered signal: the AI insight surfaces. */
 export function InsightScene(props: SceneProps) {
   const ids = useSceneIds();

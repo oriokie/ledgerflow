@@ -10,7 +10,7 @@ import {
   useVoidTransaction,
 } from "../../hooks/useFinance";
 import { majorToMinor } from "../../lib/money";
-import { Badge, Banner, Button, Chip, Divider, Grid, Inline, Input, Modal, Money, Select, Stack, Text } from "../../ui";
+import { Badge, Banner, Button, Chip, ConfirmAction, Divider, Grid, Inline, Input, Modal, Money, Select, Stack, Text } from "../../ui";
 import { ReceiptManager } from "./ReceiptManager";
 
 export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose: () => void }) {
@@ -195,9 +195,7 @@ export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose:
       {txn.status === "posted" && (
         <div style={{ marginTop: "var(--lf-space-5)" }}>
           <Divider />
-          <Button variant="danger" onClick={doVoid} loading={voidTxn.isPending}>
-            Void transaction
-          </Button>
+          <ConfirmAction label="Void transaction" confirmLabel="Void" cancelLabel="Keep" onConfirm={doVoid} />
           <Text tone="tertiary" size="sm" style={{ marginTop: "var(--lf-space-2)" }}>
             Voiding reverses the posting in the ledger; history is preserved.
           </Text>

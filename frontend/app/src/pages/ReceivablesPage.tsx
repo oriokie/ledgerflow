@@ -1,7 +1,7 @@
 import { HandCoins } from "lucide-react";
 import { useReceivables, useReceivableSummary } from "../hooks/useReceivables";
 import { useOpenOnParam } from "../hooks/useOpenOnParam";
-import { Button, Card, EmptyState, Grid, Figure, PageHeader, Skeleton, Text } from "../ui";
+import { Button, Card, EmptyState, Grid, Figure, PageHeader, SkeletonCard, Text } from "../ui";
 import { CreateReceivableForm, ReceivableRow } from "./receivables";
 
 /**
@@ -45,7 +45,7 @@ export function ReceivablesPage() {
         />
       )}
 
-      {isLoading && <Skeleton width="50%" />}
+      {isLoading && <SkeletonCard />}
 
       {rows && !hasRows && !showCreate && (
         <Card>

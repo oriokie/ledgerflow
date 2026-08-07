@@ -7,7 +7,7 @@ import {
   useWriteOffReceivable,
 } from "../../hooks/useReceivables";
 import { formatAmount } from "../../lib/money";
-import { Button, IconButton, Input, Text } from "../../ui";
+import { Button, ConfirmAction, Input, Text, useToast } from "../../ui";
 import { ageNote } from "./receivablesCopy";
 
 /**
@@ -23,10 +23,10 @@ export function ReceivableRow({ row }: { row: Receivable }) {
   const recordRepayment = useRecordRepayment();
   const writeOff = useWriteOffReceivable();
   const remove = useDeleteReceivable();
+  const toast = useToast();
 
   const [paying, setPaying] = useState(false);
   const [amount, setAmount] = useState("");
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const age = ageNote(row);
@@ -47,6 +47,12 @@ export function ReceivableRow({ row }: { row: Receivable }) {
     });
     setAmount("");
     setPaying(false);
+    toast("Repayment recorded", { tone: "success" });
+  };
+
+  const submitWriteOff = async () => {
+    await writeOff.mutateAsync(row.id);
+    toast(`Wrote off ${row.counterparty}`, { tone: "success" });
   };
 
   return (
@@ -97,52 +103,39 @@ export function ReceivableRow({ row }: { row: Receivable }) {
         )}
       </div>
 
-      {confirmDelete ? (
-        <span className="lf-sub-actions" style={{ alignItems: "center", gap: "var(--lf-space-2)" }}>
-          <Button
-            variant="danger"
-            size="sm"
-            loading={remove.isPending}
-            onClick={() => remove.mutate(row.id)}
-          >
-            Delete
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
-            Keep
-          </Button>
-        </span>
-      ) : (
-        <span className="lf-sub-actions">
-          {!isClosed && (
-            <>
-              <Button variant="secondary" size="sm" onClick={() => setPaying((v) => !v)}>
-                Got paid
-              </Button>
-              {/* Writing off keeps the record. That a loan was never repaid is
-                  worth remembering — for the user, and for anyone deciding
-                  whether to lend to that person again. */}
-              <Button
-                variant="ghost"
-                size="sm"
-                loading={writeOff.isPending}
-                onClick={() => writeOff.mutate(row.id)}
-              >
-                Write off
-              </Button>
-            </>
-          )}
-          {row.status === "settled" && (
-            <Text as="span" tone="tertiary" size="sm">
-              <Check size={14} aria-hidden="true" /> Settled
-            </Text>
-          )}
-          <IconButton
-            label={`Delete the record of ${row.counterparty}`}
-            icon={<Trash2 size={15} strokeWidth={1.8} />}
-            onClick={() => setConfirmDelete(true)}
-          />
-        </span>
-      )}
+      <span className="lf-sub-actions">
+        {!isClosed && (
+          <>
+            <Button variant="secondary" size="sm" onClick={() => setPaying((v) => !v)}>
+              Got paid
+            </Button>
+            {/* Writing off keeps the record. That a loan was never repaid is
+                worth remembering — for the user, and for anyone deciding
+                whether to lend to that person again. There's no undo in the
+                UI, so it gets the same two-step confirm as deleting. */}
+            <ConfirmAction
+              label="Write off"
+              confirmLabel="Write off"
+              cancelLabel="Keep"
+              size="sm"
+              onConfirm={submitWriteOff}
+            />
+          </>
+        )}
+        {row.status === "settled" && (
+          <Text as="span" tone="tertiary" size="sm">
+            <Check size={14} aria-hidden="true" /> Settled
+          </Text>
+        )}
+        <ConfirmAction
+          label={`Delete the record of ${row.counterparty}`}
+          icon={<Trash2 size={15} strokeWidth={1.8} />}
+          confirmLabel="Delete"
+          cancelLabel="Keep"
+          size="sm"
+          onConfirm={() => remove.mutateAsync(row.id)}
+        />
+      </span>
     </div>
   );
 }

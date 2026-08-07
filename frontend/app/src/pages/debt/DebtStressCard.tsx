@@ -1,7 +1,7 @@
 import { Info } from "lucide-react";
 import { useState } from "react";
 import type { DebtStress } from "../../api/types";
-import { Text } from "../../ui";
+import { Meter, Text } from "../../ui";
 
 const BAND_LABELS: Record<DebtStress["band"], string> = {
   excellent: "Excellent",
@@ -89,20 +89,7 @@ export function DebtStressCard({ stress }: { stress: DebtStress }) {
           <ul className="lf-stress-components">
             {stress.components.map((component) => (
               <li key={component.key}>
-                <div className="lf-stress-component-head">
-                  <span className="lf-stress-component-label">{component.label}</span>
-                  <span className="lf-stress-component-score">{component.score}</span>
-                </div>
-                <div
-                  className="lf-stress-bar"
-                  role="progressbar"
-                  aria-valuenow={component.score}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={component.label}
-                >
-                  <div className="lf-stress-bar-fill" style={{ width: `${component.score}%` }} />
-                </div>
+                <Meter value={component.score} label={component.label} caption={component.score} />
                 <Text as="span" tone="tertiary" size="xs">
                   {component.detail}
                 </Text>

@@ -24,10 +24,16 @@ function assess(password: string): { score: number; level: Level; hint: string }
   }
   if (score <= 2) return { score: 2, level: "fair", hint: "Add a mix of cases, numbers, or symbols." };
   if (score === 3 || score === 4) return { score: 3, level: "good", hint: "Good — a longer passphrase is even stronger." };
-  return { score: 4, level: "strong", hint: "Strong password." };
+  return { score: 4, level: "strong", hint: "Server-side checks still apply at submit." };
 }
 
-const LABEL: Record<Level, string> = { "": "", weak: "Weak", fair: "Fair", good: "Good", strong: "Strong" };
+const LABEL: Record<Level, string> = {
+  "": "",
+  weak: "Weak",
+  fair: "Fair",
+  good: "Good",
+  strong: "Meets length and complexity",
+};
 
 export function PasswordStrengthMeter({ password }: { password: string }) {
   const { score, level, hint } = useMemo(() => assess(password), [password]);

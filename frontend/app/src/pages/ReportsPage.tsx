@@ -40,7 +40,10 @@ function Report({ meta, filters }: { meta: ReportMeta; filters: ReportFilters })
  */
 /** `embedded` renders this page as a tab panel inside a hub (`/plan`,
  * `/insights`). The hub owns the <h1>, so the page must not render its own
- * PageHeader — two page titles on one route is a broken heading outline. */
+ * PageHeader — two page titles on one route is a broken heading outline.
+ * The period filter and the review link are not part of that title, though,
+ * so they still render when embedded — just in a plain row instead of a
+ * full PageHeader. */
 export function ReportsPage({ embedded }: { embedded?: boolean } = {}) {
   const [group, setGroup] = useState<ReportGroup>("position");
   const [filters, setFilters] = useState<ReportFilters>({ period: "last_12_months" });
@@ -52,20 +55,26 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}) {
     [catalog, group],
   );
 
+  const actions = (
+    <Inline gap={2}>
+      <Link className="lf-section-link" to="/review">
+        Financial review
+      </Link>
+      <ReportFilterBar filters={filters} onChange={setFilters} />
+    </Inline>
+  );
+
   return (
     <>
-      {!embedded && (
+      {embedded ? (
+        <div className="lf-page-header-actions" style={{ justifyContent: "flex-end", marginBottom: "var(--lf-space-4)" }}>
+          {actions}
+        </div>
+      ) : (
         <PageHeader
           title="Reports"
           description="Fourteen views of your money. Pick a period once and it applies to all of them."
-          actions={
-            <Inline gap={2}>
-              <Link className="lf-section-link" to="/review">
-                Financial review
-              </Link>
-              <ReportFilterBar filters={filters} onChange={setFilters} />
-            </Inline>
-          }
+          actions={actions}
         />
       )}
 

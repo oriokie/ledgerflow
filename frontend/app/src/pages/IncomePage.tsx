@@ -1,7 +1,9 @@
 import { Banknote } from "lucide-react";
+import { useState } from "react";
+import { ApiError } from "../api/client";
 import { useDeleteIncomeSource, useIncomeSources, useIncomeSummary } from "../hooks/useIncome";
 import { useOpenOnParam } from "../hooks/useOpenOnParam";
-import { Button, Card, EmptyState, Grid, PageHeader, Skeleton, Stack } from "../ui";
+import { Banner, Button, Card, EmptyState, Grid, PageHeader, Skeleton, Stack } from "../ui";
 import {
   CommittedIncomeCard,
   CreateIncomeSourceForm,
@@ -27,8 +29,18 @@ export function IncomePage() {
   const { data: summary } = useIncomeSummary();
   const deleteSource = useDeleteIncomeSource();
   const [showCreate, setShowCreate] = useOpenOnParam();
+  const [banner, setBanner] = useState<string | null>(null);
 
   const hasSources = (sources?.length ?? 0) > 0;
+
+  const removeSource = async (id: string) => {
+    setBanner(null);
+    try {
+      await deleteSource.mutateAsync(id);
+    } catch (err) {
+      setBanner(err instanceof ApiError ? err.detail : "Couldn't remove that income source.");
+    }
+  };
 
   return (
     <>
@@ -41,6 +53,12 @@ export function IncomePage() {
           </Button>
         }
       />
+
+      {banner && (
+        <Banner tone="danger" onDismiss={() => setBanner(null)}>
+          {banner}
+        </Banner>
+      )}
 
       {showCreate && (
         <CreateIncomeSourceForm
@@ -81,11 +99,7 @@ export function IncomePage() {
       {hasSources && (
         <Grid cols={2} gap={4}>
           {sources!.map((source) => (
-            <IncomeSourceCard
-              key={source.id}
-              source={source}
-              onDelete={(id) => deleteSource.mutate(id)}
-            />
+            <IncomeSourceCard key={source.id} source={source} onDelete={removeSource} />
           ))}
         </Grid>
       )}

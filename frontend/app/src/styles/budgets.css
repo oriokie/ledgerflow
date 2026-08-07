@@ -4,53 +4,25 @@
    per-line rows with inline limit editing.
    ========================================================================== */
 
-/* ---------- progress bar ---------- */
-.lf-budget-track {
-  position: relative;
-  height: 10px;
-  border-radius: var(--lf-radius-full);
-  background: var(--lf-bg-sunken);
-}
-
-.lf-budget-track--lg {
-  height: 14px;
-}
-
-.lf-budget-fill {
-  height: 100%;
-  border-radius: var(--lf-radius-full);
+/* ---------- progress bar ----------
+   Built on ui/Meter (`.lf-meter-track` / `.lf-meter-fill` / `.lf-meter-marker`,
+   the pace tick). These modifiers just layer the budget traffic-light
+   palette on top — under is green, warning amber, over red — and the
+   summary bar's larger track height. */
+.lf-budget-meter--under .lf-meter-fill {
   background: var(--lf-status-success);
-  transition: width var(--lf-duration-base) var(--lf-ease-out);
 }
 
-.lf-budget-fill[data-state="warning"] {
+.lf-budget-meter--warning .lf-meter-fill {
   background: var(--lf-status-warning);
 }
 
-.lf-budget-fill[data-state="over"] {
+.lf-budget-meter--over .lf-meter-fill {
   background: var(--lf-status-danger);
 }
 
-/* the vertical "you are here in the period" marker */
-.lf-budget-pace {
-  position: absolute;
-  top: -3px;
-  bottom: -3px;
-  width: 2px;
-  border-radius: 1px;
-  background: var(--lf-text-secondary);
-  opacity: 0.5;
-}
-
-.lf-budget-pace::after {
-  content: "";
-  position: absolute;
-  top: -3px;
-  left: -2px;
-  width: 6px;
-  height: 6px;
-  border-radius: var(--lf-radius-full);
-  background: var(--lf-text-secondary);
+.lf-budget-meter--lg .lf-meter-track {
+  height: 14px;
 }
 
 .lf-budget-pace-note {

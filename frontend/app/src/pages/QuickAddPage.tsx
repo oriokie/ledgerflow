@@ -1,6 +1,7 @@
 import { Check, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ApiError } from "../api/client";
 import { useAccounts } from "../hooks/useFinance";
 import { usePendingQuickAddCount, useQuickAdd } from "../hooks/useQuickAdd";
 import { majorToMinor } from "../lib/money";
@@ -45,21 +46,31 @@ export function QuickAddPage() {
     if (!canSubmit) return;
 
     const amountMinor = majorToMinor(Number(amount));
-    const outcome = await quickAdd.mutateAsync({ amountMinor, merchant: merchant.trim(), isIncome });
 
-    if (outcome.queued) {
-      toast("Saved — will send once you're back online.", { tone: "info" });
-    } else if (outcome.result) {
-      toast(`Added ${merchant.trim()}`, { tone: "success" });
-      setLastResult({
-        accountName: outcome.result.financial_account_name,
-        categoryName: outcome.result.category_name,
-        categoryInferred: outcome.result.category_was_inferred,
+    try {
+      const outcome = await quickAdd.mutateAsync({ amountMinor, merchant: merchant.trim(), isIncome });
+
+      if (outcome.queued) {
+        toast("Saved — will send once you're back online.", { tone: "info" });
+      } else if (outcome.result) {
+        toast(`Added ${merchant.trim()}`, { tone: "success" });
+        setLastResult({
+          accountName: outcome.result.financial_account_name,
+          categoryName: outcome.result.category_name,
+          categoryInferred: outcome.result.category_was_inferred,
+        });
+      }
+
+      setAmount("");
+      setMerchant("");
+    } catch (err) {
+      // A real validation failure (bad category, non-positive amount) —
+      // distinct from the offline-queue path above, which never reaches
+      // here. Leave the fields as typed so the user can fix and resubmit.
+      toast(err instanceof ApiError ? err.detail : "Couldn't add that — check the details and try again.", {
+        tone: "danger",
       });
     }
-
-    setAmount("");
-    setMerchant("");
   };
 
   const hasAnyAccount = (accounts?.length ?? 0) > 0;
