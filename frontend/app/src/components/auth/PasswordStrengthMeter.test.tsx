@@ -27,8 +27,11 @@ describe("PasswordStrengthMeter", () => {
     expect(levelOf("abcdefghijkl")).toBe("Password strength: Fair");
   });
 
-  it("rates a long mixed password as Strong", () => {
-    expect(levelOf("Abcdef123!ghij")).toBe("Password strength: Strong");
+  it("rates a long mixed password as meeting length and complexity, not overclaiming Strong", () => {
+    // The meter is guidance, not gatekeeping — Django's server-side validators
+    // (common-password, similarity) are the real gate, and this password could
+    // still fail those. See PasswordStrengthMeter.tsx's own doc comment.
+    expect(levelOf("Abcdef123!ghij")).toBe("Password strength: Meets length and complexity");
   });
 
   it("shows a helpful hint alongside the gauge", () => {

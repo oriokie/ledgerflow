@@ -1,7 +1,7 @@
 import { Check, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import type { HealthScore } from "../../api/types";
-import { Button, Card, Meter, Text } from "../../ui";
+import { Button, Card, Figure, Meter, Text } from "../../ui";
 import { healthSummary } from "./insightsCopy";
 
 /** Health as a plain read: a band, one clear strength, and — only if something
@@ -17,12 +17,35 @@ export function HealthSummary({ health }: { health: HealthScore }) {
       <div className="lf-health-head">
         <span className={`lf-health-band lf-tone-${s.tone}`}>{s.bandLabel}</span>
         {/* No score is rendered as no score. Substituting a 0 or a dash-shaped
-            number here would turn "we can't tell you yet" into a verdict. */}
-        {s.score !== null && (
-          <span className="lf-health-score">
-            {s.score}
-            <span style={{ fontSize: "var(--lf-text-sm)", color: "var(--lf-text-tertiary)", fontWeight: 400 }}>/100</span>
-          </span>
+            number here would turn "we can't tell you yet" into a verdict.
+            When the score rests on an incomplete set of components, that's
+            said right next to the number — through Figure's `certainty` —
+            rather than in a caveat the reader has to scroll to find. */}
+        {s.score !== null && s.missing.length > 0 && (
+          <Figure
+            label="Score"
+            value={
+              <>
+                {s.score}
+                <span className="lf-health-score-suffix">/100</span>
+              </>
+            }
+            size="secondary"
+            certainty="speculative"
+            confidence={`Not yet counted: ${s.missing.map((c) => c.name.toLowerCase()).join(", ")}.`}
+          />
+        )}
+        {s.score !== null && s.missing.length === 0 && (
+          <Figure
+            label="Score"
+            value={
+              <>
+                {s.score}
+                <span className="lf-health-score-suffix">/100</span>
+              </>
+            }
+            size="secondary"
+          />
         )}
       </div>
 
@@ -51,12 +74,12 @@ export function HealthSummary({ health }: { health: HealthScore }) {
 
       {/* What the score is still missing, stated plainly. This is the honest
           counterpart to no longer scoring absent data as full marks: the user
-          learns what to record next rather than why their score dropped. */}
-      {s.missing.length > 0 && (
+          learns what to record next rather than why their score dropped.
+          Only needed here when there's no score above to carry the caveat
+          itself — once a score exists, its Figure already says this. */}
+      {s.score === null && s.missing.length > 0 && (
         <Text tone="tertiary" size="sm" style={{ marginTop: "var(--lf-space-2)", display: "block" }}>
-          {s.score === null
-            ? "Once you've recorded a little more, this becomes a score you can rely on. Still needed: "
-            : "Not yet counted: "}
+          Once you've recorded a little more, this becomes a score you can rely on. Still needed:{" "}
           {s.missing.map((c) => c.name.toLowerCase()).join(", ")}.
         </Text>
       )}

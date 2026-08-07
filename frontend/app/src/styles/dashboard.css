@@ -274,7 +274,7 @@
   grid-template-columns: 1fr;
   gap: var(--lf-space-4);
 }
-@media (min-width: 900px) {
+@media (min-width: 1024px) {
   .lf-dash-split {
     grid-template-columns: 3fr 2fr;
   }
@@ -354,12 +354,17 @@
 
    Reusing existing hues also means the contrast and colour-vision floors
    already verified for them continue to hold — no new colour enters the
-   palette here. */
+   palette here. Each of the five gets its own hue: `money` (the general,
+   brand-level figure) takes the primary teal; `spend` takes the same ink the
+   ledger already uses for `--lf-money-out`, so a spend card and a spend
+   figure read as the same idea; `save` keeps the positive green; `debt`
+   keeps the warning amber; `plan` keeps the projection purple. Before this,
+   `money`/`save` and `spend`/`plan` silently shared a hue. */
 .lf-card--accent[data-accent="money"] {
-  --lf-accent-hue: var(--lf-verdant-600);
+  --lf-accent-hue: var(--lf-meridian-600);
 }
 .lf-card--accent[data-accent="spend"] {
-  --lf-accent-hue: var(--lf-horizon-600);
+  --lf-accent-hue: var(--lf-ink-700);
 }
 .lf-card--accent[data-accent="save"] {
   --lf-accent-hue: var(--lf-jade-600);
@@ -428,6 +433,20 @@
   justify-content: space-between;
   gap: var(--lf-space-3);
   margin-bottom: var(--lf-space-4);
+}
+
+/* Qualified with the parent class, not just `.lf-onboard-art` — illustration.css
+   loads after this file and its `.lf-illus-frame { width: 100% }` sits at the
+   same specificity, so an unqualified single-class rule here lost the cascade
+   and the frame filled the whole flex row instead of staying pinned to 72px. */
+.lf-onboard-head .lf-onboard-art {
+  flex: 0 0 auto;
+  width: 72px;
+  margin-top: -8px;
+}
+
+@media (max-width: 479px) {
+  .lf-onboard-art { display: none; }
 }
 
 .lf-onboard-head-main {

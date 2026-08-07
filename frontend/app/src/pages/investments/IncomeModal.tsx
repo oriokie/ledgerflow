@@ -16,6 +16,7 @@ import {
   Select,
   Stack,
   Text,
+  useToast,
 } from "../../ui";
 
 const schema = z.object({
@@ -57,6 +58,7 @@ export function IncomeModal({
 }) {
   const recordInterest = useRecordInterest();
   const recordDividend = useRecordDividend();
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -90,6 +92,7 @@ export function IncomeModal({
     try {
       if (values.kind === "interest") await recordInterest.mutateAsync(payload);
       else await recordDividend.mutateAsync(payload);
+      toast(values.kind === "interest" ? "Interest recorded" : "Dividend recorded");
       reset({ kind: values.kind, occurred_on: values.occurred_on });
       onClose();
     } catch (err) {

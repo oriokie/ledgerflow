@@ -230,6 +230,22 @@ export function MotionBroken(props: MotionProps) {
   );
 }
 
+/** Two trails, one shared pool. */
+export function MotionTogether(props: MotionProps) {
+  const ids = useMotionIds();
+  return (
+    <MotionScene {...props} ids={ids}>
+      <Trail d="M38 60C60 66 70 92 100 96" tone={props.tone} />
+      <Trail d="M162 54C140 62 130 90 100 96" tone={props.tone} />
+      <circle cx="100" cy="98" r="10" fill="var(--lf-action-primary)" fillOpacity="0.22" />
+      <Note x={54} y={50} scale={0.7} delay={0.1} tilt={-8} />
+      <Coin x={148} y={46} delay={0.3} />
+      <Figure x={70} y={128} arms="out" scale={0.86} />
+      <Figure x={130} y={128} arms="out" scale={0.86} flip />
+    </MotionScene>
+  );
+}
+
 /** Following the trail back to what it means. */
 export function MotionInsight(props: MotionProps) {
   const ids = useMotionIds();

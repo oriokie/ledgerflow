@@ -197,6 +197,12 @@
   max-width: 216px;
 }
 
+/* Doodle auth scenes carry two figures and read better with a little more
+   room; clay and motion stay at the default cap. */
+.lf-auth-illus[data-style="doodle"] .lf-illus {
+  max-width: 248px;
+}
+
 /* Line art scales its strokes with the drawing, which is what keeps the
    proportions right — at spot size a 3.4-unit stroke lands near 1px, which is
    thin but legible. `vector-effect: non-scaling-stroke` was tried here and is

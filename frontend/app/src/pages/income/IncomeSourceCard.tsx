@@ -1,7 +1,9 @@
 import { Trash2 } from "lucide-react";
+import { useState } from "react";
 import type { IncomeSource } from "../../api/income";
-import { Badge, Card, ConfirmAction, Figure, FigureRow, Text } from "../../ui";
+import { Badge, Button, Card, ConfirmAction, Figure, FigureRow, Text } from "../../ui";
 import { FREQUENCY_LABEL, KIND_LABEL, RELIABILITY_LABEL } from "./incomeCopy";
+import { RecordReceiptForm } from "./RecordReceiptForm";
 
 /**
  * One income source.
@@ -15,7 +17,7 @@ export function IncomeSourceCard({
   onDelete,
 }: {
   source: IncomeSource;
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => void | Promise<void>;
 }) {
   const {
     currency,
@@ -26,6 +28,8 @@ export function IncomeSourceCard({
     receipt_count,
     is_speculative,
   } = source;
+
+  const [recording, setRecording] = useState(false);
 
   return (
     <Card
@@ -122,6 +126,24 @@ export function IncomeSourceCard({
           }).format(source.stated_net_minor / 100)}
           . The figure above is what you have actually been paid.
         </Text>
+      )}
+
+      {recording ? (
+        <RecordReceiptForm
+          sourceId={source.id}
+          currency={currency}
+          onDone={() => setRecording(false)}
+          onCancel={() => setRecording(false)}
+        />
+      ) : (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setRecording(true)}
+          style={{ marginTop: "var(--lf-space-3)" }}
+        >
+          Record a payment
+        </Button>
       )}
     </Card>
   );

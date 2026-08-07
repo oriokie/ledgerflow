@@ -371,6 +371,21 @@ def create_invitation(
     return invitation, raw_token
 
 
+def get_invitation_preview(*, raw_token: str) -> Invitation:
+    """Look up an invitation by its raw token without redeeming it.
+
+    Lets an invitee see what they're being asked to join -- workspace,
+    inviter, role -- before they commit. Deliberately read-only and doesn't
+    require the caller to be authenticated or to match the invited email:
+    that check only matters at accept time.
+    """
+    token_hash = _hash_token(raw_token)
+    invitation = Invitation.objects.select_related("tenant", "invited_by").filter(token_hash=token_hash).first()
+    if invitation is None or not invitation.is_pending:
+        raise InvalidInvitationError("This invitation is invalid, expired, or has already been used.")
+    return invitation
+
+
 @transaction.atomic
 def accept_invitation(*, raw_token: str, user) -> Membership:
     """Redeem an invitation. Platform staff are barred — see `create_workspace`."""

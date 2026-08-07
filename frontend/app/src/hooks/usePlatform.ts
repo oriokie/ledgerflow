@@ -341,8 +341,12 @@ export function useDunningAction() {
 }
 
 // ----------------------------------------------------------------- governance
-export function usePlatformStaff() {
-  return useQuery({ queryKey: KEYS.staff, queryFn: () => platformApi.staff() });
+export function usePlatformStaff(params: Record<string, unknown> = {}) {
+  return useQuery({
+    queryKey: [...KEYS.staff, params],
+    queryFn: () => platformApi.staff(params),
+    placeholderData: (previous) => previous,
+  });
 }
 
 export function useAppointStaff() {
@@ -410,7 +414,8 @@ export function usePlatformSettings() {
 export function useWriteSetting() {
   const client = useQueryClient();
   return useMutation({
-    mutationFn: (body: { key: string; value: unknown }) => platformApi.writeSetting(body),
+    mutationFn: (body: { key: string; value: unknown; reason?: string }) =>
+      platformApi.writeSetting(body),
     // A settings change can alter what other screens report (AI availability,
     // which providers are offered, the invoice issuer), so refresh broadly.
     onSuccess: () => invalidateAll(client),

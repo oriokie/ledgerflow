@@ -130,8 +130,26 @@ export function AdminShell() {
   const navigate = useNavigate();
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  const { data: alerts } = usePlatformNotifications({ open: "true", page_size: 5 });
-  const openAlertCount = alerts?.count ?? 0;
+  // Matches the severity set AttentionStrip escalates on the dashboard
+  // (critical + warning; `info` alerts are deliberately non-actionable
+  // notices, not something a nav badge should tell an operator to go look
+  // at). The list endpoint only filters on a single exact severity, so this
+  // is two count-only requests summed rather than one — the alternative,
+  // counting every open alert regardless of severity, is exactly the
+  // self-contradiction the Health page was already fixed once for: this
+  // badge could read nonzero while the dashboard says nothing needs
+  // attention.
+  const { data: criticalAlerts } = usePlatformNotifications({
+    open: "true",
+    severity: "critical",
+    page_size: 1,
+  });
+  const { data: warningAlerts } = usePlatformNotifications({
+    open: "true",
+    severity: "warning",
+    page_size: 1,
+  });
+  const openAlertCount = (criticalAlerts?.count ?? 0) + (warningAlerts?.count ?? 0);
 
   const visibleNav = useMemo(() => NAV.filter((entry) => can(entry.capability)), [can]);
 

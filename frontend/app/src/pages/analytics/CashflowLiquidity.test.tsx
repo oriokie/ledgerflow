@@ -23,11 +23,19 @@ describe("CashflowStatement", () => {
     render(<CashflowStatement />);
     expect(screen.getByText(/liquid today/i)).toBeInTheDocument();
     expect(screen.getAllByText("$6,000.00").length).toBeGreaterThan(0); // liquid balance (also an ending row)
-    // Avg monthly net over the 3 active months: (2000 - 1500 + 3500)/3 ≈ +1333.33
-    expect(screen.getByText(/\+\$1,333\.33/)).toBeInTheDocument();
+    // Avg monthly net over the 3 active months: (2000 - 1500 + 3500)/3 ≈ 1333.33.
+    // Money conveys the sign through its own "in"/"out" class and colour, not a
+    // literal "+" prefix — and splits cents into their own span (see Money's
+    // ".lf-amount-cents" convention, ui/Figure.test.tsx), so match on the
+    // whole-figure element rather than a single getByText string.
+    const avgNetFigure = document.querySelector(".lf-amount--in");
+    expect(avgNetFigure).toBeInTheDocument();
+    expect(avgNetFigure?.textContent).toBe("$1,333.33");
     // Column headers + a negative-net month rendered.
     expect(screen.getByRole("columnheader", { name: /ending balance/i })).toBeInTheDocument();
-    expect(screen.getByText("-$1,500.00")).toBeInTheDocument();
+    // Money's minus sign is the typographic U+2212, not an ASCII hyphen.
+    const negativeNetFigure = document.querySelector(".lf-amount--out");
+    expect(negativeNetFigure?.textContent).toBe("−$1,500.00");
     expect(screen.getAllByRole("row")).toHaveLength(4); // header + 3 months
   });
 });

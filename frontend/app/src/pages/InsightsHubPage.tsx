@@ -15,7 +15,8 @@ const VALID = new Set<string>(INSIGHT_TABS.map((t) => t.value));
  * single question, which is why users bounced between them looking for the one
  * that had the answer. The tabs are ordered by how much interpretation each
  * offers: the briefing tells you what it thinks, trends show you the shape,
- * reports give you the raw figures, anomalies flag the outliers.
+ * reports give you the raw figures, health & anomalies round up the score,
+ * the milestones behind it, and the outliers worth a look.
  */
 export function InsightsHubPage() {
   const [params, setParams] = useSearchParams();
@@ -42,7 +43,7 @@ export function InsightsHubPage() {
         {tab === "reports" && <ReportsPage embedded />}
         {/* The old `/insights` page — anomalies and health — is now one tab of
             the destination that took its name. */}
-        {tab === "anomalies" && <InsightsPage />}
+        {tab === "anomalies" && <InsightsPage embedded />}
       </div>
     </>
   );

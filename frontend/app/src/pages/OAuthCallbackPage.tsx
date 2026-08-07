@@ -25,12 +25,24 @@ export function OAuthCallbackPage() {
 
     const code = params.get("code");
     const state = params.get("state");
-    const providerError = params.get("error"); // e.g. user hit "cancel" at the provider
+    const providerError = params.get("error"); // e.g. "access_denied" when the user hit "cancel" at the provider
+    const providerErrorDescription = params.get("error_description");
     const provider = (sessionStorage.getItem("lf_oauth_provider") as OAuthProvider | null) ?? "google";
     sessionStorage.removeItem("lf_oauth_provider");
 
     if (providerError) {
-      setError("Sign-in was cancelled.");
+      if (providerError === "access_denied") {
+        // The user declined consent at the provider - not a failure, no need to alarm them.
+        setError("Sign-in was cancelled.");
+      } else {
+        // Provider-side error (misconfigured client, provider outage, etc.) - distinct from
+        // a user decision, so say so and pass along whatever detail the provider gave us.
+        setError(
+          providerErrorDescription
+            ? `Something went wrong with sign-in: ${providerErrorDescription}`
+            : "Something went wrong with sign-in. Please try again."
+        );
+      }
       return;
     }
     if (!code || !state) {

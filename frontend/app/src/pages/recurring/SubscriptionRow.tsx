@@ -1,8 +1,8 @@
 import { Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Category, RecurringTransaction } from "../../api/types";
-import { formatAmount, formatDate } from "../../lib/money";
-import { Button, IconButton } from "../../ui";
+import { formatDate } from "../../lib/money";
+import { ConfirmAction, IconButton, Money } from "../../ui";
 import { annualMinor, cadenceLabel, monthlyMinor, recurringLabel } from "./recurringMath";
 
 /**
@@ -28,7 +28,6 @@ export function SubscriptionRow({
   const monthly = monthlyMinor(rec);
   const annual = annualMinor(rec);
   const isIncome = rec.txn_type === "income";
-  const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -37,7 +36,6 @@ export function SubscriptionRow({
       await fn();
     } finally {
       setBusy(false);
-      setConfirm(false);
     }
   };
 
@@ -53,36 +51,37 @@ export function SubscriptionRow({
       </div>
 
       <div className="lf-sub-cost">
-        <div className="lf-sub-cost-main">{formatAmount(monthly, rec.currency)}/mo</div>
-        <div className="lf-sub-cost-sub">{formatAmount(annual, rec.currency)}/yr</div>
+        <div className="lf-sub-cost-main">
+          <Money amountMinor={monthly} currency={rec.currency} neutral />/mo
+        </div>
+        <div className="lf-sub-cost-sub">
+          <Money amountMinor={annual} currency={rec.currency} neutral />/yr
+        </div>
       </div>
 
-      {confirm ? (
-        <span className="lf-sub-actions" style={{ alignItems: "center", gap: "var(--lf-space-2)" }}>
-          <Button variant="danger" size="sm" loading={busy} onClick={() => run(() => onCancel(rec.id))}>
-            Cancel
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setConfirm(false)}>
-            Keep
-          </Button>
-        </span>
-      ) : (
-        <span className="lf-sub-actions">
-          {onEdit && (
-            <IconButton
-              label={`Edit ${label}`}
-              icon={<Pencil size={15} strokeWidth={1.8} />}
-              onClick={() => onEdit(rec)}
-            />
-          )}
+      <span className="lf-sub-actions">
+        {onEdit && (
           <IconButton
-            label={rec.is_active ? `Pause ${label}` : `Resume ${label}`}
-            icon={rec.is_active ? <Pause size={15} strokeWidth={1.8} /> : <Play size={15} strokeWidth={1.8} />}
-            onClick={() => run(() => onSetActive(rec.id, !rec.is_active))}
+            label={`Edit ${label}`}
+            icon={<Pencil size={15} strokeWidth={1.8} />}
+            onClick={() => onEdit(rec)}
           />
-          <IconButton label={`Cancel ${label}`} icon={<Trash2 size={15} strokeWidth={1.8} />} onClick={() => setConfirm(true)} />
-        </span>
-      )}
+        )}
+        <IconButton
+          label={rec.is_active ? `Pause ${label}` : `Resume ${label}`}
+          icon={rec.is_active ? <Pause size={15} strokeWidth={1.8} /> : <Play size={15} strokeWidth={1.8} />}
+          onClick={() => run(() => onSetActive(rec.id, !rec.is_active))}
+          disabled={busy}
+        />
+        <ConfirmAction
+          label={`Cancel ${label}`}
+          icon={<Trash2 size={15} strokeWidth={1.8} />}
+          confirmLabel="Cancel"
+          cancelLabel="Keep"
+          size="sm"
+          onConfirm={() => onCancel(rec.id)}
+        />
+      </span>
     </div>
   );
 }

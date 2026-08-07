@@ -1,5 +1,5 @@
 import { useCashflowStatement } from "../../hooks/useFinance";
-import { Card, EmptyState, SkeletonCard } from "../../ui";
+import { Card, EmptyState, Money, SkeletonCard } from "../../ui";
 import { Droplets } from "lucide-react";
 import { formatAmount } from "../../lib/money";
 
@@ -41,11 +41,7 @@ export function CashflowStatement() {
         {activeMonths.length > 1 && (
           <>
             {" "}
-            · Avg monthly net:{" "}
-            <strong style={{ color: avgNet < 0 ? "var(--lf-status-danger)" : "var(--lf-status-success)" }}>
-              {avgNet > 0 ? "+" : avgNet < 0 ? "-" : ""}
-              {formatAmount(avgNet, currency)}
-            </strong>
+            · Avg monthly net: <Money amountMinor={avgNet} currency={currency} />
           </>
         )}
       </p>
@@ -66,12 +62,8 @@ export function CashflowStatement() {
                 <th scope="row">{monthLabel(r.period_start)}</th>
                 <td>{formatAmount(r.inflow_minor, currency)}</td>
                 <td>{formatAmount(r.outflow_minor, currency)}</td>
-                <td
-                 
-                  style={{ color: r.net_minor < 0 ? "var(--lf-status-danger)" : "var(--lf-status-success)" }}
-                >
-                  {r.net_minor > 0 ? "+" : r.net_minor < 0 ? "-" : ""}
-                  {formatAmount(r.net_minor, currency)}
+                <td>
+                  <Money amountMinor={r.net_minor} currency={currency} />
                 </td>
                 <td>{r.ending_balance_minor < 0 ? "-" : ""}{formatAmount(r.ending_balance_minor, currency)}</td>
               </tr>

@@ -117,10 +117,9 @@
   margin-bottom: var(--lf-space-5);
 }
 
+/* Layout only now — typography comes from `.lf-figure` (certainty=projected). */
 .lf-debt-extra-result {
   margin-top: var(--lf-space-3);
-  font-size: var(--lf-text-base);
-  color: var(--lf-text-secondary);
 }
 
 /* A plan that can't finish is the most important thing on the page when it
@@ -189,21 +188,14 @@
   color: var(--lf-text-primary);
 }
 
+/* Overrides `.lf-figure-row`'s grid with a tight flex row — same specificity,
+   later in source order — so two `inline`-size figures sit side by side in a
+   card as narrow as 200px instead of wrapping onto their own grid tracks. */
 .lf-strategy-figures {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--lf-space-4);
-  margin: var(--lf-space-1) 0 0;
-}
-
-.lf-strategy-figures dt {
-  font-size: var(--lf-text-xs);
-  color: var(--lf-text-tertiary);
-}
-
-.lf-strategy-figures dd {
-  margin: 0;
-  font-weight: var(--lf-weight-semibold);
-  font-variant-numeric: tabular-nums;
+  margin-top: var(--lf-space-1);
 }
 
 /* ---------- payoff calendar ---------- */
@@ -284,7 +276,7 @@
 }
 
 /* ---------- responsive ---------- */
-@media (max-width: 767px) {
+@media (max-width: 768px) {
   /* The column count and the narrow-screen hero rule now come from
      `.lf-figure-row` in components.css, which already handles both — and
      handles them the same way on every page that shows a row of figures. */
@@ -430,35 +422,13 @@
   gap: var(--lf-space-3);
 }
 
-.lf-stress-component-head {
+/* Each item is a Meter (score out of 100) plus its detail line — same shape
+   as the health-score breakdown in insights.css, now sharing its component
+   instead of a bespoke `role="progressbar"` bar. */
+.lf-stress-components li {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--lf-space-2);
-  font-size: var(--lf-text-sm);
-}
-
-.lf-stress-component-label {
-  font-weight: var(--lf-weight-medium);
-}
-
-.lf-stress-component-score {
-  font-variant-numeric: tabular-nums;
-  color: var(--lf-text-secondary);
-}
-
-.lf-stress-bar {
-  height: 5px;
-  margin: var(--lf-space-1) 0;
-  border-radius: var(--lf-radius-full);
-  background: var(--lf-bg-sunken);
-  overflow: hidden;
-}
-
-.lf-stress-bar-fill {
-  height: 100%;
-  border-radius: var(--lf-radius-full);
-  background: var(--lf-action-primary);
+  flex-direction: column;
+  gap: var(--lf-space-1);
 }
 
 .lf-stress-penalty {
@@ -634,7 +604,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .lf-refi-figures {
     grid-template-columns: repeat(2, 1fr);
   }
