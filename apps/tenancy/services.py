@@ -380,7 +380,9 @@ def get_invitation_preview(*, raw_token: str) -> Invitation:
     that check only matters at accept time.
     """
     token_hash = _hash_token(raw_token)
-    invitation = Invitation.objects.select_related("tenant", "invited_by").filter(token_hash=token_hash).first()
+    invitation = (
+        Invitation.objects.select_related("tenant", "invited_by").filter(token_hash=token_hash).first()
+    )
     if invitation is None or not invitation.is_pending:
         raise InvalidInvitationError("This invitation is invalid, expired, or has already been used.")
     return invitation
