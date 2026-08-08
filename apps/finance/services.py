@@ -450,6 +450,9 @@ def create_category(
     )
 
 
+_SENTINEL = object()
+
+
 @transaction.atomic
 def update_category(
     *,
@@ -457,10 +460,15 @@ def update_category(
     name: str | None = None,
     color: str | None = None,
     icon: str | None = None,
+    parent=_SENTINEL,
 ) -> Category:
-    """Edit presentation-level fields only. `kind` is immutable — changing it
-    would invalidate every posting already made against the category's ledger
-    account, so we don't allow it (delete + recreate is the honest path)."""
+    """Edit presentation-level fields, and optionally reparent. `kind` is
+    immutable — changing it would invalidate every posting already made
+    against the category's ledger account, so we don't allow it (delete +
+    recreate is the honest path). `parent` uses a sentinel default (not
+    `None`) so `parent=None` means "move to top-level" while omitting the
+    argument means "leave the parent alone."
+    """
     if category.is_system:
         raise FinanceError("System categories can't be edited.")
     fields = []
@@ -473,6 +481,34 @@ def update_category(
     if icon is not None:
         category.icon = icon
         fields.append("icon")
+
+    if parent is not _SENTINEL and parent != category.parent:
+        if parent is not None:
+            if parent.id == category.id:
+                raise FinanceError("A category can't be its own parent.")
+            if parent.kind != category.kind:
+                raise FinanceError("A category can only move under a parent of the same kind.")
+            if parent.path.startswith(f"{category.path}."):
+                raise FinanceError("Can't move a category under one of its own descendants.")
+
+        old_path = category.path
+        old_depth = category.depth
+        new_depth = 0 if parent is None else parent.depth + 1
+        new_path = category.slug if parent is None else f"{parent.path}.{category.slug}"
+        depth_delta = new_depth - old_depth
+
+        category.parent = parent
+        category.depth = new_depth
+        category.path = new_path
+        fields.extend(["parent", "depth", "path"])
+
+        # Materialized path: every live descendant's stored path/depth carries
+        # the old prefix and must shift by the same delta as the category itself.
+        for descendant in Category.objects.filter(path__startswith=f"{old_path}."):
+            descendant.path = new_path + descendant.path[len(old_path) :]
+            descendant.depth = descendant.depth + depth_delta
+            descendant.save(update_fields=["path", "depth", "updated_at"])
+
     if fields:
         category.save(update_fields=[*fields, "updated_at"])
     return category
@@ -759,9 +795,6 @@ def void_transaction(*, txn: Transaction, idempotency_key: str | None = None, me
             target=sibling,
             changes={"status": [TransactionStatus.POSTED, TransactionStatus.VOID]},
         )
-
-
-_SENTINEL = object()
 
 
 @transaction.atomic

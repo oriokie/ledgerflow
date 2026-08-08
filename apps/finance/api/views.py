@@ -434,8 +434,17 @@ class CategoryDetailView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
             return Response(status=status.HTTP_404_NOT_FOUND)
         s = CategoryUpdateSerializer(data=request.data, partial=True)
         s.is_valid(raise_exception=True)
+        v = s.validated_data
+
+        kwargs = {k: v[k] for k in ("name", "color", "icon") if k in v}
+        if "parent_id" in v:
+            parent = Category.objects.filter(id=v["parent_id"]).first() if v["parent_id"] else None
+            if v["parent_id"] and parent is None:
+                return Response({"detail": "parent not found"}, status=status.HTTP_400_BAD_REQUEST)
+            kwargs["parent"] = parent
+
         try:
-            category = services.update_category(category=category, **s.validated_data)
+            category = services.update_category(category=category, **kwargs)
         except services.FinanceError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         return Response(

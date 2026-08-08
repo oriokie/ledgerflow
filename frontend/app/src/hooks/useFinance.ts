@@ -45,8 +45,13 @@ export function useCreateCategory() {
 export function useUpdateCategory() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ categoryId, payload }: { categoryId: string; payload: { name?: string; color?: string; icon?: string } }) =>
-      financeExtendedApi.updateCategory(categoryId, payload),
+    mutationFn: ({
+      categoryId,
+      payload,
+    }: {
+      categoryId: string;
+      payload: { name?: string; color?: string; icon?: string; parent_id?: string | null };
+    }) => financeExtendedApi.updateCategory(categoryId, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["categories"] }),
   });
 }

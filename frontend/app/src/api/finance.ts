@@ -265,7 +265,7 @@ export const walletsApi = {
 export const financeExtendedApi = {
   updateCategory: (
     categoryId: string,
-    payload: { name?: string; color?: string; icon?: string },
+    payload: { name?: string; color?: string; icon?: string; parent_id?: string | null },
   ) => api.patch(`/finance/categories/${categoryId}/`, payload),
 
   deleteCategory: (categoryId: string) => api.delete<void>(`/finance/categories/${categoryId}/`),

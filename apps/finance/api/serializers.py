@@ -81,6 +81,8 @@ class CategoryUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=80, required=False)
     color = serializers.CharField(max_length=9, required=False, allow_blank=True)
     icon = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    # null means "move to top-level"; omitted means "leave the parent alone".
+    parent_id = serializers.UUIDField(required=False, allow_null=True)
 
 
 class CategorySerializer(serializers.Serializer):

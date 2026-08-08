@@ -8,8 +8,32 @@ import {
   useDeleteCategory,
   useUpdateCategory,
 } from "../hooks/useFinance";
-import { Banner, Button, Card, ConfirmAction, EmptyState, Heading, IconButton, Input, Modal, PageHeader, SegmentedControl, Skeleton, Stack, Table, Text } from "../ui";
+import { Banner, Button, Card, ConfirmAction, EmptyState, Heading, IconButton, Input, Modal, PageHeader, SegmentedControl, Select, Skeleton, Stack, Table, Text } from "../ui";
 import type { Column } from "../ui";
+
+/** Options for a parent picker: same-kind categories only, indented to show
+ * depth. `excludeId` drops a category (and, transitively, its descendants) so
+ * a category can never be offered as its own ancestor. */
+function parentOptions(all: Category[], kind: Category["kind"], excludeId?: string) {
+  const byId = new Map(all.map((c) => [c.id, c]));
+  const isSelfOrDescendant = (c: Category): boolean => {
+    if (!excludeId) return false;
+    let cur: Category | undefined = c;
+    while (cur) {
+      if (cur.id === excludeId) return true;
+      cur = cur.parent_id ? byId.get(cur.parent_id) : undefined;
+    }
+    return false;
+  };
+  return all
+    .filter((c) => c.kind === kind && !isSelfOrDescendant(c))
+    .slice()
+    .sort((a, b) => a.path.localeCompare(b.path))
+    .map((c) => ({
+      value: c.id,
+      label: `${"    ".repeat(c.depth)}${c.name}`,
+    }));
+}
 
 export function CategoriesPage() {
   const { data: categories, isLoading } = useCategories();
@@ -21,15 +45,19 @@ export function CategoriesPage() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [name, setName] = useState("");
   const [kind, setKind] = useState<"expense" | "income">("expense");
+  const [parentId, setParentId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
 
-  const expense = categories?.filter((c) => c.kind === "expense") ?? [];
-  const income = categories?.filter((c) => c.kind === "income") ?? [];
+  const allCategories = categories ?? [];
+  const expense = allCategories.filter((c) => c.kind === "expense");
+  const income = allCategories.filter((c) => c.kind === "income");
+  const parentName = (id: string | null) => (id ? allCategories.find((c) => c.id === id)?.name : undefined);
 
   const openCreate = () => {
     setName("");
     setKind("expense");
+    setParentId("");
     setError(null);
     setShowCreate(true);
   };
@@ -38,7 +66,16 @@ export function CategoriesPage() {
     setError(null);
     if (!name.trim()) return setError("Name the category.");
     try {
-      await createCategory.mutateAsync({ name, kind, currency: "USD" });
+      // Built as a variable (not an inline literal) so the optional
+      // `parent_id` — absent from the client's declared payload shape — still
+      // reaches the request body instead of being typo'd away as `parent`.
+      const payload = {
+        name,
+        kind,
+        currency: "USD",
+        ...(parentId ? { parent_id: parentId } : {}),
+      };
+      await createCategory.mutateAsync(payload);
       setShowCreate(false);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Couldn't create the category.");
@@ -50,7 +87,10 @@ export function CategoriesPage() {
     setError(null);
     if (!name.trim()) return setError("Name can't be empty.");
     try {
-      await updateCategory.mutateAsync({ categoryId: editing.id, payload: { name } });
+      await updateCategory.mutateAsync({
+        categoryId: editing.id,
+        payload: { name, parent_id: parentId || null },
+      });
       setEditing(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Couldn't save changes.");
@@ -72,13 +112,17 @@ export function CategoriesPage() {
     {
       key: "name",
       header: "Name",
-      render: (c) => <span className="lf-cell-primary">{c.name}</span>,
-    },
-    {
-      key: "path",
-      header: "Path",
-      hideMobile: true,
-      render: (c) => <span className="lf-cell-meta">{c.path}</span>,
+      // Hierarchy used to live only in a `hideMobile` "Path" column, so a
+      // subcategory was indistinguishable from a same-named top-level one on
+      // any narrow screen. Folding the parent's name into this
+      // always-visible cell keeps that cue everywhere instead of dropping it
+      // below 768px.
+      render: (c) => (
+        <div>
+          <span className="lf-cell-primary">{c.name}</span>
+          {c.parent_id && <div className="lf-cell-meta">{parentName(c.parent_id) ?? c.path}</div>}
+        </div>
+      ),
     },
     {
       key: "actions",
@@ -92,6 +136,7 @@ export function CategoriesPage() {
             onClick={() => {
               setEditing(c);
               setName(c.name);
+              setParentId(c.parent_id ?? "");
               setError(null);
             }}
           />
@@ -184,11 +229,26 @@ export function CategoriesPage() {
           <SegmentedControl
             legend="Kind"
             value={kind}
-            onChange={setKind}
+            onChange={(k) => {
+              setKind(k);
+              // A parent picked under the old kind may not even be an option
+              // under the new one — drop it rather than carry over a
+              // selection the list below no longer shows.
+              setParentId("");
+            }}
             options={[
               { value: "expense", label: "Expense" },
               { value: "income", label: "Income" },
             ]}
+          />
+          <Select
+            label="Parent category"
+            optional
+            value={parentId}
+            onChange={(e) => setParentId(e.target.value)}
+            placeholder="No parent (top-level)"
+            options={parentOptions(allCategories, kind)}
+            hint="Nest under an existing category to build a subcategory."
           />
           {error && <Banner tone="danger">{error}</Banner>}
         </Stack>
@@ -204,11 +264,22 @@ export function CategoriesPage() {
           </Button>
         }
       >
-        <Stack gap={3}>
+        <Stack gap={4}>
           <Text tone="tertiary" size="sm">
             A category's type can't change once created (it would invalidate past postings). Rename freely.
           </Text>
           <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          {editing && (
+            <Select
+              label="Parent category"
+              optional
+              value={parentId}
+              onChange={(e) => setParentId(e.target.value)}
+              placeholder="No parent (top-level)"
+              options={parentOptions(allCategories, editing.kind, editing.id)}
+              hint="Move this category under a different parent, or clear it to make it top-level."
+            />
+          )}
           {error && <Banner tone="danger">{error}</Banner>}
         </Stack>
       </Modal>
