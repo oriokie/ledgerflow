@@ -26,6 +26,15 @@ PYEOF
     if [ "$RUN_MIGRATIONS" = "true" ]; then
         echo "Applying migrations..."
         python manage.py migrate --noinput
+
+        # Idempotent (matches existing plans on tier/interval/currency) and
+        # cheap, so it runs alongside migrations rather than needing its own
+        # gate. Without this, a fresh environment's Plan table stays empty
+        # forever — nothing else ever seeds it — and every new workspace's
+        # best-effort start_trial call silently fails, leaving the sidebar
+        # plan card and Upgrade button permanently blank with no visible error.
+        echo "Seeding the plan catalogue..."
+        python manage.py seed_plans
     fi
 
     if [ "$COLLECT_STATIC" = "true" ]; then
