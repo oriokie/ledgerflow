@@ -42,6 +42,7 @@ import {
   Banner,
   Button,
   Card,
+  ConfirmAction,
   EmptyState,
   Figure,
   FigureRow,
@@ -56,16 +57,8 @@ import {
   Text,
   useToast,
 } from "../../ui";
-import { day, humanize, moment, money } from "./format";
-
-function tone(status: string): "success" | "warning" | "danger" | "neutral" {
-  if (["paid", "succeeded", "ok", "recovered", "active"].includes(status)) return "success";
-  if (["pending", "processing", "requested", "approved", "degraded", "open", "trialing"].includes(status))
-    return "warning";
-  if (["failed", "overdue", "rejected", "down", "abandoned", "suspended", "past_due"].includes(status))
-    return "danger";
-  return "neutral";
-}
+import { AdminPagination } from "./AdminPagination";
+import { day, humanize, moment, money, tone } from "./format";
 
 // ==================================================================== billing
 export function AdminBillingPage() {
@@ -92,7 +85,8 @@ export function AdminBillingPage() {
 
 function PaymentsPanel() {
   const [status, setStatus] = useState("");
-  const { data, isLoading } = usePayments({ status });
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = usePayments({ status, page });
 
   const columns = [
     {
@@ -134,13 +128,25 @@ function PaymentsPanel() {
             { value: "failed", label: "Failed" },
             { value: "refunded", label: "Refunded" },
           ]}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            setPage(1);
+          }}
         />
       </div>
       {isLoading && !data ? (
         <LoadingBlock />
       ) : data?.results.length ? (
-        <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+        <>
+          <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+          <AdminPagination
+            page={page}
+            onPageChange={setPage}
+            hasPrevious={Boolean(data.previous)}
+            hasNext={Boolean(data.next)}
+            label={`${data.count} payment${data.count === 1 ? "" : "s"}`}
+          />
+        </>
       ) : (
         <Card>
           <EmptyState icon={Inbox} title="No payments" body="Nothing matches this filter." />
@@ -153,7 +159,8 @@ function PaymentsPanel() {
 function RefundsPanel() {
   const { data: staff } = usePlatformMe();
   const can = useCapability(staff);
-  const { data, isLoading } = useRefunds();
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useRefunds({ page });
   const decide = useDecideRefund();
   const toast = useToast();
   const [pending, setPending] = useState<{ refund: Refund; decision: "approve" | "reject" } | null>(null);
@@ -223,7 +230,16 @@ function RefundsPanel() {
       {isLoading && !data ? (
         <LoadingBlock />
       ) : data?.results.length ? (
-        <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+        <>
+          <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+          <AdminPagination
+            page={page}
+            onPageChange={setPage}
+            hasPrevious={Boolean(data.previous)}
+            hasNext={Boolean(data.next)}
+            label={`${data.count} refund${data.count === 1 ? "" : "s"}`}
+          />
+        </>
       ) : (
         <Card>
           <EmptyState icon={Inbox} title="No refunds" body="Nothing to review." />
@@ -254,7 +270,8 @@ function RefundsPanel() {
 // =================================================================== invoices
 export function AdminInvoicesPage() {
   const [status, setStatus] = useState("");
-  const { data, isLoading } = useInvoices({ status });
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useInvoices({ status, page });
   const { data: staff } = usePlatformMe();
   const can = useCapability(staff);
   const download = useDownloadInvoice();
@@ -371,13 +388,25 @@ export function AdminInvoicesPage() {
             { value: "cancelled", label: "Cancelled" },
             { value: "refunded", label: "Refunded" },
           ]}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            setPage(1);
+          }}
         />
       </div>
       {isLoading && !data ? (
         <LoadingBlock />
       ) : data?.results.length ? (
-        <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+        <>
+          <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+          <AdminPagination
+            page={page}
+            onPageChange={setPage}
+            hasPrevious={Boolean(data.previous)}
+            hasNext={Boolean(data.next)}
+            label={`${data.count} invoice${data.count === 1 ? "" : "s"}`}
+          />
+        </>
       ) : (
         <Card>
           <EmptyState icon={Inbox} title="No invoices" body="Nothing matches this filter." />
@@ -390,7 +419,8 @@ export function AdminInvoicesPage() {
 // ==================================================================== dunning
 export function AdminDunningPage() {
   const [status, setStatus] = useState("open");
-  const { data, isLoading } = useDunningCases({ status });
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useDunningCases({ status, page });
   const act = useDunningAction();
   const toast = useToast();
   const [pending, setPending] = useState<{ row: DunningCase; action: "recover" | "cancel" } | null>(null);
@@ -521,13 +551,25 @@ export function AdminDunningPage() {
             { value: "recovered", label: "Recovered" },
             { value: "abandoned", label: "Abandoned" },
           ]}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            setPage(1);
+          }}
         />
       </div>
       {isLoading && !data ? (
         <LoadingBlock />
       ) : data?.results.length ? (
-        <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+        <>
+          <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+          <AdminPagination
+            page={page}
+            onPageChange={setPage}
+            hasPrevious={Boolean(data.previous)}
+            hasNext={Boolean(data.next)}
+            label={`${data.count} case${data.count === 1 ? "" : "s"}`}
+          />
+        </>
       ) : (
         <Card>
           <EmptyState icon={Inbox} title="Nothing in recovery" body="No accounts are currently past due." />
@@ -558,7 +600,8 @@ export function AdminDunningPage() {
 export function AdminCouponsPage() {
   const { data: staff } = usePlatformMe();
   const can = useCapability(staff);
-  const { data, isLoading } = useCoupons();
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useCoupons({ page });
   const create = useCreateCoupon();
   const deactivate = useDeactivateCoupon();
   const toast = useToast();
@@ -624,9 +667,13 @@ export function AdminCouponsPage() {
       header: "",
       render: (row: Coupon) =>
         row.is_active && can("coupon.write") ? (
-          <Button size="sm" variant="ghost" onClick={() => deactivate.mutate(row.id)}>
-            End
-          </Button>
+          <ConfirmAction
+            label="End"
+            confirmLabel="End"
+            cancelLabel="Keep"
+            disabled={deactivate.isPending}
+            onConfirm={() => deactivate.mutate(row.id)}
+          />
         ) : null,
     },
   ];
@@ -666,7 +713,16 @@ export function AdminCouponsPage() {
       {isLoading && !data ? (
         <LoadingBlock />
       ) : data?.results.length ? (
-        <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+        <>
+          <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+          <AdminPagination
+            page={page}
+            onPageChange={setPage}
+            hasPrevious={Boolean(data.previous)}
+            hasNext={Boolean(data.next)}
+            label={`${data.count} code${data.count === 1 ? "" : "s"}`}
+          />
+        </>
       ) : (
         <Card>
           <EmptyState icon={Inbox} title="No promotions" body="Create one to start a campaign." />
@@ -772,11 +828,18 @@ function MonitoringCard({ snapshot }: { snapshot: HealthSnapshot }) {
       <ul className="lf-admin-integrations">
         {layers.map((layer) => (
           <li key={layer.key}>
-            <span>
-              {layer.key}
-              <Text size="xs" tone="tertiary">
-                {layer.says}
-              </Text>
+            <span className="lf-admin-kv-name">
+              <span
+                className="lf-status-dot"
+                data-tone={layer.on ? "success" : "neutral"}
+                aria-hidden="true"
+              />
+              <span>
+                {layer.key}
+                <Text size="xs" tone="tertiary">
+                  {layer.says}
+                </Text>
+              </span>
             </span>
             <Badge tone={layer.on ? "success" : "neutral"}>
               {layer.on ? "configured" : "not configured"}
@@ -811,23 +874,37 @@ export function AdminHealthPage() {
       <AdminPageHeader
         title="System"
         description="Live probes, run when this page loads — not a status page cache. A component down here is down right now."
-        meta={<Badge tone={tone(data.status)}>{data.status}</Badge>}
+        meta={
+          <span className="lf-admin-status-pill" data-tone={tone(data.status)}>
+            <span className="lf-status-dot" data-tone={tone(data.status)} aria-hidden="true" />
+            {data.status}
+          </span>
+        }
       />
 
       <Grid cols={4} gap={3}>
         {data.components.map((component) => (
-          <Card key={component.name} prominence="quiet">
-            <Stack gap={1}>
-              <div className="lf-admin-kv">
-                <strong>{component.name}</strong>
-                <Badge tone={tone(component.status)}>{component.status}</Badge>
-              </div>
-              <Text size="xs" tone="tertiary">
-                {component.latency_ms} ms
-                {typeof component.detail === "string" ? ` · ${component.detail}` : ""}
-              </Text>
-            </Stack>
-          </Card>
+          <div key={component.name} className="lf-health-tile" data-tone={tone(component.status)}>
+            <Card prominence="quiet">
+              <Stack gap={1}>
+                <div className="lf-admin-kv">
+                  <span className="lf-admin-kv-name">
+                    <span
+                      className="lf-status-dot"
+                      data-tone={tone(component.status)}
+                      aria-hidden="true"
+                    />
+                    <strong>{component.name}</strong>
+                  </span>
+                  <Badge tone={tone(component.status)}>{component.status}</Badge>
+                </div>
+                <Text size="xs" tone="tertiary">
+                  {component.latency_ms} ms
+                  {typeof component.detail === "string" ? ` · ${component.detail}` : ""}
+                </Text>
+              </Stack>
+            </Card>
+          </div>
         ))}
       </Grid>
 
@@ -892,7 +969,8 @@ export function AdminHealthPage() {
 export function AdminAuditPage() {
   const [query, setQuery] = useState("");
   const [module, setModule] = useState("");
-  const { data, isLoading } = useAuditLog({ q: query, module });
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = useAuditLog({ q: query, module, page });
 
   const columns = [
     {
@@ -936,7 +1014,10 @@ export function AdminAuditPage() {
             label="Search"
             placeholder="Person, action, or reason"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
           />
         </div>
           <Select
@@ -948,14 +1029,28 @@ export function AdminAuditPage() {
               { value: "billing", label: "Billing" },
               { value: "impersonation", label: "Impersonation" },
               { value: "staff", label: "Access" },
+              { value: "settings", label: "Settings" },
+              { value: "users", label: "Users" },
             ]}
-            onChange={(event) => setModule(event.target.value)}
+            onChange={(event) => {
+              setModule(event.target.value);
+              setPage(1);
+            }}
           />
       </div>
       {isLoading && !data ? (
         <LoadingBlock />
       ) : data?.results.length ? (
-        <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+        <>
+          <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+          <AdminPagination
+            page={page}
+            onPageChange={setPage}
+            hasPrevious={Boolean(data.previous)}
+            hasNext={Boolean(data.next)}
+            label={`${data.count} entr${data.count === 1 ? "y" : "ies"}`}
+          />
+        </>
       ) : (
         <Card>
           <EmptyState icon={Inbox} title="No entries" body="Nothing matches this filter." />
@@ -969,7 +1064,8 @@ export function AdminAuditPage() {
 export function AdminStaffPage() {
   const { data: me } = usePlatformMe();
   const can = useCapability(me);
-  const { data, isLoading } = usePlatformStaff();
+  const [page, setPage] = useState(1);
+  const { data, isLoading } = usePlatformStaff({ page });
   const appoint = useAppointStaff();
   const revoke = useRevokeStaff();
   const toast = useToast();
@@ -1028,9 +1124,13 @@ export function AdminStaffPage() {
       header: "",
       render: (row: PlatformStaff) =>
         row.is_active && can("staff.manage") && row.id !== me?.id ? (
-          <Button size="sm" variant="ghost" onClick={() => revoke.mutate(row.id)}>
-            Revoke
-          </Button>
+          <ConfirmAction
+            label="Revoke"
+            confirmLabel="Revoke"
+            cancelLabel="Keep"
+            disabled={revoke.isPending}
+            onConfirm={() => revoke.mutate(row.id)}
+          />
         ) : null,
     },
   ];
@@ -1047,7 +1147,16 @@ export function AdminStaffPage() {
       {isLoading && !data ? (
         <LoadingBlock />
       ) : data?.results.length ? (
-        <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+        <>
+          <Table columns={columns} rows={data.results} rowKey={(r) => r.id} responsive stickyHeader />
+          <AdminPagination
+            page={page}
+            onPageChange={setPage}
+            hasPrevious={Boolean(data.previous)}
+            hasNext={Boolean(data.next)}
+            label={`${data.count} ${data.count === 1 ? "person" : "people"}`}
+          />
+        </>
       ) : (
         <Card>
           <EmptyState icon={Inbox} title="No platform staff" body="Nobody has been appointed yet." />

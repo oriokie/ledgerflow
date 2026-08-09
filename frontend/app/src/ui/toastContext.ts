@@ -1,8 +1,9 @@
 import { createContext, useContext } from "react";
 
 export interface ToastOptions {
-  /** "success" gets a check icon; "info" an info icon. */
-  tone?: "success" | "info";
+  /** "success" gets a check icon; "info" an info icon; "danger" an alert
+   * icon in the status-danger color and announces via role="alert". */
+  tone?: "success" | "info" | "danger";
   /** ms before auto-dismiss. */
   duration?: number;
 }

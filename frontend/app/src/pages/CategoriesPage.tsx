@@ -31,7 +31,7 @@ function parentOptions(all: Category[], kind: Category["kind"], excludeId?: stri
     .sort((a, b) => a.path.localeCompare(b.path))
     .map((c) => ({
       value: c.id,
-      label: `${"    ".repeat(c.depth)}${c.name}`,
+      label: `${"    ".repeat(c.depth)}${c.name}`,
     }));
 }
 
@@ -268,6 +268,12 @@ export function CategoriesPage() {
           <Text tone="tertiary" size="sm">
             A category's type can't change once created (it would invalidate past postings). Rename freely.
           </Text>
+          {editing?.parent_id && (
+            <Text tone="tertiary" size="sm">
+              Nested under <strong>{parentName(editing.parent_id) ?? "another category"}</strong>. Moving a
+              category to a different parent isn't supported yet — delete and recreate it to relocate it.
+            </Text>
+          )}
           <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
           {editing && (
             <Select

@@ -102,7 +102,7 @@ export const INSIGHT_TABS = [
   { value: "coach", label: "Briefing" },
   { value: "trends", label: "Trends" },
   { value: "reports", label: "Reports" },
-  { value: "anomalies", label: "Anomalies" },
+  { value: "anomalies", label: "Health & anomalies" },
 ] as const;
 
 export type PlanTab = (typeof PLAN_TABS)[number]["value"];

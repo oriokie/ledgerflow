@@ -5,7 +5,7 @@ import { usePlans } from "../hooks/useBilling";
 import { formatAmount } from "../lib/money";
 import { AuthBrand } from "../components/auth/AuthLayout";
 import { Illustration } from "../ui/illustration";
-import { Figure } from "../ui";
+import { Banner, Figure } from "../ui";
 import { AppPreview } from "./landing/AppPreview";
 import { AdvisorShowcase } from "./landing/AdvisorShowcase";
 import { FAQ, FEATURES, TESTIMONIALS } from "./landing/marketingCopy";
@@ -222,7 +222,7 @@ function Testimonials() {
 }
 
 function Pricing() {
-  const { data: plans } = usePlans("USD");
+  const { data: plans, isLoading, isError, refetch } = usePlans("USD");
 
   /* Monthly only, one row per tier. The annual variants exist in the catalogue
      but doubling the cards to show "two months free" is a worse trade than a
@@ -261,8 +261,22 @@ function Pricing() {
         body="Do you want the product to think with you, or just keep the books? Every new workspace starts with seven days free on Basic — no card asked for. Reconciliation, the audit trail, two-factor authentication and data export are on both plans; leaving with your books is never a paid feature."
       />
 
-      {monthly.length === 0 ? (
-        <p className="lf-landing-muted">Loading the current plans…</p>
+      {isError ? (
+        <Banner tone="danger">
+          Couldn't load the current plans. Try again in a moment.
+          <button
+            type="button"
+            className="lf-btn lf-btn--ghost lf-btn--sm"
+            style={{ marginLeft: "auto" }}
+            onClick={() => void refetch()}
+          >
+            Retry
+          </button>
+        </Banner>
+      ) : monthly.length === 0 ? (
+        <p className="lf-landing-muted">
+          {isLoading === false ? "No plans available right now." : "Loading the current plans…"}
+        </p>
       ) : (
         <div className="lf-price-grid">
           {monthly.map((plan) => (

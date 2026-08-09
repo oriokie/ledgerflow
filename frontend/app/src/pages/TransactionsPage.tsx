@@ -15,7 +15,7 @@ import {
   useUpdateTransaction,
 } from "../hooks/useFinance";
 import { ApiError } from "../api/client";
-import { Button, Card, EmptyState, IconButton, Inline, PageHeader, Skeleton, Stack, Text, useToast } from "../ui";
+import { Banner, Button, Card, EmptyState, IconButton, Inline, PageHeader, Skeleton, Stack, Text, useToast } from "../ui";
 import {
   AddTransactionForm,
   BulkActionBar,
@@ -179,8 +179,10 @@ export function TransactionsPage({ embedded }: { embedded?: boolean } = {}) {
       )}
 
       {bulkNote && (
-        <div className={`lf-insight lf-insight--${bulkNote.tone === "success" ? "good" : bulkNote.tone === "warning" ? "soon" : "attention"}`} style={{ marginBottom: "var(--lf-space-3)" }}>
-          <p className="lf-insight-title">{bulkNote.text}</p>
+        <div style={{ marginBottom: "var(--lf-space-3)" }}>
+          <Banner tone={bulkNote.tone} onDismiss={() => setBulkNote(null)}>
+            {bulkNote.text}
+          </Banner>
         </div>
       )}
 

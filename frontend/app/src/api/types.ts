@@ -482,6 +482,14 @@ export interface Invitation {
   expires_at?: string;
 }
 
+/** What an invitee sees before accepting — enough to inform the decision,
+ * nothing about the workspace's data. */
+export interface InvitationPreview {
+  workspace_name: string;
+  role: string;
+  invited_by_display: string | null;
+}
+
 // ---------------------------------------------------------------- ledger
 export interface LedgerAccount {
   id: string;

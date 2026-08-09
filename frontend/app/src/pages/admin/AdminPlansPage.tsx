@@ -14,6 +14,7 @@ import {
 } from "../../hooks/usePlatform";
 import {
   Badge,
+  Banner,
   Button,
   Card,
   Checkbox,
@@ -67,7 +68,7 @@ export function AdminPlansPage() {
   const { data: me } = usePlatformMe();
   const can = useCapability(me);
   const { data: plans, isLoading } = usePlatformPlans(true);
-  const { data: catalogue } = usePlanCatalogue();
+  const { data: catalogue, isLoading: catalogueLoading } = usePlanCatalogue();
   const update = useUpdatePlan();
   const toast = useToast();
 
@@ -177,12 +178,17 @@ export function AdminPlansPage() {
     {
       key: "actions",
       header: "",
-      render: (row) =>
-        editable ? (
-          <Button size="sm" variant="ghost" onClick={() => openEditor(row)}>
-            Edit
-          </Button>
-        ) : null,
+      render: (row) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={!editable}
+          title={editable ? undefined : "Editing plans needs the plan-management capability."}
+          onClick={() => openEditor(row)}
+        >
+          Edit
+        </Button>
+      ),
     },
   ];
 
@@ -193,6 +199,13 @@ export function AdminPlansPage() {
         description="The commercial catalogue: what each plan costs, its limits, and the features it unlocks. The pricing page and the entitlement checks both read these rows — an edit here changes what every subscriber gets, so each one asks for a reason."
         meta={plans ? `${plans.length} plan${plans.length === 1 ? "" : "s"}` : undefined}
       />
+
+      {!editable && (
+        <Banner tone="info">
+          You can see how the plans are configured, but changing them needs the plan-management
+          capability.
+        </Banner>
+      )}
 
       {isLoading && !plans ? (
         <LoadingBlock />
@@ -274,30 +287,36 @@ export function AdminPlansPage() {
                 can add to a tier, never subtract from it. Universal features (the ledger,
                 reconciliation, export, 2FA) are on every plan and are not listed.
               </Text>
-              <div className="lf-admin-feature-grid">
-                {Object.entries(labels)
-                  .filter(([key]) => !(catalogue?.universal ?? []).includes(key))
-                  .map(([key, label]) => {
-                    const inherited = tierDefaults.get(editing.tier)?.has(key) ?? false;
-                    const checked = inherited || draft.features.includes(key);
-                    return (
-                      <Checkbox
-                        key={key}
-                        label={inherited ? `${label} — included with ${humanize(editing.tier)}` : label}
-                        checked={checked}
-                        disabled={inherited}
-                        onChange={(e) =>
-                          setDraft({
-                            ...draft,
-                            features: e.target.checked
-                              ? [...draft.features, key]
-                              : draft.features.filter((f) => f !== key),
-                          })
-                        }
-                      />
-                    );
-                  })}
-              </div>
+              {catalogueLoading && !catalogue ? (
+                <LoadingBlock label="Loading features…" />
+              ) : (
+                <div className="lf-admin-feature-grid">
+                  {Object.entries(labels)
+                    .filter(([key]) => !(catalogue?.universal ?? []).includes(key))
+                    .map(([key, label]) => {
+                      const inherited = tierDefaults.get(editing.tier)?.has(key) ?? false;
+                      const checked = inherited || draft.features.includes(key);
+                      return (
+                        <Checkbox
+                          key={key}
+                          label={
+                            inherited ? `${label} — included with ${humanize(editing.tier)}` : label
+                          }
+                          checked={checked}
+                          disabled={inherited}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              features: e.target.checked
+                                ? [...draft.features, key]
+                                : draft.features.filter((f) => f !== key),
+                            })
+                          }
+                        />
+                      );
+                    })}
+                </div>
+              )}
             </div>
 
             <div className="lf-inline lf-gap-2">

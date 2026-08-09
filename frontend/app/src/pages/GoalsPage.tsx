@@ -6,7 +6,7 @@ import {
   useGoalRecommendations,
   useGoals,
 } from "../hooks/useGoals";
-import { Button, Card, Checkbox, EmptyState, Grid, PageHeader, Skeleton } from "../ui";
+import { Button, Card, Checkbox, EmptyState, Grid, PageHeader, SkeletonCard } from "../ui";
 import { CreateGoalForm, GoalCard, GoalRecommendations, GoalsSummary } from "./goals";
 import { sortGoals } from "./goals/goalMath";
 import { useOpenOnParam } from "../hooks/useOpenOnParam";
@@ -49,7 +49,7 @@ export function GoalsPage() {
         />
       )}
 
-      {isLoading && <Skeleton width="50%" />}
+      {isLoading && <SkeletonCard />}
 
       {goals && goals.length === 0 && !showCreate && (
         <Card>

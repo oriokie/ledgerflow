@@ -14,6 +14,7 @@ import {
   SearchScene,
   ShieldScene,
   SuccessScene,
+  TogetherScene,
   VaultScene,
 } from "./scenes";
 import {
@@ -30,6 +31,7 @@ import {
   DoodleSearch,
   DoodleShield,
   DoodleSuccess,
+  DoodleTogether,
   DoodleVault,
 } from "./doodleScenes";
 import {
@@ -46,6 +48,7 @@ import {
   MotionSearch,
   MotionShield,
   MotionSuccess,
+  MotionTogether,
   MotionVault,
 } from "./motionScenes";
 
@@ -75,6 +78,7 @@ const CLAY = {
   "not-found": LostScene,
   error: BrokenScene,
   insight: InsightScene,
+  together: TogetherScene,
 } as const;
 
 export type IllustrationName = keyof typeof CLAY;
@@ -95,6 +99,7 @@ const DOODLE: Record<IllustrationName, (props: SceneProps) => ReactNode> = {
   "not-found": DoodleLost,
   error: DoodleBroken,
   insight: DoodleInsight,
+  together: DoodleTogether,
 };
 
 /** Same keys again — the `Record<IllustrationName, …>` is what enforces it. */
@@ -113,6 +118,7 @@ const MOTION: Record<IllustrationName, (props: SceneProps) => ReactNode> = {
   "not-found": MotionLost,
   error: MotionBroken,
   insight: MotionInsight,
+  together: MotionTogether,
 };
 
 /** Every registry, keyed by style — so adding a fourth set is one entry here

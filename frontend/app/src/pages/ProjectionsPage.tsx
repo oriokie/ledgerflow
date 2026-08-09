@@ -15,6 +15,7 @@ import {
   Banner,
   Button,
   Card,
+  ConfirmAction,
   EmptyState,
   Figure,
   FormField,
@@ -413,16 +414,16 @@ export function ProjectionsPage() {
                 >
                   Archive
                 </Button>
-                <Button
-                  variant="ghost"
+                <ConfirmAction
+                  label="Delete"
+                  confirmLabel="Delete"
+                  cancelLabel="Keep"
                   size="sm"
-                  onClick={async () => {
+                  onConfirm={async () => {
                     await projectionsApi.deleteScenario(selected.id);
                     await refresh();
                   }}
-                >
-                  Delete
-                </Button>
+                />
               </Inline>
             )}
           </Card>

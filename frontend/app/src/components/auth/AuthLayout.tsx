@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { QuoteRotator } from "./QuoteRotator";
 import { Figure } from "../../ui";
-import { Illustration } from "../../ui/illustration";
+import { Illustration, type IllustrationName } from "../../ui/illustration";
 
 /** The LedgerFlow mark used across the auth surface. */
 export function AuthBrand({ inverted = false }: { inverted?: boolean }) {
@@ -24,6 +24,10 @@ interface AuthLayoutProps {
   footer?: ReactNode;
   /** Widen the card for content-heavy screens like the workspace picker. */
   maxWidth?: number;
+  /** Which motif the showcase panel renders. Defaults to "secure" so every
+   * existing call site is unchanged until it opts into something more
+   * specific — e.g. "recover" for password reset, "verify" for invite flows. */
+  illustration?: IllustrationName;
 }
 
 /**
@@ -45,7 +49,7 @@ interface AuthLayoutProps {
  * workspace picker, logged-out) renders through this, so the treatment is
  * identical everywhere.
  */
-export function AuthLayout({ children, footer, maxWidth }: AuthLayoutProps) {
+export function AuthLayout({ children, footer, maxWidth, illustration = "secure" }: AuthLayoutProps) {
   return (
     <div className="lf-auth-shell">
       <main className="lf-auth-main">
@@ -70,7 +74,7 @@ export function AuthLayout({ children, footer, maxWidth }: AuthLayoutProps) {
       <aside className="lf-auth-panel" aria-hidden="true">
         <div className="lf-auth-panel-inner">
           <div className="lf-auth-stage">
-            <Illustration name="secure" size="panel" className="lf-auth-illus" />
+            <Illustration name={illustration} size="panel" className="lf-auth-illus" />
 
             {/* The floating card in the reference is a task with a progress
                 ring. Here it is the product's actual signature: a settled

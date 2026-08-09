@@ -54,7 +54,11 @@ export function WorkspacePanel() {
       await tenancyApi.updateWorkspace(tenant.id, { base_currency: code });
       setSavedCurrency(true);
       // Reload so the new base flows through context + defaults everywhere.
-      setTimeout(() => window.location.reload(), 400);
+      // Warn first — an invisible reload can cut off another panel's
+      // in-flight autosave (e.g. ProfilePanel's 800ms debounce) — and give
+      // that debounce a full window to land before the page goes away.
+      toast("Saved. Reloading to apply the new base currency everywhere…", { tone: "info", duration: 1500 });
+      setTimeout(() => window.location.reload(), 1500);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Couldn't update the base currency.");
     } finally {

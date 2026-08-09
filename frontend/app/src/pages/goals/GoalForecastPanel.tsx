@@ -1,7 +1,8 @@
 import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { GoalForecast } from "../../api/types";
 import { formatAmount } from "../../lib/money";
-import { Money, Text } from "../../ui";
+import { Figure, FigureRow, Text } from "../../ui";
+import type { FigureTone } from "../../ui";
 
 /** Short month label for the projection axis, e.g. "Mar 27". */
 function monthLabel(iso: string): string {
@@ -26,6 +27,13 @@ function confidenceBand(p: number): { label: string; tone: "success" | "warning"
   if (p >= 0.4) return { label: "Could go either way", tone: "warning" };
   return { label: "Unlikely at this pace", tone: "danger" };
 }
+
+/** confidenceBand's tone vocabulary onto Figure's. */
+const FIGURE_TONE_BY_BAND: Record<"success" | "warning" | "danger", FigureTone> = {
+  success: "positive",
+  warning: "warning",
+  danger: "critical",
+};
 
 /**
  * The forecast half of a goal card: pace, projection, and what to change.
@@ -64,45 +72,69 @@ export function GoalForecastPanel({ forecast }: { forecast: GoalForecast }) {
 
   return (
     <div className="lf-goal-forecast">
-      {/* --- the three monthly figures --- */}
-      <dl className="lf-goal-metrics">
-        <div className="lf-goal-metric">
-          <dt>Needed monthly</dt>
-          <dd>
-            {required === null ? (
+      {/* --- the three monthly figures ---
+          All three are model outputs — required and observed pace are derived
+          from the projection, planned is what's scheduled against it — so all
+          three carry certainty="projected", same as DebtAnalytics. */}
+      <FigureRow>
+        {required === null ? (
+          <Figure
+            label="Needed monthly"
+            value={
               <Text tone="tertiary" size="sm">
                 {targetDate ? "Target reached" : "No target date"}
               </Text>
-            ) : (
-              <Money amountMinor={required} currency={currency} neutral />
-            )}
-          </dd>
-        </div>
-        <div className="lf-goal-metric">
-          <dt>Your pace</dt>
-          <dd>
-            {observed === null ? (
+            }
+            certainty="projected"
+          />
+        ) : (
+          <Figure
+            label="Needed monthly"
+            amountMinor={required}
+            currency={currency}
+            neutral
+            certainty="projected"
+          />
+        )}
+        {observed === null ? (
+          <Figure
+            label="Your pace"
+            value={
               <Text tone="tertiary" size="sm">
                 Not enough history
               </Text>
-            ) : (
-              <Money amountMinor={observed} currency={currency} neutral />
-            )}
-          </dd>
-        </div>
-        <div className="lf-goal-metric">
-          <dt>Planned</dt>
-          <dd>
-            {planned === null ? (
+            }
+            certainty="projected"
+          />
+        ) : (
+          <Figure
+            label="Your pace"
+            amountMinor={observed}
+            currency={currency}
+            neutral
+            certainty="projected"
+          />
+        )}
+        {planned === null ? (
+          <Figure
+            label="Planned"
+            value={
               <Text tone="tertiary" size="sm">
                 Not set
               </Text>
-            ) : (
-              <Money amountMinor={planned} currency={currency} neutral />
-            )}
-          </dd>
-        </div>
-      </dl>
+            }
+            certainty="projected"
+          />
+        ) : (
+          <Figure
+            label="Planned"
+            amountMinor={planned}
+            currency={currency}
+            neutral
+            certainty="projected"
+          />
+        )}
+      </FigureRow>
 
       {/* The single most actionable number on the card: the gap. */}
       {shortfall !== null && shortfall > 0 && (
@@ -112,39 +144,46 @@ export function GoalForecastPanel({ forecast }: { forecast: GoalForecast }) {
       )}
 
       {/* --- completion --- */}
-      <div className="lf-goal-eta">
-        <span>Estimated completion</span>
-        <strong>
-          {projected ? (
+      <Figure
+        label="Estimated completion"
+        certainty="projected"
+        value={
+          projected ? (
             fullDate(projected)
           ) : (
             <Text tone="tertiary" size="sm">
               Not on a trajectory yet
             </Text>
-          )}
-        </strong>
-        {onTrack !== null && (
-          <span className={`lf-badge lf-badge--${onTrack ? "success" : "warning"}`}>
-            {onTrack ? "On track" : "Behind"}
-          </span>
-        )}
-      </div>
+          )
+        }
+        delta={
+          onTrack !== null && (
+            <span className={`lf-badge lf-badge--${onTrack ? "success" : "warning"}`}>
+              {onTrack ? "On track" : "Behind"}
+            </span>
+          )
+        }
+      />
 
       {/* --- confidence, banded not numeric --- */}
       {band ? (
-        <p className={`lf-goal-confidence lf-goal-confidence--${band.tone}`}>
-          {band.label}
-          <Text as="span" tone="tertiary" size="xs">
-            {" "}
-            · based on {Math.round(consistency * 100)}% of recent months funded
-          </Text>
-        </p>
+        <Figure
+          label="Confidence"
+          value={band.label}
+          tone={FIGURE_TONE_BY_BAND[band.tone]}
+          certainty="projected"
+          hint={`based on ${Math.round(consistency * 100)}% of recent months funded`}
+        />
       ) : (
-        <p className="lf-goal-confidence">
-          <Text as="span" tone="tertiary" size="sm">
-            Keep contributing for a few months and we'll estimate your chances.
-          </Text>
-        </p>
+        <Figure
+          label="Confidence"
+          value={
+            <Text tone="tertiary" size="sm">
+              Keep contributing for a few months and we'll estimate your chances.
+            </Text>
+          }
+          certainty="projected"
+        />
       )}
 
       {/* --- projection chart --- */}

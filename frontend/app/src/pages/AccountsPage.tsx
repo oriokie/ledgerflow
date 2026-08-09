@@ -33,6 +33,7 @@ import {
   SkeletonCard,
   Table,
   Text,
+  useToast,
 } from "../ui";
 import type { Column } from "../ui";
 import { AccountDetail, AccountList, EditAccountModal, StatementModal, WalletsSection } from "./accounts";
@@ -123,6 +124,7 @@ export function AccountsPage() {
   const createAccount = useCreateAccount();
   const createWallet = useCreateWallet();
   const assign = useAssignAccountToWallet();
+  const toast = useToast();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
@@ -202,6 +204,14 @@ export function AccountsPage() {
       setServerError(err instanceof ApiError ? err.detail : "Couldn't create the account.");
     }
   });
+
+  const onAssignWallet = async (accountId: string, walletId: string | null) => {
+    try {
+      await assign.mutateAsync({ accountId, walletId });
+    } catch (err) {
+      toast(err instanceof ApiError ? err.detail : "Couldn't move that account.", { tone: "danger" });
+    }
+  };
 
   const onCreateWallet = walletForm.handleSubmit(async (values) => {
     try {
@@ -309,7 +319,7 @@ export function AccountsPage() {
                   wallets={wallets}
                   onSelect={selectAccount}
                   onBack={() => setMobileView("list")}
-                  onAssignWallet={(accountId, walletId) => assign.mutate({ accountId, walletId })}
+                  onAssignWallet={onAssignWallet}
                   onOpenStatement={() => setStatementFor(selected)}
                   onEdit={() => setEditingAccount(selected)}
                 />

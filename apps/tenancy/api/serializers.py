@@ -82,6 +82,21 @@ class AcceptInvitationSerializer(serializers.Serializer):
     token = serializers.CharField()
 
 
+class InvitationPreviewSerializer(serializers.Serializer):
+    """What an invitee sees before accepting. Deliberately narrow -- just
+    enough to inform the decision, nothing about the workspace's data."""
+
+    workspace_name = serializers.CharField(source="tenant.name", read_only=True)
+    role = serializers.CharField(read_only=True)
+    invited_by_display = serializers.SerializerMethodField()
+
+    def get_invited_by_display(self, invitation: Invitation) -> str | None:
+        inviter = invitation.invited_by
+        if inviter is None:
+            return None
+        return inviter.full_name
+
+
 class WorkspaceAISettingsSerializer(serializers.Serializer):
     """A workspace's model override.
 

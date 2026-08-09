@@ -1,7 +1,8 @@
 import { AlertTriangle, Receipt as ReceiptIcon, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { ApiError } from "../api/client";
 import { ReceiptCamera } from "../components/receipts/ReceiptCamera";
-import { useAccounts, useCategories } from "../hooks/useFinance";
+import { useAccounts, useCategories, useTransactions } from "../hooks/useFinance";
 import {
   useCaptureReceipt,
   useConfirmReceiptFields,
@@ -41,6 +42,11 @@ export function ReceiptScanPage() {
   const [occurredOn, setOccurredOn] = useState("");
   const [accountId, setAccountId] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  // Whether account/category were filled in for the user rather than picked
+  // by them — Quick Add's rule ("never silent") applies just as much to a
+  // dropdown as to free text, so the hint disappears the moment they choose.
+  const [accountGuessed, setAccountGuessed] = useState(false);
+  const [categoryGuessed, setCategoryGuessed] = useState(false);
 
   const onCaptured = async (file: Blob) => {
     setShowCamera(false);
@@ -48,7 +54,7 @@ export function ReceiptScanPage() {
       const created = await capture.mutateAsync(file);
       setReceiptId(created.id);
     } catch {
-      toast("Couldn't upload that photo.", { tone: "info" });
+      toast("Couldn't upload that photo.", { tone: "danger" });
       setShowCamera(true);
     }
   };
@@ -62,19 +68,63 @@ export function ReceiptScanPage() {
     if (receipt.confirmed_occurred_on && occurredOn === "") setOccurredOn(receipt.confirmed_occurred_on);
   }
 
+  // Default the account to whichever one was used most recently — the same
+  // "most likely still in the user's hand" signal Quick Add infers from
+  // (apps.finance.quick_add._most_recently_used_account) — so confirming a
+  // receipt doesn't ask a question Quick Add would have answered for free.
+  const accountNeedsDefault = !!receiptId && accountId === "" && receipt?.status !== "pending_upload";
+  // Only fetched when nothing better is already on the receipt itself.
+  const { data: recentTxns } = useTransactions({}, accountNeedsDefault && !receipt?.financial_account_id);
+  if (accountNeedsDefault && (receipt?.financial_account_id || recentTxns || accounts)) {
+    const guess = receipt?.financial_account_id || recentTxns?.results[0]?.financial_account_id || accounts?.[0]?.id;
+    if (guess) {
+      setAccountId(guess);
+      setAccountGuessed(true);
+    }
+  }
+
+  // Default the category the same way Quick Add does — from what this
+  // merchant was categorised as last time (the receipt already carries that
+  // merchant name from OCR; no need to make the user type it again to get
+  // the same signal Quick Add's suggest_category would give it).
+  const merchantGuess = receipt?.confirmed_merchant ?? "";
+  const categoryNeedsDefault = !!receiptId && categoryId === "" && merchantGuess !== "";
+  // Only fetched when nothing better is already on the receipt itself.
+  const { data: merchantMatches } = useTransactions(
+    { search: merchantGuess },
+    categoryNeedsDefault && !receipt?.confirmed_category_id,
+  );
+  if (categoryNeedsDefault && (receipt?.confirmed_category_id || merchantMatches)) {
+    const guess =
+      receipt?.confirmed_category_id || merchantMatches?.results.find((t) => t.category_id)?.category_id;
+    if (guess) {
+      setCategoryId(guess);
+      setCategoryGuessed(true);
+    }
+  }
+
   const onLink = async () => {
     if (!receiptId || !accountId || !categoryId || !amount) return;
-    await confirmFields.mutateAsync({
-      receiptId,
-      fields: {
-        merchant,
-        amountMinor: majorToMinor(Number(amount)),
-        occurredOn: occurredOn || undefined,
-      },
-    });
-    await link.mutateAsync({ receiptId, financialAccountId: accountId, categoryId });
-    toast(`Added ${merchant || "receipt"}`, { tone: "success" });
-    resetToCamera();
+    try {
+      await confirmFields.mutateAsync({
+        receiptId,
+        fields: {
+          merchant,
+          amountMinor: majorToMinor(Number(amount)),
+          occurredOn: occurredOn || undefined,
+        },
+      });
+      await link.mutateAsync({ receiptId, financialAccountId: accountId, categoryId });
+      toast(`Added ${merchant || "receipt"}`, { tone: "success" });
+      resetToCamera();
+    } catch (err) {
+      // Leave every field exactly as the user left it — they just filled in
+      // four fields by hand and re-typing them on top of a failed request is
+      // exactly the tax this fix exists to remove.
+      toast(err instanceof ApiError ? err.detail : "Couldn't add that receipt — check the details and try again.", {
+        tone: "danger",
+      });
+    }
   };
 
   const onDiscard = async () => {
@@ -89,6 +139,8 @@ export function ReceiptScanPage() {
     setOccurredOn("");
     setAccountId("");
     setCategoryId("");
+    setAccountGuessed(false);
+    setCategoryGuessed(false);
     setShowCamera(true);
   };
 
@@ -155,17 +207,39 @@ export function ReceiptScanPage() {
               label="Account"
               required
               value={accountId}
-              onChange={(event) => setAccountId(event.target.value)}
+              onChange={(event) => {
+                setAccountId(event.target.value);
+                setAccountGuessed(false);
+              }}
               options={(accounts ?? []).map((a) => ({ value: a.id, label: a.name }))}
               placeholder="Choose an account"
+              hint={
+                accountGuessed && (
+                  <>
+                    <Sparkles size={12} strokeWidth={2} aria-hidden="true" /> Guessed from your most
+                    recent activity — change it if that's wrong.
+                  </>
+                )
+              }
             />
             <Select
               label="Category"
               required
               value={categoryId}
-              onChange={(event) => setCategoryId(event.target.value)}
+              onChange={(event) => {
+                setCategoryId(event.target.value);
+                setCategoryGuessed(false);
+              }}
               options={(categories ?? []).map((c) => ({ value: c.id, label: c.name }))}
               placeholder="Choose a category"
+              hint={
+                categoryGuessed && (
+                  <>
+                    <Sparkles size={12} strokeWidth={2} aria-hidden="true" /> Guessed from past
+                    purchases at this merchant — change it if that's wrong.
+                  </>
+                )
+              }
             />
 
             <div className="lf-receipt-actions">

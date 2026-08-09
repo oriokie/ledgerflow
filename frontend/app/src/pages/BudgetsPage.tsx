@@ -8,7 +8,7 @@ import {
   useRemoveBudgetLine,
   useUpdateBudgetLine,
 } from "../hooks/useBudgeting";
-import { Button, Card, EmptyState, Inline, PageHeader, Skeleton, Tabs, Text } from "../ui";
+import { Button, Card, EmptyState, Inline, PageHeader, SkeletonCard, Tabs, Text, useToast } from "../ui";
 import {
   AddLineForm,
   BudgetAlerts,
@@ -30,6 +30,7 @@ export function BudgetsPage({ embedded }: { embedded?: boolean } = {}) {
   const [showCreate, setShowCreate] = useOpenOnParam();
   const [showSuggest, setShowSuggest] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const toast = useToast();
 
   const activeBudgetId = selectedBudgetId ?? budgets?.[0]?.id;
   const activeBudget = budgets?.find((b) => b.id === activeBudgetId);
@@ -61,9 +62,11 @@ export function BudgetsPage({ embedded }: { embedded?: boolean } = {}) {
 
   const doDeleteBudget = async () => {
     if (!activeBudgetId) return;
+    const name = activeBudget?.name ?? "Budget";
     await deleteBudget.mutateAsync(activeBudgetId);
     setSelectedBudgetId(undefined);
     setConfirmDelete(false);
+    toast(`${name} deleted`, { tone: "info" });
   };
 
   return (
@@ -105,7 +108,7 @@ export function BudgetsPage({ embedded }: { embedded?: boolean } = {}) {
         />
       )}
 
-      {isLoading && <Skeleton width="50%" />}
+      {isLoading && <SkeletonCard />}
 
       {budgets && budgets.length === 0 && !showCreate && (
         <Card>

@@ -7,7 +7,8 @@ import type { HoldingValuation, Security } from "../../api/types";
 import { useAccounts } from "../../hooks/useFinance";
 import { useTrade } from "../../hooks/useInvestments";
 import { majorToMinor } from "../../lib/money";
-import { Banner, Button, Grid, Input, Modal, Select, Stack, Text } from "../../ui";
+import { Banner, Button, Grid, Input, Modal, Select, Stack, Text, useToast } from "../../ui";
+import { formatQuantity } from "./HoldingsTable";
 
 const schema = z.object({
   financial_account_id: z.string().min(1, "Pick an account."),
@@ -55,6 +56,7 @@ export function TradeModal({
 }) {
   const { data: accounts } = useAccounts();
   const trade = useTrade();
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -94,6 +96,12 @@ export function TradeModal({
           occurred_on: values.occurred_on || undefined,
         },
       });
+      const symbol = securities.find((s) => s.id === values.security_id)?.symbol;
+      toast(
+        action === "buy"
+          ? `Purchase recorded${symbol ? ` — ${symbol}` : ""}`
+          : `Sale recorded${symbol ? ` — ${symbol}` : ""}`,
+      );
       reset();
       onClose();
     } catch (err) {
@@ -156,7 +164,7 @@ export function TradeModal({
                   the server has to reject it. */}
               {action === "sell" && position && (
                 <Text tone="tertiary" size="sm">
-                  You hold {position.quantity} units of {position.symbol}.
+                  You hold {formatQuantity(position.quantity)} units of {position.symbol}.
                 </Text>
               )}
 

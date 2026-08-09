@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { BriefingPeriod } from "../api/types";
 import { useBriefing, useDecideInsight, useGenerateInsights, useInsights } from "../hooks/useCoach";
 import { useAuth } from "../lib/AuthContext";
-import { Button, Card, EmptyState, PageHeader, SegmentedControl, SkeletonCard, Text } from "../ui";
+import { Banner, Button, Card, EmptyState, PageHeader, SegmentedControl, SkeletonCard, Text } from "../ui";
 import { BriefingCard, InsightCard } from "./coach";
 
 const FILTERS = [
@@ -21,7 +21,9 @@ const FILTERS = [
  */
 /** `embedded` renders this page as a tab panel inside a hub (`/plan`,
  * `/insights`). The hub owns the <h1>, so the page must not render its own
- * PageHeader — two page titles on one route is a broken heading outline. */
+ * PageHeader — two page titles on one route is a broken heading outline.
+ * The Refresh control is not part of that title, though, so it still renders
+ * when embedded — just in a plain row instead of a full PageHeader. */
 export function CoachPage({ embedded }: { embedded?: boolean } = {}) {
   const [period, setPeriod] = useState<BriefingPeriod>("daily");
   const [filter, setFilter] = useState<"live" | "bookmarked" | "dismissed">("live");
@@ -36,23 +38,38 @@ export function CoachPage({ embedded }: { embedded?: boolean } = {}) {
 
   const dismissed = filter === "dismissed";
 
+  const refreshButton = (
+    <Button
+      variant="secondary"
+      loading={generate.isPending}
+      onClick={() => generate.mutate()}
+      icon={<RefreshCw size={15} aria-hidden="true" />}
+    >
+      Refresh
+    </Button>
+  );
+
   return (
     <>
-      {!embedded && (
+      {embedded ? (
+        // The title is the hub's — this page still needs its own Refresh
+        // control reachable, just without a second <h1> underneath it.
+        <div className="lf-page-header-actions" style={{ justifyContent: "flex-end", marginBottom: "var(--lf-space-4)" }}>
+          {refreshButton}
+        </div>
+      ) : (
         <PageHeader
           title="Your coach"
           description="What's worth knowing about your money right now, and why."
-          actions={
-            <Button
-              variant="secondary"
-              loading={generate.isPending}
-              onClick={() => generate.mutate()}
-              icon={<RefreshCw size={15} aria-hidden="true" />}
-            >
-              Refresh
-            </Button>
-          }
+          actions={refreshButton}
         />
+      )}
+
+      {generate.isError && (
+        <Banner tone="danger">
+          Couldn't refresh your insights
+          {generate.error instanceof Error && generate.error.message ? `: ${generate.error.message}` : "."} Try again in a moment.
+        </Banner>
       )}
 
       <div className="lf-coach-layout">

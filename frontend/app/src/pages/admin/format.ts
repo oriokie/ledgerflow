@@ -81,6 +81,38 @@ export function moment(value: string | null | undefined): string {
   });
 }
 
+/** Maps a status string to the Badge tone that represents it.
+ *
+ * Single source of truth for status → tone across the admin console. A
+ * second, disagreeing copy of this mapping on the Tenants page was the
+ * reason invoice badges there rendered gray regardless of the invoice's
+ * real status — every admin screen must read status color off this one.
+ */
+export function tone(status: string): "success" | "warning" | "danger" | "neutral" {
+  if (["paid", "succeeded", "ok", "recovered", "active"].includes(status)) return "success";
+  if (
+    ["pending", "processing", "requested", "approved", "degraded", "open", "trialing", "incomplete"].includes(
+      status,
+    )
+  )
+    return "warning";
+  if (
+    [
+      "failed",
+      "overdue",
+      "rejected",
+      "down",
+      "abandoned",
+      "suspended",
+      "past_due",
+      "canceled",
+      "cancelled",
+    ].includes(status)
+  )
+    return "danger";
+  return "neutral";
+}
+
 /** `card_declined` → `Card declined`.
  *
  * Provider and state machine codes were reaching the screen verbatim. They are

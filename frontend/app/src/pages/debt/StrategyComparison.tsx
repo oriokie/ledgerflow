@@ -1,7 +1,6 @@
 import { Check } from "lucide-react";
 import type { PayoffStrategy, StrategyComparison as Comparison } from "../../api/types";
-import { formatAmount } from "../../lib/money";
-import { Text } from "../../ui";
+import { Figure, FigureRow, Text } from "../../ui";
 
 const LABELS: Record<PayoffStrategy, string> = {
   avalanche: "Highest rate first",
@@ -69,16 +68,26 @@ export function StrategyComparison({
               {BLURB[c.strategy]}
             </Text>
 
-            <dl className="lf-strategy-figures">
-              <div>
-                <dt>Debt free in</dt>
-                <dd>{months(c.months_to_debt_free)}</dd>
-              </div>
-              <div>
-                <dt>Interest</dt>
-                <dd>{formatAmount(c.total_interest_minor, currency)}</dd>
-              </div>
-            </dl>
+            {/* Both figures come out of the payoff simulation, not the ledger,
+                so both carry certainty="projected" — same treatment as the
+                equivalent numbers on DebtSummaryCard, BorrowingCostCard and
+                DebtAnalytics elsewhere on this page. */}
+            <FigureRow className="lf-strategy-figures">
+              <Figure
+                label="Debt free in"
+                value={months(c.months_to_debt_free)}
+                size="inline"
+                certainty="projected"
+              />
+              <Figure
+                label="Interest"
+                amountMinor={c.total_interest_minor}
+                currency={currency}
+                neutral
+                size="inline"
+                certainty="projected"
+              />
+            </FigureRow>
 
             {/* The trade-off each method is actually making, stated. */}
             {c.first_cleared_name && (
