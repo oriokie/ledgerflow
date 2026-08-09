@@ -22,6 +22,7 @@ saved. The LLM writes rules; it never executes them.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 # ---- condition language ----------------------------------------------------
@@ -33,6 +34,12 @@ _OPS = {
     "lte": lambda a, b: a <= b,
     "abs_gte": lambda a, b: abs(a) >= b,
     "abs_lte": lambda a, b: abs(a) <= b,
+    # Case-insensitive, unanchored — same "does this text contain a match"
+    # semantics as `contains`, just with a pattern instead of a literal. A
+    # statement memo like "Pay Bill Online to 4161505 - PARKNGO LIMITED Acc.
+    # Garden- sp" matches field=memo, op=regex, value="PARKNGO" with no
+    # anchoring needed.
+    "regex": lambda a, b: re.search(b, str(a), re.IGNORECASE) is not None,
 }
 
 # fields a rule may read off a transaction feature dict
@@ -73,7 +80,7 @@ def _clause_matches(clause: dict, features: dict) -> bool:
         return False
     try:
         return _OPS[op](actual, value)
-    except TypeError:
+    except (TypeError, re.error):
         return False
 
 
@@ -89,6 +96,25 @@ def conditions_match(conditions: dict, features: dict) -> bool:
         clauses = conditions["any"]
         return bool(clauses) and any(_clause_matches(c, features) for c in clauses)
     raise AutomationError("Conditions must have an 'all' or 'any' key.")
+
+
+def validate_conditions(conditions: dict) -> None:
+    """Walk the condition tree and compile every regex clause, so a bad
+    pattern 422s at save time instead of failing silently (as a permanent
+    non-match, via `_clause_matches`'s own `re.error` guard) inside the
+    post_save signal on the next matching transaction.
+
+    Deliberately shallow: the stored schema is one level of `all` *or* `any`,
+    never nested (see `conditions_match`), so this validates exactly what the
+    evaluator supports rather than inventing structure it doesn't use.
+    """
+    clauses = conditions.get("all") or conditions.get("any") or []
+    for clause in clauses:
+        if clause.get("op") == "regex":
+            try:
+                re.compile(str(clause.get("value", "")))
+            except re.error as exc:
+                raise AutomationError(f"Invalid regex {clause.get('value')!r}: {exc}") from exc
 
 
 def validate_actions(actions: list[dict]) -> None:

@@ -1,7 +1,9 @@
-import { CheckCircle2 } from "lucide-react";
-import { useMemo } from "react";
+import { CheckCircle2, Download, Upload } from "lucide-react";
+import { useMemo, useState } from "react";
+import { financeExtendedApi } from "../api/finance";
+import { ImportXlsxModal } from "../components/ImportXlsxModal";
 import { useAccounts, useBills, useCancelBill, usePayBill } from "../hooks/useFinance";
-import { Button, Card, EmptyState, PageHeader, SkeletonCard, Text, useToast } from "../ui";
+import { Button, Card, EmptyState, IconButton, PageHeader, SkeletonCard, Text, useToast } from "../ui";
 import { BillGroup, BillsSummary, CreateBillForm } from "./bills";
 import { billBuckets, billTotals } from "./bills/billsMath";
 import { useOpenOnParam } from "../hooks/useOpenOnParam";
@@ -16,6 +18,7 @@ export function BillsPage({ embedded }: { embedded?: boolean } = {}) {
   const cancelBill = useCancelBill();
   const toast = useToast();
   const [showCreate, setShowCreate] = useOpenOnParam();
+  const [showImport, setShowImport] = useState(false);
 
   const asOf = useMemo(() => new Date(), []);
   const list = bills ?? [];
@@ -43,12 +46,22 @@ export function BillsPage({ embedded }: { embedded?: boolean } = {}) {
           eyebrow="Upcoming payments"
           title="Bills"
           actions={
-            <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
-              {showCreate ? "Close" : "New bill"}
-            </Button>
+            <>
+              <IconButton
+                label="Export CSV"
+                icon={<Download size={16} />}
+                onClick={() => financeExtendedApi.downloadBillsCsv()}
+              />
+              <IconButton label="Import Excel" icon={<Upload size={16} />} onClick={() => setShowImport(true)} />
+              <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
+                {showCreate ? "Close" : "New bill"}
+              </Button>
+            </>
           }
         />
       )}
+
+      {showImport && <ImportXlsxModal target="bills" onClose={() => setShowImport(false)} />}
 
       {showCreate && <CreateBillForm onCreated={() => setShowCreate(false)} onCancel={() => setShowCreate(false)} />}
 

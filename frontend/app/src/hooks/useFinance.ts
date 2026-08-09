@@ -7,11 +7,11 @@ function tenantKey(id: string | undefined, ...rest: unknown[]) {
   return [id, ...rest];
 }
 
-export function useAccounts() {
+export function useAccounts(includeArchived = false) {
   const { activeWorkspace } = useAuth();
   return useQuery({
-    queryKey: ["accounts", ...tenantKey(activeWorkspace?.tenant.id)],
-    queryFn: () => financeApi.listAccounts(),
+    queryKey: ["accounts", ...tenantKey(activeWorkspace?.tenant.id), includeArchived],
+    queryFn: () => financeApi.listAccounts({ includeArchived }),
     enabled: !!activeWorkspace,
   });
 }
@@ -20,6 +20,39 @@ export function useCreateAccount() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: financeApi.createAccount,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+  });
+}
+
+export function useUpdateAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, payload }: { accountId: string; payload: Parameters<typeof financeApi.updateAccount>[1] }) =>
+      financeApi.updateAccount(accountId, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+  });
+}
+
+export function useArchiveAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId: string) => financeApi.archiveAccount(accountId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+  });
+}
+
+export function useUnarchiveAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId: string) => financeApi.unarchiveAccount(accountId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+  });
+}
+
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (accountId: string) => financeApi.purgeAccount(accountId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["accounts"] }),
   });
 }
@@ -122,6 +155,15 @@ export function useSplitTransaction() {
   return useMutation({
     mutationFn: ({ txnId, parts }: { txnId: string; parts: { category_id: string; amount_minor: number; memo?: string }[] }) =>
       financeApi.splitTransaction(txnId, parts),
+    onSuccess: () => invalidateMoneyViews(queryClient),
+  });
+}
+
+export function useReclassifyTransfer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ txnId, counterAccountId }: { txnId: string; counterAccountId: string }) =>
+      financeApi.reclassifyAsTransfer(txnId, counterAccountId),
     onSuccess: () => invalidateMoneyViews(queryClient),
   });
 }
@@ -324,8 +366,13 @@ export function useAccountStatement(accountId: string | null, start: string, end
 export function useUpdateTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ txnId, payload }: { txnId: string; payload: { category_id?: string | null; memo?: string } }) =>
-      financeExtendedApi.updateTransaction(txnId, payload),
+    mutationFn: ({
+      txnId,
+      payload,
+    }: {
+      txnId: string;
+      payload: { category_id?: string | null; payee_id?: string | null; memo?: string };
+    }) => financeExtendedApi.updateTransaction(txnId, payload),
 
     onMutate: async ({ txnId, payload }) => {
       // Stop in-flight refetches from clobbering the optimistic value.
@@ -395,6 +442,22 @@ export function useCancelRecurring() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (recId: string) => financeExtendedApi.cancelRecurring(recId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["recurring"] }),
+  });
+}
+
+export function useImportBillsXlsx() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => financeExtendedApi.importBillsXlsx(file),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["bills"] }),
+  });
+}
+
+export function useImportRecurringXlsx() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => financeExtendedApi.importRecurringXlsx(file),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["recurring"] }),
   });
 }

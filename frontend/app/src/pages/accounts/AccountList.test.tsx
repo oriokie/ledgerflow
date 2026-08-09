@@ -32,4 +32,13 @@ describe("AccountList", () => {
     fireEvent.click(screen.getByText("Travel Card").closest("button")!);
     expect(onSelect).toHaveBeenCalledWith("cc");
   });
+
+  it("marks a deactivated account as inactive", () => {
+    const withInactive: FinancialAccount[] = [
+      ...ACCOUNTS,
+      { id: "old", name: "Closed Savings", account_type: "savings", currency: "USD", balance_minor: 0, is_archived: true },
+    ];
+    render(<AccountList accounts={withInactive} selectedId="chk" onSelect={() => {}} primaryCurrency="USD" />);
+    expect(screen.getByText(/Inactive/)).toBeInTheDocument();
+  });
 });

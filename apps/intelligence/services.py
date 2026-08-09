@@ -10,18 +10,28 @@ finance services.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
+
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone
 
 from apps.finance import services as finance_services
 from apps.finance import tagging
-from apps.finance.models import Category, Tag, Transaction
+from apps.finance.models import Category, Tag, Transaction, TransactionStatus
 from apps.finance.payees import normalize_payee_name
 
 from . import automation, registry
 from .models import AutomationRule, CategorizationSuggestion, SuggestionStatus
 from .protocols import TransactionFeatures
+
+#: Both `import_csv.py` and `import_mpesa_service.py` need *some* real
+#: category to post a valid ledger entry against, so a row that couldn't be
+#: classified never actually lands with `category=None` — it lands against
+#: one of these two lazily-created placeholders. Treated as equivalent to
+#: "uncategorized" everywhere a rule decides whether it's still free to set
+#: a category, since no human chose either of these on purpose.
+_PLACEHOLDER_CATEGORY_NAMES = ["Uncategorized", "Uncategorized Income"]
 
 
 # --------------------------------------------------------------- feature extraction
@@ -164,6 +174,14 @@ def run_automation(txn: Transaction) -> list[str]:
     return effects
 
 
+def _is_uncategorized(txn: Transaction) -> bool:
+    """True category-less, or holding one of the ledger-required import
+    placeholders nobody actually chose (see `_PLACEHOLDER_CATEGORY_NAMES`)."""
+    if txn.category_id is None:
+        return True
+    return txn.category.name in _PLACEHOLDER_CATEGORY_NAMES
+
+
 def _apply_action(txn: Transaction, action: dict) -> str:
     kind = action.get("type")
     if kind == "set_category":
@@ -172,7 +190,7 @@ def _apply_action(txn: Transaction, action: dict) -> str:
             category = Category.objects.filter(slug=action["slug"]).first()
         if category is None and action.get("category_id"):
             category = Category.objects.filter(id=action["category_id"]).first()
-        if category and txn.category_id is None:
+        if category and _is_uncategorized(txn):
             finance_services.update_transaction(txn=txn, category=category)
             return f"set category to {category.name}"
         return "category unchanged (already set or not found)"
@@ -187,6 +205,108 @@ def _apply_action(txn: Transaction, action: dict) -> str:
         )
         return "flagged for review"
     return "no-op"
+
+
+@transaction.atomic
+def update_automation_rule(
+    *,
+    rule: AutomationRule,
+    name: str | None = None,
+    conditions: dict | None = None,
+    actions: list | None = None,
+    priority: int | None = None,
+    is_active: bool | None = None,
+    stop_processing: bool | None = None,
+) -> AutomationRule:
+    """Edit an existing rule in place, instead of soft-deleting and
+    recreating. `conditions`/`actions` are re-validated against the same
+    engine that will evaluate them (regex clauses compile, action types are
+    on the allow-list) before anything is written — a save-time check must
+    apply on every path that can change a rule's body, not just creation.
+
+    Plain `None` defaults (not a sentinel) are correct here: unlike a field
+    such as a category's `parent`, none of a rule's editable fields has a
+    meaningful "explicitly clear it" case distinct from "leave it alone."
+    """
+    fields: list[str] = []
+    if name is not None:
+        rule.name = name
+        fields.append("name")
+    if conditions is not None:
+        automation.validate_conditions(conditions)
+        rule.conditions = conditions
+        fields.append("conditions")
+    if actions is not None:
+        automation.validate_actions(actions)
+        rule.actions = actions
+        fields.append("actions")
+    if priority is not None:
+        rule.priority = priority
+        fields.append("priority")
+    if is_active is not None:
+        rule.is_active = is_active
+        fields.append("is_active")
+    if stop_processing is not None:
+        rule.stop_processing = stop_processing
+        fields.append("stop_processing")
+    if fields:
+        rule.save(update_fields=[*fields, "updated_at"])
+    return rule
+
+
+@dataclass(frozen=True, slots=True)
+class RetroactiveApplyResult:
+    scanned: int
+    matched: int
+    effects: int
+    errors: list[dict] = field(default_factory=list)
+
+
+def apply_rules_to_uncategorized(*, scope: str = "uncategorized", limit: int = 5000) -> RetroactiveApplyResult:
+    """Retroactively run active rules over existing transactions.
+
+    A rule only ever applies going forward, at the moment a transaction is
+    created (see `signals.py`'s post_save hook) — so a rule authored today has
+    no way to reach a transaction imported yesterday. This is the other half:
+    an explicit, on-demand sweep.
+
+    `scope="uncategorized"` (default) targets true-null categories AND the
+    "Uncategorized"/"Uncategorized Income" placeholders every importer falls
+    back to — see `_PLACEHOLDER_CATEGORY_NAMES`. `_apply_action`'s
+    `set_category` uses the same `_is_uncategorized` check before writing, so
+    a placeholder-categorized row is genuinely eligible to be recategorized,
+    not just matched-and-skipped. `scope="all"` widens the sweep further for
+    tag/flag-only rules, where "already categorized" isn't the right skip
+    condition; it still excludes transfers (no category slot to touch) and
+    voided rows. Bounded by `limit`, most-recent-first, so one call can't hold
+    a lock over the whole table — callers re-invoke to walk further back.
+    """
+    if not AutomationRule.objects.filter(is_active=True).exists():
+        return RetroactiveApplyResult(0, 0, 0, [])
+
+    qs = (
+        Transaction.objects.filter(transfer_group__isnull=True)
+        .exclude(status=TransactionStatus.VOID)
+        .order_by("-occurred_at")
+    )
+    if scope == "uncategorized":
+        qs = qs.filter(
+            Q(category__isnull=True) | Q(category__name__in=_PLACEHOLDER_CATEGORY_NAMES)
+        )
+
+    scanned = matched = effects = 0
+    errors: list[dict] = []
+    for txn in qs[:limit]:
+        scanned += 1
+        try:
+            applied = run_automation(txn)
+        except Exception as exc:  # noqa: BLE001 - report and continue, mirrors import_csv's per-row contract
+            errors.append({"transaction_id": str(txn.id), "error": str(exc)})
+            continue
+        if applied:
+            matched += 1
+            effects += len(applied)
+    return RetroactiveApplyResult(scanned, matched, effects, errors)
 
 
 # --------------------------------------------------------------- forecasting

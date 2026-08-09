@@ -115,6 +115,11 @@ class TransferCreateSerializer(serializers.Serializer):
     idempotency_key = serializers.CharField(max_length=128, required=False, allow_blank=True)
 
 
+class TransactionReclassifyTransferSerializer(serializers.Serializer):
+    counter_account_id = serializers.UUIDField()
+    idempotency_key = serializers.CharField(max_length=128, required=False, allow_blank=True)
+
+
 class TransactionSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     financial_account_id = serializers.UUIDField()

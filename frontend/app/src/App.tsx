@@ -62,7 +62,9 @@ const PlanPage = lazy(() => import("./pages/PlanPage").then((m) => ({ default: m
 const InsightsHubPage = lazy(() =>
   import("./pages/InsightsHubPage").then((m) => ({ default: m.InsightsHubPage })),
 );
-const AutomationPage = lazy(() => import("./pages/AutomationPage").then((m) => ({ default: m.AutomationPage })));
+const AutomationHubPage = lazy(() =>
+  import("./pages/AutomationHubPage").then((m) => ({ default: m.AutomationHubPage })),
+);
 const MembersPage = lazy(() => import("./pages/MembersPage").then((m) => ({ default: m.MembersPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.SettingsPage })));
 const BillingPage = lazy(() => import("./pages/BillingPage").then((m) => ({ default: m.BillingPage })));
@@ -210,7 +212,7 @@ export default function App() {
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/projections" element={<ProjectionsPage />} />
           <Route path="/household" element={<HouseholdPage />} />
-          <Route path="/automation" element={<AutomationPage />} />
+          <Route path="/automation" element={<AutomationHubPage />} />
           <Route path="/quick-add" element={<QuickAddPage />} />
           <Route path="/receipts/scan" element={<ReceiptScanPage />} />
           <Route path="/members" element={<MembersPage />} />

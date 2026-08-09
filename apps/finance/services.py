@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.common import audit
@@ -38,9 +39,11 @@ from apps.ledger.services import LineInput
 
 from .models import (
     AccountType,
+    Bill,
     Category,
     CategoryKind,
     FinancialAccount,
+    RecurringTransaction,
     Transaction,
     TransactionSource,
     TransactionStatus,
@@ -401,6 +404,29 @@ def update_financial_account(*, financial_account: FinancialAccount, **fields) -
     if changed:
         financial_account.save(update_fields=[*changed, "updated_at"])
     return financial_account
+
+
+@transaction.atomic
+def delete_financial_account(*, financial_account: FinancialAccount) -> None:
+    """Permanently removes an account with nothing to lose — unlike archive,
+    this drops it from every list, including the archived view, so it's only
+    allowed when there's no history, schedule, or bill left dangling."""
+    in_use = Transaction.objects.filter(
+        Q(financial_account=financial_account) | Q(counter_account=financial_account)
+    ).exists()
+    if in_use:
+        raise FinanceError("This account has transactions. Deactivate it instead, or void its transactions first.")
+
+    in_recurring = RecurringTransaction.objects.filter(
+        Q(financial_account=financial_account) | Q(counter_account=financial_account)
+    ).exists()
+    if in_recurring:
+        raise FinanceError("This account is used by a recurring schedule. Remove or repoint it first.")
+
+    if Bill.objects.filter(autopay_account=financial_account).exists():
+        raise FinanceError("This account is set as autopay for a bill. Change the bill's autopay account first.")
+
+    financial_account.delete()  # soft delete
 
 
 # --------------------------------------------------------------------------- categories
@@ -795,6 +821,60 @@ def void_transaction(*, txn: Transaction, idempotency_key: str | None = None, me
             target=sibling,
             changes={"status": [TransactionStatus.POSTED, TransactionStatus.VOID]},
         )
+
+
+@transaction.atomic
+def reclassify_as_transfer(
+    *,
+    txn: Transaction,
+    counter_account: FinancialAccount,
+    idempotency_key: str | None = None,
+) -> tuple[Transaction, Transaction]:
+    """Void a misposted income/expense row and repost it as a real transfer.
+
+    A statement import has no idea two of a household's own accounts are
+    involved in one movement — it just sees a credit here and a debit there.
+    This is the fix once a human recognizes that: direction is derived from
+    the sign of the original row, never asked for, since asking invites
+    getting it backwards. A positive (income) row means money arrived FROM
+    `counter_account`; a negative (expense) row means money left TO it.
+    `occurred_at` and `memo` are preserved so the reclassified row keeps its
+    place in history.
+
+    Posted with `source=IMPORTED`, not `MANUAL` — this never moves money that
+    wasn't already moving. The original row is proof the amount already left
+    one account and reached the other; reclassifying only corrects which
+    account gets credited with which side. Gating that on the destination
+    leg's current balance would refuse a true correction just because that
+    account's own history isn't fully tracked yet, which is exactly the
+    "an import disagrees with what the bank actually did" case
+    `_assert_sufficient_funds` already carves out.
+    """
+    if txn.status == TransactionStatus.VOID:
+        raise FinanceError("Cannot reclassify a voided transaction.")
+    if txn.transfer_group is not None:
+        raise FinanceError("This is already a transfer.")
+    if txn.split_group is not None:
+        raise FinanceError("This transaction is part of a split; void the split and re-enter it first.")
+    if txn.reconciled_at is not None:
+        raise FinanceError("Un-reconcile this transaction before reclassifying it.")
+
+    amount = abs(txn.amount_minor)
+    if txn.amount_minor > 0:  # income leg: money arrived FROM counter_account
+        from_account, to_account = counter_account, txn.financial_account
+    else:  # expense leg: money left TO counter_account
+        from_account, to_account = txn.financial_account, counter_account
+
+    void_transaction(txn=txn)
+    return record_transfer(
+        from_account=from_account,
+        to_account=to_account,
+        amount_minor=amount,
+        occurred_at=txn.occurred_at,
+        memo=txn.memo,
+        source=TransactionSource.IMPORTED,
+        idempotency_key=idempotency_key,
+    )
 
 
 @transaction.atomic

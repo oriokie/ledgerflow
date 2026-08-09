@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
-import type { Category, FinancialAccount, Transaction } from "../../api/types";
+import type { Category, FinancialAccount, Payee, Transaction } from "../../api/types";
 import { formatDate } from "../../lib/money";
 import { Money } from "../../ui";
 
-function describe(txn: Transaction, categoryName: string | undefined): string {
-  return txn.memo?.trim() || categoryName || (txn.transfer_group ? "Transfer" : "Transaction");
+function describe(txn: Transaction, categoryName: string | undefined, payeeName: string | undefined): string {
+  return txn.memo?.trim() || payeeName || categoryName || (txn.transfer_group ? "Transfer" : "Transaction");
 }
 
 /**
@@ -23,6 +23,7 @@ export function TransactionTable({
   rows,
   accounts,
   categories,
+  payees,
   selected,
   onToggle,
   onToggleAll,
@@ -32,6 +33,7 @@ export function TransactionTable({
   rows: Transaction[];
   accounts: FinancialAccount[] | undefined;
   categories: Category[] | undefined;
+  payees?: Payee[] | undefined;
   selected: Set<string>;
   onToggle: (id: string) => void;
   onToggleAll: () => void;
@@ -40,6 +42,7 @@ export function TransactionTable({
 }) {
   const accountById = useMemo(() => new Map((accounts ?? []).map((a) => [a.id, a.name])), [accounts]);
   const categoryById = useMemo(() => new Map((categories ?? []).map((c) => [c.id, c.name])), [categories]);
+  const payeeById = useMemo(() => new Map((payees ?? []).map((p) => [p.id, p.name])), [payees]);
   const expenseCats = useMemo(() => (categories ?? []).filter((c) => c.kind === "expense"), [categories]);
   const incomeCats = useMemo(() => (categories ?? []).filter((c) => c.kind === "income"), [categories]);
 
@@ -83,6 +86,7 @@ export function TransactionTable({
           {rows.map((txn) => {
             const isTransfer = !!txn.transfer_group;
             const catName = txn.category_id ? categoryById.get(txn.category_id) : undefined;
+            const payeeName = txn.payee_id ? payeeById.get(txn.payee_id) : undefined;
             const options = txn.amount_minor < 0 ? expenseCats : incomeCats;
             const account = accountById.get(txn.financial_account_id);
             const counterAccount = txn.counter_account_id
@@ -100,7 +104,7 @@ export function TransactionTable({
                 <td className="lf-txn-check" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
-                    aria-label={`Select ${describe(txn, catName)}`}
+                    aria-label={`Select ${describe(txn, catName, payeeName)}`}
                     checked={selected.has(txn.id)}
                     onChange={() => onToggle(txn.id)}
                   />
@@ -114,7 +118,7 @@ export function TransactionTable({
                   <span className="lf-cell-meta">{formatDate(txn.occurred_at)}</span>
                 </td>
                 <td>
-                  <span className="lf-cell-primary">{describe(txn, catName)}</span>
+                  <span className="lf-cell-primary">{describe(txn, catName, payeeName)}</span>
                 </td>
                 <td className="lf-txn-cat" onClick={(e) => e.stopPropagation()}>
                   {isTransfer ? (
@@ -122,7 +126,7 @@ export function TransactionTable({
                   ) : (
                     <select
                       className="lf-select lf-txn-cat-select"
-                      aria-label={`Category for ${describe(txn, catName)}`}
+                      aria-label={`Category for ${describe(txn, catName, payeeName)}`}
                       value={txn.category_id ?? ""}
                       onChange={(e) => onCategorize(txn.id, e.target.value || null)}
                     >

@@ -116,6 +116,116 @@ def test_transfer_endpoint(tenant_context):
     assert flow.data[0]["income_minor"] == 100000
 
 
+def test_reclassify_transfer_endpoint(tenant_context):
+    membership, client = tenant_context
+    a = client.post(
+        "/api/v1/finance/accounts/",
+        {"name": "Checking", "account_type": "checking", "currency": "USD"},
+        format="json",
+    ).data
+    b = client.post(
+        "/api/v1/finance/accounts/",
+        {"name": "Savings", "account_type": "savings", "currency": "USD"},
+        format="json",
+    ).data
+    salary = client.post(
+        "/api/v1/finance/categories/", {"name": "Salary", "kind": "income", "currency": "USD"}, format="json"
+    ).data
+    txn = client.post(
+        "/api/v1/finance/transactions/",
+        {
+            "type": "income",
+            "financial_account_id": b["id"],
+            "category_id": salary["id"],
+            "amount_minor": 40000,
+            "occurred_at": "2026-01-01T00:00:00Z",
+        },
+        format="json",
+    ).data
+
+    resp = client.post(
+        f"/api/v1/finance/transactions/{txn['id']}/reclassify-transfer/",
+        {"counter_account_id": a["id"]},
+        format="json",
+    )
+    assert resp.status_code == 200, resp.data
+    assert str(resp.data["out"]["financial_account_id"]) == a["id"]
+    assert str(resp.data["in"]["financial_account_id"]) == b["id"]
+    assert resp.data["out"]["transfer_group"] == resp.data["in"]["transfer_group"]
+
+    # the original single-leg row is gone, replaced by the linked pair
+    original = client.get("/api/v1/finance/transactions/").data
+    rows = original["results"] if isinstance(original, dict) and "results" in original else original
+    ids = [str(row["id"]) for row in rows]
+    assert txn["id"] not in ids
+
+
+def test_reclassify_transfer_rejects_unknown_counter_account(tenant_context):
+    membership, client = tenant_context
+    a = client.post(
+        "/api/v1/finance/accounts/",
+        {"name": "Checking", "account_type": "checking", "currency": "USD"},
+        format="json",
+    ).data
+    salary = client.post(
+        "/api/v1/finance/categories/", {"name": "Salary", "kind": "income", "currency": "USD"}, format="json"
+    ).data
+    txn = client.post(
+        "/api/v1/finance/transactions/",
+        {
+            "type": "income",
+            "financial_account_id": a["id"],
+            "category_id": salary["id"],
+            "amount_minor": 5000,
+            "occurred_at": "2026-01-01T00:00:00Z",
+        },
+        format="json",
+    ).data
+    resp = client.post(
+        f"/api/v1/finance/transactions/{txn['id']}/reclassify-transfer/",
+        {"counter_account_id": "00000000-0000-0000-0000-000000000000"},
+        format="json",
+    )
+    assert resp.status_code == 400
+
+
+def test_reclassify_transfer_forbidden_for_viewer(tenant_context):
+    owner_membership, owner_client = tenant_context
+    a = owner_client.post(
+        "/api/v1/finance/accounts/",
+        {"name": "Checking", "account_type": "checking", "currency": "USD"},
+        format="json",
+    ).data
+    b = owner_client.post(
+        "/api/v1/finance/accounts/",
+        {"name": "Savings", "account_type": "savings", "currency": "USD"},
+        format="json",
+    ).data
+    salary = owner_client.post(
+        "/api/v1/finance/categories/", {"name": "Salary", "kind": "income", "currency": "USD"}, format="json"
+    ).data
+    txn = owner_client.post(
+        "/api/v1/finance/transactions/",
+        {
+            "type": "income",
+            "financial_account_id": a["id"],
+            "category_id": salary["id"],
+            "amount_minor": 5000,
+            "occurred_at": "2026-01-01T00:00:00Z",
+        },
+        format="json",
+    ).data
+
+    viewer = MembershipFactory(tenant=owner_membership.tenant, role=Role.VIEWER)
+    viewer_client = _bearer_client(viewer.user, tenant_id=viewer.tenant_id)
+    resp = viewer_client.post(
+        f"/api/v1/finance/transactions/{txn['id']}/reclassify-transfer/",
+        {"counter_account_id": b["id"]},
+        format="json",
+    )
+    assert resp.status_code == 403
+
+
 def test_viewer_can_read_but_not_write(tenant_context):
     owner_membership, _owner_client = tenant_context
     viewer = MembershipFactory(tenant=owner_membership.tenant, role=Role.VIEWER)

@@ -1,14 +1,16 @@
-import { ArrowLeftRight, Download, Upload } from "lucide-react";
+import { ArrowLeftRight, Download, RefreshCw, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { financeExtendedApi } from "../api/finance";
 import type { Transaction } from "../api/types";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import { useApplyAutomationRules } from "../hooks/useIntelligence";
 import {
   useAccounts,
   useBulkUpdateTransactions,
   useBulkVoidTransactions,
   useCategories,
+  usePayees,
   useTransactions,
   useUpdateTransaction,
 } from "../hooks/useFinance";
@@ -43,10 +45,12 @@ export function TransactionsPage({ embedded }: { embedded?: boolean } = {}) {
 
   const { data: accounts } = useAccounts();
   const { data: categories } = useCategories();
+  const { data: payees } = usePayees();
   const updateTxn = useUpdateTransaction();
   const toast = useToast();
   const bulkUpdate = useBulkUpdateTransactions();
   const bulkVoid = useBulkVoidTransactions();
+  const applyRules = useApplyAutomationRules();
 
   // Apply a new filter state: reset paging + selection so results stay coherent.
   const applyFilters = useCallback(
@@ -103,6 +107,15 @@ export function TransactionsPage({ embedded }: { embedded?: boolean } = {}) {
     clearSelection();
   };
 
+  const applyRulesNow = async () => {
+    try {
+      const result = await applyRules.mutateAsync({ scope: "uncategorized" });
+      toast(`Applied rules to ${result.matched} of ${result.scanned} uncategorized transaction${result.scanned === 1 ? "" : "s"}`);
+    } catch (err) {
+      toast(err instanceof ApiError ? err.detail : "Couldn't apply rules.");
+    }
+  };
+
   const inlineCategorize = (txnId: string, categoryId: string | null) => {
     // The cache updates instantly (see useUpdateTransaction), so the only thing
     // left to handle here is failure: without this, a rejected save would roll
@@ -127,6 +140,12 @@ export function TransactionsPage({ embedded }: { embedded?: boolean } = {}) {
           title="Transactions"
           actions={
             <>
+              <IconButton
+                label="Apply automation rules to uncategorized transactions"
+                icon={<RefreshCw size={16} />}
+                onClick={applyRulesNow}
+                disabled={applyRules.isPending}
+              />
               <IconButton label="Export CSV" icon={<Download size={16} />} onClick={() => financeExtendedApi.downloadExport(apiFilters)} />
               <IconButton label="Import CSV" icon={<Upload size={16} />} onClick={() => setShowImport(true)} />
               <Button variant="primary" onClick={() => setShowAdd((v) => !v)}>
@@ -218,6 +237,7 @@ export function TransactionsPage({ embedded }: { embedded?: boolean } = {}) {
             rows={rows}
             accounts={accounts}
             categories={categories}
+            payees={payees}
             selected={selected}
             onToggle={toggle}
             onToggleAll={toggleAll}

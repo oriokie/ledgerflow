@@ -97,7 +97,8 @@ function qs(params: Record<string, unknown>): string {
 }
 
 export const financeApi = {
-  listAccounts: () => api.get<FinancialAccount[]>("/finance/accounts/"),
+  listAccounts: (params: { includeArchived?: boolean } = {}) =>
+    api.get<FinancialAccount[]>(`/finance/accounts/${qs({ include_archived: params.includeArchived || undefined })}`),
   createAccount: (payload: {
     name: string;
     account_type: string;
@@ -124,6 +125,10 @@ export const financeApi = {
 
   unarchiveAccount: (accountId: string) =>
     api.post<FinancialAccount>(`/finance/accounts/${accountId}/unarchive/`, {}),
+
+  /** Permanent — only succeeds when the account has no transactions, recurring
+   * schedule, or bill autopay reference left pointing at it. */
+  purgeAccount: (accountId: string) => api.delete<void>(`/finance/accounts/${accountId}/purge/`),
 
   /** Day-by-day projected liquid balance. Returns null when the workspace has
    * no liquid account — the API answers 204 rather than an empty calendar,
@@ -161,6 +166,14 @@ export const financeApi = {
     occurred_at: string;
     memo?: string;
   }) => api.post<{ debit: Transaction; credit: Transaction }>("/finance/transfers/", payload),
+
+  /** Fix a statement-import row that was actually a transfer between two of
+   * the household's own accounts — voids it and reposts as a real linked
+   * transfer. See services.reclassify_as_transfer. */
+  reclassifyAsTransfer: (txnId: string, counterAccountId: string) =>
+    api.post<{ out: Transaction; in: Transaction }>(`/finance/transactions/${txnId}/reclassify-transfer/`, {
+      counter_account_id: counterAccountId,
+    }),
 
   splitTransaction: (
     txnId: string,
@@ -330,28 +343,59 @@ export const financeExtendedApi = {
     api.put<Tag[]>(`/finance/transactions/${txnId}/tags/`, { tag_ids }),
 
   createPayee: (payload: { name: string; default_category_id?: string }) =>
-    api.post("/finance/payees/", payload),
+    api.post<Payee>("/finance/payees/", payload),
 
   /** Export needs the Bearer token, so a plain <a href> can't carry it —
-   * fetch with auth, then hand the blob to the browser as a download. */
-  downloadExport: async (filters: TransactionFilters = {}) => {
-    const { tokenStore, tenantStore } = await import("./tokenStore");
-    const url = `${BASE_URL_EXPORT}/finance/transactions/export/${qs(filters)}`;
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${tokenStore.getAccess() ?? ""}`,
-        "X-Tenant-ID": tenantStore.getActive() ?? "",
-      },
-    });
-    if (!res.ok) throw new Error("Export failed");
-    const blob = await res.blob();
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "transactions.csv";
-    a.click();
-    URL.revokeObjectURL(a.href);
+   * fetch with auth, then hand the blob to the browser as a download. Shared
+   * by every CSV export button so this logic exists exactly once. */
+  downloadExport: (filters: TransactionFilters = {}) =>
+    downloadCsv(`/finance/transactions/export/${qs(filters)}`, "transactions.csv"),
+
+  downloadBillsCsv: (params: { status?: string } = {}) =>
+    downloadCsv(`/finance/bills/export/${qs(params)}`, "bills.csv"),
+
+  downloadRecurringCsv: () => downloadCsv("/finance/recurring/export/", "recurring.csv"),
+
+  /** Bulk-create bills/recurring schedules from a hand-filled spreadsheet —
+   * not the statement importer, which stays CSV-only. */
+  importBillsXlsx: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return postForm<{ created: number; errors: { row: number; message: string }[] }>(
+      "/finance/bills/import/",
+      form,
+    );
   },
+  importRecurringXlsx: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return postForm<{ created: number; errors: { row: number; message: string }[] }>(
+      "/finance/recurring/import/",
+      form,
+    );
+  },
+  billsImportTemplate: () => getBlob("/finance/bills/import/"),
+  recurringImportTemplate: () => getBlob("/finance/recurring/import/"),
 };
+
+/** Fetch a CSV endpoint with the auth header a plain `<a href>` can't carry,
+ * then hand the blob to the browser as a download. */
+async function downloadCsv(path: string, filename: string): Promise<void> {
+  const { tokenStore, tenantStore } = await import("./tokenStore");
+  const res = await fetch(`${BASE_URL_EXPORT}${path}`, {
+    headers: {
+      Authorization: `Bearer ${tokenStore.getAccess() ?? ""}`,
+      "X-Tenant-ID": tenantStore.getActive() ?? "",
+    },
+  });
+  if (!res.ok) throw new Error("Export failed");
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 const BASE_URL_EXPORT = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
 

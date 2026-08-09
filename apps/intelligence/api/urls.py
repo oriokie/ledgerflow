@@ -5,6 +5,7 @@ from django.urls import path
 from .views import (
     AnomaliesView,
     AskView,
+    AutomationApplyRulesView,
     AutomationBulkDecisionView,
     AutomationDecisionView,
     AutomationQueueView,
@@ -32,6 +33,7 @@ from .views import (
 urlpatterns = [
     path("llm-settings/", LLMSettingsView.as_view(), name="intel-llm-settings"),
     path("automation/scan/", AutomationScanView.as_view(), name="intel-auto-scan"),
+    path("automation/apply-rules/", AutomationApplyRulesView.as_view(), name="intel-auto-apply-rules"),
     path("automation/queue/", AutomationQueueView.as_view(), name="intel-auto-queue"),
     path("automation/bulk/", AutomationBulkDecisionView.as_view(), name="intel-auto-bulk"),
     path(

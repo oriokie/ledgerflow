@@ -132,6 +132,35 @@ export function useDeleteAutomationRule() {
   });
 }
 
+export function useAutomationRule(ruleId: string | undefined) {
+  return useQuery({
+    queryKey: ["automation-rules", "detail", ruleId],
+    queryFn: () => automationApi.get(ruleId!),
+    enabled: !!ruleId,
+  });
+}
+
+export function useUpdateAutomationRule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ruleId, ...payload }: { ruleId: string } & Parameters<typeof automationApi.update>[1]) =>
+      automationApi.update(ruleId, payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["automation-rules"] }),
+  });
+}
+
+/** Retroactively runs active rules over existing transactions — the
+ * complement to the live pipeline, which only ever reaches a transaction at
+ * the moment it's created. */
+export function useApplyAutomationRules() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Parameters<typeof automationApi.applyRules>[0] = {}) =>
+      automationApi.applyRules(payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+  });
+}
+
 export function useCashRunway(enabled = true) {
   const { activeWorkspace } = useAuth();
   return useQuery({
