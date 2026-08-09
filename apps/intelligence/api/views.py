@@ -673,7 +673,9 @@ class AutomationApplyRulesView(WriteRequiresMemberMixin, TenantScopedAPIView, AP
     def post(self, request):
         scope = request.data.get("scope", "uncategorized")
         if scope not in ("uncategorized", "all"):
-            return Response({"detail": "scope must be 'uncategorized' or 'all'."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "scope must be 'uncategorized' or 'all'."}, status=status.HTTP_400_BAD_REQUEST
+            )
         limit = min(int(request.data.get("limit", 5000) or 5000), 20000)
         result = services.apply_rules_to_uncategorized(scope=scope, limit=limit)
         return Response(

@@ -255,11 +255,17 @@ def test_approving_a_transfer_suggestion_reclassifies_misposted_legs(tenant):
 
         # Money left checking (posted as if it were a plain expense)...
         out_txn = finance_services.record_expense(
-            financial_account=checking, category=groceries, amount_minor=50_000, occurred_at=now,
+            financial_account=checking,
+            category=groceries,
+            amount_minor=50_000,
+            occurred_at=now,
         )
         # ...and arrived in savings (posted as if it were plain income).
         in_txn = finance_services.record_income(
-            financial_account=savings, category=salary, amount_minor=50_000, occurred_at=now,
+            financial_account=savings,
+            category=salary,
+            amount_minor=50_000,
+            occurred_at=now,
         )
 
         auto.scan()

@@ -58,9 +58,30 @@ def test_import_bills_with_payee_category_and_recurrence(tenant_id):
     with tenant_scope(tenant_id):
         services.create_category(name="Housing", kind=CategoryKind.EXPENSE, currency="USD")
         xlsx = _workbook(
-            ["name", "amount", "currency", "due_on", "payee", "category", "recurrence_frequency",
-             "recurrence_interval", "notes"],
-            [["Rent", 1500.00, "USD", "2026-02-01", "Sunrise Apartments", "Housing", "monthly", 1, "Unit 4B"]],
+            [
+                "name",
+                "amount",
+                "currency",
+                "due_on",
+                "payee",
+                "category",
+                "recurrence_frequency",
+                "recurrence_interval",
+                "notes",
+            ],
+            [
+                [
+                    "Rent",
+                    1500.00,
+                    "USD",
+                    "2026-02-01",
+                    "Sunrise Apartments",
+                    "Housing",
+                    "monthly",
+                    1,
+                    "Unit 4B",
+                ]
+            ],
         )
         result = import_xlsx.import_bills_xlsx(file_bytes=xlsx)
         assert result.created == 1
@@ -306,7 +327,9 @@ def test_api_recurring_export(tenant_context):
         format="json",
     ).data
     category = client.post(
-        "/api/v1/finance/categories/", {"name": "Housing", "kind": "expense", "currency": "USD"}, format="json"
+        "/api/v1/finance/categories/",
+        {"name": "Housing", "kind": "expense", "currency": "USD"},
+        format="json",
     ).data
     client.post(
         "/api/v1/finance/recurring/",

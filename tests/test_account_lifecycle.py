@@ -153,7 +153,11 @@ def _api_account(client, name="Checking", account_type="checking", currency="USD
 def test_patch_account_edits_fields(tenant_context):
     membership, client = tenant_context
     acct = _api_account(client)
-    resp = client.patch(f"/api/v1/finance/accounts/{acct['id']}/", {"name": "Main Checking", "notes": "primary"}, format="json")
+    resp = client.patch(
+        f"/api/v1/finance/accounts/{acct['id']}/",
+        {"name": "Main Checking", "notes": "primary"},
+        format="json",
+    )
     assert resp.status_code == 200, resp.data
     assert resp.data["name"] == "Main Checking"
     assert resp.data["notes"] == "primary"
@@ -201,7 +205,9 @@ def test_purge_422s_once_the_account_has_a_transaction(tenant_context):
     membership, client = tenant_context
     acct = _api_account(client)
     cat = client.post(
-        "/api/v1/finance/categories/", {"name": "Groceries", "kind": "expense", "currency": "USD"}, format="json"
+        "/api/v1/finance/categories/",
+        {"name": "Groceries", "kind": "expense", "currency": "USD"},
+        format="json",
     ).data
     client.post(
         "/api/v1/finance/transactions/",
@@ -226,7 +232,15 @@ def test_viewer_cannot_write_account_lifecycle_endpoints(tenant_context):
     viewer = MembershipFactory(tenant=owner_membership.tenant, role=Role.VIEWER)
     viewer_client = _bearer_client(viewer.user, tenant_id=viewer.tenant_id)
 
-    assert viewer_client.patch(f"/api/v1/finance/accounts/{acct['id']}/", {"name": "Hack"}, format="json").status_code == 403
+    assert (
+        viewer_client.patch(
+            f"/api/v1/finance/accounts/{acct['id']}/", {"name": "Hack"}, format="json"
+        ).status_code
+        == 403
+    )
     assert viewer_client.delete(f"/api/v1/finance/accounts/{acct['id']}/").status_code == 403
-    assert viewer_client.post(f"/api/v1/finance/accounts/{acct['id']}/unarchive/", {}, format="json").status_code == 403
+    assert (
+        viewer_client.post(f"/api/v1/finance/accounts/{acct['id']}/unarchive/", {}, format="json").status_code
+        == 403
+    )
     assert viewer_client.delete(f"/api/v1/finance/accounts/{acct['id']}/purge/").status_code == 403

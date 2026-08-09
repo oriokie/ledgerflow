@@ -415,7 +415,9 @@ def delete_financial_account(*, financial_account: FinancialAccount) -> None:
         Q(financial_account=financial_account) | Q(counter_account=financial_account)
     ).exists()
     if in_use:
-        raise FinanceError("This account has transactions. Deactivate it instead, or void its transactions first.")
+        raise FinanceError(
+            "This account has transactions. Deactivate it instead, or void its transactions first."
+        )
 
     in_recurring = RecurringTransaction.objects.filter(
         Q(financial_account=financial_account) | Q(counter_account=financial_account)
@@ -424,7 +426,9 @@ def delete_financial_account(*, financial_account: FinancialAccount) -> None:
         raise FinanceError("This account is used by a recurring schedule. Remove or repoint it first.")
 
     if Bill.objects.filter(autopay_account=financial_account).exists():
-        raise FinanceError("This account is set as autopay for a bill. Change the bill's autopay account first.")
+        raise FinanceError(
+            "This account is set as autopay for a bill. Change the bill's autopay account first."
+        )
 
     financial_account.delete()  # soft delete
 

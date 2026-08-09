@@ -221,9 +221,36 @@ RECURRING_TEMPLATE_HEADER = [
     "memo",
 ]
 RECURRING_TEMPLATE_ROWS = [
-    ["expense", "Checking", "", "Housing", "Sunrise Apartments", 1500.00, "USD", "monthly", 1,
-     "2026-02-01", "", "", "Rent"],
-    ["transfer", "Checking", "Savings", "", "", 200.00, "USD", "monthly", 1, "2026-02-01", "", "", "Savings sweep"],
+    [
+        "expense",
+        "Checking",
+        "",
+        "Housing",
+        "Sunrise Apartments",
+        1500.00,
+        "USD",
+        "monthly",
+        1,
+        "2026-02-01",
+        "",
+        "",
+        "Rent",
+    ],
+    [
+        "transfer",
+        "Checking",
+        "Savings",
+        "",
+        "",
+        200.00,
+        "USD",
+        "monthly",
+        1,
+        "2026-02-01",
+        "",
+        "",
+        "Savings sweep",
+    ],
 ]
 
 
@@ -264,7 +291,9 @@ def import_recurring_xlsx(*, file_bytes: bytes) -> ImportResult:
             counter_account = None
             counter_name = _cell(row, cols, "counter_account")
             if counter_name:
-                counter_account = FinancialAccount.objects.filter(name__iexact=str(counter_name).strip()).first()
+                counter_account = FinancialAccount.objects.filter(
+                    name__iexact=str(counter_name).strip()
+                ).first()
                 if counter_account is None:
                     raise ImportError_(f"No account named {str(counter_name).strip()!r}.")
 

@@ -1477,7 +1477,9 @@ class BillImportView(TenantScopedAPIView, APIView):
 
         upload = request.FILES.get("file")
         if upload is None:
-            return Response({"detail": "Attach the .xlsx file as 'file'."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Attach the .xlsx file as 'file'."}, status=status.HTTP_400_BAD_REQUEST
+            )
         try:
             result = import_xlsx.import_bills_xlsx(file_bytes=upload.read())
         except import_xlsx.ImportError_ as exc:
@@ -1511,7 +1513,9 @@ class RecurringImportView(TenantScopedAPIView, APIView):
 
         upload = request.FILES.get("file")
         if upload is None:
-            return Response({"detail": "Attach the .xlsx file as 'file'."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Attach the .xlsx file as 'file'."}, status=status.HTTP_400_BAD_REQUEST
+            )
         try:
             result = import_xlsx.import_recurring_xlsx(file_bytes=upload.read())
         except import_xlsx.ImportError_ as exc:

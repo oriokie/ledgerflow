@@ -34,7 +34,9 @@ def _categories():
     # so a genuinely-uncategorized import row lands here, never at
     # category=None. This is the population apply_rules_to_uncategorized's
     # default scope actually needs to reach.
-    uncategorized = finance_services.create_category(name="Uncategorized", kind=CategoryKind.EXPENSE, currency="USD")
+    uncategorized = finance_services.create_category(
+        name="Uncategorized", kind=CategoryKind.EXPENSE, currency="USD"
+    )
     return parking, uncategorized
 
 
@@ -48,7 +50,11 @@ def _seed():
 
 def _spend(account, category, amount=1500, memo=""):
     return finance_services.record_expense(
-        financial_account=account, category=category, amount_minor=amount, occurred_at=timezone.now(), memo=memo
+        financial_account=account,
+        category=category,
+        amount_minor=amount,
+        occurred_at=timezone.now(),
+        memo=memo,
     )
 
 
@@ -298,7 +304,10 @@ def test_apply_rules_all_scope_reaches_already_categorized_rows_for_tag_only_rul
 def test_apply_rules_excludes_transfers_and_void(tenant):
     with tenant_scope(tenant):
         checking = finance_services.create_financial_account(
-            name="Checking", account_type=AccountType.CHECKING, currency="USD", opening_balance_minor=1_000_000
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
         )
         savings = finance_services.create_financial_account(
             name="Savings", account_type=AccountType.SAVINGS, currency="USD"
@@ -399,11 +408,18 @@ def test_api_apply_rules_endpoint(tenant_context):
 def _seed_via_client(client):
     account = client.post(
         "/api/v1/finance/accounts/",
-        {"name": "Checking", "account_type": "checking", "currency": "USD", "opening_balance_minor": 1_000_000},
+        {
+            "name": "Checking",
+            "account_type": "checking",
+            "currency": "USD",
+            "opening_balance_minor": 1_000_000,
+        },
         format="json",
     ).data
     parking = client.post(
-        "/api/v1/finance/categories/", {"name": "Parking", "kind": "expense", "currency": "USD"}, format="json"
+        "/api/v1/finance/categories/",
+        {"name": "Parking", "kind": "expense", "currency": "USD"},
+        format="json",
     ).data
     uncategorized = client.post(
         "/api/v1/finance/categories/",

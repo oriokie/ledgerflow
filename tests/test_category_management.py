@@ -121,7 +121,9 @@ def test_reparent_category():
     ).json()
     assert child["parent_id"] is None
 
-    resp = client.patch(f"/api/v1/finance/categories/{child['id']}/", {"parent_id": parent["id"]}, format="json")
+    resp = client.patch(
+        f"/api/v1/finance/categories/{child['id']}/", {"parent_id": parent["id"]}, format="json"
+    )
     assert resp.status_code == 200
     body = resp.json()
     assert body["parent_id"] == parent["id"]
@@ -169,7 +171,9 @@ def test_cannot_reparent_category_under_its_own_descendant():
         child = services.create_category(name="Groceries", kind="expense", currency="USD", parent=parent)
 
     client = _client(m.user, m.tenant_id)
-    resp = client.patch(f"/api/v1/finance/categories/{parent.id}/", {"parent_id": str(child.id)}, format="json")
+    resp = client.patch(
+        f"/api/v1/finance/categories/{parent.id}/", {"parent_id": str(child.id)}, format="json"
+    )
     assert resp.status_code == 422
     assert "descendant" in resp.json()["detail"].lower()
 
@@ -212,7 +216,9 @@ def test_reparent_cascades_to_descendant_paths():
         mid_id, leaf_id = mid.id, leaf.id
 
     client = _client(m.user, m.tenant_id)
-    resp = client.patch(f"/api/v1/finance/categories/{mid_id}/", {"parent_id": str(new_parent.id)}, format="json")
+    resp = client.patch(
+        f"/api/v1/finance/categories/{mid_id}/", {"parent_id": str(new_parent.id)}, format="json"
+    )
     assert resp.status_code == 200
     body = resp.json()
     assert body["path"] == "household.groceries"

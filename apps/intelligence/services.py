@@ -262,7 +262,9 @@ class RetroactiveApplyResult:
     errors: list[dict] = field(default_factory=list)
 
 
-def apply_rules_to_uncategorized(*, scope: str = "uncategorized", limit: int = 5000) -> RetroactiveApplyResult:
+def apply_rules_to_uncategorized(
+    *, scope: str = "uncategorized", limit: int = 5000
+) -> RetroactiveApplyResult:
     """Retroactively run active rules over existing transactions.
 
     A rule only ever applies going forward, at the moment a transaction is
@@ -290,9 +292,7 @@ def apply_rules_to_uncategorized(*, scope: str = "uncategorized", limit: int = 5
         .order_by("-occurred_at")
     )
     if scope == "uncategorized":
-        qs = qs.filter(
-            Q(category__isnull=True) | Q(category__name__in=_PLACEHOLDER_CATEGORY_NAMES)
-        )
+        qs = qs.filter(Q(category__isnull=True) | Q(category__name__in=_PLACEHOLDER_CATEGORY_NAMES))
 
     scanned = matched = effects = 0
     errors: list[dict] = []
