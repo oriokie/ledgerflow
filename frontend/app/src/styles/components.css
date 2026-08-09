@@ -1074,7 +1074,7 @@
   transition: width var(--lf-duration-base) var(--lf-ease-out);
 }
 
-.lf-meter--over .lf-meter-fill {
+.lf-meter-fill.lf-meter--over {
   background: var(--lf-status-danger);
 }
 
