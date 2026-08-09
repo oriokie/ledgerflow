@@ -336,6 +336,62 @@
 }
 .lf-admin-kv > span:first-child { color: var(--lf-text-secondary); }
 
+/* A name paired with its status dot — used wherever a probe or channel needs
+   to read at a glance without decoding the badge text first. */
+.lf-admin-kv-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  color: var(--lf-text-primary);
+}
+
+/* The dot never carries meaning alone — the adjacent Badge text is the real
+   status. It exists only so a page of eight probes can be scanned in one
+   glance instead of eight reads. `neutral` has no bare `--lf-status-neutral`
+   token (only its `-bg`/`-text` pair, meant for chip fills), so it borrows
+   `--lf-text-tertiary` rather than inventing a colour the palette script
+   never verified. */
+.lf-status-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-text-tertiary);
+}
+.lf-status-dot[data-tone="success"] { background: var(--lf-status-success); }
+.lf-status-dot[data-tone="warning"] { background: var(--lf-status-warning); }
+.lf-status-dot[data-tone="danger"] { background: var(--lf-status-danger); }
+
+/* The one status that matters most on the page, given room to be read
+   without leaning in — this is the rollup every other tile answers to. */
+.lf-admin-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-1) var(--lf-space-3);
+  border: 1px solid var(--lf-border-default);
+  border-radius: var(--lf-radius-full);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  text-transform: capitalize;
+  color: var(--lf-text-primary);
+}
+.lf-admin-status-pill[data-tone="success"] { border-color: color-mix(in srgb, var(--lf-status-success) 40%, var(--lf-border-default)); }
+.lf-admin-status-pill[data-tone="warning"] { border-color: color-mix(in srgb, var(--lf-status-warning) 40%, var(--lf-border-default)); }
+.lf-admin-status-pill[data-tone="danger"]  { border-color: color-mix(in srgb, var(--lf-status-danger) 40%, var(--lf-border-default)); }
+
+/* A component tile, coloured on its leading edge by its own probe result —
+   the same "hierarchy through material, colour says what it's about" rule
+   `Card`'s `accent` prop follows, applied to status instead of category. */
+.lf-health-tile > .lf-card {
+  position: relative;
+  overflow: hidden;
+  border-inline-start: 3px solid var(--lf-text-tertiary);
+}
+.lf-health-tile[data-tone="success"] > .lf-card { border-inline-start-color: var(--lf-status-success); }
+.lf-health-tile[data-tone="warning"] > .lf-card { border-inline-start-color: var(--lf-status-warning); }
+.lf-health-tile[data-tone="danger"]  > .lf-card { border-inline-start-color: var(--lf-status-danger); }
+
 .lf-admin-actions {
   display: flex;
   flex-wrap: wrap;

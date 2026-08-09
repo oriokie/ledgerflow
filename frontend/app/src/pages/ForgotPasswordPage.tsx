@@ -28,7 +28,7 @@ export function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <AuthLayout footer={<Link to="/login">Back to sign in</Link>}>
+      <AuthLayout illustration="recover" footer={<Link to="/login">Back to sign in</Link>}>
         <Stack gap={4}>
           <Heading level={1}>Check your email</Heading>
           <Text tone="secondary">
@@ -40,18 +40,46 @@ export function ForgotPasswordPage() {
               <Link to={`/reset-password?token=${encodeURIComponent(devToken)}`}>open the reset link</Link>.
             </Banner>
           )}
+          <button
+            type="button"
+            className="lf-link"
+            onClick={() => {
+              setSent(false);
+              setDevToken(null);
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              alignSelf: "flex-start",
+              font: "inherit",
+              color: "var(--lf-text-link)",
+              textDecoration: "underline",
+              textUnderlineOffset: "2px",
+              cursor: "pointer",
+            }}
+          >
+            Wrong address? Try again
+          </button>
         </Stack>
       </AuthLayout>
     );
   }
 
   return (
-    <AuthLayout footer={<Link to="/login">Back to sign in</Link>}>
+    <AuthLayout illustration="recover" footer={<Link to="/login">Back to sign in</Link>}>
       <form onSubmit={onSubmit} noValidate>
         <Stack gap={4}>
           <Heading level={1}>Reset your password</Heading>
           <Text tone="secondary">Enter your account email and we'll send you a link to set a new password.</Text>
-          <Input label="Email" type="email" autoComplete="email" error={errors.email?.message} {...register("email")} />
+          <Input
+            label="Email"
+            type="email"
+            autoComplete="email"
+            autoFocus
+            error={errors.email?.message}
+            {...register("email")}
+          />
           <Button type="submit" variant="primary" block loading={isSubmitting}>
             Send reset link
           </Button>

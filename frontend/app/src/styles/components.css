@@ -1056,6 +1056,10 @@
   }
 }
 
+.lf-meter-track-wrap {
+  position: relative;
+}
+
 .lf-meter-track {
   height: 8px;
   border-radius: var(--lf-radius-full);
@@ -1072,6 +1076,30 @@
 
 .lf-meter--over .lf-meter-fill {
   background: var(--lf-status-danger);
+}
+
+/* Optional tick marker (e.g. pace-through-period). Sits outside the
+   (overflow: hidden) track so the tick isn't clipped, and is purely
+   decorative — the accessible value lives on the track's progressbar. */
+.lf-meter-marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--lf-text-secondary);
+  opacity: 0.5;
+}
+
+.lf-meter-marker::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-text-secondary);
 }
 
 .lf-meter-row {
@@ -1208,6 +1236,12 @@
   box-shadow: var(--lf-shadow-overlay);
   font-size: var(--lf-text-sm);
   font-weight: var(--lf-weight-medium);
+}
+
+.lf-toast--danger {
+  background: var(--lf-status-danger-bg);
+  color: var(--lf-status-danger-text);
+  border: 1px solid var(--lf-status-danger);
 }
 
 /* ---------- inline confirmation ----------

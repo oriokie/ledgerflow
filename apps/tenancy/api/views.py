@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -13,6 +13,7 @@ from .serializers import (
     ChangeMemberRoleSerializer,
     CreateInvitationSerializer,
     CreateWorkspaceSerializer,
+    InvitationPreviewSerializer,
     InvitationSerializer,
     MemberSerializer,
     WorkspaceAISettingsSerializer,
@@ -169,6 +170,23 @@ class WorkspaceInvitationDetailView(_TenantScopedControlPlaneView):
         except TenancyError as exc:
             return _tenancy_error_response(exc)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class InvitationPreviewView(APIView):
+    """Public. Lets an invitee see what they're being asked to join -- workspace
+    name, inviter, role -- before they commit, without accepting anything or
+    requiring them to be signed in yet. Mirrors `PasswordResetConfirmView`'s
+    posture: a public, token-gated read."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = "auth"
+
+    def get(self, request, token):
+        try:
+            invitation = services.get_invitation_preview(raw_token=token)
+        except TenancyError as exc:
+            return _tenancy_error_response(exc)
+        return Response(InvitationPreviewSerializer(invitation).data)
 
 
 class AcceptInvitationView(APIView):

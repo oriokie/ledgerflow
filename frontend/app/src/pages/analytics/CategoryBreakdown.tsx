@@ -1,4 +1,5 @@
 import { formatAmount } from "../../lib/money";
+import { Meter } from "../../ui";
 import type { BreakdownRowWithShare } from "./analyticsMath";
 
 /** A ranked, clickable spending-by-category list. Bars are scaled to the
@@ -33,9 +34,11 @@ export function CategoryBreakdown({
           <span className="lf-cat-amount">
             {formatAmount(r.amount_minor, currency)} <span className="lf-cat-share">{(r.share * 100).toFixed(0)}%</span>
           </span>
-          <span className="lf-cat-bar">
-            <span className="lf-cat-bar-fill" style={{ width: `${(r.share / maxShare) * 100}%` }} />
-          </span>
+          <Meter
+            className="lf-cat-bar"
+            value={(r.share / maxShare) * 100}
+            aria-label={`${r.category_name}: ${(r.share * 100).toFixed(0)}% of spending`}
+          />
         </button>
       ))}
     </div>

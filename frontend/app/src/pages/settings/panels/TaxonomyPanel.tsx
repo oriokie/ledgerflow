@@ -9,10 +9,13 @@ import {
   usePayees,
   useTags,
 } from "../../../hooks/useFinance";
+import { useAuth } from "../../../lib/AuthContext";
 import { Banner, Button, Chip, Inline, Input, Select } from "../../../ui";
 import { SettingsRow, SettingsSection } from "../components";
 
 export function TaxonomyPanel() {
+  const { activeWorkspace } = useAuth();
+  const baseCurrency = activeWorkspace?.tenant.base_currency ?? "USD";
   const { data: categories } = useCategories();
   const { data: payees } = usePayees();
   const { data: tags } = useTags();
@@ -38,7 +41,7 @@ export function TaxonomyPanel() {
   const addCategory = () =>
     catName.trim() &&
     guard(async () => {
-      await createCategory.mutateAsync({ name: catName, kind: catKind, currency: "USD" });
+      await createCategory.mutateAsync({ name: catName, kind: catKind, currency: baseCurrency });
       setCatName("");
     }, "Couldn't create the category.");
   const addPayee = () =>

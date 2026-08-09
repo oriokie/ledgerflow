@@ -11,8 +11,11 @@ function todayISO(): string {
 }
 
 /** Trims trailing zeros from a decimal quantity — "10" reads better than
- * "10.00000000", and crypto still shows the precision it needs. */
-function formatQuantity(value: string): string {
+ * "10.00000000", and crypto still shows the precision it needs.
+ *
+ * Exported so any other surface quoting a holding's quantity (e.g. the trade
+ * confirmation) renders it the same way the table does. */
+export function formatQuantity(value: string): string {
   const n = Number(value);
   if (!Number.isFinite(n)) return value;
   return n.toLocaleString(undefined, { maximumFractionDigits: 8 });

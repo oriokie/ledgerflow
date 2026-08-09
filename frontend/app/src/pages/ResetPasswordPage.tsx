@@ -29,7 +29,7 @@ export function ResetPasswordPage() {
 
   if (!token) {
     return (
-      <AuthLayout footer={<Link to="/login">Back to sign in</Link>}>
+      <AuthLayout footer={<Link to="/login">Back to sign in</Link>} illustration="recover">
         <Stack gap={4}>
           <Heading level={1}>Link expired or invalid</Heading>
           <Text tone="secondary">This reset link is missing or malformed. Request a new one to continue.</Text>
@@ -54,7 +54,7 @@ export function ResetPasswordPage() {
   });
 
   return (
-    <AuthLayout footer={<Link to="/login">Back to sign in</Link>}>
+    <AuthLayout footer={<Link to="/login">Back to sign in</Link>} illustration="recover">
       <form onSubmit={onSubmit} noValidate>
         <Stack gap={4}>
           <Heading level={1}>Choose a new password</Heading>

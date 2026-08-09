@@ -103,6 +103,35 @@ export function toWeekGrid(days: CashflowCalendarDay[]): (CashflowCalendarDay | 
   return weeks;
 }
 
+/**
+ * Month heading to draw above a week row, or `null` to draw nothing.
+ *
+ * A multi-month window (60/90 day) renders as one continuous run of weeks
+ * with nothing but weekday initials at the top — there is no visual answer
+ * to "where does August end and September begin?" in a view literally
+ * labelled "Month". A week earns a heading whenever it carries a month the
+ * previous week didn't: either because it opens on a fresh month, or
+ * because the month turns over partway through it (a week can never span
+ * more than two months, so there is at most one new one per row). The
+ * heading always names that *new* month — the one the reader doesn't have a
+ * label for yet — even when the row's earlier days still belong to the old
+ * one.
+ */
+export function monthHeadingForWeek(
+  week: (CashflowCalendarDay | null)[],
+  previousWeek: (CashflowCalendarDay | null)[] | undefined,
+  locale?: string,
+): string | null {
+  const lastMonthOf = (w: (CashflowCalendarDay | null)[] | undefined): string | null => {
+    const days = (w ?? []).filter((d): d is CashflowCalendarDay => d !== null);
+    return days.length ? days[days.length - 1].day.slice(0, 7) : null;
+  };
+
+  const newestMonth = lastMonthOf(week);
+  if (!newestMonth || newestMonth === lastMonthOf(previousWeek)) return null;
+  return parseDay(`${newestMonth}-01`).toLocaleDateString(locale, { month: "long", year: "numeric" });
+}
+
 // --------------------------------------------------------------- long horizons
 /** A month's worth of projected activity, rolled up from daily cells. */
 export interface MonthlyRollup {

@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { Search } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ApiError } from "../api/client";
@@ -7,6 +8,11 @@ import { tenancyApi } from "../api/tenancy";
 import { useAuth } from "../lib/AuthContext";
 import { AuthLayout } from "../components/auth/AuthLayout";
 import { Banner, Button, Grid, Heading, Inline, Input, Select, Stack, Text } from "../ui";
+
+/** Below this count the list is a glance; a search box would be clutter for
+ * the common case of 1-3 workspaces. Past it (an advisor with several
+ * clients, a family with several households) it earns its keep. */
+const FILTER_THRESHOLD = 5;
 
 const schema = z.object({
   name: z.string().min(1, "Give this workspace a name."),
@@ -42,6 +48,12 @@ export function WorkspacePickerPage() {
   const creating = creatingOverride ?? workspaces.length === 0;
   const setCreating = setCreatingOverride;
   const [serverError, setServerError] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
+  const filteredWorkspaces = useMemo(() => {
+    const query = filter.trim().toLowerCase();
+    if (!query) return workspaces;
+    return workspaces.filter((ws) => ws.tenant.name.toLowerCase().includes(query));
+  }, [filter, workspaces]);
   const {
     register,
     handleSubmit,
@@ -71,11 +83,21 @@ export function WorkspacePickerPage() {
   });
 
   return (
-    <AuthLayout maxWidth={440}>
+    <AuthLayout maxWidth={440} illustration="welcome">
       {workspaces.length > 0 && !creating ? (
         <Stack gap={2}>
           <Heading level={1}>Choose a workspace</Heading>
-          {workspaces.map((ws) => (
+          {workspaces.length > FILTER_THRESHOLD && (
+            <Input
+              leading={<Search size={16} strokeWidth={1.8} aria-hidden="true" />}
+              type="search"
+              placeholder="Search workspaces"
+              aria-label="Search workspaces"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          )}
+          {filteredWorkspaces.map((ws) => (
             <button
               key={ws.tenant.id}
               type="button"
@@ -89,6 +111,11 @@ export function WorkspacePickerPage() {
               </Text>
             </button>
           ))}
+          {filteredWorkspaces.length === 0 && (
+            <Text tone="secondary" size="sm">
+              No workspaces match &ldquo;{filter}&rdquo;.
+            </Text>
+          )}
           <Button variant="ghost" onClick={() => setCreating(true)}>
             + New workspace
           </Button>

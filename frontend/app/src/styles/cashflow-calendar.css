@@ -68,6 +68,24 @@
   color: var(--lf-text-tertiary);
 }
 
+/* Month boundary heading. A multi-month window is otherwise a continuous run
+   of week rows with nothing but weekday initials at the top — no visual
+   answer to where one month ends and the next begins. `role=row` >
+   `role=columnheader` keeps the surrounding `role=grid` structurally valid
+   (a grid should contain only rows); `aria-colspan` tells assistive tech the
+   header speaks for the full width even though it sits outside the 7-column
+   track entirely. */
+.lf-cal-monthheading {
+  display: block;
+  margin-top: var(--lf-space-2);
+  padding-top: var(--lf-space-2);
+  padding-bottom: var(--lf-space-1);
+  border-top: 1px solid var(--lf-border-subtle);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-primary);
+}
+
 /* The gridcell wrapper ARIA requires, made invisible to layout. `display:
    contents` hands the button straight back to the week's grid tracks, so the
    role is added without a box being added. */

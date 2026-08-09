@@ -15,18 +15,36 @@ import {
 import { Link } from "react-router-dom";
 
 import type { RevenueBucket } from "../../api/platform";
+import { ApiError } from "../../api/client";
 import {
   useAnalytics,
+  useCapability,
   useDashboard,
   useDunningCases,
   useExpiringTrials,
   useHealth,
+  usePlatformMe,
   usePlatformNotifications,
   useRefunds,
+  useTenantAction,
 } from "../../hooks/usePlatform";
-import { Badge, Card, EmptyState, Eyebrow, Figure, Grid, Inline, LoadingBlock, Stack, Text } from "../../ui";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Eyebrow,
+  Figure,
+  Grid,
+  Inline,
+  LoadingBlock,
+  Stack,
+  Text,
+  useToast,
+} from "../../ui";
 import { CHART_TICK_FONT_PX } from "../dashboard/chartTheme";
 import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
+import { ReasonDialog } from "../../components/admin/AdminShell";
 import { money, monthTick, percent } from "./format";
 
 
@@ -99,8 +117,17 @@ function AttentionStrip() {
     });
   }
   for (const alert of alerts?.results ?? []) {
+    // Warning-severity alerts used to be dropped here while the System nav
+    // badge (AdminShell) counted every open alert regardless of severity —
+    // an operator could see "Nothing needs attention" on this exact screen
+    // while the nav item beside it showed a nonzero count. `info` stays
+    // excluded: those alerts are deliberately non-actionable notices (e.g.
+    // "reminder sent") already reflected elsewhere or requiring no response,
+    // and AdminShell's badge is filtered to the same critical+warning set.
     if (alert.severity === "critical") {
       items.push({ tone: "danger", label: alert.title, to: "/admin/health" });
+    } else if (alert.severity === "warning") {
+      items.push({ tone: "warning", label: alert.title, to: "/admin/health" });
     }
   }
   if (dunning?.count) {
@@ -190,10 +217,88 @@ function MrrDelta({ pct }: { pct: number }) {
   );
 }
 
+interface ExpiringTrial {
+  tenant_id: string;
+  tenant_name: string;
+  plan_name: string;
+  trial_end: string;
+  days_left: number;
+}
+
+/**
+ * A trial row with its own extend action, instead of a link to go find the
+ * button among the tenant page's several action groups.
+ *
+ * Fixed at 7 days and asking only for the audit reason — the tenant detail
+ * page's own "Extend trial" lets an operator pick the day count because it is
+ * reached deliberately; this is a one-click nudge from a list scanned in
+ * passing, so the choice that would slow that down is removed rather than
+ * defaulted.
+ */
+function TrialRow({ trial, canExtend }: { trial: ExpiringTrial; canExtend: boolean }) {
+  const action = useTenantAction(trial.tenant_id);
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const close = () => {
+    setOpen(false);
+    setError(null);
+  };
+
+  const onConfirm = async (reason: string) => {
+    setError(null);
+    try {
+      // Same action and mutation the tenant detail page's "Extend trial"
+      // button fires — just with `days` fixed instead of read from a field.
+      await action.mutateAsync({ action: "extend-trial", body: { reason, days: 7 } });
+      toast(`Trial extended 7 days for ${trial.tenant_name || trial.tenant_id}.`, { tone: "success" });
+      close();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Something went wrong.");
+    }
+  };
+
+  return (
+    <li>
+      <Link className="lf-admin-link" to={`/admin/tenants/${trial.tenant_id}`}>
+        {trial.tenant_name || trial.tenant_id}
+      </Link>
+      <Inline gap={2}>
+        <Badge tone={trial.days_left <= 2 ? "warning" : "neutral"}>
+          {trial.days_left} day{trial.days_left === 1 ? "" : "s"} left
+        </Badge>
+        {canExtend && (
+          <Button size="sm" variant="ghost" onClick={() => setOpen(true)}>
+            Extend 7 days
+          </Button>
+        )}
+      </Inline>
+      {open && (
+        <ReasonDialog
+          open
+          title="Extend trial"
+          confirmLabel="Extend 7 days"
+          pending={action.isPending}
+          error={error}
+          onClose={close}
+          onConfirm={onConfirm}
+          description={`Pushes ${trial.tenant_name || "this workspace"}'s trial end date out by 7 days.`}
+        />
+      )}
+    </li>
+  );
+}
+
 export function AdminDashboardPage() {
   const [currency, setCurrency] = useState("USD");
   const { data, isLoading, isError } = useDashboard(currency);
   const { data: trials } = useExpiringTrials(7);
+  // Same capability the tenant detail page gates its own "Extend trial"
+  // button on — this is a shortcut to that action, not a separate one.
+  const { data: staff } = usePlatformMe();
+  const can = useCapability(staff);
+  const canExtendTrial = can("subscription.write");
   // Real series, not a decorative squiggle: the same `revenue_series` report
   // the Analytics page charts. Absent rather than flat when it has < 2 points.
   const series = useAnalytics<SeriesPoint[]>("revenue_series", { months: 12, currency });
@@ -383,14 +488,7 @@ export function AdminDashboardPage() {
         {trials?.length ? (
           <ul className="lf-admin-trial-list">
             {trials.map((trial) => (
-              <li key={trial.tenant_id}>
-                <Link className="lf-admin-link" to={`/admin/tenants/${trial.tenant_id}`}>
-                  {trial.tenant_name || trial.tenant_id}
-                </Link>
-                <Badge tone={trial.days_left <= 2 ? "warning" : "neutral"}>
-                  {trial.days_left} day{trial.days_left === 1 ? "" : "s"} left
-                </Badge>
-              </li>
+              <TrialRow key={trial.tenant_id} trial={trial} canExtend={canExtendTrial} />
             ))}
           </ul>
         ) : (

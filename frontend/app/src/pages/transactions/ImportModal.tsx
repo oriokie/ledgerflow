@@ -116,17 +116,19 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
           </Text>
         )}
         {result && (
-          <div className="lf-insight lf-insight--good">
-            <p className="lf-insight-title">
-              Imported {result.imported} · skipped {result.skipped_duplicate} duplicate
-              {result.skipped_duplicate === 1 ? "" : "s"}
-            </p>
-            {result.errors.length > 0 && (
-              <p className="lf-insight-body">
-                {result.errors.length} row(s) had problems (e.g. line {result.errors[0].line}: {result.errors[0].error}).
+          <Banner tone={result.errors.length > 0 ? "warning" : "success"} onDismiss={() => setResult(null)}>
+            <div>
+              <p style={{ margin: 0 }}>
+                Imported {result.imported} · skipped {result.skipped_duplicate} duplicate
+                {result.skipped_duplicate === 1 ? "" : "s"}
               </p>
-            )}
-          </div>
+              {result.errors.length > 0 && (
+                <p style={{ margin: "var(--lf-space-1) 0 0" }}>
+                  {result.errors.length} row(s) had problems (e.g. line {result.errors[0].line}: {result.errors[0].error}).
+                </p>
+              )}
+            </div>
+          </Banner>
         )}
           {error && <Banner tone="danger">{error}</Banner>}
         </Stack>

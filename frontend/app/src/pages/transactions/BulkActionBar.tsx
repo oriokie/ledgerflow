@@ -1,7 +1,7 @@
-import { Ban, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useState } from "react";
 import type { Category } from "../../api/types";
-import { Button } from "../../ui";
+import { Button, ConfirmAction } from "../../ui";
 
 /**
  * Floating bar shown while transactions are selected. Categorizing applies the
@@ -46,9 +46,13 @@ export function BulkActionBar({
         ))}
       </select>
 
-      <Button variant="ghost" size="sm" icon={<Ban size={15} strokeWidth={1.8} />} onClick={onVoid} loading={pending}>
-        Void
-      </Button>
+      <ConfirmAction
+        label="Void"
+        confirmLabel={`Void ${count} transaction${count === 1 ? "" : "s"}`}
+        cancelLabel="Keep"
+        disabled={pending}
+        onConfirm={onVoid}
+      />
 
       <span className="lf-bulk-spacer" />
 

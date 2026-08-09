@@ -2,7 +2,18 @@ import { useMemo, useState } from "react";
 import { ApiError } from "../../api/client";
 import type { EventKindMeta, Scenario, ScenarioEvent } from "../../api/projections";
 import { projectionsApi } from "../../api/projections";
-import { Badge, Banner, Button, Card, FormField, Input, Select, Switch, Text } from "../../ui";
+import {
+  Badge,
+  Banner,
+  Button,
+  Card,
+  ConfirmAction,
+  FormField,
+  Input,
+  Select,
+  Switch,
+  Text,
+} from "../../ui";
 
 /** Parameter names ending in `_minor` are money and are typed in whole units —
  * people say "5,000", not "500000". Everything else is a plain number, except
@@ -118,9 +129,13 @@ export function ScenarioBuilder({ scenario, catalogue, onChanged }: Props) {
                   onChange={() => toggle(event)}
                   aria-label={`Include ${event.label} in this scenario`}
                 />
-                <Button variant="ghost" size="sm" onClick={() => remove(event)}>
-                  Remove
-                </Button>
+                <ConfirmAction
+                  label="Remove"
+                  confirmLabel="Remove"
+                  cancelLabel="Keep"
+                  size="sm"
+                  onConfirm={() => remove(event)}
+                />
               </div>
             </li>
           ))}
@@ -172,6 +187,7 @@ export function ScenarioBuilder({ scenario, catalogue, onChanged }: Props) {
                 type="number"
                 step="any"
                 required={spec.required}
+                amount={isMoney(spec.name)}
                 value={values[spec.name] ?? fromWire(spec.name, spec.default)}
                 onChange={(e) => setValues({ ...values, [spec.name]: e.target.value })}
               />
