@@ -23,7 +23,7 @@ from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
 
 from .. import automation_services, coach, registry, selectors, services
-from ..automation import AutomationError, validate_actions
+from ..automation import AutomationError, validate_actions, validate_conditions
 from ..models import (
     AutomationRule,
     BriefingPeriod,
@@ -33,6 +33,7 @@ from ..models import (
 )
 from .serializers import (
     AutomationRuleSerializer,
+    AutomationRuleUpdateSerializer,
     AutomationRuleWriteSerializer,
     CategorizationSuggestionSerializer,
 )
@@ -334,10 +335,12 @@ class AutomationRuleListView(WriteRequiresMemberMixin, TenantScopedAPIView, APIV
         s = AutomationRuleWriteSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         v = s.validated_data
-        # validate actions against the allow-list at save time (never let an
-        # un-executable/unsafe rule persist)
+        # validate actions against the allow-list, and any regex condition
+        # compiles, at save time (never let an un-executable/unsafe rule
+        # persist, or a bad pattern surface only on the next matching txn)
         try:
             validate_actions(v["actions"])
+            validate_conditions(v["conditions"])
         except AutomationError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         rule = AutomationRule.objects.create(
@@ -353,6 +356,26 @@ class AutomationRuleListView(WriteRequiresMemberMixin, TenantScopedAPIView, APIV
 
 class AutomationRuleDetailView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     permission_classes = [IsTenantMember, HasAIInsights]
+
+    @extend_schema(responses=AutomationRuleSerializer)
+    def get(self, request, rule_id):
+        rule = AutomationRule.objects.filter(id=rule_id).first()
+        if rule is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(AutomationRuleSerializer(rule).data)
+
+    @extend_schema(request=AutomationRuleUpdateSerializer, responses=AutomationRuleSerializer)
+    def patch(self, request, rule_id):
+        rule = AutomationRule.objects.filter(id=rule_id).first()
+        if rule is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        s = AutomationRuleUpdateSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        try:
+            rule = services.update_automation_rule(rule=rule, **s.validated_data)
+        except AutomationError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        return Response(AutomationRuleSerializer(rule).data)
 
     @extend_schema(responses={204: None})
     def delete(self, request, rule_id):
@@ -634,6 +657,34 @@ class AutomationScanView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
                 "total_suggestions": result.total_suggestions,
             },
             status=status.HTTP_200_OK,
+        )
+
+
+class AutomationApplyRulesView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
+    """Retroactively run active automation rules over existing transactions —
+    the complement to the live post_save pipeline, which only ever reaches a
+    transaction at the moment it's created. See `services.apply_rules_to_uncategorized`.
+    """
+
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.AUTOMATION_RULES)]
+    serializer_class = None
+
+    @extend_schema(operation_id="automation_apply_rules")
+    def post(self, request):
+        scope = request.data.get("scope", "uncategorized")
+        if scope not in ("uncategorized", "all"):
+            return Response(
+                {"detail": "scope must be 'uncategorized' or 'all'."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        limit = min(int(request.data.get("limit", 5000) or 5000), 20000)
+        result = services.apply_rules_to_uncategorized(scope=scope, limit=limit)
+        return Response(
+            {
+                "scanned": result.scanned,
+                "matched": result.matched,
+                "effects": result.effects,
+                "errors": result.errors,
+            }
         )
 
 

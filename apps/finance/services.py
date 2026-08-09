@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.common import audit
@@ -38,9 +39,11 @@ from apps.ledger.services import LineInput
 
 from .models import (
     AccountType,
+    Bill,
     Category,
     CategoryKind,
     FinancialAccount,
+    RecurringTransaction,
     Transaction,
     TransactionSource,
     TransactionStatus,
@@ -403,6 +406,33 @@ def update_financial_account(*, financial_account: FinancialAccount, **fields) -
     return financial_account
 
 
+@transaction.atomic
+def delete_financial_account(*, financial_account: FinancialAccount) -> None:
+    """Permanently removes an account with nothing to lose — unlike archive,
+    this drops it from every list, including the archived view, so it's only
+    allowed when there's no history, schedule, or bill left dangling."""
+    in_use = Transaction.objects.filter(
+        Q(financial_account=financial_account) | Q(counter_account=financial_account)
+    ).exists()
+    if in_use:
+        raise FinanceError(
+            "This account has transactions. Deactivate it instead, or void its transactions first."
+        )
+
+    in_recurring = RecurringTransaction.objects.filter(
+        Q(financial_account=financial_account) | Q(counter_account=financial_account)
+    ).exists()
+    if in_recurring:
+        raise FinanceError("This account is used by a recurring schedule. Remove or repoint it first.")
+
+    if Bill.objects.filter(autopay_account=financial_account).exists():
+        raise FinanceError(
+            "This account is set as autopay for a bill. Change the bill's autopay account first."
+        )
+
+    financial_account.delete()  # soft delete
+
+
 # --------------------------------------------------------------------------- categories
 _CATEGORY_LEDGER_KIND = {
     CategoryKind.INCOME: AccountKind.INCOME,
@@ -450,6 +480,9 @@ def create_category(
     )
 
 
+_SENTINEL = object()
+
+
 @transaction.atomic
 def update_category(
     *,
@@ -457,10 +490,15 @@ def update_category(
     name: str | None = None,
     color: str | None = None,
     icon: str | None = None,
+    parent=_SENTINEL,
 ) -> Category:
-    """Edit presentation-level fields only. `kind` is immutable — changing it
-    would invalidate every posting already made against the category's ledger
-    account, so we don't allow it (delete + recreate is the honest path)."""
+    """Edit presentation-level fields, and optionally reparent. `kind` is
+    immutable — changing it would invalidate every posting already made
+    against the category's ledger account, so we don't allow it (delete +
+    recreate is the honest path). `parent` uses a sentinel default (not
+    `None`) so `parent=None` means "move to top-level" while omitting the
+    argument means "leave the parent alone."
+    """
     if category.is_system:
         raise FinanceError("System categories can't be edited.")
     fields = []
@@ -473,6 +511,34 @@ def update_category(
     if icon is not None:
         category.icon = icon
         fields.append("icon")
+
+    if parent is not _SENTINEL and parent != category.parent:
+        if parent is not None:
+            if parent.id == category.id:
+                raise FinanceError("A category can't be its own parent.")
+            if parent.kind != category.kind:
+                raise FinanceError("A category can only move under a parent of the same kind.")
+            if parent.path.startswith(f"{category.path}."):
+                raise FinanceError("Can't move a category under one of its own descendants.")
+
+        old_path = category.path
+        old_depth = category.depth
+        new_depth = 0 if parent is None else parent.depth + 1
+        new_path = category.slug if parent is None else f"{parent.path}.{category.slug}"
+        depth_delta = new_depth - old_depth
+
+        category.parent = parent
+        category.depth = new_depth
+        category.path = new_path
+        fields.extend(["parent", "depth", "path"])
+
+        # Materialized path: every live descendant's stored path/depth carries
+        # the old prefix and must shift by the same delta as the category itself.
+        for descendant in Category.objects.filter(path__startswith=f"{old_path}."):
+            descendant.path = new_path + descendant.path[len(old_path) :]
+            descendant.depth = descendant.depth + depth_delta
+            descendant.save(update_fields=["path", "depth", "updated_at"])
+
     if fields:
         category.save(update_fields=[*fields, "updated_at"])
     return category
@@ -761,7 +827,58 @@ def void_transaction(*, txn: Transaction, idempotency_key: str | None = None, me
         )
 
 
-_SENTINEL = object()
+@transaction.atomic
+def reclassify_as_transfer(
+    *,
+    txn: Transaction,
+    counter_account: FinancialAccount,
+    idempotency_key: str | None = None,
+) -> tuple[Transaction, Transaction]:
+    """Void a misposted income/expense row and repost it as a real transfer.
+
+    A statement import has no idea two of a household's own accounts are
+    involved in one movement — it just sees a credit here and a debit there.
+    This is the fix once a human recognizes that: direction is derived from
+    the sign of the original row, never asked for, since asking invites
+    getting it backwards. A positive (income) row means money arrived FROM
+    `counter_account`; a negative (expense) row means money left TO it.
+    `occurred_at` and `memo` are preserved so the reclassified row keeps its
+    place in history.
+
+    Posted with `source=IMPORTED`, not `MANUAL` — this never moves money that
+    wasn't already moving. The original row is proof the amount already left
+    one account and reached the other; reclassifying only corrects which
+    account gets credited with which side. Gating that on the destination
+    leg's current balance would refuse a true correction just because that
+    account's own history isn't fully tracked yet, which is exactly the
+    "an import disagrees with what the bank actually did" case
+    `_assert_sufficient_funds` already carves out.
+    """
+    if txn.status == TransactionStatus.VOID:
+        raise FinanceError("Cannot reclassify a voided transaction.")
+    if txn.transfer_group is not None:
+        raise FinanceError("This is already a transfer.")
+    if txn.split_group is not None:
+        raise FinanceError("This transaction is part of a split; void the split and re-enter it first.")
+    if txn.reconciled_at is not None:
+        raise FinanceError("Un-reconcile this transaction before reclassifying it.")
+
+    amount = abs(txn.amount_minor)
+    if txn.amount_minor > 0:  # income leg: money arrived FROM counter_account
+        from_account, to_account = counter_account, txn.financial_account
+    else:  # expense leg: money left TO counter_account
+        from_account, to_account = txn.financial_account, counter_account
+
+    void_transaction(txn=txn)
+    return record_transfer(
+        from_account=from_account,
+        to_account=to_account,
+        amount_minor=amount,
+        occurred_at=txn.occurred_at,
+        memo=txn.memo,
+        source=TransactionSource.IMPORTED,
+        idempotency_key=idempotency_key,
+    )
 
 
 @transaction.atomic

@@ -64,6 +64,7 @@ from .serializers import (
     TagSerializer,
     TransactionBulkSerializer,
     TransactionCreateSerializer,
+    TransactionReclassifyTransferSerializer,
     TransactionSerializer,
     TransactionSplitSerializer,
     TransactionUpdateSerializer,
@@ -165,8 +166,14 @@ def _txn_out(txn: Transaction, *, levels: dict | None = None) -> dict:
         "status": txn.status,
         "source": txn.source,
         "category_id": txn.category_id,
+        "payee_id": txn.payee_id,
         "counter_account_id": txn.counter_account_id,
         "transfer_group": txn.transfer_group,
+        "split_group": txn.split_group,
+        # Lets the client pre-empt a reclassify-as-transfer 422 (see
+        # services.reclassify_as_transfer) instead of only finding out after
+        # a round trip.
+        "reconciled_at": txn.reconciled_at,
         # Flagged by an import or a rule that could not decide. Exposed so the
         # ledger can show *which* rows need a look and why, rather than only
         # letting them be filtered for.
@@ -344,6 +351,24 @@ class AccountUnarchiveView(WriteRequiresMemberMixin, TenantScopedAPIView, APIVie
         return _account_response(account)
 
 
+class AccountPurgeView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
+    """Permanent removal — distinct from `AccountDetailView.delete`, which
+    archives. Only reachable when the account has no transactions, recurring
+    schedule, or bill autopay reference left pointing at it."""
+
+    permission_classes = [IsTenantMember]
+
+    def delete(self, request, account_id):
+        account = get_object_or_404(_visible_accounts(), pk=account_id)
+        if (blocked := _member_write_block(account.id)) is not None:
+            return blocked
+        try:
+            services.delete_financial_account(financial_account=account)
+        except services.FinanceError as exc:
+            return _finance_error(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class AccountStatementView(TenantScopedAPIView, APIView):
     permission_classes = [IsTenantMember]
     required_role = Role.VIEWER
@@ -434,8 +459,17 @@ class CategoryDetailView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
             return Response(status=status.HTTP_404_NOT_FOUND)
         s = CategoryUpdateSerializer(data=request.data, partial=True)
         s.is_valid(raise_exception=True)
+        v = s.validated_data
+
+        kwargs = {k: v[k] for k in ("name", "color", "icon") if k in v}
+        if "parent_id" in v:
+            parent = Category.objects.filter(id=v["parent_id"]).first() if v["parent_id"] else None
+            if v["parent_id"] and parent is None:
+                return Response({"detail": "parent not found"}, status=status.HTTP_400_BAD_REQUEST)
+            kwargs["parent"] = parent
+
         try:
-            category = services.update_category(category=category, **s.validated_data)
+            category = services.update_category(category=category, **kwargs)
         except services.FinanceError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         return Response(
@@ -611,6 +645,40 @@ class TransactionVoidView(TenantScopedAPIView, APIView):
             return _finance_error(exc)
         txn.refresh_from_db()
         return Response(_txn_out(txn))
+
+
+class TransactionReclassifyTransferView(TenantScopedAPIView, APIView):
+    """Fix a statement-import row that was actually a transfer between two of
+    the household's own accounts — voids the misposted expense/income row and
+    reposts it as a real linked transfer. See `services.reclassify_as_transfer`."""
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.MEMBER
+    serializer_class = TransactionReclassifyTransferSerializer
+
+    def post(self, request, txn_id):
+        txn = Transaction.objects.filter(id=txn_id).first()
+        if txn is None or not _txn_account_visible(txn):
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        if (blocked := _member_write_block(txn.financial_account_id)) is not None:
+            return blocked
+        s = TransactionReclassifyTransferSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        v = s.validated_data
+        counter_account = _visible_accounts().filter(id=v["counter_account_id"]).first()
+        if counter_account is None:
+            return Response({"detail": "account not found"}, status=status.HTTP_400_BAD_REQUEST)
+        if (blocked := _member_write_block(counter_account.id)) is not None:
+            return blocked
+        try:
+            out_txn, in_txn = services.reclassify_as_transfer(
+                txn=txn,
+                counter_account=counter_account,
+                idempotency_key=v.get("idempotency_key") or None,
+            )
+        except services.FinanceError as exc:
+            return _finance_error(exc)
+        return Response({"out": _txn_out(out_txn), "in": _txn_out(in_txn)})
 
 
 class TransactionBulkView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
@@ -1382,6 +1450,79 @@ class BillPayView(TenantScopedAPIView, APIView):
         return Response({"bill": _bill_out(bill), "settling_transaction_id": txn.id if txn else None})
 
 
+class BillImportView(TenantScopedAPIView, APIView):
+    """Bulk-create bills from an uploaded .xlsx sheet — a human filling in a
+    spreadsheet, not a bank export (see import_xlsx.py). MEMBER — it creates
+    money obligations."""
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.MEMBER
+    serializer_class = None
+
+    @extend_schema(operation_id="bill_import_template")
+    def get(self, request):
+        from django.http import HttpResponse
+
+        from .. import import_xlsx
+
+        response = HttpResponse(
+            import_xlsx.bills_template_xlsx(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = 'attachment; filename="ledgerflow-bills-template.xlsx"'
+        return response
+
+    def post(self, request):
+        from .. import import_xlsx
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"detail": "Attach the .xlsx file as 'file'."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            result = import_xlsx.import_bills_xlsx(file_bytes=upload.read())
+        except import_xlsx.ImportError_ as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(result.as_dict(), status=status.HTTP_201_CREATED)
+
+
+class RecurringImportView(TenantScopedAPIView, APIView):
+    """Bulk-create recurring schedules from an uploaded .xlsx sheet. MEMBER —
+    it creates schedules that post real transactions going forward."""
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.MEMBER
+    serializer_class = None
+
+    @extend_schema(operation_id="recurring_import_template")
+    def get(self, request):
+        from django.http import HttpResponse
+
+        from .. import import_xlsx
+
+        response = HttpResponse(
+            import_xlsx.recurring_template_xlsx(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = 'attachment; filename="ledgerflow-recurring-template.xlsx"'
+        return response
+
+    def post(self, request):
+        from .. import import_xlsx
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"detail": "Attach the .xlsx file as 'file'."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            result = import_xlsx.import_recurring_xlsx(file_bytes=upload.read())
+        except import_xlsx.ImportError_ as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(result.as_dict(), status=status.HTTP_201_CREATED)
+
+
 # ------------------------------------------------------------------ export
 class TransactionExportView(TenantScopedAPIView, APIView):
     """CSV export of transactions honoring the same filters as the list.
@@ -1456,6 +1597,118 @@ class TransactionExportView(TenantScopedAPIView, APIView):
 
         response = StreamingHttpResponse(_stream(), content_type="text/csv")
         response["Content-Disposition"] = 'attachment; filename="transactions.csv"'
+        return response
+
+
+class BillExportView(TenantScopedAPIView, APIView):
+    """CSV export of bills — same portability rationale as TransactionExportView."""
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.VIEWER
+    serializer_class = None
+
+    def get(self, request):
+        import csv
+
+        from django.http import StreamingHttpResponse
+
+        status_filter = request.query_params.get("status")
+        rows = list(bills_service.list_bills(status=status_filter).select_related("payee", "category"))
+
+        class _Echo:
+            def write(self, value):
+                return value
+
+        writer = csv.writer(_Echo())
+        header = ["id", "name", "amount_minor", "currency", "due_on", "status", "payee", "category", "notes"]
+
+        def _stream():
+            yield writer.writerow(header)
+            for b in rows:
+                yield writer.writerow(
+                    [
+                        b.id,
+                        b.name,
+                        b.amount_minor,
+                        b.currency,
+                        b.due_on.isoformat() if b.due_on else "",
+                        b.status,
+                        b.payee.name if b.payee_id else "",
+                        b.category.name if b.category_id else "",
+                        b.notes,
+                    ]
+                )
+
+        response = StreamingHttpResponse(_stream(), content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="bills.csv"'
+        return response
+
+
+class RecurringExportView(TenantScopedAPIView, APIView):
+    """CSV export of recurring schedules — same portability rationale as
+    TransactionExportView."""
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.VIEWER
+    serializer_class = None
+
+    def get(self, request):
+        import csv
+
+        from django.http import StreamingHttpResponse
+
+        rows = list(
+            RecurringTransaction.objects.filter(is_active=True)
+            .select_related("category", "payee", "financial_account", "counter_account")
+            .order_by("next_run_on")
+        )
+
+        class _Echo:
+            def write(self, value):
+                return value
+
+        writer = csv.writer(_Echo())
+        header = [
+            "id",
+            "txn_type",
+            "account",
+            "counter_account",
+            "category",
+            "payee",
+            "amount_minor",
+            "currency",
+            "frequency",
+            "interval",
+            "starts_on",
+            "ends_on",
+            "next_run_on",
+            "memo",
+        ]
+
+        def _stream():
+            yield writer.writerow(header)
+            for r in rows:
+                yield writer.writerow(
+                    [
+                        r.id,
+                        r.txn_type,
+                        r.financial_account.name,
+                        r.counter_account.name if r.counter_account_id else "",
+                        r.category.name if r.category_id else "",
+                        r.payee.name if r.payee_id else "",
+                        r.amount_minor,
+                        r.currency,
+                        r.frequency,
+                        r.interval,
+                        r.starts_on.isoformat() if r.starts_on else "",
+                        r.ends_on.isoformat() if r.ends_on else "",
+                        r.next_run_on.isoformat() if r.next_run_on else "",
+                        r.memo,
+                    ]
+                )
+
+        response = StreamingHttpResponse(_stream(), content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="recurring.csv"'
         return response
 
 

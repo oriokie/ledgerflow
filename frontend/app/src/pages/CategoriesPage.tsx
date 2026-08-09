@@ -87,7 +87,10 @@ export function CategoriesPage() {
     setError(null);
     if (!name.trim()) return setError("Name can't be empty.");
     try {
-      await updateCategory.mutateAsync({ categoryId: editing.id, payload: { name } });
+      await updateCategory.mutateAsync({
+        categoryId: editing.id,
+        payload: { name, parent_id: parentId || null },
+      });
       setEditing(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Couldn't save changes.");
@@ -133,6 +136,7 @@ export function CategoriesPage() {
             onClick={() => {
               setEditing(c);
               setName(c.name);
+              setParentId(c.parent_id ?? "");
               setError(null);
             }}
           />
@@ -260,7 +264,7 @@ export function CategoriesPage() {
           </Button>
         }
       >
-        <Stack gap={3}>
+        <Stack gap={4}>
           <Text tone="tertiary" size="sm">
             A category's type can't change once created (it would invalidate past postings). Rename freely.
           </Text>
@@ -271,6 +275,17 @@ export function CategoriesPage() {
             </Text>
           )}
           <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          {editing && (
+            <Select
+              label="Parent category"
+              optional
+              value={parentId}
+              onChange={(e) => setParentId(e.target.value)}
+              placeholder="No parent (top-level)"
+              options={parentOptions(allCategories, editing.kind, editing.id)}
+              hint="Move this category under a different parent, or clear it to make it top-level."
+            />
+          )}
           {error && <Banner tone="danger">{error}</Banner>}
         </Stack>
       </Modal>

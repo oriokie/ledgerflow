@@ -4,7 +4,9 @@ The properties pinned hardest are the ones that decide whether someone keeps
 the feature switched on:
 
   * a dismissed suggestion never comes back;
-  * nothing writes to the ledger;
+  * scanning never writes to the ledger, and neither does approving anything
+    except a `transfer` finding — the one case where approval is an explicit,
+    non-speculative confirmation rather than acting on a guess;
   * a rejection teaches the engine rather than being discarded.
 """
 
@@ -219,7 +221,11 @@ def test_approving_a_duplicate_does_not_delete_anything(tenant):
         assert suggestion.status == ReviewStatus.APPROVED
 
 
-def test_approving_a_transfer_suggestion_does_not_repost(tenant):
+def test_approving_an_already_real_transfer_suggestion_is_a_noop(tenant):
+    """Both legs already carry a `transfer_group` (they were posted via
+    `record_transfer` directly), so approval's "already a transfer" guard
+    makes this a no-op rather than a re-post — the idempotency contract every
+    other `approve()` path already has."""
     with tenant_scope(tenant):
         checking, savings, _, _ = _setup()
         finance_services.record_transfer(
@@ -234,6 +240,58 @@ def test_approving_a_transfer_suggestion_does_not_repost(tenant):
         before = LedgerLine.objects.count()
         auto.approve(suggestion=suggestion)
         assert LedgerLine.objects.count() == before
+
+
+def test_approving_a_transfer_suggestion_reclassifies_misposted_legs(tenant):
+    """The real target scenario: a statement import posted one leg as income
+    and the other as an ordinary expense, because it has no idea the two
+    accounts belong to the same household. Approving the detected pair should
+    void both misposted rows and create one real linked transfer that drops
+    out of income/spending reports."""
+    with tenant_scope(tenant):
+        checking, savings, groceries, _ = _setup()
+        salary = finance_services.create_category(name="Salary", kind=CategoryKind.INCOME, currency="USD")
+        now = timezone.now()
+
+        # Money left checking (posted as if it were a plain expense)...
+        out_txn = finance_services.record_expense(
+            financial_account=checking,
+            category=groceries,
+            amount_minor=50_000,
+            occurred_at=now,
+        )
+        # ...and arrived in savings (posted as if it were plain income).
+        in_txn = finance_services.record_income(
+            financial_account=savings,
+            category=salary,
+            amount_minor=50_000,
+            occurred_at=now,
+        )
+
+        auto.scan()
+        suggestion = AutomationSuggestion.objects.filter(kind=SuggestionKind.TRANSFER).first()
+        assert suggestion is not None
+        assert {t.id for t in suggestion.transactions.all()} == {out_txn.id, in_txn.id}
+
+        auto.approve(suggestion=suggestion)
+
+        out_txn.refresh_from_db()
+        in_txn.refresh_from_db()
+        assert out_txn.status == "void"
+        assert in_txn.status == "void"
+
+        from apps.finance.models import Transaction
+
+        transfer_legs = Transaction.objects.filter(transfer_group__isnull=False)
+        assert transfer_legs.count() == 2
+        assert {t.financial_account_id for t in transfer_legs} == {checking.id, savings.id}
+
+        from apps.analytics.filters import ReportFilters
+        from apps.analytics.reports import run_report
+
+        result = run_report("cash_flow", ReportFilters(currency="USD"))
+        assert sum(p.get("outflow_minor", 0) for p in result.series) == 0
+        assert sum(p.get("inflow_minor", 0) for p in result.series) == 0
 
 
 # =============================================================================

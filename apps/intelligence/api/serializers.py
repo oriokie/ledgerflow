@@ -48,3 +48,20 @@ class AutomationRuleWriteSerializer(serializers.Serializer):
     priority = serializers.IntegerField(required=False, default=100)
     is_active = serializers.BooleanField(required=False, default=True)
     stop_processing = serializers.BooleanField(required=False, default=False)
+
+
+class AutomationRuleUpdateSerializer(serializers.Serializer):
+    """Every field optional so a PATCH can edit just one thing (e.g. flip
+    `is_active` to pause a rule) without resending the whole body."""
+
+    name = serializers.CharField(max_length=120, required=False)
+    conditions = serializers.DictField(required=False)
+    actions = serializers.ListField(child=serializers.DictField(), required=False)
+    priority = serializers.IntegerField(required=False)
+    is_active = serializers.BooleanField(required=False)
+    stop_processing = serializers.BooleanField(required=False)
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError("Nothing to change.")
+        return attrs

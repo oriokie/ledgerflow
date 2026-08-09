@@ -116,9 +116,11 @@ export interface Transaction {
   status: string;
   source: string;
   category_id: string | null;
+  payee_id: string | null;
   counter_account_id: string | null;
   transfer_group: string | null;
-  split_group?: string | null;
+  split_group: string | null;
+  reconciled_at: string | null;
   memo: string;
 }
 

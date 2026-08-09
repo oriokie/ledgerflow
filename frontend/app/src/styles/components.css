@@ -808,6 +808,12 @@
   justify-content: space-between;
   gap: var(--lf-space-3);
   margin-bottom: var(--lf-space-4);
+  /* Last-resort fallback for a hero amount that still overflows after
+     useFitFontSize's shrink — same relationship .lf-figure-value already has
+     with its own overflow. min-width: 0 lets the flex item shrink enough for
+     the scroll to actually engage instead of pushing the row wider. */
+  overflow-x: auto;
+  min-width: 0;
 }
 
 .lf-card-header--ruled {

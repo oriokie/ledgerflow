@@ -15,7 +15,10 @@ import { SuggestionCard } from "./automation";
  * Bulk selection exists because a backlog reviewed one tap at a time is a
  * backlog nobody finishes.
  */
-export function AutomationPage() {
+/** `embedded` renders this page as a tab panel inside the Automation hub
+ * (alongside Rules). The hub owns the <h1>, so the page must not render its
+ * own PageHeader — two page titles on one route is a broken heading outline. */
+export function AutomationPage({ embedded }: { embedded?: boolean } = {}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const { data: queue, isLoading } = useAutomationQueue();
@@ -40,21 +43,23 @@ export function AutomationPage() {
 
   return (
     <>
-      <PageHeader
-        title="Review"
-        eyebrow={queue ? `${queue.pending} waiting` : undefined}
-        description="Things LedgerFlow noticed. Nothing here has been applied unless it says so."
-        actions={
-          <Button
-            variant="secondary"
-            loading={scan.isPending}
-            onClick={() => scan.mutate(undefined)}
-            icon={<RefreshCw size={15} aria-hidden="true" />}
-          >
-            Scan again
-          </Button>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Review"
+          eyebrow={queue ? `${queue.pending} waiting` : undefined}
+          description="Things LedgerFlow noticed. Nothing here has been applied unless it says so."
+          actions={
+            <Button
+              variant="secondary"
+              loading={scan.isPending}
+              onClick={() => scan.mutate(undefined)}
+              icon={<RefreshCw size={15} aria-hidden="true" />}
+            >
+              Scan again
+            </Button>
+          }
+        />
+      )}
 
       {isLoading && <SkeletonCard />}
 

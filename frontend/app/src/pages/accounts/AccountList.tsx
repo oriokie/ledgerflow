@@ -31,6 +31,7 @@ function AccountRow({
         <span className="lf-acct-item-meta">
           {accountTypeLabel(account.account_type)}
           {account.mask ? ` · ••${account.mask}` : ""}
+          {account.is_archived ? " · Inactive" : ""}
         </span>
       </span>
       <span className="lf-acct-item-balance">

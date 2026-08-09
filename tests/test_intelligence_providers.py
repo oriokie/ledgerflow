@@ -326,7 +326,7 @@ def test_unknown_field_or_op_rejected():
     with pytest.raises(AutomationError):
         conditions_match({"all": [{"field": "secret", "op": "eq", "value": 1}]}, {})
     with pytest.raises(AutomationError):
-        conditions_match({"all": [{"field": "memo", "op": "regex", "value": ".*"}]}, {"memo": "x"})
+        conditions_match({"all": [{"field": "memo", "op": "fuzzy_match", "value": ".*"}]}, {"memo": "x"})
 
 
 def test_action_allow_list_enforced():

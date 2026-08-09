@@ -20,6 +20,7 @@ import {
   Banner,
   Button,
   Card,
+  Checkbox,
   EmptyState,
   Figure,
   FigureRow,
@@ -35,7 +36,7 @@ import {
   useToast,
 } from "../ui";
 import type { Column } from "../ui";
-import { AccountDetail, AccountList, StatementModal, WalletsSection } from "./accounts";
+import { AccountDetail, AccountList, EditAccountModal, StatementModal, WalletsSection } from "./accounts";
 import { AccountTypeIcon } from "./accounts/AccountTypeIcon";
 import { useOpenOnParam } from "../hooks/useOpenOnParam";
 import { CURRENCY_OPTIONS } from "../lib/currencies";
@@ -117,7 +118,8 @@ function SummaryBar({ accounts }: { accounts: FinancialAccount[] }) {
 export function AccountsPage() {
   const { activeWorkspace } = useAuth();
   const baseCurrency = activeWorkspace?.tenant.base_currency ?? "USD";
-  const { data: accounts, isLoading } = useAccounts();
+  const [showDeactivated, setShowDeactivated] = useState(false);
+  const { data: accounts, isLoading } = useAccounts(showDeactivated);
   const { data: wallets } = useWallets();
   const createAccount = useCreateAccount();
   const createWallet = useCreateWallet();
@@ -129,6 +131,7 @@ export function AccountsPage() {
   const [showCreate, setShowCreate] = useOpenOnParam();
   const [showWallet, setShowWallet] = useState(false);
   const [statementFor, setStatementFor] = useState<FinancialAccount | null>(null);
+  const [editingAccount, setEditingAccount] = useState<FinancialAccount | null>(null);
   const [showLedger, setShowLedger] = useState(false);
   const { data: ledgerAccounts } = useLedgerAccounts(showLedger);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -300,6 +303,13 @@ export function AccountsPage() {
                 onSelect={selectAccount}
                 primaryCurrency={cur}
               />
+              <div style={{ marginTop: "var(--lf-space-3)" }}>
+                <Checkbox
+                  label="Show deactivated accounts"
+                  checked={showDeactivated}
+                  onChange={(e) => setShowDeactivated(e.target.checked)}
+                />
+              </div>
             </div>
             <div className="lf-acct-detail-col">
               {selected && (
@@ -311,6 +321,7 @@ export function AccountsPage() {
                   onBack={() => setMobileView("list")}
                   onAssignWallet={onAssignWallet}
                   onOpenStatement={() => setStatementFor(selected)}
+                  onEdit={() => setEditingAccount(selected)}
                 />
               )}
             </div>
@@ -476,6 +487,7 @@ export function AccountsPage() {
       </Modal>
 
       {statementFor && <StatementModal account={statementFor} onClose={() => setStatementFor(null)} />}
+      {editingAccount && <EditAccountModal account={editingAccount} onClose={() => setEditingAccount(null)} />}
     </>
   );
 }
