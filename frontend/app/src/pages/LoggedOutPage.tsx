@@ -10,13 +10,13 @@ import { Heading, Stack, Text } from "../ui";
  */
 export function LoggedOutPage() {
   return (
-    <AuthLayout>
-      <Stack gap={4}>
+    <AuthLayout scene="signed-out">
+      <Stack gap={4} className="lf-loggedout">
         <div>
           <span className="lf-loggedout-icon" aria-hidden="true">
             <LogOut size={20} strokeWidth={1.8} />
           </span>
-          <Heading level={1}>You're signed out</Heading>
+          <Heading level={1} className="lf-auth-title">You're signed out</Heading>
         </div>
         <Text tone="secondary">
           Your session is closed and your data stays safe. Come back any time — your workspaces will be right

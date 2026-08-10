@@ -1,18 +1,54 @@
 /* ==========================================================================
    Landing page
    --------------------------------------------------------------------------
-   Built entirely on the application's tokens. Nothing here introduces a colour,
-   a type step or a spacing value the product does not already use — if the
-   landing page needed its own design language to look premium, the
-   application's would not be good enough.
+   Typography uses the product font tokens only; colour, rhythm and surface
+   treatment are tuned for a welcoming marketing read without forking the type
+   system.
 
    Mobile-first throughout, and every section is a single column until it has
    the room to be otherwise.
    ========================================================================== */
 .lf-landing {
+  --lf-landing-ink: var(--lf-market-ink);
+  --lf-landing-muted: var(--lf-market-muted);
+  --lf-landing-soft: var(--lf-market-soft);
+  --lf-landing-wash: var(--lf-market-wash);
+  --lf-landing-accent: var(--lf-market-accent);
+  --lf-landing-accent-soft: color-mix(in srgb, var(--lf-landing-accent) 16%, transparent);
+  --lf-landing-card: var(--lf-market-card);
+  --lf-landing-line: color-mix(in srgb, var(--lf-landing-ink) 10%, transparent);
+
   min-height: 100vh;
-  background: var(--lf-bg-app);
-  color: var(--lf-text-primary);
+  background: var(--lf-landing-soft);
+  color: var(--lf-landing-ink);
+  font-family: var(--lf-font-body);
+}
+
+.lf-landing .lf-illus--doodle {
+  --lf-text-primary: var(--lf-landing-ink);
+  --lf-text-tertiary: var(--lf-landing-muted);
+  --lf-action-primary: var(--lf-landing-accent);
+}
+
+.lf-landing-band .lf-illus--doodle {
+  --lf-text-primary: var(--lf-landing-soft);
+  --lf-text-tertiary: color-mix(in srgb, var(--lf-landing-soft) 55%, transparent);
+}
+
+.lf-landing .lf-btn--primary {
+  background: var(--lf-landing-accent);
+  border-color: var(--lf-landing-accent);
+}
+
+.lf-landing .lf-btn--secondary {
+  background: transparent;
+  border-color: var(--lf-landing-line);
+  color: var(--lf-landing-ink);
+}
+
+:root[data-theme="dark"] .lf-landing {
+  --lf-landing-accent-soft: color-mix(in srgb, var(--lf-landing-accent) 20%, transparent);
+  --lf-landing-line: color-mix(in srgb, var(--lf-landing-ink) 14%, transparent);
 }
 
 /* One measure for the whole page, so sections cannot drift apart. */
@@ -42,15 +78,25 @@
   display: flex;
   align-items: center;
   gap: var(--lf-space-4);
-  height: 68px;
+  height: 72px;
   position: sticky;
-  top: 0;
+  top: var(--lf-space-3);
   z-index: 20;
-  max-width: none;
-  background: color-mix(in srgb, var(--lf-bg-app) 88%, transparent);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--lf-border-subtle);
+  max-width: calc(1120px + var(--lf-space-8));
+  margin-inline: auto;
+  padding-inline: var(--lf-space-4);
+  background: color-mix(in srgb, var(--lf-landing-card) 92%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--lf-landing-line);
+  border-radius: var(--lf-radius-full);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--lf-landing-ink) 6%, transparent);
+}
+
+@media (min-width: 768px) {
+  .lf-landing-header {
+    padding-inline: var(--lf-space-6);
+  }
 }
 
 .lf-landing-brand {
@@ -74,14 +120,15 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--lf-touch-target);
-  color: var(--lf-text-secondary);
+  color: var(--lf-landing-muted);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
   font-weight: var(--lf-weight-medium);
   text-decoration: none;
 }
 
 .lf-landing-nav a:hover {
-  color: var(--lf-text-primary);
+  color: var(--lf-landing-ink);
 }
 
 .lf-landing-header-actions {
@@ -92,10 +139,27 @@
 }
 
 /* ---------- hero ---------- */
+.lf-hero-shell {
+  position: relative;
+  overflow: clip;
+  padding-block: var(--lf-space-6) var(--lf-space-4);
+}
+
+.lf-hero-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 90% 20%, var(--lf-landing-accent-soft), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 10% 80%, color-mix(in srgb, var(--lf-landing-wash) 80%, transparent), transparent 60%);
+  pointer-events: none;
+}
+
 .lf-hero {
+  position: relative;
   display: grid;
   gap: var(--lf-space-8);
-  padding-block: var(--lf-space-10) var(--lf-space-8);
+  padding-block: var(--lf-space-8) var(--lf-space-6);
   align-items: center;
 }
 
@@ -112,7 +176,7 @@
   font-weight: var(--lf-weight-medium);
   letter-spacing: var(--lf-tracking-wider);
   text-transform: uppercase;
-  color: var(--lf-text-tertiary);
+  color: var(--lf-landing-muted);
   margin-bottom: var(--lf-space-3);
 }
 
@@ -134,15 +198,16 @@
 }
 
 .lf-hero-title-accent {
-  color: var(--lf-action-primary);
+  color: var(--lf-landing-accent);
 }
 
 .lf-hero-sub {
   margin-top: var(--lf-space-4);
   max-width: 54ch;
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-md);
-  line-height: 1.6;
-  color: var(--lf-text-secondary);
+  line-height: 1.65;
+  color: var(--lf-landing-muted);
 }
 
 .lf-hero-actions {
@@ -154,13 +219,51 @@
 
 .lf-hero-note {
   margin-top: var(--lf-space-4);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-xs);
-  color: var(--lf-text-tertiary);
+  color: var(--lf-landing-muted);
+}
+
+.lf-hero-trust {
+  list-style: none;
+  margin: var(--lf-space-6) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-2) var(--lf-space-5);
+}
+
+.lf-hero-trust li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+  font-family: var(--lf-font-body);
+  font-size: var(--lf-text-sm);
+  color: var(--lf-landing-muted);
+}
+
+.lf-hero-trust svg {
+  flex-shrink: 0;
+  color: var(--lf-landing-accent);
 }
 
 .lf-hero-art {
   display: grid;
   place-items: center;
+}
+
+.lf-landing-hero-art {
+  width: min(100%, 520px);
+  padding: var(--lf-space-6);
+  border-radius: var(--lf-radius-xl);
+  background: color-mix(in srgb, var(--lf-landing-card) 88%, transparent);
+  border: 1px solid var(--lf-landing-line);
+  box-shadow: 0 24px 60px color-mix(in srgb, var(--lf-landing-ink) 8%, transparent);
+}
+
+.lf-landing-hero-art .lf-illus {
+  width: 100%;
+  height: auto;
 }
 
 /* ---------- sections ---------- */
@@ -183,7 +286,7 @@
   font-weight: var(--lf-weight-medium);
   letter-spacing: var(--lf-tracking-wider);
   text-transform: uppercase;
-  color: var(--lf-action-primary);
+  color: var(--lf-landing-accent);
   margin-bottom: var(--lf-space-2);
 }
 
@@ -198,9 +301,10 @@
 
 .lf-landing-lede {
   margin-top: var(--lf-space-3);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-base);
-  line-height: 1.6;
-  color: var(--lf-text-secondary);
+  line-height: 1.65;
+  color: var(--lf-landing-muted);
 }
 
 .lf-landing-split {
@@ -227,20 +331,22 @@
   display: flex;
   align-items: flex-start;
   gap: var(--lf-space-2);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
-  color: var(--lf-text-secondary);
+  color: var(--lf-landing-muted);
 }
 
 .lf-landing-points svg {
   flex-shrink: 0;
   margin-top: 3px;
-  color: var(--lf-status-success);
+  color: var(--lf-landing-accent);
 }
 
 .lf-landing-muted {
   margin-top: var(--lf-space-4);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-xs);
-  color: var(--lf-text-tertiary);
+  color: var(--lf-landing-muted);
 }
 
 /* ---------- certainty specimen ---------- */
@@ -251,15 +357,16 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1px;
-  background: var(--lf-border-subtle);
-  border: 1px solid var(--lf-border-subtle);
+  background: var(--lf-landing-line);
+  border: 1px solid var(--lf-landing-line);
   border-radius: var(--lf-radius-lg);
   overflow: hidden;
   margin-bottom: var(--lf-space-6);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--lf-landing-ink) 5%, transparent);
 }
 
 .lf-landing-certainty > .lf-figure {
-  background: var(--lf-bg-surface);
+  background: var(--lf-landing-card);
   padding: var(--lf-space-4) var(--lf-space-5);
 }
 
@@ -269,50 +376,84 @@
    everything inside — including the illustration, which draws entirely from
    tokens — recolours itself, and dark mode needs no second set of rules. */
 .lf-landing-band {
-  background: var(--lf-bg-inverse);
-  --lf-text-primary: var(--lf-text-inverse);
-  --lf-text-secondary: color-mix(in srgb, var(--lf-text-inverse) 78%, transparent);
-  --lf-text-tertiary: color-mix(in srgb, var(--lf-text-inverse) 60%, transparent);
-  --lf-bg-surface: color-mix(in srgb, var(--lf-bg-inverse) 86%, var(--lf-paper-000));
-  --lf-border-subtle: color-mix(in srgb, var(--lf-text-inverse) 14%, transparent);
+  background: var(--lf-landing-ink);
+  --lf-text-primary: var(--lf-landing-soft);
+  --lf-text-secondary: color-mix(in srgb, var(--lf-landing-soft) 78%, transparent);
+  --lf-text-tertiary: color-mix(in srgb, var(--lf-landing-soft) 60%, transparent);
+  --lf-bg-surface: color-mix(in srgb, var(--lf-landing-ink) 86%, var(--lf-landing-soft));
+  --lf-border-subtle: color-mix(in srgb, var(--lf-landing-soft) 14%, transparent);
   color: var(--lf-text-primary);
+}
+
+:root[data-theme="dark"] .lf-landing-band {
+  background: color-mix(in srgb, var(--lf-landing-ink) 92%, var(--lf-bg-sunken));
 }
 
 /* The checks read as achieved facts; on the inverse surface the light-theme
    success green has no contrast, so they take the inverse ink instead. */
 .lf-landing-band .lf-landing-points svg {
-  color: var(--lf-text-inverse);
+  color: var(--lf-landing-accent);
 }
 
 .lf-landing-band .lf-landing-eyebrow {
-  color: color-mix(in srgb, var(--lf-text-inverse) 70%, transparent);
+  color: color-mix(in srgb, var(--lf-landing-soft) 70%, transparent);
 }
 
 /* ---------- features ---------- */
 .lf-feature-grid {
   display: grid;
-  gap: var(--lf-space-5);
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--lf-space-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .lf-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .lf-feature-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .lf-feature {
+  position: relative;
   padding: var(--lf-space-5);
-  border: 1px solid var(--lf-border-card);
+  border: 1px solid var(--lf-landing-line);
   border-radius: var(--lf-radius-lg);
-  background: var(--lf-bg-surface);
+  background: var(--lf-landing-card);
   transition:
     transform var(--lf-duration-fast) var(--lf-ease-out),
     box-shadow var(--lf-duration-fast) var(--lf-ease-out),
     border-color var(--lf-duration-fast) var(--lf-ease-out);
 }
 
+.lf-feature::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: var(--lf-space-4);
+  bottom: var(--lf-space-4);
+  width: 3px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-landing-accent);
+  opacity: 0;
+  transition: opacity var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-feature:hover::before {
+  opacity: 1;
+}
+
 /* A quiet lift, not a bounce — hover states on marketing cards are the first
    place "premium" tips into "restless". Neutralised globally by the
    prefers-reduced-motion rule in base.css. */
 .lf-feature:hover {
-  transform: translateY(-2px);
-  border-color: var(--lf-border-strong);
-  box-shadow: var(--lf-shadow-hover);
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--lf-landing-accent) 35%, var(--lf-landing-line));
+  box-shadow: 0 18px 44px color-mix(in srgb, var(--lf-landing-ink) 8%, transparent);
 }
 
 .lf-feature h3 {
@@ -325,9 +466,10 @@
 
 .lf-feature p {
   margin-top: var(--lf-space-2);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
-  line-height: 1.6;
-  color: var(--lf-text-secondary);
+  line-height: 1.65;
+  color: var(--lf-landing-muted);
 }
 
 /* ---------- testimonials ---------- */
@@ -340,23 +482,38 @@
 .lf-landing-quote {
   margin: 0;
   padding: var(--lf-space-5);
-  border: 1px solid var(--lf-border-card);
+  border: 1px solid var(--lf-landing-line);
   border-radius: var(--lf-radius-lg);
-  background: var(--lf-bg-surface);
+  background: var(--lf-landing-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+}
+
+.lf-landing-quote-mark {
+  width: 88px;
+  opacity: 0.95;
+}
+
+.lf-landing-quote-mark .lf-illus-frame {
+  margin: 0;
 }
 
 .lf-landing-quote blockquote {
   margin: 0;
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-base);
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
 .lf-landing-quote figcaption {
   display: flex;
   flex-direction: column;
-  margin-top: var(--lf-space-4);
+  margin-top: auto;
+  padding-top: var(--lf-space-2);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
-  color: var(--lf-text-tertiary);
+  color: var(--lf-landing-muted);
 }
 
 /* Tied to the data, not to the page: it shows while any quote is flagged as a
@@ -420,14 +577,14 @@
   flex-direction: column;
   gap: var(--lf-space-3);
   padding: var(--lf-space-5);
-  border: 1px solid var(--lf-border-card);
+  border: 1px solid var(--lf-landing-line);
   border-radius: var(--lf-radius-lg);
-  background: var(--lf-bg-surface);
+  background: var(--lf-landing-card);
 }
 
 .lf-price-card[data-featured] {
-  border-color: var(--lf-action-primary);
-  box-shadow: var(--lf-shadow-raised);
+  border-color: var(--lf-landing-accent);
+  box-shadow: 0 20px 48px color-mix(in srgb, var(--lf-landing-accent) 18%, transparent);
 }
 
 .lf-price-badge {
@@ -436,8 +593,9 @@
   inset-inline-start: var(--lf-space-5);
   padding: 2px var(--lf-space-2);
   border-radius: var(--lf-radius-full);
-  background: var(--lf-action-primary);
-  color: var(--lf-action-primary-text);
+  background: var(--lf-landing-accent);
+  color: var(--lf-landing-soft);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-xs);
   font-weight: var(--lf-weight-semibold);
 }
@@ -465,7 +623,7 @@
   font-weight: var(--lf-weight-medium);
   letter-spacing: var(--lf-tracking-wide);
   text-transform: uppercase;
-  color: var(--lf-text-tertiary);
+  color: var(--lf-landing-muted);
 }
 
 .lf-price-adds {
@@ -480,27 +638,29 @@
   display: flex;
   align-items: flex-start;
   gap: var(--lf-space-2);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
-  color: var(--lf-text-secondary);
+  color: var(--lf-landing-muted);
 }
 
 .lf-price-adds svg {
   flex-shrink: 0;
   margin-top: 4px;
-  color: var(--lf-status-success);
+  color: var(--lf-landing-accent);
 }
 
 .lf-price-period {
   font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
   font-weight: var(--lf-weight-regular);
-  color: var(--lf-text-tertiary);
+  color: var(--lf-landing-muted);
 }
 
 .lf-price-pitch {
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
   line-height: 1.55;
-  color: var(--lf-text-secondary);
+  color: var(--lf-landing-muted);
   min-height: 3.1em;
 }
 
@@ -508,11 +668,12 @@
   list-style: none;
   margin: 0;
   padding: var(--lf-space-3) 0;
-  border-top: 1px solid var(--lf-border-subtle);
+  border-top: 1px solid var(--lf-landing-line);
   display: grid;
   gap: var(--lf-space-2);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
-  color: var(--lf-text-secondary);
+  color: var(--lf-landing-muted);
 }
 
 .lf-price-limits li {
@@ -522,7 +683,7 @@
 }
 
 .lf-price-limits li[data-off] {
-  color: var(--lf-text-tertiary);
+  color: color-mix(in srgb, var(--lf-landing-muted) 70%, transparent);
 }
 
 .lf-price-card .lf-btn {
@@ -541,9 +702,9 @@
 }
 
 .lf-faq details {
-  border: 1px solid var(--lf-border-card);
+  border: 1px solid var(--lf-landing-line);
   border-radius: var(--lf-radius-md);
-  background: var(--lf-bg-surface);
+  background: var(--lf-landing-card);
 }
 
 .lf-faq summary {
@@ -551,6 +712,7 @@
   align-items: center;
   min-height: var(--lf-touch-target);
   padding: var(--lf-space-3) var(--lf-space-4);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
   font-weight: var(--lf-weight-medium);
   cursor: pointer;
@@ -574,9 +736,10 @@
 .lf-faq p {
   padding: 0 var(--lf-space-4) var(--lf-space-4);
   margin: 0;
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
   line-height: 1.65;
-  color: var(--lf-text-secondary);
+  color: var(--lf-landing-muted);
 }
 
 /* ---------- closing CTA ---------- */
@@ -584,8 +747,16 @@
   display: grid;
   justify-items: center;
   gap: var(--lf-space-3);
-  padding-block: var(--lf-space-10);
+  padding: var(--lf-space-10) var(--lf-space-5);
   text-align: center;
+  border-radius: var(--lf-radius-xl);
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--lf-landing-accent) 12%, var(--lf-landing-card)),
+    var(--lf-landing-card)
+  );
+  border: 1px solid var(--lf-landing-line);
+  box-shadow: 0 20px 50px color-mix(in srgb, var(--lf-landing-ink) 6%, transparent);
 }
 
 .lf-landing-cta h2 {
@@ -597,7 +768,8 @@
 }
 
 .lf-landing-cta p {
-  color: var(--lf-text-secondary);
+  font-family: var(--lf-font-body);
+  color: var(--lf-landing-muted);
 }
 
 .lf-landing-cta .lf-btn {
@@ -609,7 +781,7 @@
   display: grid;
   gap: var(--lf-space-6);
   padding-block: var(--lf-space-8);
-  border-top: 1px solid var(--lf-border-subtle);
+  border-top: 1px solid var(--lf-landing-line);
 }
 
 @media (min-width: 768px) {
@@ -622,8 +794,9 @@
 .lf-landing-footer-brand p {
   margin-top: var(--lf-space-2);
   max-width: 40ch;
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
-  color: var(--lf-text-tertiary);
+  color: var(--lf-landing-muted);
 }
 
 .lf-landing-footer nav {
@@ -649,20 +822,22 @@
   display: inline-flex;
   align-items: center;
   min-height: var(--lf-touch-target);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
-  color: var(--lf-text-secondary);
+  color: var(--lf-landing-muted);
   text-decoration: none;
 }
 
 .lf-landing-footer nav a:hover {
-  color: var(--lf-text-primary);
+  color: var(--lf-landing-ink);
   text-decoration: underline;
 }
 
 .lf-landing-copyright {
   grid-column: 1 / -1;
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-xs);
-  color: var(--lf-text-tertiary);
+  color: var(--lf-landing-muted);
 }
 
 /* ==========================================================================
@@ -674,10 +849,10 @@
    with <picture> so the site's own theme toggle wins over the OS preference.
    ========================================================================== */
 .lf-preview {
-  border: 1px solid var(--lf-border-card);
+  border: 1px solid var(--lf-landing-line);
   border-radius: var(--lf-radius-lg);
-  background: var(--lf-bg-surface);
-  box-shadow: var(--lf-shadow-hover);
+  background: var(--lf-landing-card);
+  box-shadow: 0 24px 56px color-mix(in srgb, var(--lf-landing-ink) 8%, transparent);
   overflow: hidden;
 }
 
@@ -825,11 +1000,11 @@
   line-height: 1.6;
 }
 .lf-showcase-frame {
-  border: 1px solid var(--lf-border-card);
+  border: 1px solid var(--lf-landing-line);
   border-radius: var(--lf-radius-lg);
   overflow: hidden;
-  box-shadow: var(--lf-shadow-raised);
-  background: var(--lf-bg-surface);
+  box-shadow: 0 20px 48px color-mix(in srgb, var(--lf-landing-ink) 7%, transparent);
+  background: var(--lf-landing-card);
 }
 .lf-showcase-frame img {
   display: block;

@@ -34,6 +34,7 @@ export function SafeToSpend() {
   return (
     <Card
       accent="money"
+      prominence="primary"
       action={
         <Link className="lf-section-link" to="/cashflow">
           How it's projected

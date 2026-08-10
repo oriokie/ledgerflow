@@ -47,7 +47,7 @@ export function NetWorthCard({
 
   if (!netWorth) {
     return (
-      <Card eyebrow="Net worth" style={{ gridColumn: "span 2" }}>
+      <Card accent="money" prominence="primary" style={{ gridColumn: "span 2" }}>
         <Text tone="secondary">Welcome to LedgerFlow.</Text>
         <div style={{ marginTop: "var(--lf-space-3)" }}>
           <Link className="lf-btn lf-btn--primary" to="/accounts">
@@ -62,7 +62,7 @@ export function NetWorthCard({
   // The card's eyebrow is gone: `Figure` carries the label, and two of them
   // stacked was the page saying "Net worth" twice.
   return (
-    <Card style={{ gridColumn: "span 2" }}>
+    <Card accent="money" prominence="primary" style={{ gridColumn: "span 2" }}>
       <Figure
         label="Net worth"
         size="hero"
@@ -93,8 +93,8 @@ export function NetWorthCard({
             <AreaChart data={points} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="nwSpark" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--lf-iris-600)" stopOpacity={0.28} />
-                  <stop offset="100%" stopColor="var(--lf-iris-600)" stopOpacity={0} />
+                  <stop offset="0%" stopColor="var(--lf-action-primary)" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="var(--lf-action-primary)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <XAxis dataKey="label" hide />
@@ -106,8 +106,8 @@ export function NetWorthCard({
                 type="monotone"
                 dataKey="net"
                 name="Net worth"
-                stroke="var(--lf-iris-600)"
-                strokeWidth={2}
+                stroke="var(--lf-action-primary)"
+                strokeWidth={2.25}
                 fill="url(#nwSpark)"
               />
             </AreaChart>
@@ -128,7 +128,7 @@ export function HealthCard({ health }: { health: HealthScore | undefined }) {
   if (!health || health.score === null) {
     const missing = (health?.components ?? []).filter((c) => c.score === null);
     return (
-      <Card eyebrow="Financial health">
+      <Card accent="plan" prominence="primary" eyebrow="Financial health">
         <Text tone="secondary" size="sm">
           {missing.length > 0
             ? `Not enough data yet to score this. Still needed: ${missing
@@ -144,7 +144,7 @@ export function HealthCard({ health }: { health: HealthScore | undefined }) {
   const tone = score >= 70 ? "success" : score >= 45 ? "warning" : "danger";
 
   return (
-    <Card>
+    <Card accent="plan" prominence="primary">
       {/* Was a hand-styled <p> carrying its colour in an inline style — the
           exact bypass the token lint exists to stop. */}
       <Figure

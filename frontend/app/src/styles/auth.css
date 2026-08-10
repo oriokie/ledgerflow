@@ -1,20 +1,31 @@
 /* ==========================================================================
-   Auth — split screen, form first.
-   Left: the form, on the page surface, with pill fields and a full-width
-   primary. Right: an inset rounded showcase panel in a soft accent tint,
-   holding the illustration, a floating figure card, and a rotating quote with
-   position dots beneath.
-   Collapses to a single centered column under 900px, panel hidden.
+   Auth — a calm form beside an editorial, people-first illustration.
    ========================================================================== */
 
 .lf-auth-shell {
+  --lf-auth-ink: var(--lf-market-ink);
+  --lf-auth-muted: var(--lf-market-auth-muted);
+  --lf-auth-page: var(--lf-market-auth-page);
+  --lf-auth-panel: var(--lf-market-auth-panel);
+  --lf-auth-card: var(--lf-market-auth-card);
+  --lf-auth-accent: var(--lf-market-accent);
+  --lf-auth-line: color-mix(in srgb, var(--lf-auth-ink) 11%, transparent);
+
   min-height: 100vh;
   min-height: 100dvh;
   display: grid;
   /* The form column is the narrower of the two and comes first in both the
      DOM and the visual order, so keyboard order and reading order agree. */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-  background: var(--lf-bg-surface);
+  grid-template-columns: minmax(0, 0.92fr) minmax(520px, 1.08fr);
+  background:
+    radial-gradient(circle at 12% 10%, color-mix(in srgb, var(--lf-auth-accent) 8%, transparent), transparent 28rem),
+    var(--lf-auth-page);
+  color: var(--lf-auth-ink);
+  font-family: var(--lf-font-body);
+}
+
+:root[data-theme="dark"] .lf-auth-shell {
+  --lf-auth-line: color-mix(in srgb, var(--lf-auth-ink) 14%, transparent);
 }
 
 /* ---------------------------------------------------------- brand panel --- */
@@ -23,34 +34,83 @@
   position: relative;
   overflow: hidden;
   display: flex;
-  /* Inset with a generous radius, so it reads as a card sitting on the page
-     rather than a second half of it. */
-  margin: var(--lf-space-5);
-  border-radius: 28px;
-  /* A soft wash of the brand hue. Mixed against the surface rather than
-     hard-coded, so it stays a *tint* in both themes instead of turning into a
-     light slab on a dark page. */
+  margin: var(--lf-space-4);
+  border: 1px solid var(--lf-auth-line);
+  border-radius: 32px;
   background:
-    radial-gradient(
-      120% 90% at 50% 8%,
-      color-mix(in srgb, var(--lf-verdant-600) 16%, var(--lf-bg-surface)),
-      color-mix(in srgb, var(--lf-verdant-600) 9%, var(--lf-bg-surface))
-    );
-
+    radial-gradient(circle at 80% 12%, color-mix(in srgb, var(--lf-auth-accent) 22%, transparent), transparent 38%),
+    linear-gradient(145deg, color-mix(in srgb, var(--lf-auth-panel) 88%, white), var(--lf-auth-panel));
 }
 
-/* The stage: illustration with the figure card floating over its lower edge,
-   exactly the relationship the reference layout uses. */
+.lf-auth-panel::after {
+  content: "";
+  position: absolute;
+  width: 26rem;
+  aspect-ratio: 1;
+  right: -11rem;
+  bottom: -13rem;
+  border: 1px solid color-mix(in srgb, var(--lf-auth-ink) 10%, transparent);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 4rem color-mix(in srgb, var(--lf-auth-ink) 2%, transparent),
+    0 0 0 8rem color-mix(in srgb, var(--lf-auth-ink) 2%, transparent);
+}
+
+.lf-auth-panel-brand {
+  position: absolute;
+  z-index: 2;
+  top: var(--lf-space-6);
+  left: var(--lf-space-6);
+}
+
 .lf-auth-stage {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-bottom: var(--lf-space-8);
+  width: min(100%, 34rem);
+  padding: var(--lf-space-5);
+  border: 1px solid color-mix(in srgb, var(--lf-auth-ink) 9%, transparent);
+  border-radius: 28px;
+  background: color-mix(in srgb, var(--lf-auth-card) 78%, transparent);
+  box-shadow: 0 28px 70px color-mix(in srgb, var(--lf-auth-ink) 10%, transparent);
+  transform: rotate(-1deg);
 }
 
 .lf-auth-illus {
-  max-width: min(100%, 26rem);
+  width: 100%;
+}
+
+.lf-auth-illus .lf-illus {
+  max-width: none;
+}
+
+.lf-auth-illus .lf-illus--doodle {
+  --lf-text-primary: var(--lf-auth-ink);
+  --lf-text-tertiary: var(--lf-auth-muted);
+  --lf-action-primary: var(--lf-auth-accent);
+}
+
+.lf-auth-float {
+  position: absolute;
+  z-index: 2;
+  padding: 8px 12px;
+  border: 1px solid var(--lf-auth-line);
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-auth-card);
+  box-shadow: 0 12px 30px color-mix(in srgb, var(--lf-auth-ink) 10%, transparent);
+  color: var(--lf-auth-muted);
+  font-family: var(--lf-font-body);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-medium);
+  white-space: nowrap;
+}
+
+.lf-auth-float--top {
+  top: 18%;
+  right: -6%;
+}
+
+.lf-auth-float--bottom {
+  bottom: 13%;
+  left: -5%;
 }
 
 .lf-auth-panel-inner {
@@ -59,15 +119,43 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--lf-space-6);
-  padding: clamp(32px, 4vw, 56px);
+  gap: clamp(var(--lf-space-6), 4vh, var(--lf-space-10));
+  padding: clamp(72px, 8vw, 104px) clamp(40px, 6vw, 88px) clamp(40px, 5vw, 72px);
   width: 100%;
+  z-index: 1;
 }
 
-.lf-auth-panel-tagline {
+.lf-auth-panel-copy {
+  max-width: 32rem;
+  text-align: center;
+}
+
+.lf-auth-panel-eyebrow {
+  margin-bottom: var(--lf-space-2);
+  color: var(--lf-auth-accent);
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wider);
+  text-transform: uppercase;
+}
+
+.lf-auth-panel-title {
+  color: var(--lf-auth-ink);
+  font-family: var(--lf-font-display);
+  font-size: clamp(1.65rem, 2.5vw, 2.3rem);
+  font-weight: var(--lf-weight-medium);
+  line-height: 1.12;
+  letter-spacing: var(--lf-tracking-tight);
+  text-wrap: balance;
+}
+
+.lf-auth-panel-body {
+  margin-top: var(--lf-space-3);
+  color: var(--lf-auth-muted);
+  font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
-  color: var(--lf-text-tertiary);
-  letter-spacing: 0.01em;
+  line-height: 1.65;
 }
 
 /* ---------------------------------------------------------------- quote --- */
@@ -130,12 +218,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--lf-space-8) clamp(var(--lf-space-6), 5vw, 72px);
+  padding: var(--lf-space-8) clamp(var(--lf-space-6), 6vw, 88px);
 }
 
 .lf-auth-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 430px;
 }
 
 /* No card chrome on the form side. The reference sets the form directly on the
@@ -156,9 +244,11 @@
 
 .lf-auth-form-card .lf-input,
 .lf-auth-form-card .lf-select {
-  border-radius: var(--lf-radius-full);
-  min-height: 52px;
-  padding-inline: var(--lf-space-5);
+  min-height: 54px;
+  padding-inline: var(--lf-space-4);
+  border-color: var(--lf-auth-line);
+  border-radius: 14px;
+  background: var(--lf-auth-card);
 }
 
 /* The reveal toggle rides inside the pill, so it needs to clear the larger
@@ -168,17 +258,20 @@
 }
 
 .lf-auth-form-card .lf-btn--primary {
-  border-radius: var(--lf-radius-full);
-  min-height: 52px;
+  min-height: 54px;
+  border-color: var(--lf-auth-accent);
+  border-radius: 14px;
+  background: var(--lf-auth-accent);
   font-size: var(--lf-text-base);
 }
 
 /* The headline. Large and tight, the way the reference leads. */
 .lf-auth-title {
-  font-size: clamp(2rem, 3.4vw, 2.75rem);
+  color: var(--lf-auth-ink);
+  font-size: clamp(2.1rem, 3.4vw, 3rem);
   line-height: 1.08;
   letter-spacing: var(--lf-tracking-tight);
-  font-weight: var(--lf-weight-bold, 700);
+  font-weight: var(--lf-weight-medium);
 }
 
 /* The floating figure card, overlapping the illustration's lower edge. */
@@ -214,14 +307,14 @@
   height: 28px;
   border-radius: 8px;
   background: var(--lf-verdant-600);
-  color: #fff;
+  color: var(--lf-paper-000);
 }
 .lf-auth-brand--inverted {
-  color: #f2f4f8;
+  color: var(--lf-market-brand-inverted);
 }
 .lf-auth-brand--inverted .lf-auth-brand-mark {
-  background: rgba(255, 255, 255, 0.12);
-  color: #6fd3b4;
+  background: color-mix(in srgb, var(--lf-paper-000) 12%, transparent);
+  color: var(--lf-market-brand-mark);
 }
 
 .lf-auth-mobile-brand {

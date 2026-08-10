@@ -17,14 +17,13 @@ export function DoodleVault(props: DoodleProps) {
   return (
     <DoodleScene {...props} ids={ids}>
       <Wash tone={props.tone}>
-        <rect x="76" y="52" width="66" height="72" rx="12" />
+        <rect x="92" y="58" width="52" height="58" rx="10" />
       </Wash>
-      <rect x="76" y="52" width="66" height="72" rx="12" />
-      <circle cx="109" cy="88" r="14" />
-      <path d="M109 74v-5M109 107v5M95 88h-5M128 88h5" />
-      {/* Standing beside it, one hand raised — proud of the thing, not
-          guarding it. */}
-      <Figure x={52} y={100} scale={1} arms="wave" tilt={-2} />
+      <rect x="92" y="58" width="52" height="58" rx="10" transform="rotate(2 118 87)" />
+      <circle cx="118" cy="86" r="10" />
+      <path d="M118 76v-4M118 96v4M108 86h-4M128 86h4" strokeWidth="2.4" />
+      <Figure x={44} y={116} scale={1.02} arms="hold" hair="long" seated tilt={2} />
+      <Figure x={158} y={114} scale={1} arms="point" hair="short" tilt={-3} flip />
     </DoodleScene>
   );
 }
@@ -43,7 +42,8 @@ export function DoodleGrowth(props: DoodleProps) {
       <rect x="100" y="66" width="20" height="56" rx="5" transform="rotate(1 110 94)" />
       <rect x="128" y="44" width="20" height="78" rx="5" transform="rotate(-1 138 83)" />
       <path d="M74 40l14-10 12 8 22-18" strokeWidth="3" opacity="0.55" />
-      <Figure x={48} y={102} arms="point" />
+      <Figure x={42} y={116} scale={1.04} arms="point" hair="curly" tilt={-2} />
+      <Figure x={168} y={118} scale={0.92} arms="up" hair="bun" tilt={4} flip />
     </DoodleScene>
   );
 }
@@ -84,8 +84,8 @@ export function DoodleShield(props: DoodleProps) {
       <path d="M92 48v5M89 50.5h6" strokeWidth="2.4" opacity="0.5" />
       <path d="M152 52l5-5" strokeWidth="2.4" opacity="0.45" />
 
-      <Figure x={38} y={104} arms="wave" tilt={-4} scale={0.96} />
-      <Figure x={162} y={106} arms="point" tilt={3} scale={0.9} flip />
+      <Figure x={38} y={116} scale={0.98} arms="wave" hair="long" tilt={-4} />
+      <Figure x={162} y={118} scale={0.9} arms="point" hair="short" tilt={3} flip />
     </DoodleScene>
   );
 }
@@ -136,7 +136,8 @@ export function DoodleCompass(props: DoodleProps) {
       {/* Motion lines: the mark of drawing something in a hurry, and the
           cheapest way to say "going somewhere". */}
       <path d="M30 74h14M26 86h20M34 98h12" strokeWidth="2.6" opacity="0.5" />
-      <Figure x={58} y={104} arms="point" tilt={-4} />
+      <Figure x={48} y={116} scale={1.05} arms="point" hair="short" seated tilt={-3} />
+      <Figure x={172} y={114} scale={0.95} arms="wave" hair="long" tilt={5} flip />
     </DoodleScene>
   );
 }
@@ -281,7 +282,8 @@ export function DoodleInsight(props: DoodleProps) {
       <path d="M126 42a24 24 0 0114 43v9h-28v-9a24 24 0 0114-43z" />
       <path d="M114 102h24M117 110h18" />
       <path d="M126 26v-8M154 40l7-6M98 40l-7-6" strokeWidth="2.8" opacity="0.6" />
-      <Figure x={52} y={104} arms="up" tilt={-2} />
+      <Figure x={44} y={116} scale={1.02} arms="up" hair="curly" tilt={-2} />
+      <Figure x={168} y={118} scale={0.88} arms="hold" hair="bun" tilt={3} flip />
     </DoodleScene>
   );
 }

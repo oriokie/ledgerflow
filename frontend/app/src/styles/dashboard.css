@@ -37,6 +37,10 @@
   font-size: var(--lf-text-sm);
 }
 
+.lf-dash-hero {
+  margin-bottom: var(--lf-space-5);
+}
+
 @media (min-width: 640px) {
   .lf-dash-header {
     flex-direction: row;
@@ -51,6 +55,9 @@
   }
   .lf-dash-subtitle {
     display: block;
+  }
+  .lf-dash-hero {
+    margin-bottom: var(--lf-space-6);
   }
 }
 .lf-dash-controls {
@@ -105,8 +112,10 @@
    the label, the amount, the delta and the alignment contract. */
 .lf-spark {
   width: 100%;
-  height: 96px;
-  margin-top: var(--lf-space-3);
+  height: 108px;
+  margin-top: var(--lf-space-4);
+  padding-top: var(--lf-space-2);
+  border-top: 1px solid color-mix(in srgb, var(--lf-border-subtle) 80%, transparent);
 }
 
 /* ---------- stat tiles (income / spending / net) ---------- */
@@ -220,11 +229,19 @@
   display: flex;
   align-items: center;
   gap: var(--lf-space-3);
-  padding: var(--lf-space-3) 0;
+  padding: var(--lf-space-3);
+  margin-inline: calc(-1 * var(--lf-space-3));
   border-bottom: 1px solid var(--lf-border-subtle);
+  border-radius: var(--lf-radius-md);
+  transition: background var(--lf-duration-fast) var(--lf-ease-out);
 }
 .lf-row-item:last-child {
   border-bottom: 0;
+}
+@media (hover: hover) {
+  .lf-row-item:hover {
+    background: color-mix(in srgb, var(--lf-bg-sunken) 55%, transparent);
+  }
 }
 .lf-row-main {
   flex: 1;
@@ -532,7 +549,7 @@
 .lf-onboard-step[data-done="true"] .lf-onboard-marker {
   background: var(--lf-status-success);
   border-color: var(--lf-status-success);
-  color: #fff;
+  color: var(--lf-paper-000);
 }
 .lf-onboard-step[data-current="true"] .lf-onboard-marker {
   border-color: var(--lf-action-primary);
