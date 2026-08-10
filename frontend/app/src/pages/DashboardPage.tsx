@@ -159,7 +159,7 @@ export function DashboardPage() {
         {dashboardReady && (
         <>
           {/* Tier 1 — headline */}
-          <div className="lf-dash-section">
+          <div className="lf-dash-section lf-dash-hero">
             <Grid cols={3} gap={4}>
               <NetWorthCard netWorth={primaryNetWorth} history={netWorthHistory} currency={primaryCurrency} />
               {aiEnabled && <HealthCard health={health} />}

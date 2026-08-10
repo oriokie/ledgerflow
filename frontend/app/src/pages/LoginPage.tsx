@@ -127,10 +127,10 @@ export function LoginPage() {
         <Stack gap={4}>
           <div>
             <Heading level={1} className="lf-auth-title">
-              Welcome back!
+              Welcome back
             </Heading>
             <Text size="sm" tone="secondary" style={{ marginTop: "var(--lf-space-3)" }}>
-              Your ledger is where you left it. Sign in to pick up the thread.
+              Sign in to see what changed and what comes next.
             </Text>
           </div>
 

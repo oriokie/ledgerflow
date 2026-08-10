@@ -146,10 +146,10 @@ export function Wash({
 /**
  * A person, drawn once and reused at different angles.
  *
- * Deliberately faceless — a circle for a head, no features. Drawing a face
- * means deciding whose face, and on a product used in a hundred countries the
- * honest answer is that we do not know. A posture carries the meaning here
- * anyway: what someone is *doing* is the subject, not who they are.
+ * Deliberately faceless — no eyes or mouth. Drawing a face means deciding
+ * whose face, and on a product used in a hundred countries the honest answer
+ * is that we do not know. Posture, hair silhouette and clothing carry the
+ * meaning: what someone is *doing* is the subject, not who they are.
  */
 export function Figure({
   x = 0,
@@ -158,6 +158,8 @@ export function Figure({
   flip = false,
   tilt = 0,
   arms = "down",
+  hair = "short",
+  seated = false,
 }: {
   x?: number;
   y?: number;
@@ -166,21 +168,43 @@ export function Figure({
   tilt?: number;
   /** What the arms are doing — the whole of the character. */
   arms?: "down" | "up" | "point" | "hold" | "wave";
+  hair?: "short" | "long" | "bun" | "curly";
+  seated?: boolean;
 }) {
   const armPaths: Record<string, string> = {
-    down: "M-11 6l-5 14M11 6l5 14",
-    up: "M-11 4l-9-16M11 4l9-16",
-    point: "M-11 6l-5 14M11 2l16-9",
-    hold: "M-11 2l-7 8 7 6M11 2l7 8-7 6",
-    wave: "M-11 6l-5 14M11 2l7-6-2-9",
+    down: "M-14 -2 Q-18 8 -12 20 M14 -2 Q18 8 12 20",
+    up: "M-14 -4 Q-20 -14 -16 -28 M14 -4 Q20 -14 16 -28",
+    point: "M-14 -2 Q-18 8 -12 20 M14 -6 Q22 -10 28 -18",
+    hold: "M-14 -4 Q-20 2 -16 10 Q-8 14 0 8 M14 -4 Q20 2 16 10 Q8 14 0 8",
+    wave: "M-14 -2 Q-18 8 -12 20 M14 -8 Q22 -14 20 -22 Q18 -28 24 -26",
   };
+
+  const hairPaths: Record<string, string> = {
+    short: "M-11 -24 Q0 -34 11 -24",
+    long: "M-12 -24 Q0 -36 12 -24 Q10 -14 0 -12 Q-10 -14 -12 -24",
+    bun: "M-10 -24 Q0 -34 10 -24 M6 -28a5 5 0 1 1-12 0",
+    curly: "M-12 -22 Q-6 -32 0 -24 Q6 -32 12 -22 Q8 -14 0 -12 Q-8 -14 -12 -22",
+  };
+
+  const legs = seated
+    ? "M-8 24 Q-8 30 -18 32 M8 24 Q8 30 18 32"
+    : "M-7 24 Q-8 30 -9 36 M7 24 Q8 30 9 36";
 
   return (
     <g transform={`translate(${x} ${y}) scale(${flip ? -scale : scale} ${scale}) rotate(${tilt})`}>
-      <circle cx="0" cy="-16" r="9" />
-      <path d="M0 -7v20" />
+      <path
+        d="M-13 2 Q0 8 13 2 L11 24 Q0 30 -11 24 Z"
+        fill="var(--lf-text-primary)"
+        fillOpacity="0.14"
+        stroke="none"
+      />
+      <path d="M-13 2 Q0 -4 13 2 L11 24 Q0 30 -11 24 Z" />
+      <path d="M-10 17 Q0 21 10 17" strokeWidth="2.2" opacity="0.45" />
+      <path d={legs} />
+      <path d="M0 -10v6" strokeWidth="2.6" />
+      <circle cx="0" cy="-20" r="10" />
+      <path d={hairPaths[hair]} strokeWidth="3.2" />
       <path d={armPaths[arms]} />
-      <path d="M0 13l-8 15M0 13l8 15" />
     </g>
   );
 }

@@ -8,7 +8,10 @@ import { Illustration } from "../ui/illustration";
 import { Banner, Figure } from "../ui";
 import { AppPreview } from "./landing/AppPreview";
 import { AdvisorShowcase } from "./landing/AdvisorShowcase";
+import { LandingHeroArt } from "./landing/LandingHeroArt";
 import { FAQ, FEATURES, TESTIMONIALS } from "./landing/marketingCopy";
+
+const DOODLE = { style: "doodle" as const };
 
 /**
  * The product's front door.
@@ -72,32 +75,50 @@ function LandingHeader() {
 
 function Hero() {
   return (
-    <section className="lf-hero">
-      <div className="lf-hero-copy">
-        <p className="lf-hero-eyebrow">Personal finance, kept properly</p>
-        <h1 className="lf-hero-title">
-          Know exactly where you stand.
-          <span className="lf-hero-title-accent"> And why.</span>
-        </h1>
-        <p className="lf-hero-sub">
-          A double-entry ledger with the planning tools on top: budgets, goals, debt payoff and a
-          day-by-day cash-flow projection. Every figure shows what it was measured from, so you can
-          check it instead of trusting it.
-        </p>
-        <div className="lf-hero-actions">
-          <Link className="lf-btn lf-btn--primary" to="/register">
-            Start your free week
-            <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-          </Link>
-          <a className="lf-btn lf-btn--secondary" href="#preview">
-            See how it looks
-          </a>
+    <section className="lf-hero-shell">
+      <div className="lf-hero">
+        <div className="lf-hero-copy">
+          <p className="lf-hero-eyebrow">Personal finance, kept properly</p>
+          <h1 className="lf-hero-title">
+            Know exactly where you stand.
+            <span className="lf-hero-title-accent"> And why.</span>
+          </h1>
+          <p className="lf-hero-sub">
+            A double-entry ledger with the planning tools on top: budgets, goals, debt payoff and a
+            day-by-day cash-flow projection. Every figure shows what it was measured from, so you can
+            check it instead of trusting it.
+          </p>
+          <div className="lf-hero-actions">
+            <Link className="lf-btn lf-btn--primary lf-btn--lg" to="/register">
+              Start your free week
+              <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+            </Link>
+            <a className="lf-btn lf-btn--secondary lf-btn--lg" href="#preview">
+              See how it looks
+            </a>
+          </div>
+          <p className="lf-hero-note">Seven days free — no card asked for. Export everything, always.</p>
+          <ul className="lf-hero-trust" aria-label="What you get on every plan">
+            <li>
+              <Check size={15} strokeWidth={2.4} aria-hidden="true" />
+              Double-entry ledger
+            </li>
+            <li>
+              <Check size={15} strokeWidth={2.4} aria-hidden="true" />
+              Full data export
+            </li>
+            <li>
+              <Check size={15} strokeWidth={2.4} aria-hidden="true" />
+              No bank credentials stored
+            </li>
+          </ul>
         </div>
-        <p className="lf-hero-note">Seven days free — no card asked for. Export everything, always.</p>
-      </div>
 
-      <div className="lf-hero-art">
-        <Illustration name="vault" size="hero" />
+        <div className="lf-hero-art">
+          <div className="lf-illus-frame lf-landing-hero-art" data-size="hero" data-style="doodle">
+            <LandingHeroArt />
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -145,7 +166,7 @@ function Features() {
       <div className="lf-feature-grid">
         {FEATURES.map((feature) => (
           <article key={feature.title} className="lf-feature">
-            <Illustration name={feature.illustration} size="spot" />
+            <Illustration name={feature.illustration} size="spot" {...DOODLE} />
             <h3>{feature.title}</h3>
             <p>{feature.body}</p>
           </article>
@@ -180,7 +201,7 @@ function Intelligence() {
           </li>
         </ul>
       </div>
-      <Illustration name="insight" size="panel" />
+      <Illustration name="insight" size="panel" {...DOODLE} />
     </section>
     </div>
   );
@@ -209,6 +230,9 @@ function Testimonials() {
       <div className="lf-landing-quotes">
         {TESTIMONIALS.map((t) => (
           <figure key={t.attribution} className="lf-landing-quote">
+            <div className="lf-landing-quote-mark" aria-hidden="true">
+              <Illustration name="welcome" size="spot" {...DOODLE} />
+            </div>
             <blockquote>{t.quote}</blockquote>
             <figcaption>
               <span>{t.attribution}</span>
@@ -363,7 +387,7 @@ function Faq() {
 function ClosingCta() {
   return (
     <section className="lf-landing-cta">
-      <Illustration name="welcome" size="spot" />
+      <Illustration name="welcome" size="spot" {...DOODLE} />
       <h2>Start with one account and a week of transactions.</h2>
       <p>That is enough for the projection to say something useful.</p>
       <Link className="lf-btn lf-btn--primary" to="/register">
