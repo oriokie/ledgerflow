@@ -549,7 +549,7 @@
 .lf-onboard-step[data-done="true"] .lf-onboard-marker {
   background: var(--lf-status-success);
   border-color: var(--lf-status-success);
-  color: #fff;
+  color: var(--lf-paper-000);
 }
 .lf-onboard-step[data-current="true"] .lf-onboard-marker {
   border-color: var(--lf-action-primary);

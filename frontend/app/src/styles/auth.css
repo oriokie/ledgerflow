@@ -3,12 +3,12 @@
    ========================================================================== */
 
 .lf-auth-shell {
-  --lf-auth-ink: #1a1814;
-  --lf-auth-muted: #625c52;
-  --lf-auth-page: #f7f3ec;
-  --lf-auth-panel: #dfeadf;
-  --lf-auth-card: #fffdf9;
-  --lf-auth-accent: #2f6b4f;
+  --lf-auth-ink: var(--lf-market-ink);
+  --lf-auth-muted: var(--lf-market-auth-muted);
+  --lf-auth-page: var(--lf-market-auth-page);
+  --lf-auth-panel: var(--lf-market-auth-panel);
+  --lf-auth-card: var(--lf-market-auth-card);
+  --lf-auth-accent: var(--lf-market-accent);
   --lf-auth-line: color-mix(in srgb, var(--lf-auth-ink) 11%, transparent);
 
   min-height: 100vh;
@@ -25,12 +25,6 @@
 }
 
 :root[data-theme="dark"] .lf-auth-shell {
-  --lf-auth-ink: #f4efe6;
-  --lf-auth-muted: color-mix(in srgb, var(--lf-auth-ink) 70%, transparent);
-  --lf-auth-page: #12100e;
-  --lf-auth-panel: #18251e;
-  --lf-auth-card: #1a1714;
-  --lf-auth-accent: #6ecf9a;
   --lf-auth-line: color-mix(in srgb, var(--lf-auth-ink) 14%, transparent);
 }
 
@@ -313,14 +307,14 @@
   height: 28px;
   border-radius: 8px;
   background: var(--lf-verdant-600);
-  color: #fff;
+  color: var(--lf-paper-000);
 }
 .lf-auth-brand--inverted {
-  color: #f2f4f8;
+  color: var(--lf-market-brand-inverted);
 }
 .lf-auth-brand--inverted .lf-auth-brand-mark {
-  background: rgba(255, 255, 255, 0.12);
-  color: #6fd3b4;
+  background: color-mix(in srgb, var(--lf-paper-000) 12%, transparent);
+  color: var(--lf-market-brand-mark);
 }
 
 .lf-auth-mobile-brand {

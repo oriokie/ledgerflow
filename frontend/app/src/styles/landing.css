@@ -9,13 +9,13 @@
    the room to be otherwise.
    ========================================================================== */
 .lf-landing {
-  --lf-landing-ink: #1a1814;
-  --lf-landing-muted: #5c564c;
-  --lf-landing-soft: #f6f1e8;
-  --lf-landing-wash: #ebe3d4;
-  --lf-landing-accent: #2f6b4f;
+  --lf-landing-ink: var(--lf-market-ink);
+  --lf-landing-muted: var(--lf-market-muted);
+  --lf-landing-soft: var(--lf-market-soft);
+  --lf-landing-wash: var(--lf-market-wash);
+  --lf-landing-accent: var(--lf-market-accent);
   --lf-landing-accent-soft: color-mix(in srgb, var(--lf-landing-accent) 16%, transparent);
-  --lf-landing-card: #fffcf7;
+  --lf-landing-card: var(--lf-market-card);
   --lf-landing-line: color-mix(in srgb, var(--lf-landing-ink) 10%, transparent);
 
   min-height: 100vh;
@@ -47,13 +47,7 @@
 }
 
 :root[data-theme="dark"] .lf-landing {
-  --lf-landing-ink: #f4efe6;
-  --lf-landing-muted: color-mix(in srgb, var(--lf-landing-ink) 72%, transparent);
-  --lf-landing-soft: #12100e;
-  --lf-landing-wash: #1c1916;
-  --lf-landing-accent: #6ecf9a;
   --lf-landing-accent-soft: color-mix(in srgb, var(--lf-landing-accent) 20%, transparent);
-  --lf-landing-card: #1a1714;
   --lf-landing-line: color-mix(in srgb, var(--lf-landing-ink) 14%, transparent);
 }
 
@@ -392,7 +386,7 @@
 }
 
 :root[data-theme="dark"] .lf-landing-band {
-  background: color-mix(in srgb, var(--lf-landing-ink) 92%, #000);
+  background: color-mix(in srgb, var(--lf-landing-ink) 92%, var(--lf-bg-sunken));
 }
 
 /* The checks read as achieved facts; on the inverse surface the light-theme
