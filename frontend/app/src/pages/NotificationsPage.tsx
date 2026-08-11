@@ -121,6 +121,7 @@ export function NotificationsPage() {
         <Card>
           <EmptyState
             icon={BellOff}
+            illustration="signal"
             title="You're all caught up"
             body="Bill reminders, budget alerts, and goal milestones will land here as they happen."
           />

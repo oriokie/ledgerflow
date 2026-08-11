@@ -71,6 +71,7 @@ export function BillsPage({ embedded }: { embedded?: boolean } = {}) {
         <Card>
           <EmptyState
             icon={CheckCircle2}
+            illustration="envelope"
             title="No upcoming bills"
             body="Add bills like rent and utilities to get a heads-up before they're due and pay them in a click."
             tips={[

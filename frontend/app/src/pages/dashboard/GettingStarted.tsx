@@ -129,7 +129,7 @@ export function GettingStarted({
             fold back to real data, and art there would undo the point. */}
         {!compact && (
           <Illustration
-            name={complete ? "success" : "welcome"}
+            name={complete ? "success" : "insight"}
             size="spot"
             className="lf-onboard-art"
           />

@@ -102,6 +102,7 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}) {
         <Card>
           <EmptyState
             icon={BarChart3}
+            illustration="search"
             title="No reports available"
             body="Reports appear once there's activity to summarise."
           />

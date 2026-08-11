@@ -279,9 +279,9 @@ def test_a_closed_set_setting_refuses_a_value_outside_it():
     assert settings_store.get("appearance.illustration_style") == "motion"
 
 
-def test_the_illustration_style_defaults_to_clay():
+def test_the_illustration_style_defaults_to_editorial_doodle():
     settings_store.clear(key="appearance.illustration_style")
-    assert settings_store.get("appearance.illustration_style") == "clay"
+    assert settings_store.get("appearance.illustration_style") == "doodle"
 
 
 def test_the_appearance_endpoint_is_public(client):
@@ -291,7 +291,7 @@ def test_the_appearance_endpoint_is_public(client):
     settings_store.clear(key="appearance.illustration_style")
     resp = client.get("/api/v1/platform/appearance/")
     assert resp.status_code == 200
-    assert resp.json() == {"illustration_style": "clay"}
+    assert resp.json() == {"illustration_style": "doodle"}
 
 
 def test_the_appearance_endpoint_exposes_nothing_else(client):

@@ -246,8 +246,7 @@ def list_transactions(
 
     No select_related: the list serializer (`_txn_out`) reads only *_id fields
     (category_id, payee_id, ...), so joining those tables would fetch columns
-    nothing renders. `metadata` (JSON) is deferred for the same reason — it's
-    not in the list payload and can be large.
+    nothing renders.
 
     `filters` narrows the result set (date range, category, payee, tag, status,
     type, amount range, free-text). The leading `(tenant_id, -occurred_at, -id)`
@@ -257,7 +256,7 @@ def list_transactions(
     f = filters or TransactionFilters()
     account = financial_account if financial_account is not None else f.account
 
-    qs = Transaction.objects.defer("metadata").exclude(status=TransactionStatus.VOID)
+    qs = Transaction.objects.exclude(status=TransactionStatus.VOID)
     if account is not None:
         qs = qs.filter(financial_account=account)
     if f.category_id is not None:
@@ -284,7 +283,11 @@ def list_transactions(
     if f.max_amount_minor is not None:
         qs = qs.annotate(_abs2=Abs("amount_minor")).filter(_abs2__lte=f.max_amount_minor)
     if f.search:
-        qs = qs.filter(Q(memo__icontains=f.search) | Q(payee__name__icontains=f.search))
+        qs = qs.filter(
+            Q(memo__icontains=f.search)
+            | Q(payee__name__icontains=f.search)
+            | Q(metadata__mpesa_receipt__icontains=f.search)
+        )
     if f.needs_review is not None:
         qs = qs.filter(needs_review=f.needs_review)
     return qs.order_by("-occurred_at", "-id")

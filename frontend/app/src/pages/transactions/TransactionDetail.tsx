@@ -128,6 +128,11 @@ export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose:
       <Text tone="secondary" size="sm">
         {new Date(txn.occurred_at).toLocaleString()}
       </Text>
+      {typeof txn.metadata?.mpesa_receipt === "string" && (
+        <Text tone="tertiary" size="sm">
+          M-Pesa receipt: {txn.metadata.mpesa_receipt}
+        </Text>
+      )}
 
       {!isTransfer && (
         <>

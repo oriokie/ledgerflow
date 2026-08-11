@@ -277,6 +277,7 @@ export function ProjectionsPage() {
         <PageHeader title="Projections" description="Where this is heading, and what would change it." />
         <EmptyState
           icon={Route}
+          illustration="horizon"
           title="Nothing to project yet"
           body={error ?? "Add an account and a little history first."}
         />

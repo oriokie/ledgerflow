@@ -98,7 +98,7 @@ SPECS: tuple[SettingSpec, ...] = (
         "illustrations appear, including the signed-out landing page. "
         "'motion' animates; it holds still for anyone who has asked their "
         "system to reduce motion, and inside the application it is static.",
-        default="clay",
+        default="doodle",
         choices=("clay", "doodle", "motion"),
     ),
     # ---------------------------------------------------------- invoicing

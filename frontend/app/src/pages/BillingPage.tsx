@@ -192,7 +192,11 @@ export function BillingPage() {
 
   return (
     <>
-      <PageHeader eyebrow={activeWorkspace?.tenant.name} title="Billing & plans" />
+      <PageHeader
+        eyebrow={activeWorkspace?.tenant.name}
+        title="Billing & plans"
+        illustration="steps"
+      />
 
       {banner && (
         <Banner tone={banner.tone} onDismiss={() => setBanner(null)}>

@@ -268,6 +268,7 @@ class RecurringSerializer(serializers.Serializer):
     memo = serializers.CharField()
     category_id = serializers.UUIDField(allow_null=True)
     financial_account_id = serializers.UUIDField(allow_null=True)
+    counter_account_id = serializers.UUIDField(allow_null=True)
     payee_id = serializers.UUIDField(allow_null=True)
 
 

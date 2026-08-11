@@ -51,6 +51,7 @@ export function ReceivablesPage() {
         <Card>
           <EmptyState
             icon={HandCoins}
+            illustration="waiting"
             title="Nothing owed to you"
             body="LedgerFlow tracks what you owe in detail. This is the other direction — the money you've lent out, invoiced, or fronted for someone and haven't got back yet."
             tips={[

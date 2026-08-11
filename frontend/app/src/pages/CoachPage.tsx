@@ -101,6 +101,7 @@ export function CoachPage({ embedded }: { embedded?: boolean } = {}) {
             <Card>
               <EmptyState
                 icon={Sparkles}
+                illustration="conversation"
                 title={
                   dismissed
                     ? "Nothing dismissed"

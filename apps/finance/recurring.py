@@ -95,6 +95,13 @@ def update_recurring_transaction(*, rec: RecurringTransaction, **changes) -> Rec
         raise RecurringError(f"Unknown frequency {rec.frequency!r}.")
     if rec.txn_type == RecurringType.TRANSFER and rec.counter_account_id is None:
         raise RecurringError("A recurring transfer needs a counter_account.")
+    if rec.txn_type == RecurringType.TRANSFER and rec.financial_account_id == rec.counter_account_id:
+        raise RecurringError("Cannot transfer to the same account.")
+    if (
+        rec.txn_type == RecurringType.TRANSFER
+        and rec.financial_account.currency != rec.counter_account.currency
+    ):
+        raise RecurringError("Transfer accounts must use the same currency.")
     if rec.txn_type in (RecurringType.INCOME, RecurringType.EXPENSE) and rec.category_id is None:
         raise RecurringError(f"A recurring {rec.txn_type} needs a category.")
     if rec.ends_on is not None and rec.ends_on < rec.starts_on:
@@ -146,6 +153,10 @@ def create_recurring_transaction(
         raise RecurringError(f"Unknown frequency {frequency!r}.")
     if txn_type == RecurringType.TRANSFER and counter_account is None:
         raise RecurringError("A recurring transfer needs a counter_account.")
+    if txn_type == RecurringType.TRANSFER and financial_account.id == counter_account.id:
+        raise RecurringError("Cannot transfer to the same account.")
+    if txn_type == RecurringType.TRANSFER and financial_account.currency != counter_account.currency:
+        raise RecurringError("Transfer accounts must use the same currency.")
     if txn_type in (RecurringType.INCOME, RecurringType.EXPENSE) and category is None:
         raise RecurringError(f"A recurring {txn_type} needs a category.")
 

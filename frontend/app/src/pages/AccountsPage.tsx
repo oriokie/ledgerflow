@@ -276,6 +276,7 @@ export function AccountsPage() {
         <Card>
           <EmptyState
             icon={Landmark}
+            illustration="vault"
             title="Add your first account"
             body="Accounts hold your money — checking, savings, cash, credit cards. Everything else builds on them."
             tips={[
