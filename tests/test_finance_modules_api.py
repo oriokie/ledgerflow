@@ -589,7 +589,7 @@ def test_recurring_transfer_api_preserves_both_accounts(tenant_context):
         },
         format="json",
     )
-    assert same_account.status_code == 400
+    assert same_account.status_code == 422
 
 
 def test_recurring_pause_and_cancel(tenant_context):
