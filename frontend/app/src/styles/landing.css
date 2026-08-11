@@ -459,7 +459,7 @@
   font-size: var(--lf-text-sm);
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
   .lf-landing-hero-art {
     min-height: 370px;
     padding: var(--lf-space-3);
