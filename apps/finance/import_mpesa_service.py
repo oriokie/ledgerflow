@@ -393,8 +393,12 @@ def _post_row(
         # invisible to it, and every re-import posted them again.
         for leg in legs:
             if leg.financial_account_id == account.id:
-                _stamp(leg, row.external_id)
-                break
+                _stamp(leg, external_id=row.external_id, receipt=row.receipt)
+            else:
+                # Both halves represent the same imported statement event.
+                # Keep the receipt on each for audit/display, while only the
+                # statement-account leg carries dedupe identity.
+                _stamp(leg, receipt=row.receipt)
         result.imported += 1
         return
 
@@ -416,14 +420,18 @@ def _post_row(
         payee=payee,
         source=TransactionSource.IMPORTED,
     )
-    _stamp(txn, row.external_id)
+    _stamp(txn, external_id=row.external_id, receipt=row.receipt)
     result.imported += 1
 
 
-def _stamp(txn: Transaction, external_id: str) -> None:
-    """Record the statement identity that makes re-import idempotent."""
-    txn.external_id = external_id
-    txn.save(update_fields=["external_id", "updated_at"])
+def _stamp(txn: Transaction, *, receipt: str, external_id: str = "") -> None:
+    """Record M-Pesa audit metadata and, on the statement leg, dedupe identity."""
+    txn.metadata = {**txn.metadata, "mpesa_receipt": receipt}
+    fields = ["metadata", "updated_at"]
+    if external_id:
+        txn.external_id = external_id
+        fields.append("external_id")
+    txn.save(update_fields=fields)
 
 
 def _aware(naive):

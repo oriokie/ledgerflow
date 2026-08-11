@@ -18,7 +18,7 @@ import {
 export function SettingsPage() {
   return (
     <>
-      <PageHeader eyebrow="Account & workspace" title="Settings" />
+      <PageHeader eyebrow="Account & workspace" title="Settings" illustration="adjust" />
       <div className="lf-settings-layout">
         <SettingsNav />
         <div className="lf-settings-content">

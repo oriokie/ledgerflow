@@ -21,6 +21,49 @@
   height: auto;
 }
 
+.lf-illus--editorial {
+  aspect-ratio: 3 / 2;
+  user-select: none;
+}
+
+.lf-editorial-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.lf-editorial-image--dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .lf-editorial-image--light {
+    display: none;
+  }
+
+  .lf-editorial-image--dark {
+    display: block;
+  }
+}
+
+/* The in-app theme toggle is explicit and must override the OS preference. */
+:root[data-theme="light"] .lf-editorial-image--light {
+  display: block;
+}
+
+:root[data-theme="light"] .lf-editorial-image--dark {
+  display: none;
+}
+
+:root[data-theme="dark"] .lf-editorial-image--light {
+  display: none;
+}
+
+:root[data-theme="dark"] .lf-editorial-image--dark {
+  display: block;
+}
+
 .lf-illus-frame[data-size="hero"] .lf-illus {
   max-width: 560px;
 }
@@ -31,6 +74,15 @@
 
 .lf-illus-frame[data-size="spot"] .lf-illus {
   max-width: 132px;
+}
+
+.lf-page-header-illustration {
+  flex: 0 0 96px;
+  width: 96px;
+}
+
+.lf-page-header-illustration .lf-illus {
+  max-width: 96px;
 }
 
 /* Gentle float — the "subtle depth" the language asks for, kept to a few

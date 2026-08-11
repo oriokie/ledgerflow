@@ -53,7 +53,7 @@ export function RecurringPage({ embedded }: { embedded?: boolean } = {}) {
               />
               <IconButton label="Import Excel" icon={<Upload size={16} />} onClick={() => setShowImport(true)} />
               <Button variant="primary" onClick={() => setShowCreate(true)}>
-                New recurring charge
+                New recurring transaction
               </Button>
             </>
           }
@@ -68,11 +68,12 @@ export function RecurringPage({ embedded }: { embedded?: boolean } = {}) {
         <Card>
           <EmptyState
             icon={RefreshCw}
-            title="No recurring charges yet"
-            body="Add your subscriptions and recurring bills — streaming, gym, rent — to see what they cost each month and spot what to trim."
+            illustration="cycle"
+            title="No recurring transactions yet"
+            body="Add subscriptions, recurring bills, income, or automatic savings transfers to keep your plan in one place."
             action={
               <Button variant="primary" onClick={() => setShowCreate(true)}>
-                Add a recurring charge
+                Add a recurring transaction
               </Button>
             }
           />

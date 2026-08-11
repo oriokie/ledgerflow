@@ -17,9 +17,10 @@ import { Banner, Button, Grid, Input, Modal, SegmentedControl, Select, Stack, Te
 import { CADENCE_OPTIONS, cadenceByValue, cadenceFor } from "./recurringMath";
 
 const schema = z.object({
-  txn_type: z.enum(["expense", "income"]),
+  txn_type: z.enum(["expense", "income", "transfer"]),
   financial_account_id: z.string().min(1, "Choose an account."),
-  category_id: z.string().min(1, "Choose a category."),
+  counter_account_id: z.string().optional(),
+  category_id: z.string().optional(),
   amount: z
     .string()
     .min(1, "Enter an amount.")
@@ -28,11 +29,25 @@ const schema = z.object({
   cadence: z.string().min(1, "Choose how often."),
   starts_on: z.string().min(1, "Choose a start date."),
   memo: z.string().optional(),
+}).superRefine((values, ctx) => {
+  if (values.txn_type === "transfer") {
+    if (!values.counter_account_id) {
+      ctx.addIssue({ code: "custom", path: ["counter_account_id"], message: "Choose a destination account." });
+    } else if (values.counter_account_id === values.financial_account_id) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["counter_account_id"],
+        message: "From and To accounts must be different.",
+      });
+    }
+  } else if (!values.category_id) {
+    ctx.addIssue({ code: "custom", path: ["category_id"], message: "Choose a category." });
+  }
 });
 type FormValues = z.infer<typeof schema>;
 
 /**
- * Create or edit a recurring charge.
+ * Create or edit a recurring transaction.
  *
  * One form for both, because they are the same set of decisions and two copies
  * of a form drift — always toward the one nobody is testing.
@@ -88,8 +103,14 @@ export function RecurringModal({
     if (!open) return;
     if (editing) {
       reset({
-        txn_type: editing.txn_type === "income" ? "income" : "expense",
+        txn_type:
+          editing.txn_type === "income"
+            ? "income"
+            : editing.txn_type === "transfer"
+              ? "transfer"
+              : "expense",
         financial_account_id: editing.financial_account_id ?? "",
+        counter_account_id: editing.counter_account_id ?? "",
         category_id: editing.category_id ?? "",
         amount: String(minorToMajor(editing.amount_minor)),
         currency: editing.currency,
@@ -101,6 +122,7 @@ export function RecurringModal({
       reset({
         txn_type: "expense",
         financial_account_id: "",
+        counter_account_id: "",
         category_id: "",
         amount: "",
         currency: baseCurrency,
@@ -113,6 +135,9 @@ export function RecurringModal({
   }, [open, editing, reset, baseCurrency]);
 
   const txnType = watch("txn_type");
+  const fromAccountId = watch("financial_account_id");
+  const isTransfer = txnType === "transfer";
+  const fromAccount = accounts?.find((account) => account.id === fromAccountId);
   const usableCategories = categories?.filter((c) => c.kind === txnType) ?? [];
 
   const onSubmit = handleSubmit(async (values) => {
@@ -126,7 +151,8 @@ export function RecurringModal({
       if (editing) {
         await updateRecurring.mutateAsync({
           recId: editing.id,
-          category_id: values.category_id,
+          category_id: isTransfer ? undefined : values.category_id,
+          counter_account_id: isTransfer ? values.counter_account_id : undefined,
           amount_minor: majorToMinor(Number(values.amount)),
           frequency: cadence.frequency,
           interval: cadence.interval,
@@ -137,7 +163,8 @@ export function RecurringModal({
         await createRecurring.mutateAsync({
           txn_type: values.txn_type,
           financial_account_id: values.financial_account_id,
-          category_id: values.category_id,
+          counter_account_id: isTransfer ? values.counter_account_id : undefined,
+          category_id: isTransfer ? undefined : values.category_id,
           amount_minor: majorToMinor(Number(values.amount)),
           currency: values.currency.toUpperCase(),
           frequency: cadence.frequency,
@@ -162,7 +189,7 @@ export function RecurringModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={isEdit ? "Edit recurring charge" : "New recurring charge"}
+      title={isEdit ? "Edit recurring transaction" : "New recurring transaction"}
       footer={
         <Button variant="primary" onClick={() => onSubmit()} loading={isSubmitting}>
           {isEdit ? "Save changes" : "Create schedule"}
@@ -173,7 +200,7 @@ export function RecurringModal({
         <Stack gap={4}>
           {isEdit ? (
             <Text size="xs" tone="tertiary">
-              Changes apply from the next charge onward. Anything this schedule has already
+              Changes apply from the next transaction onward. Anything this schedule has already
               posted stays exactly as it is.
             </Text>
           ) : null}
@@ -186,16 +213,17 @@ export function RecurringModal({
               options={[
                 { value: "expense", label: "Expense" },
                 { value: "income", label: "Income" },
+                { value: "transfer", label: "Transfer / Savings" },
               ]}
             />
           )}
 
           <Grid cols={2} gap={4}>
             <Select
-              label="Account"
+              label={isTransfer ? "From account" : "Account"}
               error={errors.financial_account_id?.message}
               disabled={isEdit}
-              hint={isEdit ? "Locked — charges already posted here." : undefined}
+              hint={isEdit ? "Locked — transactions already posted here." : undefined}
               {...register("financial_account_id")}
             >
               <option value="">Select…</option>
@@ -205,14 +233,35 @@ export function RecurringModal({
                 </option>
               ))}
             </Select>
-            <Select label="Category" error={errors.category_id?.message} {...register("category_id")}>
-              <option value="">Select…</option>
-              {usableCategories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
+            {isTransfer ? (
+              <Select
+                label="To account"
+                error={errors.counter_account_id?.message}
+                {...register("counter_account_id")}
+              >
+                <option value="">Select…</option>
+                {accounts
+                  ?.filter(
+                    (a) =>
+                      a.id !== fromAccountId &&
+                      (!fromAccount || a.currency === fromAccount.currency),
+                  )
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+              </Select>
+            ) : (
+              <Select label="Category" error={errors.category_id?.message} {...register("category_id")}>
+                <option value="">Select…</option>
+                {usableCategories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            )}
           </Grid>
 
           <Grid cols={2} gap={4}>
@@ -230,7 +279,7 @@ export function RecurringModal({
 
           <Grid cols={2} gap={4}>
             <Input
-              label={isEdit ? "Next charge on" : "Starts on"}
+              label={isEdit ? "Next transaction on" : "Starts on"}
               type="date"
               error={errors.starts_on?.message}
               {...register("starts_on")}
@@ -239,13 +288,17 @@ export function RecurringModal({
               label="Currency"
               options={CURRENCY_OPTIONS}
               disabled={isEdit}
-              hint={isEdit ? "Locked — charges already posted in it." : undefined}
+              hint={isEdit ? "Locked — transactions already posted in it." : undefined}
               error={errors.currency?.message}
               {...register("currency")}
             />
           </Grid>
 
-          <Input label="Name / memo" placeholder="e.g. Netflix, Rent" {...register("memo")} />
+          <Input
+            label="Name / memo"
+            placeholder={isTransfer ? "e.g. Monthly savings" : "e.g. Netflix, Rent"}
+            {...register("memo")}
+          />
 
           {serverError && <Banner tone="danger">{serverError}</Banner>}
         </Stack>

@@ -180,6 +180,14 @@ def _txn_out(txn: Transaction, *, levels: dict | None = None) -> dict:
         "needs_review": txn.needs_review,
         "review_reason": txn.review_reason,
         "memo": txn.memo,
+        # Expose only explicitly supported audit metadata, not the JSON field
+        # wholesale: future internal keys must not silently cross the privacy
+        # boundary this formatter owns.
+        "metadata": (
+            {"mpesa_receipt": txn.metadata["mpesa_receipt"]}
+            if isinstance(txn.metadata.get("mpesa_receipt"), str)
+            else {}
+        ),
     }
     if levels is None:
         levels = transaction_privacy.redaction_levels()

@@ -211,6 +211,7 @@ export function TransactionsPage({ embedded }: { embedded?: boolean } = {}) {
           ) : (
             <EmptyState
               icon={ArrowLeftRight}
+              illustration="no-data"
               title="No transactions yet"
               body="Record your first expense or income — or import a CSV from your bank to backfill history."
               tips={[

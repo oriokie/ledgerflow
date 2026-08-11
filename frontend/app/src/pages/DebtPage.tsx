@@ -130,7 +130,7 @@ export function DebtPage() {
         <Card>
           <EmptyState
             icon={CreditCard}
-            illustration="no-data"
+            illustration="path"
             title="No debt tracked"
             body="Cards, loans, and money borrowed from someone you know. Adding one here sets up the account behind it too, so nothing gets entered twice."
             tips={[

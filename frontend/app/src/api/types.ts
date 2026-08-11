@@ -107,6 +107,10 @@ export interface Payee {
   name: string;
 }
 
+export interface TransactionMetadata {
+  mpesa_receipt?: string;
+}
+
 export interface Transaction {
   id: string;
   financial_account_id: string;
@@ -122,6 +126,7 @@ export interface Transaction {
   split_group: string | null;
   reconciled_at: string | null;
   memo: string;
+  metadata?: TransactionMetadata;
 }
 
 export interface Paginated<T> {
@@ -406,7 +411,7 @@ export interface Statement {
 // ---------------------------------------------------------------- recurring
 export interface RecurringTransaction {
   id: string;
-  txn_type: string;
+  txn_type: "income" | "expense" | "transfer";
   amount_minor: number;
   currency: string;
   frequency: string;
@@ -417,6 +422,7 @@ export interface RecurringTransaction {
   memo: string;
   category_id: string | null;
   financial_account_id: string | null;
+  counter_account_id?: string | null;
   payee_id: string | null;
 }
 

@@ -73,6 +73,7 @@ export function IncomePage() {
         <Card>
           <EmptyState
             icon={Banknote}
+            illustration="growth"
             title="Tell us what you earn"
             body="LedgerFlow knows what leaves your account. Adding what comes in is what lets it say how much of your money is actually yours to direct."
             tips={[

@@ -45,6 +45,7 @@ export function AuthLayout({
   scene = "signin",
   illustration,
 }: AuthLayoutProps) {
+  const resolvedIllustration = illustration ?? (scene === "signin" ? "secure" : undefined);
   const panelCopy =
     scene === "signed-out"
       ? {
@@ -86,8 +87,8 @@ export function AuthLayout({
         <div className="lf-auth-panel-inner">
           <div className="lf-auth-stage">
             <div className="lf-auth-illus">
-              {illustration ? (
-                <Illustration name={illustration} size="panel" style="doodle" />
+              {resolvedIllustration ? (
+                <Illustration name={resolvedIllustration} size="panel" style="doodle" />
               ) : (
                 <AuthHeroArt scene={scene} />
               )}

@@ -227,6 +227,10 @@ def test_reimport_posts_nothing_twice():
         )
         first = import_parsed_statement(financial_account=account, statement=statement)
         assert first.imported == 3
+        imported = list(Transaction.objects.filter(financial_account=account).order_by("amount_minor"))
+        assert [txn.metadata["mpesa_receipt"] for txn in imported].count("A1") == 2
+        assert [txn.metadata["mpesa_receipt"] for txn in imported].count("A2") == 1
+        assert {txn.external_id for txn in imported} == {row.external_id for row in statement.rows}
 
         second = import_parsed_statement(financial_account=account, statement=statement)
         assert second.imported == 0
@@ -247,6 +251,19 @@ def test_reimport_is_idempotent_for_overdrafts_too():
             ]
         )
         import_parsed_statement(financial_account=account, statement=statement)
+        # Receipt metadata belongs on both transfer legs so either account's
+        # audit trail can identify the source statement row. Dedupe identity
+        # remains only on the M-Pesa leg queried by the importer.
+        all_legs = Transaction.objects.filter(transfer_group__isnull=False)
+        assert all_legs.count() == 4
+        assert set(all_legs.values_list("metadata__mpesa_receipt", flat=True)) == {"F1", "F2"}
+        assert (
+            Transaction.objects.filter(
+                financial_account=account,
+                external_id__in=[row.external_id for row in statement.rows],
+            ).count()
+            == 2
+        )
         second = import_parsed_statement(financial_account=account, statement=statement)
         assert second.imported == 0
         assert second.skipped_duplicate == 2
@@ -484,6 +501,14 @@ def test_import_is_queued_rather_than_run_in_the_request(tenant_context, _patche
     # And the rows really did land, eagerly, through the task.
     with tenant_scope(membership.tenant_id):
         assert Transaction.objects.filter(financial_account=account).count() == 3
+
+    # Receipt metadata is part of the ordinary transaction shape and the
+    # ledger's existing free-text search, so audit/display does not need to
+    # parse the composite external_id back apart.
+    found = client.get("/api/v1/finance/transactions/?q=A1")
+    assert found.status_code == 200, found.data
+    assert len(found.data["results"]) == 2
+    assert {row["metadata"]["mpesa_receipt"] for row in found.data["results"]} == {"A1"}
 
 
 def test_the_queued_import_is_still_idempotent(tenant_context, _patched_parser, settings):

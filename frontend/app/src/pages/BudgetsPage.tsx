@@ -114,6 +114,7 @@ export function BudgetsPage({ embedded }: { embedded?: boolean } = {}) {
         <Card>
           <EmptyState
             icon={PieChart}
+            illustration="compass"
             title="No budgets yet"
             body="Create a budget to set category limits and track spending against them through the month."
             tips={[

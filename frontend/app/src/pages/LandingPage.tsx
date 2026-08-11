@@ -8,8 +8,7 @@ import { Illustration } from "../ui/illustration";
 import { Banner, Figure } from "../ui";
 import { AppPreview } from "./landing/AppPreview";
 import { AdvisorShowcase } from "./landing/AdvisorShowcase";
-import { LandingHeroArt } from "./landing/LandingHeroArt";
-import { FAQ, FEATURES, TESTIMONIALS } from "./landing/marketingCopy";
+import { FAQ, FEATURES } from "./landing/marketingCopy";
 
 const DOODLE = { style: "doodle" as const };
 
@@ -37,7 +36,6 @@ export function LandingPage() {
         <Features />
         <Intelligence />
         <AdvisorShowcase />
-        <Testimonials />
         <Pricing />
         <Faq />
         <ClosingCta />
@@ -57,6 +55,7 @@ function LandingHeader() {
         <AuthBrand />
       </Link>
       <nav className="lf-landing-nav" aria-label="Page sections">
+        <a href="#preview">How it works</a>
         <a href="#features">Features</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
@@ -78,46 +77,97 @@ function Hero() {
     <section className="lf-hero-shell">
       <div className="lf-hero">
         <div className="lf-hero-copy">
-          <p className="lf-hero-eyebrow">Personal finance, kept properly</p>
+          <p className="lf-hero-eyebrow">
+            <span aria-hidden="true" />
+            The calm financial operating system
+          </p>
           <h1 className="lf-hero-title">
-            Know exactly where you stand.
-            <span className="lf-hero-title-accent"> And why.</span>
+            Your money,
+            <span className="lf-hero-title-accent"> made legible.</span>
           </h1>
           <p className="lf-hero-sub">
-            A double-entry ledger with the planning tools on top: budgets, goals, debt payoff and a
-            day-by-day cash-flow projection. Every figure shows what it was measured from, so you can
-            check it instead of trusting it.
+            LedgerFlow turns scattered accounts, plans, goals, and obligations into one precise
+            picture—then shows the reasoning behind every figure.
           </p>
           <div className="lf-hero-actions">
             <Link className="lf-btn lf-btn--primary lf-btn--lg" to="/register">
-              Start your free week
+              Build your financial picture
               <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
             </Link>
             <a className="lf-btn lf-btn--secondary lf-btn--lg" href="#preview">
-              See how it looks
+              Explore the product
             </a>
           </div>
-          <p className="lf-hero-note">Seven days free — no card asked for. Export everything, always.</p>
+          <p className="lf-hero-note">Seven days free. No card required. Your data stays exportable.</p>
           <ul className="lf-hero-trust" aria-label="What you get on every plan">
             <li>
               <Check size={15} strokeWidth={2.4} aria-hidden="true" />
-              Double-entry ledger
+              Books that stay balanced
             </li>
             <li>
               <Check size={15} strokeWidth={2.4} aria-hidden="true" />
-              Full data export
+              Evidence behind every insight
             </li>
             <li>
               <Check size={15} strokeWidth={2.4} aria-hidden="true" />
-              No bank credentials stored
+              Private by design
             </li>
           </ul>
         </div>
 
         <div className="lf-hero-art">
-          <div className="lf-illus-frame lf-landing-hero-art" data-size="hero" data-style="doodle">
-            <LandingHeroArt />
+          <div className="lf-landing-hero-art">
+            <div className="lf-hero-art-halo" aria-hidden="true" />
+            <img
+              className="lf-hero-visual-image lf-hero-visual-image--light"
+              src="/illustrations/editorial/landing-hero.webp"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              decoding="async"
+            />
+            <img
+              className="lf-hero-visual-image lf-hero-visual-image--dark"
+              src="/illustrations/editorial/landing-hero-dark.webp"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              decoding="async"
+            />
+            <div className="lf-hero-art-card lf-hero-art-card--top">
+              <span className="lf-hero-art-card-icon">
+                <Check size={13} strokeWidth={2.5} aria-hidden="true" />
+              </span>
+              <span>
+                <strong>Books balanced</strong>
+                <small>Every entry has its other side</small>
+              </span>
+            </div>
+            <div className="lf-hero-art-card lf-hero-art-card--bottom">
+              <span className="lf-hero-certainty-line" aria-hidden="true" />
+              <span>
+                <strong>Known → projected</strong>
+                <small>Certainty stays visible</small>
+              </span>
+            </div>
           </div>
+        </div>
+      </div>
+      <div className="lf-hero-proof-rail" aria-label="LedgerFlow foundations">
+        <div>
+          <span>01</span>
+          <strong>One honest ledger</strong>
+          <p>Balanced, reconciled, and auditable.</p>
+        </div>
+        <div>
+          <span>02</span>
+          <strong>Planning with context</strong>
+          <p>Budgets, goals, debt, and cash flow together.</p>
+        </div>
+        <div>
+          <span>03</span>
+          <strong>Advice you can inspect</strong>
+          <p>Every conclusion keeps its evidence attached.</p>
         </div>
       </div>
     </section>
@@ -204,44 +254,6 @@ function Intelligence() {
       <Illustration name="insight" size="panel" {...DOODLE} />
     </section>
     </div>
-  );
-}
-
-function Testimonials() {
-  const anySample = TESTIMONIALS.some((t) => t.sample);
-  if (TESTIMONIALS.length === 0) return null;
-
-  return (
-    <section className="lf-landing-section">
-      <SectionHead eyebrow="In their words" title="What people say" />
-
-      {/* The notice is tied to the data, not written into the page: it appears
-          while any quote is flagged `sample` and disappears by itself once real
-          ones replace them. Shipping invented endorsements on a page arguing
-          this product tells you the truth would undercut the whole argument. */}
-      {anySample && (
-        <p className="lf-landing-sample-note" role="note">
-          <strong>Sample copy.</strong> These are written examples, not customer
-          endorsements — here so the section can be seen and adapted. Replace them in{" "}
-          <code>marketingCopy.ts</code> and this notice goes away.
-        </p>
-      )}
-
-      <div className="lf-landing-quotes">
-        {TESTIMONIALS.map((t) => (
-          <figure key={t.attribution} className="lf-landing-quote">
-            <div className="lf-landing-quote-mark" aria-hidden="true">
-              <Illustration name="welcome" size="spot" {...DOODLE} />
-            </div>
-            <blockquote>{t.quote}</blockquote>
-            <figcaption>
-              <span>{t.attribution}</span>
-              {t.sample && <span className="lf-landing-quote-tag">Example</span>}
-            </figcaption>
-          </figure>
-        ))}
-      </div>
-    </section>
   );
 }
 

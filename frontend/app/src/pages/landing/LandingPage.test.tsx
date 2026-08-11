@@ -6,7 +6,6 @@ const usePlans = vi.fn();
 vi.mock("../../hooks/useBilling", () => ({ usePlans: () => usePlans() }));
 
 import { LandingPage } from "../LandingPage";
-import { TESTIMONIALS } from "./marketingCopy";
 
 const plan = (over: Record<string, unknown> = {}) => ({
   id: "p1",
@@ -56,34 +55,17 @@ describe("landing page", () => {
     expect(screen.getByText(/loading the current plans/i)).toBeInTheDocument();
   });
 
-  it("never presents written sample quotes as real endorsements", () => {
-    // The section is populated so it can be seen and adapted, but every quote
-    // in it is written copy. Passing those off as customer endorsements on a
-    // page whose whole argument is "this product tells you the truth about
-    // your money" would undercut the argument. The notice is tied to the data,
-    // so it cannot be left behind when real quotes arrive.
-    expect(TESTIMONIALS.every((t) => t.sample)).toBe(true);
+  it("uses a theme-paired hero from the editorial illustration set", () => {
     usePlans.mockReturnValue({ data: [] });
-    renderPage();
-    expect(screen.getByText(/sample copy/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/^example$/i).length).toBe(TESTIMONIALS.length);
-  });
-
-  it("drops the notice by itself once the quotes are real", () => {
-    usePlans.mockReturnValue({ data: [] });
-    const real = TESTIMONIALS.map(({ quote, attribution }) => ({ quote, attribution }));
-    vi.doMock("./marketingCopy", () => ({ TESTIMONIALS: real }));
-    // The condition is `some(t => t.sample)`, so an unflagged set shows nothing.
-    expect(real.some((t) => "sample" in t)).toBe(false);
-  });
-
-  it("attributes to a role, never to an invented person", () => {
-    // A fabricated full name is the part that turns sample copy into a fake
-    // endorsement, so the shape of the data does not allow one.
-    for (const t of TESTIMONIALS) {
-      expect(t).not.toHaveProperty("name");
-      expect(t.attribution.length).toBeGreaterThan(0);
-    }
+    const { container } = renderPage();
+    expect(container.querySelector(".lf-hero-visual-image--light")).toHaveAttribute(
+      "src",
+      "/illustrations/editorial/landing-hero.webp",
+    );
+    expect(container.querySelector(".lf-hero-visual-image--dark")).toHaveAttribute(
+      "src",
+      "/illustrations/editorial/landing-hero-dark.webp",
+    );
   });
 
   it("has exactly one h1", () => {

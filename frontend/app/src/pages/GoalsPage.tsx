@@ -55,6 +55,7 @@ export function GoalsPage() {
         <Card>
           <EmptyState
             icon={Target}
+            illustration="success"
             title="Set your first savings goal"
             body="Name what you're saving for, set a target, and watch your progress fill up as you contribute."
             tips={[
