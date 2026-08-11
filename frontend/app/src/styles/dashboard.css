@@ -1,19 +1,669 @@
 /* ==========================================================================
-   Dashboard — the overview surface. Layers on the design system: hero stats,
-   proportion bars, progressive-disclosure toggles, and compact preview lists.
-   Everything below is dashboard-specific; shared primitives live elsewhere.
+   Dashboard — command center
+   --------------------------------------------------------------------------
+   Editorial asymmetric layout: awareness → understanding → decision → action.
+   Shared utilities (catbars, disclosure, onboard) stay here for dashboard
+   modules that still use them. The primary story is `.lf-cmd*`.
    ========================================================================== */
 
-/* ---------- header: greeting + period control + quick actions ---------- */
-/* Mobile-first: the narrow layout is the default and `sm` (640px) restores the
-   wide one. Written the other way round it needed a `max-width: 639px` query,
-   which is one of the off-by-one breakpoints the system is retiring — 639 and
-   640 leave a one-pixel band where neither rule applies. */
+/* ---------- greeting ---------- */
+.lf-cmd-greet {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-5);
+}
+
+.lf-cmd-eyebrow {
+  margin: 0;
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide, 0.06em);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+}
+
+.lf-cmd-title {
+  margin: 0;
+  font-family: var(--lf-font-display);
+  font-weight: var(--lf-weight-medium);
+  font-size: var(--lf-text-xl);
+  letter-spacing: var(--lf-tracking-tight);
+  color: var(--lf-text-primary);
+  line-height: 1.15;
+}
+
+.lf-cmd-statement {
+  margin: var(--lf-space-2) 0 0;
+  max-width: 42rem;
+  color: var(--lf-text-secondary);
+  font-size: var(--lf-text-sm);
+  line-height: 1.45;
+}
+
+.lf-cmd-greet-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-2);
+}
+
+@media (min-width: 640px) {
+  .lf-cmd-greet {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--lf-space-4);
+    margin-bottom: var(--lf-space-6);
+  }
+  .lf-cmd-title {
+    font-size: var(--lf-text-3xl);
+  }
+}
+
+/* ---------- asymmetric layout ---------- */
+.lf-cmd-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+}
+
+/* Mobile: flatten columns so section order can prioritize the story. */
+.lf-cmd-main,
+.lf-cmd-rail {
+  display: contents;
+}
+
+.lf-cmd-slot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+}
+
+/* Mobile narrative: health → attention → cash flow → upcoming → goals → spending → accounts */
+.lf-cmd-slot[data-section="pulse"] { order: 1; }
+.lf-cmd-slot[data-section="attention"] { order: 2; }
+.lf-cmd-slot[data-section="cashflow"] { order: 3; }
+.lf-cmd-slot[data-section="timeline"] { order: 4; }
+.lf-cmd-slot[data-section="goals"] { order: 5; }
+.lf-cmd-slot[data-section="spending"] { order: 6; }
+.lf-cmd-slot[data-section="accounts"] { order: 7; }
+.lf-cmd-slot[data-section="changed"] { order: 8; }
+.lf-cmd-slot[data-section="budget"] { order: 9; }
+.lf-cmd-slot[data-section="investments"] { order: 10; }
+.lf-cmd-slot[data-section="debt"] { order: 11; }
+.lf-cmd-slot[data-section="insights"] { order: 12; }
+.lf-cmd-slot[data-section="actions"] { order: 13; }
+
+@media (min-width: 1024px) {
+  .lf-cmd-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(17rem, 0.95fr);
+    gap: var(--lf-space-5);
+    align-items: start;
+  }
+  .lf-cmd-main,
+  .lf-cmd-rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lf-space-4);
+  }
+  .lf-cmd-main { grid-column: 1; }
+  .lf-cmd-rail { grid-column: 2; position: sticky; top: var(--lf-space-4); }
+  .lf-cmd-slot { order: initial; }
+}
+
+/* ---------- panels ---------- */
+.lf-cmd-panel {
+  padding: var(--lf-space-4) var(--lf-space-5);
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-lg);
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--lf-bg-surface) 92%, var(--lf-meridian-100)) 0%,
+      var(--lf-bg-surface) 42%
+    );
+}
+
+[data-theme="dark"] .lf-cmd-panel,
+:root[data-theme="dark"] .lf-cmd-panel {
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--lf-bg-surface) 88%, var(--lf-meridian-700)) 0%,
+      var(--lf-bg-surface) 48%
+    );
+}
+
+.lf-cmd-panel--rail {
+  padding: var(--lf-space-4);
+}
+
+.lf-cmd-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  margin-bottom: var(--lf-space-3);
+}
+
+.lf-cmd-panel-head h2 {
+  margin: 0;
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-md);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-tight);
+  color: var(--lf-text-primary);
+}
+
+.lf-cmd-panel-sub {
+  margin: 2px 0 0;
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-xs);
+}
+
+.lf-cmd-count {
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 6px;
+  border-radius: var(--lf-radius-full);
+  background: color-mix(in srgb, var(--lf-ochre-600) 16%, transparent);
+  color: var(--lf-status-warning-text);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lf-cmd-quiet {
+  display: grid;
+  justify-items: start;
+  gap: var(--lf-space-3);
+  color: var(--lf-text-secondary);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-cmd-quiet--compact .lf-illus-frame {
+  width: 64px;
+}
+
+.lf-cmd-meter {
+  margin-top: var(--lf-space-4);
+}
+
+.lf-cmd-chart {
+  margin-top: var(--lf-space-4);
+  height: 220px;
+}
+
+.lf-cmd-chart-empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  border: 1px dashed var(--lf-border-default);
+  border-radius: var(--lf-radius-md);
+  background: color-mix(in srgb, var(--lf-bg-sunken) 55%, transparent);
+}
+
+@media (min-width: 640px) {
+  .lf-cmd-chart { height: 260px; }
+}
+
+/* Intentional entrance — one motion language for the hero beat */
+@keyframes lf-cmd-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lf-cmd-enter {
+  animation: lf-cmd-rise var(--lf-duration-base) var(--lf-ease-entrance) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-cmd-enter {
+    animation: none;
+  }
+}
+
+/* ---------- financial pulse ---------- */
+.lf-pulse {
+  display: grid;
+  gap: var(--lf-space-5);
+  padding: var(--lf-space-5);
+  border-radius: var(--lf-radius-lg);
+  border: 1px solid var(--lf-border-card);
+  background:
+    radial-gradient(
+      120% 80% at 0% 0%,
+      color-mix(in srgb, var(--lf-meridian-100) 70%, transparent),
+      transparent 55%
+    ),
+    var(--lf-bg-surface);
+  overflow: hidden;
+}
+
+[data-theme="dark"] .lf-pulse,
+:root[data-theme="dark"] .lf-pulse {
+  background:
+    radial-gradient(
+      120% 80% at 0% 0%,
+      color-mix(in srgb, var(--lf-meridian-700) 28%, transparent),
+      transparent 55%
+    ),
+    var(--lf-bg-surface);
+}
+
+@media (min-width: 768px) {
+  .lf-pulse {
+    grid-template-columns: minmax(0, 1.7fr) minmax(12rem, 0.85fr);
+    align-items: start;
+    padding: var(--lf-space-6);
+  }
+}
+
+.lf-pulse-kicker {
+  margin: 0 0 var(--lf-space-2);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide, 0.06em);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+}
+
+.lf-pulse-label {
+  margin: 0;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+
+.lf-pulse-figure {
+  margin: var(--lf-space-1) 0 0;
+  font-family: var(--lf-font-display);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: var(--lf-weight-medium);
+  letter-spacing: var(--lf-tracking-tight);
+  line-height: 1.05;
+  color: var(--lf-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-pulse-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lf-space-2) var(--lf-space-3);
+  margin-top: var(--lf-space-2);
+}
+
+.lf-pulse-split {
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+}
+
+.lf-pulse-spark {
+  width: 100%;
+  height: 112px;
+  margin-top: var(--lf-space-4);
+  padding-top: var(--lf-space-2);
+  border-top: 1px solid color-mix(in srgb, var(--lf-border-subtle) 80%, transparent);
+}
+
+.lf-pulse-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-4);
+  padding-top: var(--lf-space-1);
+}
+
+@media (min-width: 768px) {
+  .lf-pulse-side {
+    border-inline-start: 1px solid var(--lf-border-subtle);
+    padding-inline-start: var(--lf-space-5);
+  }
+}
+
+.lf-pulse-side-label {
+  margin: 0 0 var(--lf-space-1);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide, 0.04em);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+}
+
+.lf-pulse-health-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+}
+
+.lf-pulse-health-score {
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-3xl);
+  font-weight: var(--lf-weight-medium);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-primary);
+  line-height: 1;
+}
+
+.lf-pulse-sts-figure {
+  margin: 0;
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-xl);
+  font-weight: var(--lf-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-pulse-empty {
+  display: grid;
+  gap: var(--lf-space-3);
+  justify-items: start;
+}
+
+/* ---------- what changed ---------- */
+.lf-changed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--lf-space-3);
+}
+
+.lf-changed-item {
+  display: grid;
+  grid-template-columns: 8px 1fr;
+  gap: var(--lf-space-3);
+  align-items: start;
+}
+
+.lf-changed-mark {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: var(--lf-radius-full);
+  background: var(--lf-border-strong);
+}
+
+.lf-changed-item[data-tone="good"] .lf-changed-mark {
+  background: var(--lf-status-success);
+}
+.lf-changed-item[data-tone="warn"] .lf-changed-mark {
+  background: var(--lf-status-warning);
+}
+
+.lf-changed-title {
+  margin: 0;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-primary);
+}
+
+.lf-changed-body {
+  margin: 2px 0 0;
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-secondary);
+}
+
+/* ---------- attention ---------- */
+.lf-attn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+}
+
+.lf-attn-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--lf-space-2);
+  padding: var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  background: color-mix(in srgb, var(--lf-bg-sunken) 70%, transparent);
+  border-inline-start: 3px solid var(--lf-border-strong);
+}
+
+.lf-attn-item[data-kind="overdue_bill"],
+.lf-attn-item[data-kind="cashflow_risk"],
+.lf-attn-item[data-kind="debt_alert"] {
+  border-inline-start-color: var(--lf-status-danger);
+}
+
+.lf-attn-item[data-kind="bill_soon"],
+.lf-attn-item[data-kind="budget_over"],
+.lf-attn-item[data-kind="goal_off_track"] {
+  border-inline-start-color: var(--lf-status-warning);
+}
+
+.lf-attn-title {
+  margin: 0;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+  color: var(--lf-text-primary);
+}
+
+.lf-attn-body {
+  margin: 2px 0 0;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-secondary);
+}
+
+.lf-attn-item .lf-btn {
+  align-self: flex-start;
+}
+
+/* ---------- timeline / accounts ---------- */
+.lf-tl-list,
+.lf-acct-list,
+.lf-goal-pulse-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lf-tl-item,
+.lf-acct-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-2) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+.lf-tl-item:last-child,
+.lf-acct-row:last-child {
+  border-bottom: 0;
+}
+
+.lf-tl-day {
+  flex: 0 0 5.5rem;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-tl-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lf-space-2);
+}
+
+.lf-tl-label {
+  font-size: var(--lf-text-sm);
+  color: var(--lf-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lf-tl-amt {
+  font-size: var(--lf-text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-secondary);
+  white-space: nowrap;
+}
+
+.lf-tl-item[data-kind="risk"] .lf-tl-amt,
+.lf-tl-item[data-kind="bill"] .lf-tl-amt {
+  color: var(--lf-status-warning-text);
+}
+
+.lf-tl-item[data-kind="inflow"] .lf-tl-amt {
+  color: var(--lf-money-in);
+}
+
+.lf-acct-main {
+  min-width: 0;
+}
+
+.lf-acct-name {
+  display: block;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  color: var(--lf-text-primary);
+}
+
+.lf-acct-type {
+  display: block;
+  margin-top: 1px;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-tertiary);
+  text-transform: capitalize;
+}
+
+.lf-acct-bal {
+  font-size: var(--lf-text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--lf-text-primary);
+}
+
+.lf-goal-pulse-item {
+  padding: var(--lf-space-2) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+.lf-goal-pulse-item:last-child {
+  border-bottom: 0;
+}
+
+.lf-goal-pulse-eta {
+  margin: 4px 0 0;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-certainty-projected);
+}
+
+.lf-budget-line-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lf-space-2);
+}
+
+.lf-inv-figure {
+  margin: 0;
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-xl);
+  font-weight: var(--lf-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.lf-inv-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-2) var(--lf-space-3);
+  margin: var(--lf-space-1) 0 0;
+  font-size: var(--lf-text-sm);
+}
+
+.lf-inv-holdings {
+  color: var(--lf-text-tertiary);
+  font-size: var(--lf-text-xs);
+}
+
+.lf-insight-recs {
+  display: grid;
+  gap: var(--lf-space-3);
+  margin-top: var(--lf-space-3);
+}
+
+/* ---------- quick actions ---------- */
+.lf-cmd-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--lf-space-2);
+}
+
+@media (min-width: 640px) {
+  .lf-cmd-actions {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.lf-cmd-action {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--lf-space-2);
+  min-height: var(--lf-touch-target);
+  padding: var(--lf-space-3);
+  border: 1px solid var(--lf-border-card);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-surface);
+  color: var(--lf-text-primary);
+  text-decoration: none;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-medium);
+  transition:
+    border-color var(--lf-duration-fast) var(--lf-ease-out),
+    transform var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-cmd-action svg {
+  color: var(--lf-action-primary);
+}
+
+@media (hover: hover) {
+  .lf-cmd-action:hover {
+    border-color: var(--lf-border-card-hover);
+    transform: translateY(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-cmd-action {
+    transition: none;
+  }
+  .lf-cmd-action:hover {
+    transform: none;
+  }
+}
+
+.lf-cmd-action:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+.lf-cmd-onboard {
+  margin-bottom: var(--lf-space-4);
+}
+
+/* ---------- legacy aliases kept for older dashboard modules / tests ---------- */
 .lf-dash-header {
   display: flex;
-  /* The range control is a qualifier, not a headline: below the title on a
-     narrow screen rather than wrapping to its own full-width row above the
-     fold. */
   flex-direction: column;
   align-items: stretch;
   gap: var(--lf-space-3);
@@ -22,23 +672,36 @@
 .lf-dash-greeting {
   font-family: var(--lf-font-display);
   font-weight: var(--lf-weight-medium);
-  /* 39.8px wrapped to two lines at 375px, costing ~90px before a single
-     number appeared. One step down fits "Good evening, Amina" on one line. */
   font-size: var(--lf-text-xl);
   letter-spacing: var(--lf-tracking-tight);
   color: var(--lf-text-primary);
   line-height: 1.1;
 }
 .lf-dash-subtitle {
-  /* The period is already named in the control directly beneath it. */
   display: none;
   margin-top: 2px;
   color: var(--lf-text-tertiary);
   font-size: var(--lf-text-sm);
 }
-
-.lf-dash-hero {
-  margin-bottom: var(--lf-space-5);
+.lf-dash-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lf-space-2);
+}
+.lf-dash-section { margin-bottom: var(--lf-space-4); }
+.lf-dash-hero { margin-bottom: var(--lf-space-5); }
+.lf-dash-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--lf-space-4);
+  align-items: start;
+  margin-bottom: var(--lf-space-4);
+}
+.lf-dash-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--lf-space-4);
 }
 
 @media (min-width: 640px) {
@@ -50,24 +713,21 @@
     gap: var(--lf-space-4);
     margin-bottom: var(--lf-space-6);
   }
-  .lf-dash-greeting {
-    font-size: var(--lf-text-3xl);
-  }
-  .lf-dash-subtitle {
-    display: block;
-  }
-  .lf-dash-hero {
-    margin-bottom: var(--lf-space-6);
-  }
-}
-.lf-dash-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--lf-space-2);
+  .lf-dash-greeting { font-size: var(--lf-text-3xl); }
+  .lf-dash-subtitle { display: block; }
 }
 
-/* Section title with an optional trailing link/action. */
+@media (min-width: 1024px) {
+  .lf-dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lf-dash-split { grid-template-columns: 3fr 2fr; }
+}
+
+@media (min-width: 1600px) {
+  .lf-dash-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.lf-dash-grid > .lf-dash-wide { grid-column: 1 / -1; }
+
 .lf-section-head {
   display: flex;
   align-items: baseline;
@@ -75,16 +735,7 @@
   gap: var(--lf-space-3);
   margin-bottom: var(--lf-space-3);
 }
-/* A card- or section-header link.
-   
-   These rendered ~20px tall, under the WCAG 2.5.8 24px floor and well under the
-   product's own 44px touch floor. Note that raising them to 24px *alone* would
-   have made the ratchet worse rather than better: they would have left the
-   `target-aa` count and immediately joined `target-project`, which is the
-   stricter of the two. Both floors or neither.
 
-   Height rather than padding, so the target grows without moving the header's
-   baseline alignment or the card's internal rhythm. */
 .lf-section-link {
   display: inline-flex;
   align-items: center;
@@ -97,19 +748,10 @@
 }
 
 @media (max-width: 768px) {
-  .lf-section-link {
-    min-height: var(--lf-touch-target);
-  }
+  .lf-section-link { min-height: var(--lf-touch-target); }
 }
-.lf-section-link:hover {
-  text-decoration: underline;
-}
+.lf-section-link:hover { text-decoration: underline; }
 
-/* The delta chip moved to components.css — it had two competing definitions. */
-
-/* ---------- hero net-worth card: figure + inline sparkline ---------- */
-/* `.lf-hero-figure` lived here — retired by <Figure size="hero">, which owns
-   the label, the amount, the delta and the alignment contract. */
 .lf-spark {
   width: 100%;
   height: 108px;
@@ -118,7 +760,6 @@
   border-top: 1px solid color-mix(in srgb, var(--lf-border-subtle) 80%, transparent);
 }
 
-/* ---------- stat tiles (income / spending / net) ---------- */
 .lf-stat-label {
   display: flex;
   align-items: center;
@@ -130,7 +771,6 @@
   text-transform: uppercase;
 }
 
-/* ---------- category proportion bars ---------- */
 .lf-catbar-list {
   display: flex;
   flex-direction: column;
@@ -185,13 +825,9 @@
   transition: width var(--lf-duration-base) var(--lf-ease-out);
 }
 
-/* ---------- progressive-disclosure toggle ---------- */
 .lf-disclosure-toggle {
   display: inline-flex;
   align-items: center;
-  /* Same 20px target as the section links above, same fix — and it needs the
-     mobile floor for the same reason: 24px alone just moves it from the AA
-     count into the stricter project one. */
   min-height: var(--lf-space-6);
   gap: 4px;
   margin-top: var(--lf-space-3);
@@ -205,14 +841,9 @@
   cursor: pointer;
 }
 @media (max-width: 768px) {
-  .lf-disclosure-toggle {
-    min-height: var(--lf-touch-target);
-  }
+  .lf-disclosure-toggle { min-height: var(--lf-touch-target); }
 }
-
-.lf-disclosure-toggle:hover {
-  text-decoration: underline;
-}
+.lf-disclosure-toggle:hover { text-decoration: underline; }
 .lf-disclosure-panel {
   margin-top: var(--lf-space-4);
   display: flex;
@@ -220,11 +851,7 @@
   gap: var(--lf-space-3);
 }
 
-/* ---------- compact preview rows (bills, activity) ---------- */
-.lf-row-list {
-  display: flex;
-  flex-direction: column;
-}
+.lf-row-list { display: flex; flex-direction: column; }
 .lf-row-item {
   display: flex;
   align-items: center;
@@ -235,18 +862,13 @@
   border-radius: var(--lf-radius-md);
   transition: background var(--lf-duration-fast) var(--lf-ease-out);
 }
-.lf-row-item:last-child {
-  border-bottom: 0;
-}
+.lf-row-item:last-child { border-bottom: 0; }
 @media (hover: hover) {
   .lf-row-item:hover {
     background: color-mix(in srgb, var(--lf-bg-sunken) 55%, transparent);
   }
 }
-.lf-row-main {
-  flex: 1;
-  min-width: 0;
-}
+.lf-row-main { flex: 1; min-width: 0; }
 .lf-row-title {
   font-size: var(--lf-text-sm);
   font-weight: var(--lf-weight-medium);
@@ -266,7 +888,6 @@
   white-space: nowrap;
 }
 
-/* Due-date pill for bills. */
 .lf-due-pill {
   display: inline-block;
   padding: 1px 8px;
@@ -285,77 +906,12 @@
   color: var(--lf-status-danger);
 }
 
-/* ---------- responsive 2fr / 1fr split ---------- */
-.lf-dash-split {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--lf-space-4);
-}
-@media (min-width: 1024px) {
-  .lf-dash-split {
-    grid-template-columns: 3fr 2fr;
-  }
-}
-
-/* Sections used to sit two full steps apart, which on a wide screen left the
-   dashboard as a narrow ribbon of cards separated by bands of empty page. The
-   gap is now one step, and the grid below is what actually closes the space —
-   spacing alone cannot fix a single-column layout. */
-.lf-dash-section {
-  margin-bottom: var(--lf-space-4);
-}
-
-/* ---------- the dashboard grid ----------
-   Cards flow into columns instead of stacking full-width. Two on a laptop,
-   three on a wide monitor, one on a phone. `align-items: start` matters:
-   without it every card in a row stretches to the tallest, which is how a
-   two-line summary ends up as tall as a calendar. */
-.lf-dash-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--lf-space-4);
-  align-items: start;
-  margin-bottom: var(--lf-space-4);
-}
-
-/* The canonical breakpoints, not hand-picked widths — `check_style_tokens`
-   enforces the six in tokens.css, and 900/1440 were two more off-scale values
-   of exactly the kind that ratchet exists to stop. */
-@media (min-width: 1024px) {
-  .lf-dash-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1600px) {
-  .lf-dash-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-/* Anything with its own internal chart or table needs the full row — a
-   calendar squeezed into a third of the width is unreadable. */
-.lf-dash-grid > .lf-dash-wide {
-  grid-column: 1 / -1;
-}
-
-/* ---------- accents ----------
-   A colour wash keyed to what the card is *about*, never to how important it
-   is. See the note on `Card`'s `accent` prop.
-
-   Two surfaces, both mixed against the card's own background so they follow
-   the theme instead of being a light slab in dark mode: a very light body wash
-   that is felt rather than seen, and a saturated top edge that is the part the
-   eye actually reads. Text colour is untouched — the contrast floors are
-   measured against the surface, and tinting the surface *and* the ink is how a
-   palette quietly fails them. */
 .lf-card--accent {
   position: relative;
   overflow: hidden;
   background: color-mix(in srgb, var(--lf-accent-hue) 5%, var(--lf-bg-surface));
   border-color: color-mix(in srgb, var(--lf-accent-hue) 22%, var(--lf-border-subtle));
 }
-
 .lf-card--accent::before {
   content: "";
   position: absolute;
@@ -363,48 +919,20 @@
   height: 3px;
   background: var(--lf-accent-hue);
 }
+.lf-card--accent[data-accent="money"] { --lf-accent-hue: var(--lf-meridian-600); }
+.lf-card--accent[data-accent="spend"] { --lf-accent-hue: var(--lf-ink-700); }
+.lf-card--accent[data-accent="save"] { --lf-accent-hue: var(--lf-jade-600); }
+.lf-card--accent[data-accent="debt"] { --lf-accent-hue: var(--lf-ochre-600); }
+.lf-card--accent[data-accent="plan"] { --lf-accent-hue: var(--lf-horizon-600); }
 
-/* The five meanings, drawn from the palette *primitives* rather than the status
-   aliases. That distinction matters: `--lf-status-warning` on a debt card would
-   tint every debt as an alarm, and most debts are not one. These say what the
-   card is about, and nothing about whether it is going well.
-
-   Reusing existing hues also means the contrast and colour-vision floors
-   already verified for them continue to hold — no new colour enters the
-   palette here. Each of the five gets its own hue: `money` (the general,
-   brand-level figure) takes the primary teal; `spend` takes the same ink the
-   ledger already uses for `--lf-money-out`, so a spend card and a spend
-   figure read as the same idea; `save` keeps the positive green; `debt`
-   keeps the warning amber; `plan` keeps the projection purple. Before this,
-   `money`/`save` and `spend`/`plan` silently shared a hue. */
-.lf-card--accent[data-accent="money"] {
-  --lf-accent-hue: var(--lf-meridian-600);
-}
-.lf-card--accent[data-accent="spend"] {
-  --lf-accent-hue: var(--lf-ink-700);
-}
-.lf-card--accent[data-accent="save"] {
-  --lf-accent-hue: var(--lf-jade-600);
-}
-.lf-card--accent[data-accent="debt"] {
-  --lf-accent-hue: var(--lf-ochre-600);
-}
-.lf-card--accent[data-accent="plan"] {
-  --lf-accent-hue: var(--lf-horizon-600);
-}
-
-/* Chart wrapper that keeps a healthy aspect ratio and never overflows. */
 .lf-chart-tall {
   width: 100%;
   height: 280px;
 }
 @media (max-width: 640px) {
-  .lf-chart-tall {
-    height: 220px;
-  }
+  .lf-chart-tall { height: 220px; }
 }
 
-/* Custom recharts tooltip surface. */
 .lf-chart-tip {
   background: var(--lf-bg-surface);
   border: 1px solid var(--lf-border-subtle);
@@ -451,35 +979,21 @@
   gap: var(--lf-space-3);
   margin-bottom: var(--lf-space-4);
 }
-
-/* Qualified with the parent class, not just `.lf-onboard-art` — illustration.css
-   loads after this file and its `.lf-illus-frame { width: 100% }` sits at the
-   same specificity, so an unqualified single-class rule here lost the cascade
-   and the frame filled the whole flex row instead of staying pinned to 72px. */
 .lf-onboard-head .lf-onboard-art {
   flex: 0 0 auto;
   width: 72px;
   margin-top: -8px;
 }
-
 @media (max-width: 479px) {
   .lf-onboard-art { display: none; }
 }
-
-.lf-onboard-head-main {
-  min-width: 0;
-}
-
-/* Progress: a track plus a stated count. The words carry the meaning, the bar
-   just makes it glanceable — nobody should have to measure a bar to know how
-   far through setup they are. */
+.lf-onboard-head-main { min-width: 0; }
 .lf-onboard-progress {
   display: flex;
   align-items: center;
   gap: var(--lf-space-3);
   margin-bottom: var(--lf-space-5);
 }
-
 .lf-onboard-progress-track {
   flex: 1;
   height: 6px;
@@ -487,14 +1001,12 @@
   background: var(--lf-bg-sunken);
   overflow: hidden;
 }
-
 .lf-onboard-progress-fill {
   height: 100%;
   border-radius: var(--lf-radius-full);
   background: var(--lf-action-primary);
   transition: width var(--lf-duration-base) var(--lf-ease-out);
 }
-
 .lf-onboard-progress-label {
   flex-shrink: 0;
   font-size: var(--lf-text-xs);
@@ -502,7 +1014,6 @@
   font-variant-numeric: tabular-nums;
   color: var(--lf-text-secondary);
 }
-
 .lf-onboard-title {
   font-family: var(--lf-font-display);
   font-weight: var(--lf-weight-medium);
@@ -529,9 +1040,7 @@
   padding: var(--lf-space-3);
   border-radius: var(--lf-radius-md);
 }
-.lf-onboard-step[data-current="true"] {
-  background: var(--lf-bg-sunken);
-}
+.lf-onboard-step[data-current="true"] { background: var(--lf-bg-sunken); }
 .lf-onboard-marker {
   flex-shrink: 0;
   width: 26px;
@@ -555,9 +1064,7 @@
   border-color: var(--lf-action-primary);
   color: var(--lf-action-primary);
 }
-.lf-onboard-step-main {
-  min-width: 0;
-}
+.lf-onboard-step-main { min-width: 0; }
 .lf-onboard-step-title {
   font-weight: var(--lf-weight-semibold);
   color: var(--lf-text-primary);
@@ -570,10 +1077,7 @@
   font-size: var(--lf-text-sm);
   color: var(--lf-text-secondary);
 }
-.lf-onboard-cta {
-  margin-top: var(--lf-space-3);
-}
-
+.lf-onboard-cta { margin-top: var(--lf-space-3); }
 .lf-onboard-cta-row {
   display: flex;
   align-items: center;
@@ -581,16 +1085,14 @@
   flex-wrap: wrap;
   margin-top: var(--lf-space-3);
 }
-.lf-onboard-cta-row .lf-onboard-cta {
-  margin-top: 0;
-}
+.lf-onboard-cta-row .lf-onboard-cta { margin-top: 0; }
 .lf-onboard-secondary {
   font-size: var(--lf-text-sm);
   color: var(--lf-text-secondary);
 }
 
 /* ==========================================================================
-   Quick Add
+   Quick Add / Receipt scan (shared with those pages)
    ========================================================================== */
 .lf-quickadd-confirmation {
   display: flex;
@@ -598,40 +1100,27 @@
   gap: var(--lf-space-3);
   color: var(--lf-status-success-text);
 }
-
 .lf-quickadd-confirmation svg {
   flex-shrink: 0;
   margin-top: 3px;
 }
-
 .lf-quickadd-fix-link {
   color: var(--lf-text-link);
   text-decoration: underline;
   font: inherit;
 }
-
-/* ==========================================================================
-   Receipt scan / confirm
-   ========================================================================== */
 .lf-receipt-unreadable {
   display: flex;
   align-items: flex-start;
   gap: var(--lf-space-2);
   color: var(--lf-status-warning-text);
 }
-
 .lf-receipt-actions {
   display: flex;
   gap: var(--lf-space-2);
   justify-content: flex-end;
 }
-
 @media (max-width: 639px) {
-  .lf-receipt-actions {
-    flex-direction: column-reverse;
-  }
-
-  .lf-receipt-actions button {
-    width: 100%;
-  }
+  .lf-receipt-actions { flex-direction: column-reverse; }
+  .lf-receipt-actions button { width: 100%; }
 }
