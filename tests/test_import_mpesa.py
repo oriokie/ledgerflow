@@ -257,10 +257,13 @@ def test_reimport_is_idempotent_for_overdrafts_too():
         all_legs = Transaction.objects.filter(transfer_group__isnull=False)
         assert all_legs.count() == 4
         assert set(all_legs.values_list("metadata__mpesa_receipt", flat=True)) == {"F1", "F2"}
-        assert Transaction.objects.filter(
-            financial_account=account,
-            external_id__in=[row.external_id for row in statement.rows],
-        ).count() == 2
+        assert (
+            Transaction.objects.filter(
+                financial_account=account,
+                external_id__in=[row.external_id for row in statement.rows],
+            ).count()
+            == 2
+        )
         second = import_parsed_statement(financial_account=account, statement=statement)
         assert second.imported == 0
         assert second.skipped_duplicate == 2
