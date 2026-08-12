@@ -122,11 +122,25 @@ function PinnedSection({ onNavigate }: { onNavigate?: () => void }) {
 export function BrandMark() {
   return (
     <>
-      <svg className="lf-nav-icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-        <rect x="2" y="3" width="16" height="14" rx="3" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M6 8h8M6 12h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <svg className="lf-nav-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect
+          x="3"
+          y="4"
+          width="18"
+          height="16"
+          rx="4"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="M7 9.5h10M7 14h6.5"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
+        <circle cx="17.2" cy="14" r="1.35" fill="currentColor" />
       </svg>
-      LedgerFlow
+      <span className="lf-rail-brand-name">LedgerFlow</span>
       <AppVersion />
     </>
   );

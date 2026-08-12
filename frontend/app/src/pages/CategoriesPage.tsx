@@ -169,8 +169,10 @@ export function CategoriesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Organize your spending & income"
+        eyebrow="Workspace"
         title="Categories"
+        description="How spending and income are labeled across the ledger."
+        illustration="adjust"
         actions={
           <Button variant="primary" onClick={openCreate}>
             New category

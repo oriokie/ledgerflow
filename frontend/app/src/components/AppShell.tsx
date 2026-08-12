@@ -206,7 +206,7 @@ export function AppShell() {
 
           <Link className="lf-btn lf-btn--primary" to="/transactions?add=1" aria-label="Add transaction">
             <Plus size={16} strokeWidth={2} aria-hidden="true" />
-            <span className="lf-hide-xs">Add transaction</span>
+            <span className="lf-hide-xs">Add</span>
           </Link>
         </header>
 

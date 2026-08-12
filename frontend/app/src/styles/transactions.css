@@ -10,6 +10,7 @@
   align-items: center;
   gap: var(--lf-space-2);
   margin-bottom: var(--lf-space-3);
+  border-radius: var(--lf-radius-lg);
 }
 
 /* search box with a leading icon and a trailing clear button */

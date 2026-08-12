@@ -92,8 +92,10 @@ export function NotificationsPage() {
   return (
     <>
       <PageHeader
-        eyebrow={`${data?.unread_count ?? 0} unread`}
+        eyebrow="Workspace"
         title="Notifications"
+        description={`${data?.unread_count ?? 0} unread — alerts that need a look.`}
+        illustration="signal"
         actions={
           <Button
             variant="ghost"

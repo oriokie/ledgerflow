@@ -30,8 +30,10 @@ export function GoalsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Savings"
+        eyebrow="Trajectory"
         title="Goals"
+        description="What you're saving toward, and how close you are."
+        illustration="growth"
         actions={
           <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
             {showCreate ? "Close" : "New goal"}

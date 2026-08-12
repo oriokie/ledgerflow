@@ -180,9 +180,10 @@ export function AdminShell() {
         </a>
         <aside className="lf-admin-rail" aria-label="Platform navigation">
           <div className="lf-admin-brand">
-            <ShieldCheck size={18} aria-hidden />
-            <span>
-              LedgerFlow <strong>Platform</strong>
+            <ShieldCheck size={20} aria-hidden />
+            <span className="lf-admin-brand-copy">
+              <span className="lf-admin-brand-kicker">LedgerFlow</span>
+              <strong>Platform</strong>
             </span>
           </div>
 

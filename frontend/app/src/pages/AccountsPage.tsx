@@ -250,8 +250,14 @@ export function AccountsPage() {
   return (
     <>
       <PageHeader
-        eyebrow={accounts ? `${accounts.length} accounts · ${cur}` : undefined}
+        eyebrow="Position"
         title="Accounts"
+        description={
+          accounts
+            ? `${accounts.length} accounts · ${cur} — what you hold and what you owe.`
+            : "What you hold and what you owe."
+        }
+        illustration="vault"
         actions={
           <>
             <Button variant="secondary" onClick={() => setShowWallet(true)}>

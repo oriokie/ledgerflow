@@ -34,9 +34,9 @@
 }
 
 .lf-acct-group-label {
-  font-size: 0.694rem;
+  font-size: var(--lf-text-xs);
   font-weight: var(--lf-weight-semibold);
-  letter-spacing: var(--lf-tracking-wide, 0.04em);
+  letter-spacing: var(--lf-tracking-wide, 0.06em);
   text-transform: uppercase;
   color: var(--lf-text-tertiary);
 }
@@ -60,15 +60,24 @@
   font: inherit;
   cursor: pointer;
   border-left: 3px solid transparent;
+  transition:
+    background var(--lf-duration-fast) var(--lf-ease-out),
+    border-color var(--lf-duration-fast) var(--lf-ease-out);
 }
 
 .lf-acct-item:hover {
-  background: var(--lf-bg-sunken);
+  background: color-mix(in srgb, var(--lf-bg-sunken) 75%, transparent);
 }
 
 .lf-acct-item[aria-current="true"] {
-  background: var(--lf-selection-bg);
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--lf-action-primary) 8%, var(--lf-bg-surface)),
+      color-mix(in srgb, var(--lf-selection-bg) 85%, var(--lf-bg-surface))
+    );
   border-left-color: var(--lf-action-primary);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lf-action-primary) 10%, transparent);
 }
 
 .lf-acct-item:focus-visible {

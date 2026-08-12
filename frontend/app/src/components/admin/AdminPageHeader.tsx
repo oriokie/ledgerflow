@@ -35,6 +35,7 @@ export function AdminPageHeader({
   return (
     <header className="lf-admin-page-head">
       <div className="lf-admin-page-head-text">
+        <p className="lf-admin-page-eyebrow">Platform</p>
         <div className="lf-admin-page-title-row">
           <Heading level={1}>{title}</Heading>
           {meta != null && <span className="lf-admin-page-meta">{meta}</span>}
