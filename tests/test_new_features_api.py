@@ -169,7 +169,10 @@ def test_transaction_export_csv(tenant_context):
     assert resp["Content-Type"] == "text/csv"
     body = b"".join(resp.streaming_content).decode()
     assert "Coffee" in body
-    assert body.startswith("id,occurred_at,amount_minor")
+    # Major units beside minor so spreadsheets do not treat cents as dollars.
+    assert body.startswith("id,occurred_at,amount,amount_minor")
+    assert "-42.00" in body
+    assert "-4200" in body
 
 
 # ------------------------------------------------------------------ import
