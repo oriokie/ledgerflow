@@ -2,8 +2,6 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
-// Data hooks are mocked as vi.fn so individual tests can vary the workspace
-// between "brand new" (empty) and "established" (has an account + activity).
 vi.mock("../hooks/useFinance", () => ({
   useAccounts: vi.fn(() => ({ data: undefined, isLoading: false })),
   useCategories: vi.fn(() => ({ data: undefined })),
@@ -14,18 +12,24 @@ vi.mock("../hooks/useFinance", () => ({
   useCategoryBreakdown: vi.fn(() => ({ data: undefined })),
   useBills: vi.fn(() => ({ data: undefined })),
   useTransactions: vi.fn(() => ({ data: undefined, isLoading: false })),
+  useReviewCount: () => ({ data: { count: 0 } }),
 }));
 vi.mock("../hooks/useBudgeting", () => ({
   useBudgets: () => ({ data: undefined }),
   useBudgetStatus: () => ({ data: undefined }),
 }));
-vi.mock("../hooks/useGoals", () => ({ useGoals: () => ({ data: undefined }) }));
-// Undefined by default: the committed-income strip must render nothing at all
-// when a household has not said what it earns. A "0% committed" card derived
-// from an absence reads as a clean bill of health.
+vi.mock("../hooks/useGoals", () => ({
+  useGoals: () => ({ data: undefined }),
+  useGoalForecasts: () => ({ data: undefined }),
+}));
 vi.mock("../hooks/useIncome", () => ({ useIncomeSummary: () => ({ data: undefined }) }));
 vi.mock("../hooks/useTenancy", () => ({ useMembers: () => ({ data: undefined }) }));
 vi.mock("../hooks/useCoach", () => ({ useInsights: () => ({ data: [] }) }));
+vi.mock("../hooks/useInvestments", () => ({ usePortfolio: () => ({ data: undefined }) }));
+vi.mock("../hooks/useDebt", () => ({
+  useDebts: () => ({ data: undefined }),
+  useDebtSummary: () => ({ data: undefined }),
+}));
 vi.mock("../hooks/useIntelligence", () => ({
   useForecast: () => ({ data: undefined }),
   useHealthScore: () => ({ data: undefined }),
@@ -36,8 +40,6 @@ vi.mock("../hooks/useIntelligence", () => ({
 vi.mock("../lib/AuthContext", () => ({
   useAuth: () => ({
     user: { first_name: "Sam", email: "sam@example.com" },
-    // `base_currency_chosen_at: null` is the state of a workspace whose owner
-    // has not been asked yet, so the currency step is outstanding throughout.
     activeWorkspace: {
       role: "owner",
       tenant: { id: "t1", base_currency: "USD", base_currency_chosen_at: null },
@@ -46,6 +48,9 @@ vi.mock("../lib/AuthContext", () => ({
 }));
 vi.mock("../hooks/useEntitlements", () => ({
   useAiEnabled: () => ({ aiEnabled: true, isLoading: false }),
+}));
+vi.mock("../hooks/useDismissible", () => ({
+  useDismissible: () => [false, vi.fn()],
 }));
 
 import { useAccounts, useTransactions } from "../hooks/useFinance";
@@ -73,47 +78,37 @@ describe("DashboardPage", () => {
     renderDash();
     expect(screen.getByText(/Sam/)).toBeInTheDocument();
     expect(screen.getByText(/let's get you set up/i)).toBeInTheDocument();
-    // Currency comes first: everything created later is denominated in it.
     expect(screen.getByText(/choose your currency/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /use this currency/i })).toBeInTheDocument();
   });
 
-  it("renders the full dashboard once an account and activity exist", () => {
+  it("renders the command-center dashboard once an account and activity exist", () => {
     setWorkspace({
-      accounts: [{ id: "a1", name: "Checking", currency: "USD" }],
+      accounts: [{ id: "a1", name: "Checking", currency: "USD", account_type: "checking", balance_minor: 0 }],
       txns: [{ id: "t1" }],
     });
     renderDash();
-    // The real tiers (with their own empty fallbacks) appear as soon as there
-    // is an account and some activity.
     expect(screen.getByRole("group", { name: /time period/i })).toBeInTheDocument();
-    expect(screen.getByText(/no spending yet/i)).toBeInTheDocument();
-    expect(screen.getByText(/no goals yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/financial pulse/i)).toBeInTheDocument();
+    expect(screen.getByText(/needs your attention/i)).toBeInTheDocument();
+    expect(screen.getByText(/spending intelligence/i)).toBeInTheDocument();
+    expect(screen.getByText(/no goals yet|set a target/i)).toBeInTheDocument();
   });
 
   it("keeps the checklist alongside the dashboard until setup is finished", () => {
     setWorkspace({
-      accounts: [{ id: "a1", name: "Checking", currency: "USD" }],
+      accounts: [{ id: "a1", name: "Checking", currency: "USD", account_type: "checking", balance_minor: 0 }],
       txns: [{ id: "t1" }],
     });
     renderDash();
-    // Budgets, goals and sharing are still outstanding, so guidance stays —
-    // previously it vanished here, exactly when the user knew least about them.
     expect(screen.getByText(/let's get you set up/i)).toBeInTheDocument();
     expect(screen.getByText("2 of 6 done")).toBeInTheDocument();
-    // Guidance and real data coexist rather than one hiding the other.
     expect(screen.getByRole("group", { name: /time period/i })).toBeInTheDocument();
   });
 
   it("does not duplicate the Add Transaction button already in the persistent header", () => {
-    // Regression: AppShell's top bar carries "Add transaction" on every page,
-    // including this one — the dashboard's own greeting header repeated the
-    // identical button pointing at the identical destination, so a visitor
-    // saw two at once. AppShell isn't rendered in this test harness (only
-    // DashboardPage itself is), so any match here can only be the page's own
-    // copy, which must not exist any more.
     setWorkspace({
-      accounts: [{ id: "a1", name: "Checking", currency: "USD" }],
+      accounts: [{ id: "a1", name: "Checking", currency: "USD", account_type: "checking", balance_minor: 0 }],
       txns: [{ id: "t1" }],
     });
     renderDash();

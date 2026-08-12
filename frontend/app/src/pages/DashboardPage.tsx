@@ -1,144 +1,140 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  useAccounts,
-  useBills,
-  useCashFlow,
-  useCategories,
-  useCategoryBreakdown,
-  useNetWorth,
-  useTransactions,
-} from "../hooks/useFinance";
-import { useBudgets, useBudgetStatus } from "../hooks/useBudgeting";
-import { useGoals } from "../hooks/useGoals";
-import {
-  useForecast,
-  useHealthScore,
-  useNetWorthHistory,
-  useRecommendations,
-  useSpendingTrend,
-} from "../hooks/useIntelligence";
-import { useAuth } from "../lib/AuthContext";
-import { Card, Grid, SegmentedControl, SkeletonCard } from "../ui";
-import { GettingStarted } from "./dashboard/GettingStarted";
-import { CashflowCalendar } from "./cashflow";
-import { InsightCardCompact } from "./coach";
-import { useInsights } from "../hooks/useCoach";
-import { useCashflowCalendar } from "../hooks/useFinance";
-import { useMembers } from "../hooks/useTenancy";
+import { Grid, SkeletonCard } from "../ui";
 import { useDismissible } from "../hooks/useDismissible";
-import { useAiEnabled } from "../hooks/useEntitlements";
-import {
-  BudgetProgress,
-  CashFlowSummary,
-  GoalsProgress,
-  greeting,
-  HealthCard,
-  InsightsSection,
-  CommittedIncomeStrip,
-  NetWorthCard,
-  periodRange,
-  RecentActivity,
-  SafeToSpend,
-  SpendingByCategory,
-  TrendsCard,
-  UpcomingBills,
-  type PeriodKey,
-} from "./dashboard";
-
-const PERIOD_OPTIONS: { value: PeriodKey; label: string }[] = [
-  { value: "this-month", label: "This month" },
-  { value: "last-month", label: "Last month" },
-  { value: "last-30d", label: "30 days" },
-  { value: "ytd", label: "Year" },
-];
+import { GettingStarted } from "./dashboard/GettingStarted";
+import { DashGreeting } from "./dashboard/DashGreeting";
+import { FinancialPulse } from "./dashboard/FinancialPulse";
+import { WhatChanged } from "./dashboard/WhatChanged";
+import { ActionCenter } from "./dashboard/ActionCenter";
+import { CashFlowPanel } from "./dashboard/CashFlowPanel";
+import { SpendingIntel } from "./dashboard/SpendingIntel";
+import { BudgetPulse } from "./dashboard/BudgetPulse";
+import { GoalsPulse } from "./dashboard/GoalsPulse";
+import { MoneyTimeline } from "./dashboard/MoneyTimeline";
+import { AccountsSnapshot } from "./dashboard/AccountsSnapshot";
+import { InvestmentsSnapshot } from "./dashboard/InvestmentsSnapshot";
+import { DebtSnapshot } from "./dashboard/DebtSnapshot";
+import { InsightLayer } from "./dashboard/InsightLayer";
+import { QuickActions } from "./dashboard/QuickActions";
+import { CommittedIncomeStrip } from "./dashboard/CommittedIncomeStrip";
+import { useDashboardModel } from "./dashboard/useDashboardModel";
+import type { DashSectionId } from "./dashboard/personalization";
+import type { ReactNode } from "react";
 
 export function DashboardPage() {
-  const { user, activeWorkspace } = useAuth();
-  const [period, setPeriod] = useState<PeriodKey>("this-month");
-  const range = useMemo(() => periodRange(period), [period]);
-  const hello = useMemo(() => greeting(), []);
-
-  // Core figures
-  const { data: accounts, isLoading: accountsLoading } = useAccounts();
-  const { data: categories } = useCategories();
-  const { data: netWorth, isLoading: netWorthLoading } = useNetWorth();
-  const { data: cashFlow, isLoading: cashFlowLoading } = useCashFlow(range.start, range.end);
-  const { data: breakdown } = useCategoryBreakdown(range.start, range.end, "expense");
-
-  // Trends & intelligence
-  const { data: netWorthHistory } = useNetWorthHistory(6);
-  const { data: spendingTrend } = useSpendingTrend(6);
-  const { aiEnabled } = useAiEnabled();
-  const { data: forecast } = useForecast(aiEnabled);
-  const { data: health } = useHealthScore(aiEnabled);
-  const { data: recommendations } = useRecommendations(aiEnabled);
-
-  // Planning & activity
-  const { data: bills } = useBills({ upcoming: 30 });
-  const { data: budgets } = useBudgets();
-  const firstBudget = budgets?.[0];
-  const { data: budgetStatus } = useBudgetStatus(firstBudget?.id);
-  const { data: goals } = useGoals();
-  const { data: recentTx, isLoading: recentTxLoading } = useTransactions({ page_size: 6 });
-  const { data: members } = useMembers();
-  // 35 days: a full pay cycle plus a week, which is the window that answers
-  // "can I make it to payday?" without becoming speculative.
-  const { data: cashflowCalendar } = useCashflowCalendar({ days: 35 });
-  const { data: topInsights } = useInsights();
+  const model = useDashboardModel();
   const [checklistDismissed, dismissChecklist] = useDismissible("onboarding-checklist");
-
-  const primaryCurrency = netWorth?.[0]?.currency ?? accounts?.[0]?.currency ?? "USD";
-
-  const hasAccount = (accounts?.length ?? 0) > 0;
-  const hasTransaction = (recentTx?.results.length ?? 0) > 0;
-  const onboarding = {
-    // Null means nobody has been asked yet, so the step stays open. An
-    // existing workspace that predates the field is genuinely in that state.
-    hasCurrency: !!activeWorkspace?.tenant.base_currency_chosen_at,
-    hasAccount,
-    hasTransaction,
-    hasBudget: (budgets?.length ?? 0) > 0,
-    hasGoal: (goals?.length ?? 0) > 0,
-    hasTeammate: (members?.length ?? 0) > 1,
-  };
-  const setupComplete = Object.values(onboarding).every(Boolean);
-  // The checklist stays until it's finished or explicitly dismissed — but once
-  // there's an account and a transaction the real dashboard appears beneath it,
-  // so guidance and data coexist instead of one hiding the other.
+  const setupComplete = Object.values(model.onboarding).every(Boolean);
   const showChecklist = !setupComplete && !checklistDismissed;
-  const dashboardReady = hasAccount && hasTransaction;
-  const primaryNetWorth = netWorth?.find((n) => n.currency === primaryCurrency) ?? netWorth?.[0];
-  const primaryCashFlow = cashFlow?.find((c) => c.currency === primaryCurrency) ?? cashFlow?.[0];
 
-  const coreLoading = accountsLoading || netWorthLoading || cashFlowLoading || recentTxLoading;
+  const sections: Record<DashSectionId, ReactNode> = {
+    pulse: (
+      <FinancialPulse
+        netWorth={model.primaryNetWorth}
+        history={model.netWorthHistory}
+        consolidated={model.netWorthBase}
+        health={model.health}
+        calendar={model.cashflowCalendar}
+        currency={model.primaryCurrency}
+        aiEnabled={model.aiEnabled}
+      />
+    ),
+    changed: <WhatChanged insights={model.changes} />,
+    attention: <ActionCenter items={model.attention} />,
+    cashflow: (
+      <>
+        <CashFlowPanel
+          cashFlow={model.primaryCashFlow}
+          trend={model.spendingTrend}
+          currency={model.primaryCurrency}
+          periodLabel={model.range.label}
+        />
+        <CommittedIncomeStrip />
+      </>
+    ),
+    spending: (
+      <SpendingIntel
+        breakdown={model.breakdown}
+        trend={model.spendingTrend}
+        currency={model.primaryCurrency}
+      />
+    ),
+    budget: (
+      <BudgetPulse
+        budget={model.firstBudget}
+        status={model.budgetStatus}
+        currency={model.primaryCurrency}
+      />
+    ),
+    goals: (
+      <GoalsPulse
+        goals={model.goals}
+        forecasts={model.goalForecasts}
+        currency={model.primaryCurrency}
+      />
+    ),
+    timeline: (
+      <MoneyTimeline
+        calendar={model.cashflowCalendar}
+        bills={model.bills}
+        currency={model.primaryCurrency}
+      />
+    ),
+    accounts: (
+      <AccountsSnapshot accounts={model.accounts} currency={model.primaryCurrency} />
+    ),
+    investments: <InvestmentsSnapshot portfolio={model.portfolio} />,
+    debt: <DebtSnapshot summary={model.debtSummary} debts={model.debts} />,
+    insights: (
+      <InsightLayer
+        insights={model.topInsights}
+        recommendations={model.recommendations}
+        aiEnabled={model.aiEnabled}
+      />
+    ),
+    actions: <QuickActions />,
+  };
+
+  const MAIN: DashSectionId[] = ["pulse", "changed", "cashflow", "spending", "insights", "actions"];
+  const RAIL: DashSectionId[] = [
+    "attention",
+    "timeline",
+    "goals",
+    "budget",
+    "accounts",
+    "investments",
+    "debt",
+  ];
+
+  const available = new Set(model.sectionOrder);
+  // Always keep structural main/rail sections that personalization may reorder
+  // but not drop (attention, accounts, etc.). Optional surfaces stay gated.
+  for (const id of MAIN) {
+    if (id === "insights") continue;
+    available.add(id);
+  }
+  for (const id of ["attention", "timeline", "goals", "budget", "accounts"] as DashSectionId[]) {
+    available.add(id);
+  }
+
+  const orderedMain = model.sectionOrder
+    .filter((id) => MAIN.includes(id) && available.has(id))
+    .concat(MAIN.filter((id) => available.has(id) && !model.sectionOrder.includes(id)));
+  const orderedRail = model.sectionOrder
+    .filter((id) => RAIL.includes(id) && available.has(id))
+    .concat(RAIL.filter((id) => available.has(id) && !model.sectionOrder.includes(id)));
 
   return (
-    <>
-      {/* Header: greeting + period control + primary action */}
-      <header className="lf-dash-header">
-        <div>
-          <h1 className="lf-dash-greeting">
-            {hello}
-            {user?.first_name ? `, ${user.first_name}` : ""}
-          </h1>
-          <p className="lf-dash-subtitle">Here's your money at a glance · {range.label}</p>
-        </div>
-        {/* "Add transaction" lives once, in AppShell's persistent header —
-            it's visible on every page including this one, so repeating it
-            here duplicated the exact same button pointing at the exact same
-            destination for no reason beyond habit. */}
-        <div className="lf-dash-controls">
-          <SegmentedControl<PeriodKey>
-            legend="Time period"
-            value={period}
-            onChange={setPeriod}
-            options={PERIOD_OPTIONS}
-          />
-        </div>
-      </header>
+    <div className="lf-cmd">
+      <DashGreeting
+        hello={model.hello}
+        firstName={model.user?.first_name}
+        statement={model.statement}
+        period={model.period}
+        onPeriodChange={model.setPeriod}
+        rangeLabel={model.range.label}
+      />
 
-      {coreLoading ? (
+      {model.coreLoading ? (
         <Grid cols={3} gap={4}>
           {[0, 1, 2].map((i) => (
             <SkeletonCard key={i} />
@@ -146,127 +142,48 @@ export function DashboardPage() {
         </Grid>
       ) : (
         <>
-        {/* Setup guidance leads only while there is nothing else to show. Once
-            an account and a transaction exist the dashboard is the point of the
-            page, and the checklist was taking the whole fold on a phone — the
-            first thing a returning user saw was homework, not their balance.
-            See the fold contract in docs/redesign/02-strategy-ia.md §3.3. */}
-        {showChecklist && !dashboardReady && (
-          <div className="lf-dash-section">
-            <GettingStarted state={onboarding} onDismiss={dismissChecklist} />
-          </div>
-        )}
-        {dashboardReady && (
-        <>
-          {/* Tier 1 — headline */}
-          <div className="lf-dash-section lf-dash-hero">
-            <Grid cols={3} gap={4}>
-              <NetWorthCard netWorth={primaryNetWorth} history={netWorthHistory} currency={primaryCurrency} />
-              {aiEnabled && <HealthCard health={health} />}
-            </Grid>
-          </div>
-
-          {showChecklist && (
-            <div className="lf-dash-section">
-              <GettingStarted state={onboarding} onDismiss={dismissChecklist} compact />
+          {showChecklist && !model.dashboardReady && (
+            <div className="lf-cmd-onboard">
+              <GettingStarted state={model.onboarding} onDismiss={dismissChecklist} />
             </div>
           )}
 
-          {/* Tier 2 — this period in three reads, side by side.
-              Cash flow is what happened, safe-to-spend answers "can I buy
-              this?" today, committed income is how much of the month is
-              already spoken for. They were three full-width bands stacked down
-              the page; they are one row, because they are one thought.
-              The committed strip renders nothing until income is recorded —
-              "0% committed" derived from an absence reads as a clean bill of
-              health, which is the opposite of what it means. */}
-          <div className="lf-dash-grid">
-            <CashFlowSummary cashFlow={primaryCashFlow} currency={primaryCurrency} />
-            <SafeToSpend />
-            <CommittedIncomeStrip />
-          </div>
+          {model.dashboardReady && (
+            <>
+              {showChecklist && (
+                <div className="lf-cmd-onboard lf-cmd-onboard--compact">
+                  <GettingStarted
+                    state={model.onboarding}
+                    onDismiss={dismissChecklist}
+                    compact
+                  />
+                </div>
+              )}
 
-          {/* Tier 3 — the cash flow calendar.
-              Placed above trends deliberately: "will I go negative before
-              payday?" is a more urgent question than "how did last quarter
-              look?", and it's the one a monthly summary can't answer. */}
-          {cashflowCalendar && (
-            <div className="lf-dash-section lf-dash-wide">
-              <Card
-                accent="plan"
-                title="Cash flow calendar"
-                action={
-                  <Link className="lf-link" to="/cashflow">
-                    Full calendar
-                  </Link>
-                }
-              >
-                <CashflowCalendar calendar={cashflowCalendar} />
-              </Card>
-            </div>
-          )}
-
-          {/* Tier 4 — trends (tabbed, progressive disclosure) */}
-          <div className="lf-dash-section">
-            <TrendsCard
-              trend={spendingTrend}
-              history={netWorthHistory}
-              forecast={forecast}
-              currency={primaryCurrency}
-            />
-          </div>
-
-          {/* Tier 4 — where money goes + upcoming */}
-          <div className="lf-dash-section lf-dash-split">
-            <SpendingByCategory breakdown={breakdown} currency={primaryCurrency} />
-            <UpcomingBills bills={bills} currency={primaryCurrency} />
-          </div>
-
-          {/* Tier 5 — planning progress */}
-          <div className="lf-dash-grid">
-            <BudgetProgress budget={firstBudget} status={budgetStatus} currency={primaryCurrency} />
-            <GoalsProgress goals={goals} currency={primaryCurrency} />
-          </div>
-
-          {/* Tier 6 — insights */}
-          {/* The coach's top insights, where users already look. Capped at
-              three: the dashboard is a summary, and the full ranked feed lives
-              on /coach. */}
-          {(topInsights?.length ?? 0) > 0 && (
-            <div className="lf-dash-section">
-              <Card
-                accent="plan"
-                title="From your coach"
-                action={
-                  <Link className="lf-link" to="/coach">
-                    All insights
-                  </Link>
-                }
-              >
-                <div className="lf-coach-feed">
-                  {(topInsights ?? []).slice(0, 3).map((insight) => (
-                    <InsightCardCompact key={insight.id} insight={insight} />
+              <div className="lf-cmd-layout">
+                <div className="lf-cmd-main">
+                  {orderedMain.map((id) => (
+                    <div key={id} className="lf-cmd-slot" data-section={id}>
+                      {sections[id]}
+                    </div>
                   ))}
                 </div>
-              </Card>
-            </div>
+                <aside className="lf-cmd-rail" aria-label="Priorities and planning">
+                  {orderedRail.map((id) => {
+                    const node = sections[id];
+                    if (node == null) return null;
+                    return (
+                      <div key={id} className="lf-cmd-slot" data-section={id}>
+                        {node}
+                      </div>
+                    );
+                  })}
+                </aside>
+              </div>
+            </>
           )}
-
-          {aiEnabled && <InsightsSection recommendations={recommendations} />}
-
-          {/* Tier 7 — recent activity */}
-          <div className="lf-dash-section">
-            <RecentActivity
-              transactions={recentTx?.results}
-              accounts={accounts}
-              categories={categories}
-              currency={primaryCurrency}
-            />
-          </div>
-        </>
-        )}
         </>
       )}
-    </>
+    </div>
   );
 }

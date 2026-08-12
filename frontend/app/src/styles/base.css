@@ -241,3 +241,28 @@ input[type="radio"] {
   accent-color: var(--lf-action-primary);
   cursor: pointer;
 }
+
+/* Inline text links (`<Link className="lf-link">`). At body/sm size the natural
+   box is ~16px tall — under the 24px WCAG 2.5.8 floor. Same treatment as
+   `.lf-worth-body a` and `.lf-auth-shell a`: grow the hit area without turning
+   the link into a standalone control (`--lf-touch-target` would break mid-
+   sentence layout). Literal 24px, not `--lf-space-6`, so compact density cannot
+   shrink the AA floor. */
+.lf-link {
+  display: inline-block;
+  min-height: 24px;
+  line-height: 24px;
+  vertical-align: bottom;
+  color: var(--lf-text-link);
+  text-underline-offset: 2px;
+}
+
+.lf-link:hover {
+  text-decoration: underline;
+}
+
+.lf-link:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--lf-radius-sm);
+}
