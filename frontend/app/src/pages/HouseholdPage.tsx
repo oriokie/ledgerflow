@@ -351,7 +351,12 @@ export function HouseholdPage() {
   if (loading) {
     return (
       <>
-        <PageHeader title="Household" description="Where you stand together." />
+        <PageHeader
+          eyebrow="Meaning"
+          title="Household"
+          description="Where you stand together."
+          illustration="together"
+        />
         <SkeletonCard />
       </>
     );
@@ -360,7 +365,12 @@ export function HouseholdPage() {
   if (error || !summary) {
     return (
       <>
-        <PageHeader title="Household" description="Where you stand together." />
+        <PageHeader
+          eyebrow="Meaning"
+          title="Household"
+          description="Where you stand together."
+          illustration="together"
+        />
         <EmptyState
           icon={Users}
           illustration="together"
@@ -377,8 +387,10 @@ export function HouseholdPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Meaning"
         title="Household"
         description="Where you stand together — including the parts you keep to yourselves."
+        illustration="together"
       />
 
       <Stack gap={5}>

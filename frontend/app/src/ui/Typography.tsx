@@ -88,8 +88,8 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   return (
-    <div className="lf-page-header">
-      <div>
+    <header className="lf-page-header">
+      <div className="lf-page-header-copy">
         {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
         <Heading level={1}>{title}</Heading>
         {description && <p className="lf-page-header-desc">{description}</p>}
@@ -106,6 +106,6 @@ export function PageHeader({
           {actions}
         </div>
       )}
-    </div>
+    </header>
   );
 }

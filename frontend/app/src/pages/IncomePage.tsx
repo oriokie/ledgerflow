@@ -45,8 +45,10 @@ export function IncomePage() {
   return (
     <>
       <PageHeader
-        eyebrow="Money in"
+        eyebrow="Position"
         title="Income"
+        description="What lands in your accounts, and on what schedule."
+        illustration="envelope"
         actions={
           <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
             {showCreate ? "Close" : "Add income"}

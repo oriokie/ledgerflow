@@ -28,9 +28,10 @@ export function ReceivablesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Owed to you"
+        eyebrow="Trajectory"
         title="Receivables"
         description="Money you're waiting to get back, and how long you've been waiting."
+        illustration="waiting"
         actions={
           <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
             {showCreate ? "Close" : "Add what you're owed"}

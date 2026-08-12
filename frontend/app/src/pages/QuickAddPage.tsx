@@ -78,8 +78,10 @@ export function QuickAddPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Capture"
         title="Quick Add"
         description="Two taps, one transaction. Everything else is filled in for you."
+        illustration="steps"
       />
 
       {!hasAnyAccount ? (

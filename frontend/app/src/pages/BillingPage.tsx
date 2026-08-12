@@ -193,8 +193,13 @@ export function BillingPage() {
   return (
     <>
       <PageHeader
-        eyebrow={activeWorkspace?.tenant.name}
+        eyebrow="Workspace"
         title="Billing & plans"
+        description={
+          activeWorkspace?.tenant.name
+            ? `Plan and invoices for ${activeWorkspace.tenant.name}.`
+            : "Your plan, invoices, and payment method."
+        }
         illustration="steps"
       />
 

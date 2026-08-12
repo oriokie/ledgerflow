@@ -33,7 +33,14 @@ export function AnalyticsPage({ embedded }: { embedded?: boolean } = {}) {
 
   return (
     <>
-      {!embedded && <PageHeader eyebrow="Trends & comparisons" title="Analytics" />}
+      {!embedded && (
+        <PageHeader
+          eyebrow="Meaning"
+          title="Analytics"
+          description="Trends and comparisons across the periods that matter."
+          illustration="insight"
+        />
+      )}
 
       <div className="lf-analytics-toolbar">
         <Text tone="secondary" size="sm">

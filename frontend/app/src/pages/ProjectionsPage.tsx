@@ -265,7 +265,12 @@ export function ProjectionsPage() {
   if (loading) {
     return (
       <>
-        <PageHeader title="Projections" description="Where this is heading, and what would change it." />
+        <PageHeader
+          eyebrow="Trajectory"
+          title="Projections"
+          description="Where this is heading, and what would change it."
+          illustration="horizon"
+        />
         <SkeletonCard />
       </>
     );
@@ -274,7 +279,12 @@ export function ProjectionsPage() {
   if (error || !baseline) {
     return (
       <>
-        <PageHeader title="Projections" description="Where this is heading, and what would change it." />
+        <PageHeader
+          eyebrow="Trajectory"
+          title="Projections"
+          description="Where this is heading, and what would change it."
+          illustration="horizon"
+        />
         <EmptyState
           icon={Route}
           illustration="horizon"
@@ -292,8 +302,10 @@ export function ProjectionsPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Trajectory"
         title="Projections"
         description="Where this is heading if nothing changes — and what each decision would do to it."
+        illustration="horizon"
         actions={
           <SegmentedControl<HorizonValue>
             legend="Projection horizon"

@@ -59,8 +59,10 @@ export function CoachPage({ embedded }: { embedded?: boolean } = {}) {
         </div>
       ) : (
         <PageHeader
+          eyebrow="Meaning"
           title="Your coach"
           description="What's worth knowing about your money right now, and why."
+          illustration="conversation"
           actions={refreshButton}
         />
       )}

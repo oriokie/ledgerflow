@@ -33,6 +33,7 @@ export function InsightsHubPage() {
         eyebrow="Meaning"
         title="Insights"
         description="What the numbers add up to — read for you, charted, tabulated, and checked for surprises."
+        illustration="insight"
       />
 
       <Tabs label="Insight sections" value={tab} onChange={select} tabs={[...INSIGHT_TABS]} />

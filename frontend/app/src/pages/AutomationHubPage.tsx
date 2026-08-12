@@ -29,9 +29,10 @@ export function AutomationHubPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Automation"
+        eyebrow="Workspace"
         title="Automation"
         description="What LedgerFlow noticed on its own, and what you've told it to do automatically."
+        illustration="cycle"
       />
 
       <Tabs label="Automation sections" value={tab} onChange={select} tabs={[...TABS]} />

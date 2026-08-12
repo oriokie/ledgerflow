@@ -136,8 +136,10 @@ export function TransactionsPage({ embedded }: { embedded?: boolean } = {}) {
     <>
       {!embedded && (
         <PageHeader
-          eyebrow="All activity"
-          title="Transactions"
+          eyebrow="Position"
+          title="Activity"
+          description="Every movement through your accounts — search, filter, and keep the ledger honest."
+          illustration="path"
           actions={
             <>
               <IconButton

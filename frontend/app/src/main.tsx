@@ -37,6 +37,7 @@ import "./styles/premium.css";
 import "./styles/camera.css";
 import "./styles/landing.css";
 import "./styles/admin.css";
+import "./styles/command-chrome.css";
 
 import App from "./App";
 import { ApiError } from "./api/client";

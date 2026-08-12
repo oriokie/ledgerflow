@@ -76,8 +76,13 @@ export function DebtPage() {
     <>
       <PageHeader
         title="Debt"
-        eyebrow={summary ? plural(summary.debt_count, "debt") : undefined}
-        description="What you owe, what it's costing, and the fastest way out."
+        eyebrow="Trajectory"
+        description={
+          summary
+            ? `${plural(summary.debt_count, "debt")} — what you owe, what it's costing, and the fastest way out.`
+            : "What you owe, what it's costing, and the fastest way out."
+        }
+        illustration="compass"
         actions={
           // Only once there is something to add *to*. While the page is empty
           // the empty state carries the CTA, and two identical buttons on one

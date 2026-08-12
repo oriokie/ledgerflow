@@ -103,9 +103,10 @@ export function ReviewPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Financial review"
+        eyebrow="Meaning"
         title={data?.period.label ?? "Financial review"}
         description="Where you stand, what changed, and what to do next — the sit-down an advisor would run, from your own ledger."
+        illustration="insight"
         actions={
           <Select
             aria-label="Review period"

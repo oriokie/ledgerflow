@@ -182,8 +182,14 @@ export function MembersPage() {
   return (
     <>
       <PageHeader
-        eyebrow={activeWorkspace?.tenant.name}
+        eyebrow="Workspace"
         title="Members"
+        description={
+          activeWorkspace?.tenant.name
+            ? `Who can see and change ${activeWorkspace.tenant.name}.`
+            : "Who can see and change this workspace."
+        }
+        illustration="together"
         actions={
           canManage ? (
             <Button variant="primary" icon={<UserPlus size={15} />} onClick={() => setShowInvite(true)}>

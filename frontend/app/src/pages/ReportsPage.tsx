@@ -72,8 +72,10 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}) {
         </div>
       ) : (
         <PageHeader
+          eyebrow="Meaning"
           title="Reports"
           description="Fourteen views of your money. Pick a period once and it applies to all of them."
+          illustration="insight"
           actions={actions}
         />
       )}
