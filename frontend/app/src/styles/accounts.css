@@ -208,19 +208,17 @@
   gap: 2px;
 }
 
-/* Back-to-list and one-column swap are mobile-only. Later unscoped rules
-   used to override the desktop two-column layout, squeezing the detail
-   panel into the 360px list track when an account was selected. */
-@media (max-width: 1023px) {
-  .lf-acct-back {
-    display: inline-flex;
-  }
-  .lf-acct-layout[data-mobile-view="list"] .lf-acct-detail-col {
-    display: none;
-  }
-  .lf-acct-layout[data-mobile-view="detail"] .lf-acct-list-col {
-    display: none;
-  }
+/* Back-to-list and one-column swap — mobile default. Desktop overrides below. */
+.lf-acct-back {
+  display: inline-flex;
+}
+
+.lf-acct-layout[data-mobile-view="list"] .lf-acct-detail-col {
+  display: none;
+}
+
+.lf-acct-layout[data-mobile-view="detail"] .lf-acct-list-col {
+  display: none;
 }
 
 @media (min-width: 1024px) {
@@ -228,7 +226,13 @@
     grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
     align-items: start;
   }
+
   .lf-acct-back {
     display: none;
+  }
+
+  .lf-acct-layout[data-mobile-view="list"] .lf-acct-detail-col,
+  .lf-acct-layout[data-mobile-view="detail"] .lf-acct-list-col {
+    display: revert;
   }
 }
