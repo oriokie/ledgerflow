@@ -1592,7 +1592,7 @@ class TransactionExportView(TenantScopedAPIView, APIView):
 
             meta = get_currency(currency)
             digits = meta.digits if meta else 2
-            scale = 10 ** digits
+            scale = 10**digits
             return f"{amount_minor / scale:.{digits}f}"
 
         def _stream():

@@ -126,7 +126,7 @@ class ReportExportView(TenantScopedAPIView, APIView):
 
         meta = get_currency(result.currency)
         digits = meta.digits if meta else 2
-        scale = 10 ** digits
+        scale = 10**digits
 
         expanded: list[str] = []
         for key in columns:

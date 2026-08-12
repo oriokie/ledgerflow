@@ -193,7 +193,13 @@ def create_workspace(
         aggregate_type="tenancy.Tenant",
         aggregate_id=tenant.id,
         event_type="tenancy.workspace.created",
-        payload={"name": name, "type": type, "owner_id": str(owner.id), "base_currency": code, "country": country_code},
+        payload={
+            "name": name,
+            "type": type,
+            "owner_id": str(owner.id),
+            "base_currency": code,
+            "country": country_code,
+        },
     )
     _seed_default_categories(tenant=tenant, owner=owner, currency=code)
 

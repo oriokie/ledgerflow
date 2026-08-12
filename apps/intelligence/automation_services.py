@@ -276,9 +276,11 @@ def _dedupe_key(finding: detect.Suggestion) -> str:
 # ---------------------------------------------------------------------------
 def pending_suggestions(*, kind: str | None = None, limit: int | None = None):
     """The review queue: undecided findings, most confident first."""
-    qs = AutomationSuggestion.objects.filter(status=ReviewStatus.PENDING).select_related(
-        "primary_transaction"
-    ).prefetch_related("transactions__payee", "transactions__financial_account")
+    qs = (
+        AutomationSuggestion.objects.filter(status=ReviewStatus.PENDING)
+        .select_related("primary_transaction")
+        .prefetch_related("transactions__payee", "transactions__financial_account")
+    )
     if kind:
         qs = qs.filter(kind=kind)
     return qs[:limit] if limit else qs

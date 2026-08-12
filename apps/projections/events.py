@@ -282,7 +282,8 @@ def _home_purchase(p, start, position, assumptions, label):
             asset_delta_minor=p["price_minor"],
             asset_annual_growth=p["annual_growth"],
             new_debt=debt,
-            monthly_expense_delta_minor=p["monthly_running_costs_minor"] - int(p.get("stops_monthly_minor") or 0),
+            monthly_expense_delta_minor=p["monthly_running_costs_minor"]
+            - int(p.get("stops_monthly_minor") or 0),
         )
     ]
 

@@ -1207,7 +1207,9 @@ class PlatformTestAIView(PlatformAdminAPIView, APIView):
         if not config.enabled:
             return Response({"ok": False, "detail": "AI is turned off."}, status=status.HTTP_400_BAD_REQUEST)
         if not config.model:
-            return Response({"ok": False, "detail": "No model is configured."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"ok": False, "detail": "No model is configured."}, status=status.HTTP_400_BAD_REQUEST
+            )
         try:
             reply = complete(
                 system="You are a connectivity check. Reply with the single word pong.",
