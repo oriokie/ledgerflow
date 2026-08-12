@@ -42,6 +42,20 @@ function fromWire(name: string, value: unknown): string {
   return String(n);
 }
 
+const PARAM_LABELS: Record<string, string> = {
+  stops_monthly_minor: "Monthly cost this replaces",
+  monthly_running_costs_minor: "New monthly running costs",
+  price_minor: "Price",
+  deposit_minor: "Deposit",
+  principal_minor: "Principal",
+  monthly_gross_increase_minor: "Monthly increase",
+};
+
+const PARAM_HINTS: Record<string, string> = {
+  stops_monthly_minor:
+    "Rent or a lease this purchase ends. Leave blank if nothing on the books stops.",
+};
+
 function unitFor(name: string) {
   if (isMoney(name)) return "amount";
   if (isRate(name)) return "%";
@@ -174,13 +188,13 @@ export function ScenarioBuilder({ scenario, catalogue, onChanged }: Props) {
           {selected?.params.map((spec) => (
             <FormField
               key={spec.name}
-              label={`${spec.name.replace(/_minor$/, "").replace(/_/g, " ")}${
+              label={`${PARAM_LABELS[spec.name] ?? spec.name.replace(/_minor$/, "").replace(/_/g, " ")}${
                 unitFor(spec.name) && unitFor(spec.name) !== "amount"
                   ? ` (${unitFor(spec.name)})`
                   : ""
               }`}
               htmlFor={`param-${spec.name}`}
-              hint={spec.required ? "Required" : undefined}
+              hint={PARAM_HINTS[spec.name] ?? (spec.required ? "Required" : undefined)}
             >
               <Input
                 id={`param-${spec.name}`}

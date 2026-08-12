@@ -49,6 +49,8 @@ export interface Tenant {
    * first-run setup ask exactly once instead of every time.
    */
   base_currency_chosen_at: string | null;
+  /** ISO-3166 alpha-2. Blank when the workspace has not stated a country. */
+  country?: string;
   /** Whether a manual posting that would overdraw an asset account is refused. */
   block_overdrafts: boolean;
   default_locale: string;
@@ -1235,6 +1237,15 @@ export interface AutomationSuggestion {
   merchant_key: string;
   primary_transaction_id: string | null;
   transaction_ids: string[];
+  /** Nested evidence so a duplicate can be judged without opening the ledger. */
+  transactions?: {
+    id: string;
+    occurred_at: string;
+    amount_minor: number;
+    currency: string;
+    payee: string;
+    account_name: string;
+  }[];
   created_at: string;
   decided_at: string | null;
 }

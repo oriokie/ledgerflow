@@ -1,0 +1,43 @@
+/** Common ISO-3166 alpha-2 countries for workspace setup. Not exhaustive. */
+export const COUNTRY_OPTIONS = [
+  { value: "KE", label: "Kenya" },
+  { value: "UG", label: "Uganda" },
+  { value: "TZ", label: "Tanzania" },
+  { value: "NG", label: "Nigeria" },
+  { value: "GH", label: "Ghana" },
+  { value: "ZA", label: "South Africa" },
+  { value: "GB", label: "United Kingdom" },
+  { value: "US", label: "United States" },
+  { value: "CA", label: "Canada" },
+  { value: "AU", label: "Australia" },
+  { value: "IN", label: "India" },
+  { value: "AE", label: "United Arab Emirates" },
+  { value: "DE", label: "Germany" },
+  { value: "FR", label: "France" },
+  { value: "NL", label: "Netherlands" },
+  { value: "IE", label: "Ireland" },
+  { value: "SG", label: "Singapore" },
+  { value: "BR", label: "Brazil" },
+] as const;
+
+/** Default currency for a country when the user has not picked one yet. */
+export const CURRENCY_BY_COUNTRY: Record<string, string> = {
+  KE: "KES",
+  UG: "UGX",
+  TZ: "TZS",
+  NG: "NGN",
+  GH: "GHS",
+  ZA: "ZAR",
+  GB: "GBP",
+  US: "USD",
+  CA: "CAD",
+  AU: "AUD",
+  IN: "INR",
+  AE: "AED",
+  DE: "EUR",
+  FR: "EUR",
+  NL: "EUR",
+  IE: "EUR",
+  SG: "SGD",
+  BR: "BRL",
+};

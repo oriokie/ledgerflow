@@ -548,6 +548,10 @@ def test_api_scan_and_queue(tenant_context):
     assert queue["suggestions"]
     # Every suggestion arrives with the reasoning behind it.
     assert all(s["reason"] for s in queue["suggestions"])
+    # Nested evidence so a duplicate can be judged without opening the ledger.
+    for suggestion in queue["suggestions"]:
+        assert len(suggestion["transactions"]) == len(suggestion["transaction_ids"])
+        assert all(t["occurred_at"] and t["currency"] for t in suggestion["transactions"])
     # No accuracy claimed before anything is decided.
     assert queue["approval_rate"] is None
 

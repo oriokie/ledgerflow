@@ -1,5 +1,7 @@
 import type { ReportFilters, ReportPeriod } from "../../api/types";
-import { SegmentedControl } from "../../ui";
+import { useAuth } from "../../lib/AuthContext";
+import { CURRENCY_OPTIONS } from "../../lib/currencies";
+import { SegmentedControl, Select } from "../../ui";
 
 const PERIODS: { value: ReportPeriod; label: string }[] = [
   { value: "this_month", label: "This month" },
@@ -10,12 +12,15 @@ const PERIODS: { value: ReportPeriod; label: string }[] = [
 ];
 
 /**
- * Period selection, shared by every report.
+ * Period and currency, shared by every report.
  *
  * One control rather than per-dashboard filters: the filters are the same
  * because the questions are the same shape, and a period picked on one chart
  * applying to all of them is what makes the page feel like a single view
  * rather than fourteen widgets.
+ *
+ * Currency is a closed list. Mixing codes in one total is how a KES ledger
+ * used to look like a USD one inflated by 100×.
  */
 export function ReportFilterBar({
   filters,
@@ -24,6 +29,9 @@ export function ReportFilterBar({
   filters: ReportFilters;
   onChange: (next: ReportFilters) => void;
 }) {
+  const { activeWorkspace } = useAuth();
+  const currency = filters.currency || activeWorkspace?.tenant.base_currency || "KES";
+
   return (
     <div className="lf-report-filters">
       <SegmentedControl<ReportPeriod>
@@ -31,6 +39,12 @@ export function ReportFilterBar({
         options={PERIODS}
         value={(filters.period as ReportPeriod) ?? "last_12_months"}
         onChange={(period) => onChange({ ...filters, period })}
+      />
+      <Select
+        aria-label="Report currency"
+        options={CURRENCY_OPTIONS}
+        value={currency}
+        onChange={(e) => onChange({ ...filters, currency: e.target.value })}
       />
     </div>
   );

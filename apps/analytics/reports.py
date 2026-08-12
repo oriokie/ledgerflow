@@ -83,9 +83,10 @@ def _currency_for(filters: ReportFilters) -> str:
 def _scoped_transactions(filters: ReportFilters, start: date, end: date):
     """Posted, non-transfer transactions inside the window, narrowed by filters.
 
-    Only `POSTED` rows count: a pending transaction is a claim about the future,
-    and including it would make a report disagree with the account balance it is
-    supposed to explain.
+    Only posted and reconciled rows count: a pending transaction is a claim
+    about the future, and a voided one has left the books. Including either
+    would make a report disagree with the account balance it is supposed to
+    explain.
 
     Transfers are excluded for a different reason. Moving money between two
     accounts you already own changes nothing about your position, but it posts
@@ -99,15 +100,18 @@ def _scoped_transactions(filters: ReportFilters, start: date, end: date):
     qs = Transaction.objects.filter(
         occurred_at__gte=_aware(start),
         occurred_at__lte=_aware(end, end=True),
-        status=TransactionStatus.POSTED,
+        status__in=[TransactionStatus.POSTED, TransactionStatus.RECONCILED],
         transfer_group__isnull=True,
     )
     if filters.account_ids:
         qs = qs.filter(financial_account_id__in=filters.account_ids)
     if filters.category_ids:
         qs = qs.filter(category_id__in=filters.category_ids)
-    if filters.currency:
-        qs = qs.filter(currency=filters.currency)
+    # Always one currency. Omitting this summed KES cents into a USD-labeled
+    # total and inflated every report (and its CSV) for mixed-currency
+    # workspaces. `_currency_for` already names the report; the queryset must
+    # match that name.
+    qs = qs.filter(currency=_currency_for(filters))
     # The selector's ordering would leak into GROUP BY on every aggregate
     # below, silently producing one row per transaction.
     return qs.order_by()

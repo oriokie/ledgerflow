@@ -355,6 +355,12 @@
   margin-bottom: var(--lf-space-3);
 }
 
+.lf-loggedout-actions {
+  display: grid;
+  gap: var(--lf-space-2);
+  margin-top: var(--lf-space-2);
+}
+
 /* Tap targets on the auth screens.
  *
  * "Forgot password?" and "Create an account" are bare inline links, so their

@@ -45,7 +45,8 @@ describe("LoggedOutPage", () => {
         <LoggedOutPage />
       </MemoryRouter>,
     );
-    expect(screen.getByRole("heading", { name: /you're signed out/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /see you next time/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /back to home/i })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: /sign back in/i })).toHaveAttribute("href", "/login");
   });
 });

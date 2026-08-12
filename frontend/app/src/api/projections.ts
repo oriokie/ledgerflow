@@ -97,9 +97,19 @@ export interface Position {
   debts: PositionDebt[];
 }
 
+export interface CashflowStackLine {
+  id: string;
+  kind: string;
+  direction: "in" | "out";
+  label: string;
+  monthly_minor: number;
+  stoppable: boolean;
+}
+
 export interface BaselineResponse {
   position: Position;
   projection: Projection;
+  cashflow_stack?: CashflowStackLine[];
 }
 
 export interface ScenarioRun {

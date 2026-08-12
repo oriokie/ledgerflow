@@ -382,6 +382,23 @@ def test_a_home_purchase_compiles_to_deposit_asset_debt_and_running_costs():
     assert event.start_month == 6
 
 
+def test_a_home_purchase_can_stop_the_rent_it_replaces():
+    """Buying a home that ends a lease is a substitution, not extra cost."""
+    compiled = ev.compile_event(
+        kind=ev.EventKind.HOME_PURCHASE,
+        start_month=6,
+        params={
+            "price_minor": 10_000_000,
+            "deposit_minor": 2_000_000,
+            "monthly_running_costs_minor": 30_000,
+            "stops_monthly_minor": 80_000,
+        },
+        position=position(),
+        assumptions=FLAT,
+    )
+    assert compiled[0].monthly_expense_delta_minor == -50_000
+
+
 def test_a_cash_home_purchase_takes_on_no_debt():
     compiled = ev.compile_event(
         kind=ev.EventKind.HOME_PURCHASE,

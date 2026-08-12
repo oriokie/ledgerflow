@@ -7,7 +7,6 @@ import { useFlag } from "../../lib/featureFlags";
 import { PlanCard } from "./PlanCard";
 import { useAuth } from "../../lib/AuthContext";
 import { FEATURE_BY_PATH, useFeatures } from "../../hooks/useEntitlements";
-import { AppVersion } from "./AppVersion";
 import { NAV_SECTIONS, RECEIPT_SCAN_PATH } from "./navConfig";
 import { NAV_SECTIONS_V2, type NavItemV2 } from "./navConfigV2";
 
@@ -141,7 +140,6 @@ export function BrandMark() {
         <circle cx="17.2" cy="14" r="1.35" fill="currentColor" />
       </svg>
       <span className="lf-rail-brand-name">LedgerFlow</span>
-      <AppVersion />
     </>
   );
 }

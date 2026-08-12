@@ -122,11 +122,30 @@ class ReportExportView(TenantScopedAPIView, APIView):
                 if key not in columns:
                     columns.append(key)
 
+        from apps.fx.currencies import get_currency
+
+        meta = get_currency(result.currency)
+        digits = meta.digits if meta else 2
+        scale = 10 ** digits
+
+        expanded: list[str] = []
+        for key in columns:
+            if key.endswith("_minor"):
+                expanded.append(key[:-6])
+            expanded.append(key)
+
+        def _row(raw: dict) -> dict:
+            out = dict(raw)
+            for key, value in raw.items():
+                if key.endswith("_minor") and isinstance(value, (int, float)):
+                    out[key[:-6]] = f"{value / scale:.{digits}f}"
+            return out
+
         buffer = io.StringIO()
-        writer = csv.DictWriter(buffer, fieldnames=columns, extrasaction="ignore")
+        writer = csv.DictWriter(buffer, fieldnames=expanded, extrasaction="ignore")
         writer.writeheader()
         for row in table:
-            writer.writerow(row)
+            writer.writerow(_row(row))
 
         response = HttpResponse(buffer.getvalue(), content_type="text/csv")
         response["Content-Disposition"] = f'attachment; filename="{slug}.csv"'

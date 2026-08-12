@@ -7,6 +7,8 @@ import { ApiError } from "../api/client";
 import { tenancyApi } from "../api/tenancy";
 import { useAuth } from "../lib/AuthContext";
 import { AuthLayout } from "../components/auth/AuthLayout";
+import { CURRENCY_OPTIONS } from "../lib/currencies";
+import { COUNTRY_OPTIONS, CURRENCY_BY_COUNTRY } from "../lib/countries";
 import { Banner, Button, Grid, Heading, Inline, Input, Select, Stack, Text } from "../ui";
 
 /** Below this count the list is a glance; a search box would be clutter for
@@ -26,7 +28,8 @@ const schema = z.object({
   // at submission time in onSubmit below, so the two more relatable labels
   // stay in the picker without inventing backend values nothing reads.
   type: z.enum(["personal", "couple", "family"]),
-  base_currency: z.string().length(3, "Use a 3-letter currency code, e.g. USD."),
+  country: z.string().length(2, "Choose a country."),
+  base_currency: z.string().length(3, "Choose a currency."),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -57,10 +60,11 @@ export function WorkspacePickerPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { type: "personal", base_currency: "USD" },
+    defaultValues: { type: "personal", country: "KE", base_currency: "KES" },
   });
 
   // Reachable two ways: ProtectedRoute sends here when there's no active
@@ -140,20 +144,33 @@ export function WorkspacePickerPage() {
               {...register("name")}
             />
 
+            <Select
+              label="Type"
+              options={[
+                { value: "personal", label: "Personal" },
+                { value: "couple", label: "Couple" },
+                { value: "family", label: "Family" },
+              ]}
+              {...register("type")}
+            />
+
             <Grid cols={2} gap={4}>
               <Select
-                label="Type"
-                options={[
-                  { value: "personal", label: "Personal" },
-                  { value: "couple", label: "Couple" },
-                  { value: "family", label: "Family" },
-                ]}
-                {...register("type")}
+                label="Country"
+                options={[...COUNTRY_OPTIONS]}
+                error={errors.country?.message}
+                {...register("country", {
+                  onChange: (event) => {
+                    const next = CURRENCY_BY_COUNTRY[event.target.value];
+                    if (next) setValue("base_currency", next);
+                  },
+                })}
               />
-              <Input
+              <Select
                 label="Base currency"
-                maxLength={3}
+                options={CURRENCY_OPTIONS}
                 error={errors.base_currency?.message}
+                hint="Amounts stay in this currency. Reports never mix codes."
                 {...register("base_currency")}
               />
             </Grid>
