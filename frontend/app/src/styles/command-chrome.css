@@ -473,7 +473,7 @@
 .lf-admin-rail {
   padding: var(--lf-space-5) var(--lf-space-3);
   gap: var(--lf-space-5);
-  box-shadow: 12px 0 36px color-mix(in srgb, #000 22%, transparent);
+  box-shadow: 12px 0 36px color-mix(in srgb, var(--lf-ink-900) 22%, transparent);
 }
 
 .lf-admin-brand {
