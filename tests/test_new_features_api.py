@@ -169,7 +169,10 @@ def test_transaction_export_csv(tenant_context):
     assert resp["Content-Type"] == "text/csv"
     body = b"".join(resp.streaming_content).decode()
     assert "Coffee" in body
-    assert body.startswith("id,occurred_at,amount_minor")
+    # Major units beside minor so spreadsheets do not treat cents as dollars.
+    assert body.startswith("id,occurred_at,amount,amount_minor")
+    assert "-42.00" in body
+    assert "-4200" in body
 
 
 # ------------------------------------------------------------------ import
@@ -192,6 +195,40 @@ def test_forecast_endpoint(tenant_context):
     resp = client.get("/api/v1/intelligence/forecast/")
     assert resp.status_code == 200
     assert "points" in resp.data
+
+
+def test_voided_income_leaves_the_spending_trend(tenant_context):
+    """Deleting June income must drop it from the dashboard / analytics chart.
+
+    The chart used to sum every row including voids, so a deleted salary
+    lingered as a bar after the ledger list had already hidden it.
+    """
+    _, client = tenant_context
+    account = _mk_account(client)
+    salary = _mk_category(client, name="Salary", kind="income")
+    created = client.post(
+        "/api/v1/finance/transactions/",
+        {
+            "type": "income",
+            "financial_account_id": account["id"],
+            "category_id": salary["id"],
+            "amount_minor": 250_000,
+            "occurred_at": "2026-06-15T12:00:00Z",
+        },
+        format="json",
+    )
+    assert created.status_code in (200, 201), created.data
+
+    before = client.get("/api/v1/intelligence/spending-trend/?months=6").data
+    june = next(p for p in before if p["period_start"].startswith("2026-06"))
+    assert june["income_minor"] == 250_000
+
+    voided = client.post(f"/api/v1/finance/transactions/{created.data['id']}/void/", {}, format="json")
+    assert voided.status_code == 200, voided.data
+
+    after = client.get("/api/v1/intelligence/spending-trend/?months=6").data
+    june_after = next(p for p in after if p["period_start"].startswith("2026-06"))
+    assert june_after["income_minor"] == 0
 
 
 def test_net_worth_history_endpoint(tenant_context):

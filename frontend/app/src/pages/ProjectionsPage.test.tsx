@@ -51,6 +51,24 @@ const baseline: BaselineResponse = {
     debts: [],
   },
   projection: projection(),
+  cashflow_stack: [
+    {
+      id: "income:salary",
+      kind: "income",
+      direction: "in",
+      label: "Salary",
+      monthly_minor: 500_000,
+      stoppable: false,
+    },
+    {
+      id: "recurring:rent",
+      kind: "recurring",
+      direction: "out",
+      label: "Rent",
+      monthly_minor: 80_000,
+      stoppable: true,
+    },
+  ],
 };
 
 const scenarios: Scenario[] = [
@@ -148,6 +166,14 @@ describe("ProjectionsPage", () => {
     await waitFor(() =>
       expect(screen.getByText(/ends .* different/)).toBeInTheDocument(),
     );
+  });
+
+  it("names the scheduled flows the projection is counting", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText("What each month already counts")).toBeInTheDocument());
+    expect(screen.getByText("Salary")).toBeInTheDocument();
+    expect(screen.getByText("Rent")).toBeInTheDocument();
+    expect(screen.getByText(/can stop if you buy a home/i)).toBeInTheDocument();
   });
 
   it("always states its assumptions", async () => {

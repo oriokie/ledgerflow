@@ -234,6 +234,24 @@ def test_an_unknown_key_is_a_field_error_not_a_500():
     assert "key" in response.json()
 
 
+def test_operator_can_send_a_test_email(mailoutbox):
+    member = make_staff(PlatformRole.OWNER)
+    response = client_for(member).post("/api/v1/platform/settings/test-email/", {}, format="json")
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert response.json()["to"] == member.user.email
+    assert len(mailoutbox) == 1
+    assert mailoutbox[0].subject == "LedgerFlow test email"
+
+
+def test_ai_connectivity_check_refuses_when_off(settings):
+    settings.LLM_ENABLED = False
+    member = make_staff(PlatformRole.OWNER)
+    response = client_for(member).post("/api/v1/platform/settings/test-ai/", {}, format="json")
+    assert response.status_code == 400
+    assert "turned off" in response.json()["detail"].lower()
+
+
 def test_ai_availability_is_a_platform_decision(settings):
     """Gate one of three: the operator decides whether AI exists at all."""
     settings.LLM_ENABLED = False

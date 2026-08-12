@@ -457,6 +457,23 @@
   color: var(--lf-text-primary);
 }
 
+.lf-suggestion-evidence {
+  margin: var(--lf-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  font-size: var(--lf-text-xs);
+  color: var(--lf-text-secondary);
+}
+
+.lf-suggestion-evidence li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-2);
+  justify-content: space-between;
+}
+
 .lf-suggestion-actions {
   display: flex;
   gap: var(--lf-space-2);

@@ -13,14 +13,18 @@ export function AuthHeroArt({ scene = "signin" }: { scene?: AuthScene }) {
   if (scene === "signed-out") {
     return (
       <DoodleScene ids={ids} chips={false}>
-        <Wash tone="accent" dx={5} dy={5} rotate={2} opacity={0.22}>
-          <path d="M108 43h58v54h-58z" />
+        <Wash tone="accent" dx={-6} dy={8} rotate={-4} opacity={0.28}>
+          <path d="M96 36c28-18 62-8 70 22 8 28-10 54-38 62-26 8-54-6-62-32-6-22 6-42 30-52z" />
         </Wash>
-        <path d="M108 43h58v54h-58zM118 57h38M118 70h28M118 83h34" opacity="0.7" />
-        <path d="M105 109h30M127 101l8 8-8 8" strokeWidth="2.8" />
-        <Figure x={54} y={104} scale={1.42} arms="wave" hair="bun" tilt={-3} />
-        <Figure x={93} y={112} scale={1.05} arms="down" hair="short" tilt={4} flip />
-        <path d="M27 141c26 5 54 5 82 0" strokeWidth="2.4" opacity="0.35" />
+        <path
+          d="M42 118c18-28 40-46 72-52 28-6 52 4 64 28"
+          strokeWidth="2.4"
+          opacity="0.45"
+        />
+        <path d="M168 88l14-6M174 102l16 2M160 114l12 10" strokeWidth="2.2" opacity="0.5" />
+        <Figure x={58} y={108} scale={1.48} arms="wave" hair="curly" tilt={-4} />
+        <Figure x={98} y={118} scale={1.08} arms="down" hair="bun" tilt={6} flip />
+        <path d="M28 142c30 6 64 6 96 0" strokeWidth="2.4" opacity="0.35" />
       </DoodleScene>
     );
   }

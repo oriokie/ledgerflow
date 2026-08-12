@@ -49,6 +49,7 @@ def update_workspace(
     name: str | None = None,
     base_currency: str | None = None,
     block_overdrafts: bool | None = None,
+    country: str | None = None,
 ) -> Tenant:
     """Owner-only workspace settings update. Changing the base currency only
     affects how new categories/reporting default and how mixed-currency totals
@@ -83,6 +84,9 @@ def update_workspace(
         # changes what the product will accept from here on.
         tenant.block_overdrafts = block_overdrafts
         fields.append("block_overdrafts")
+    if country is not None:
+        tenant.country = country.strip().upper()
+        fields.append("country")
     if fields:
         fields.append("updated_at")
         tenant.save(update_fields=fields)
@@ -126,6 +130,25 @@ def _hash_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode()).hexdigest()
 
 
+#: Stated country → (locale, timezone). Used only when the caller did not
+#: pick those explicitly; the US default was leaking into every new workspace
+#: whose owner never got to say where they live.
+_COUNTRY_DEFAULTS: dict[str, tuple[str, str]] = {
+    "KE": ("en-KE", "Africa/Nairobi"),
+    "UG": ("en-UG", "Africa/Kampala"),
+    "TZ": ("en-TZ", "Africa/Dar_es_Salaam"),
+    "NG": ("en-NG", "Africa/Lagos"),
+    "GH": ("en-GH", "Africa/Accra"),
+    "ZA": ("en-ZA", "Africa/Johannesburg"),
+    "GB": ("en-GB", "Europe/London"),
+    "US": ("en-US", "America/New_York"),
+    "CA": ("en-CA", "America/Toronto"),
+    "AU": ("en-AU", "Australia/Sydney"),
+    "IN": ("en-IN", "Asia/Kolkata"),
+    "AE": ("en-AE", "Asia/Dubai"),
+}
+
+
 @transaction.atomic
 def create_workspace(
     *,
@@ -133,6 +156,7 @@ def create_workspace(
     owner,
     type: str = TenantType.PERSONAL,  # noqa: A002 -- matches the public API vocabulary
     base_currency: str = "USD",
+    country: str = "",
     locale: str = "en-US",
     timezone: str = "UTC",
 ) -> Tenant:
@@ -142,12 +166,26 @@ def create_workspace(
 
     assert_may_join_workspace(owner, action="create a workspace")
 
+    from django.utils import timezone as dj_timezone
+
+    from apps.fx.currencies import is_supported
+
+    code = (base_currency or "USD").upper()
+    if not is_supported(code):
+        raise TenancyError(f"{code} isn't a supported currency.")
+    country_code = (country or "").strip().upper()
+    defaults = _COUNTRY_DEFAULTS.get(country_code)
+    if defaults and locale == "en-US" and timezone == "UTC":
+        locale, timezone = defaults
+
     tenant = Tenant.objects.create(
         name=name,
         type=type,
-        base_currency=base_currency,
+        base_currency=code,
+        country=country_code,
         default_locale=locale,
         default_timezone=timezone,
+        base_currency_chosen_at=dj_timezone.now(),
     )
     Membership.objects.create(tenant=tenant, user=owner, role=Role.OWNER)
     OutboxEvent.objects.create(
@@ -155,9 +193,15 @@ def create_workspace(
         aggregate_type="tenancy.Tenant",
         aggregate_id=tenant.id,
         event_type="tenancy.workspace.created",
-        payload={"name": name, "type": type, "owner_id": str(owner.id), "base_currency": base_currency},
+        payload={
+            "name": name,
+            "type": type,
+            "owner_id": str(owner.id),
+            "base_currency": code,
+            "country": country_code,
+        },
     )
-    _seed_default_categories(tenant=tenant, owner=owner, currency=base_currency)
+    _seed_default_categories(tenant=tenant, owner=owner, currency=code)
 
     # Every new workspace starts on the Basic trial — card-free, seven days.
     # Best-effort but loud: a billing hiccup must not block someone's first

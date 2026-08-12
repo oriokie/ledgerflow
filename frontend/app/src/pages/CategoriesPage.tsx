@@ -2,13 +2,14 @@ import { FolderTree, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { ApiError } from "../api/client";
 import type { Category } from "../api/types";
+import { useAuth } from "../lib/AuthContext";
 import {
   useCategories,
   useCreateCategory,
   useDeleteCategory,
   useUpdateCategory,
 } from "../hooks/useFinance";
-import { Banner, Button, Card, ConfirmAction, EmptyState, Heading, IconButton, Input, Modal, PageHeader, SegmentedControl, Select, Skeleton, Stack, Table, Text } from "../ui";
+import { Banner, Button, Card, ConfirmAction, EmptyState, IconButton, Input, Modal, PageHeader, SegmentedControl, Select, Skeleton, Stack, Table, Text } from "../ui";
 import type { Column } from "../ui";
 
 /** Options for a parent picker: same-kind categories only, indented to show
@@ -36,6 +37,7 @@ function parentOptions(all: Category[], kind: Category["kind"], excludeId?: stri
 }
 
 export function CategoriesPage() {
+  const { activeWorkspace } = useAuth();
   const { data: categories, isLoading } = useCategories();
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
@@ -72,7 +74,7 @@ export function CategoriesPage() {
       const payload = {
         name,
         kind,
-        currency: "USD",
+        currency: activeWorkspace?.tenant.base_currency ?? "KES",
         ...(parentId ? { parent_id: parentId } : {}),
       };
       await createCategory.mutateAsync(payload);
@@ -109,6 +111,12 @@ export function CategoriesPage() {
   };
 
   const columns: Column<Category>[] = [
+    {
+      key: "kind",
+      header: "Kind",
+      hideMobile: true,
+      render: (c) => <span className="lf-cell-meta">{c.kind}</span>,
+    },
     {
       key: "name",
       header: "Name",
@@ -153,18 +161,7 @@ export function CategoriesPage() {
     },
   ];
 
-  const renderGroup = (title: string, list: Category[]) => (
-    <section style={{ marginBottom: "var(--lf-space-8)" }}>
-      <Heading level={2}>{title}</Heading>
-      {list.length === 0 ? (
-        <Text tone="tertiary" size="sm" style={{ marginTop: "var(--lf-space-2)" }}>
-          No {title.toLowerCase()} yet.
-        </Text>
-      ) : (
-        <Table columns={columns} rows={list} rowKey={(c) => c.id} responsive={false} caption={title} />
-      )}
-    </section>
-  );
+  const sorted = [...expense, ...income];
 
   return (
     <>
@@ -204,10 +201,15 @@ export function CategoriesPage() {
       )}
 
       {categories && categories.length > 0 && (
-        <>
-          {renderGroup("Expense categories", expense)}
-          {renderGroup("Income categories", income)}
-        </>
+        <Table
+          columns={columns}
+          rows={sorted}
+          rowKey={(c) => c.id}
+          responsive={false}
+          caption="Categories"
+          stickyHeader
+          compact
+        />
       )}
 
       <Modal

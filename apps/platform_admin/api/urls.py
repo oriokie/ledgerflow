@@ -38,6 +38,8 @@ from .views import (
     PlanDetailView,
     PlanListView,
     PlatformSettingsView,
+    PlatformTestAIView,
+    PlatformTestEmailView,
     PublicAppearanceView,
     RefundDecisionView,
     RefundListView,
@@ -166,6 +168,8 @@ urlpatterns = [
     # Operations
     path("health/", HealthView.as_view(), name="platform-health"),
     path("settings/", PlatformSettingsView.as_view(), name="platform-settings"),
+    path("settings/test-email/", PlatformTestEmailView.as_view(), name="platform-settings-test-email"),
+    path("settings/test-ai/", PlatformTestAIView.as_view(), name="platform-settings-test-ai"),
     # Public: the signed-out product needs the illustration style.
     path("appearance/", PublicAppearanceView.as_view(), name="platform-appearance"),
     path("notifications/", NotificationListView.as_view(), name="platform-notifications"),

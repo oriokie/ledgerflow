@@ -4,20 +4,10 @@
   grid-template-columns: 1fr;
   gap: var(--lf-space-4);
 }
-@media (min-width: 1024px) {
-  .lf-acct-layout {
-    grid-template-columns: minmax(300px, 360px) 1fr;
-    align-items: start;
-  }
-  /* Desktop shows both columns side by side regardless of which one mobile
-     last had focused — undoes the mobile-first single-column rules below. */
-  .lf-acct-back {
-    display: none;
-  }
-  .lf-acct-layout[data-mobile-view="list"] .lf-acct-detail-col,
-  .lf-acct-layout[data-mobile-view="detail"] .lf-acct-list-col {
-    display: block;
-  }
+
+.lf-acct-list-col,
+.lf-acct-detail-col {
+  min-width: 0;
 }
 
 /* ---------- account list (master) ---------- */
@@ -218,18 +208,31 @@
   gap: 2px;
 }
 
-/* Back-to-list affordance — only meaningful when the columns are stacked.
-   Mobile-first: visible by default, hidden again once the 1024px block above
-   restores the two-column desktop layout. */
+/* Back-to-list and one-column swap — mobile default. Desktop overrides below. */
 .lf-acct-back {
   display: inline-flex;
 }
 
-/* Mobile: show one column at a time; desktop (1024px block above) shows both
-   side by side regardless of data-mobile-view. */
 .lf-acct-layout[data-mobile-view="list"] .lf-acct-detail-col {
   display: none;
 }
+
 .lf-acct-layout[data-mobile-view="detail"] .lf-acct-list-col {
   display: none;
+}
+
+@media (min-width: 1024px) {
+  .lf-acct-layout {
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .lf-acct-back {
+    display: none;
+  }
+
+  .lf-acct-layout[data-mobile-view="list"] .lf-acct-detail-col,
+  .lf-acct-layout[data-mobile-view="detail"] .lf-acct-list-col {
+    display: revert;
+  }
 }

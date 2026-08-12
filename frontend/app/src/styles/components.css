@@ -924,6 +924,16 @@
   z-index: 2;
 }
 
+.lf-table-wrap--compact .lf-table th,
+.lf-table-wrap--compact .lf-table td {
+  padding-block: var(--lf-space-2);
+  padding-inline: var(--lf-space-3);
+}
+
+.lf-table-wrap--compact .lf-table tbody tr:nth-child(even) {
+  background: var(--lf-bg-sunken);
+}
+
 .lf-table td {
   /* A touch more vertical room: financial rows are scanned, not read, and
      the extra leading is what makes a long ledger comfortable. */

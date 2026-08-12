@@ -21,7 +21,13 @@ from apps.finance.models import Transaction
 # `_COUNTED` (posted + reconciled) is the finance layer's own definition of a
 # transaction that counts toward reported figures. Imported rather than
 # restated so this module cannot drift from it.
-from apps.finance.selectors import _COUNTED, cash_flow, net_worth
+from apps.finance.selectors import (
+    _COUNTED,
+    _NOT_TRANSFER,
+    _dominant_liquid_currency,
+    cash_flow,
+    net_worth,
+)
 from apps.ledger.models import AccountBalance
 
 from .protocols import AmountObservation, CashflowPoint, HealthInputs, RecommendationContext
@@ -214,7 +220,12 @@ def build_amount_observations(*, days: int = 120) -> list[AmountObservation]:
     excluded — moving money isn't spending)."""
     since = timezone.now() - timedelta(days=days)
     rows = (
-        Transaction.objects.filter(occurred_at__gte=since, transfer_group__isnull=True, amount_minor__lt=0)
+        Transaction.objects.filter(
+            _COUNTED,
+            _NOT_TRANSFER,
+            occurred_at__gte=since,
+            amount_minor__lt=0,
+        )
         .select_related("payee")
         .order_by("occurred_at")
     )
@@ -251,12 +262,19 @@ def _income_stability(as_of: date) -> float | None:
     for _ in range(3):
         prev_end = cursor
         prev_start = (cursor - timedelta(days=1)).replace(day=1)
-        agg = Transaction.objects.filter(
-            occurred_at__date__gte=prev_start,
-            occurred_at__date__lt=prev_end,
+        start_dt = timezone.make_aware(datetime.combine(prev_start, time.min))
+        end_dt = timezone.make_aware(datetime.combine(prev_end, time.min))
+        qs = Transaction.objects.filter(
+            _COUNTED,
+            _NOT_TRANSFER,
+            occurred_at__gte=start_dt,
+            occurred_at__lt=end_dt,
             amount_minor__gt=0,
-            transfer_group__isnull=True,
-        ).aggregate(total=Sum("amount_minor"))
+        )
+        currency = _dominant_liquid_currency()
+        if currency:
+            qs = qs.filter(currency=currency)
+        agg = qs.aggregate(total=Sum("amount_minor"))
         monthly.append(agg["total"] or 0)
         cursor = prev_start
 
@@ -280,8 +298,13 @@ def build_cashflow_history(*, months: int = 6, as_of: date | None = None) -> lis
     input. One grouped query per month over the non-transfer partial index;
     `months` is small (single digits) so this is a handful of cheap aggregates,
     not an N+1 over transactions.
+
+    Counts the same rows as `cash_flow()`: posted/reconciled, non-transfer,
+    in the dominant liquid currency. Voided June income must not linger on
+    the chart after the ledger list has hidden it.
     """
     as_of = as_of or timezone.localdate()
+    currency = _dominant_liquid_currency()
     points: list[CashflowPoint] = []
     month_start = as_of.replace(day=1)
     starts: list[date] = []
@@ -290,11 +313,17 @@ def build_cashflow_history(*, months: int = 6, as_of: date | None = None) -> lis
         month_start = _prev_month_first(month_start)
     for start in reversed(starts):  # oldest first
         nxt = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
-        agg = Transaction.objects.filter(
-            occurred_at__date__gte=start,
-            occurred_at__date__lt=nxt,
-            transfer_group__isnull=True,
-        ).aggregate(
+        start_dt = timezone.make_aware(datetime.combine(start, time.min))
+        end_dt = timezone.make_aware(datetime.combine(nxt, time.min))
+        qs = Transaction.objects.filter(
+            _COUNTED,
+            _NOT_TRANSFER,
+            occurred_at__gte=start_dt,
+            occurred_at__lt=end_dt,
+        )
+        if currency:
+            qs = qs.filter(currency=currency)
+        agg = qs.aggregate(
             income=Sum("amount_minor", filter=models.Q(amount_minor__gt=0)),
             expense=Sum("amount_minor", filter=models.Q(amount_minor__lt=0)),
         )

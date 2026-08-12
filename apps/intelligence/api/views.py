@@ -617,7 +617,21 @@ class LLMSettingsView(TenantScopedAPIView, APIView):
 
 
 # ------------------------------------------------------- automation review
+def _suggestion_txn_out(t) -> dict:
+    payee = getattr(getattr(t, "payee", None), "name", None) or (t.memo or "")
+    account = getattr(getattr(t, "financial_account", None), "name", None) or ""
+    return {
+        "id": str(t.id),
+        "occurred_at": t.occurred_at,
+        "amount_minor": t.amount_minor,
+        "currency": t.currency,
+        "payee": payee,
+        "account_name": account,
+    }
+
+
 def _suggestion_out(s) -> dict:
+    txns = list(s.transactions.all())
     return {
         "id": s.id,
         "kind": s.kind,
@@ -629,7 +643,8 @@ def _suggestion_out(s) -> dict:
         "payload": s.payload,
         "merchant_key": s.merchant_key,
         "primary_transaction_id": s.primary_transaction_id,
-        "transaction_ids": [str(t.id) for t in s.transactions.all()],
+        "transaction_ids": [str(t.id) for t in txns],
+        "transactions": [_suggestion_txn_out(t) for t in txns],
         "created_at": s.created_at,
         "decided_at": s.decided_at,
     }

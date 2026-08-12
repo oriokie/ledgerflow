@@ -8,7 +8,9 @@ import {
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import type { AutomationKind, AutomationSuggestion } from "../../api/types";
+import { formatAmount } from "../../lib/money";
 import { Button, Checkbox, Text } from "../../ui";
 
 const ICONS: Record<AutomationKind, LucideIcon> = {
@@ -88,10 +90,33 @@ export function SuggestionCard({
         {/* Always visible: this asks the user to act, so the reasoning can't
             sit behind a disclosure. */}
         <p className="lf-suggestion-reason">{suggestion.reason}</p>
-        {suggestion.transaction_ids.length > 1 && (
-          <Text as="span" tone="tertiary" size="xs">
-            {suggestion.transaction_ids.length} transactions
-          </Text>
+        {suggestion.transactions && suggestion.transactions.length > 0 ? (
+          <ul className="lf-suggestion-evidence">
+            {suggestion.transactions.map((txn) => (
+              <li key={txn.id}>
+                <Link className="lf-link" to={`/transactions?q=${encodeURIComponent(txn.payee || txn.id)}`}>
+                  {txn.payee || "Untitled"}
+                </Link>
+                <span>
+                  {formatAmount(Math.abs(txn.amount_minor), txn.currency)}
+                  {txn.account_name ? ` · ${txn.account_name}` : ""}
+                  {txn.occurred_at
+                    ? ` · ${new Date(txn.occurred_at).toLocaleDateString(undefined, {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}`
+                    : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          suggestion.transaction_ids.length > 1 && (
+            <Text as="span" tone="tertiary" size="xs">
+              {suggestion.transaction_ids.length} transactions
+            </Text>
+          )
         )}
       </div>
 

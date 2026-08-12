@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAccounts, useCategoryBreakdown } from "../hooks/useFinance";
 import { useSpendingTrend } from "../hooks/useIntelligence";
+import { useAuth } from "../lib/AuthContext";
 import { Card, PageHeader, SegmentedControl, SkeletonCard, Text } from "../ui";
 import { CashFlowChart, CashflowStatement, CategoryBreakdown, CategoryDrilldown, ComparisonCards } from "./analytics";
 import { breakdownWithShare, comparisonFromTrend, rangeForMonths, topN } from "./analytics/analyticsMath";
@@ -16,6 +17,7 @@ const RANGES = [
  * `/insights`). The hub owns the <h1>, so the page must not render its own
  * PageHeader — two page titles on one route is a broken heading outline. */
 export function AnalyticsPage({ embedded }: { embedded?: boolean } = {}) {
+  const { activeWorkspace } = useAuth();
   const navigate = useNavigate();
   const [monthsStr, setMonthsStr] = useState("6");
   const [type, setType] = useState<"expense" | "income">("expense");
@@ -27,7 +29,7 @@ export function AnalyticsPage({ embedded }: { embedded?: boolean } = {}) {
   const { start, end } = useMemo(() => rangeForMonths(months), [months]);
   const { data: breakdown } = useCategoryBreakdown(start, end, type);
 
-  const currency = accounts?.[0]?.currency ?? "USD";
+  const currency = activeWorkspace?.tenant.base_currency ?? accounts?.[0]?.currency ?? "KES";
   const comparison = comparisonFromTrend(trend);
   const rows = topN(breakdownWithShare(breakdown), 8);
 

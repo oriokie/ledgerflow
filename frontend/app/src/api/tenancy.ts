@@ -10,13 +10,14 @@ export const tenancyApi = {
     name: string;
     type?: string;
     base_currency?: string;
+    country?: string;
     locale?: string;
     timezone?: string;
   }) => api.post<Workspace>("/tenancy/workspaces/", payload, { skipTenant: true }),
 
   updateWorkspace: (
     tenantId: string,
-    payload: { name?: string; base_currency?: string; block_overdrafts?: boolean },
+    payload: { name?: string; base_currency?: string; country?: string; block_overdrafts?: boolean },
   ) =>
     api.patch<{
       id: string;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { ApiError } from "../../api/client";
-import type { PlatformSetting } from "../../api/platform";
+import { platformApi, type PlatformSetting } from "../../api/platform";
 import { useCapability, usePlatformMe, usePlatformSettings, useWriteSetting } from "../../hooks/usePlatform";
 import {
   Badge,
@@ -25,6 +25,7 @@ const GROUP_LABELS: Record<string, string> = {
   payments: "Payments",
   email: "Outbound email",
   ai: "AI",
+  oauth: "Sign-in with Google & Apple",
   operations: "Operations",
 };
 
@@ -38,7 +39,7 @@ const GROUP_ORDER = Object.keys(GROUP_LABELS);
  * edit or a Tenant action, so they go through a reason prompt instead of
  * straight to the API. Left ungated, the backend logs only the generic
  * "Updated {key}.", which is indistinguishable from no audit trail at all. */
-const REASON_REQUIRED_GROUPS = new Set(["payments", "email", "ai"]);
+const REASON_REQUIRED_GROUPS = new Set(["payments", "email", "ai", "oauth"]);
 
 const GROUP_NOTES: Record<string, string> = {
   invoicing:
@@ -47,7 +48,9 @@ const GROUP_NOTES: Record<string, string> = {
     "Which providers customers can pay with, and their credentials. Prefer setting secrets in the environment; use these fields only when you need to rotate a key without a deploy.",
   email:
     "Where invitations, password resets and invoices are sent from. Leave every field empty to keep using the environment's EMAIL_* values; anything set here overrides them from the next message, with no deploy. A broken relay fails silently, so send yourself a test after changing it.",
-  ai: "AI is off unless you turn it on here. This is the first of three gates — a workspace also needs a plan that includes AI, and its owner can still opt out.",
+  ai: "AI is off unless you turn it on here. This is the first of three gates — a workspace also needs a plan that includes AI, and its owner can still opt out. Use the connectivity check below — it sends a ping, never household data.",
+  oauth:
+    "Credentials for Sign in with Google and Sign in with Apple. Until both the client ID and secret are set (here or in the environment), the buttons on the login page will refuse to start. Apple needs a Services ID and a JWT generated from your .p8 key.",
   operations: "Thresholds the health dashboard and support tooling use.",
 };
 
@@ -81,6 +84,66 @@ function IllustrationStylePreview({ current }: { current: string }) {
           <figcaption>{style === current ? `${style} — in use` : style}</figcaption>
         </figure>
       ))}
+    </div>
+  );
+}
+
+function ConnectionTest({
+  group,
+  editable,
+}: {
+  group: string;
+  editable: boolean;
+}) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  if (group !== "email" && group !== "ai") return null;
+
+  const run = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      if (group === "email") {
+        const result = await platformApi.testEmail();
+        const detail = `Sent a test to ${result.to}.`;
+        toast(detail, { tone: "success" });
+        setMessage(detail);
+      } else {
+        const result = await platformApi.testAI();
+        const detail = result.reply
+          ? `Reached ${result.model ?? "the model"}: ${result.reply}`
+          : `Reached ${result.model ?? "the model"}.`;
+        toast("AI connectivity check passed", { tone: "success" });
+        setMessage(detail);
+      }
+    } catch (err) {
+      setMessage(err instanceof ApiError ? err.detail : "The test failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="lf-admin-setting">
+      <div className="lf-admin-setting-label">
+        <strong>{group === "email" ? "Send a test email" : "Ping the model"}</strong>
+        <Text size="xs" tone="tertiary">
+          {group === "email"
+            ? "Sends one message to your staff address so a broken relay is visible immediately."
+            : "Asks the configured model for a single word. No workspace data is sent."}
+        </Text>
+        {message && (
+          <Text size="xs" tone="secondary">
+            {message}
+          </Text>
+        )}
+      </div>
+      <div className="lf-admin-setting-control">
+        <Button size="sm" variant="secondary" disabled={!editable || busy} onClick={() => void run()}>
+          {busy ? "Testing…" : group === "email" ? "Send test email" : "Test AI"}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -320,6 +383,7 @@ export function AdminSettingsPage() {
                   onSave={requestSave(group)}
                 />
               ))}
+            <ConnectionTest group={group} editable={editable} />
           </div>
         </Card>
       ))}

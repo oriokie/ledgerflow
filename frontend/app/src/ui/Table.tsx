@@ -36,6 +36,8 @@ interface TableProps<Row> {
    * enough to scroll — the column meaning stays on screen.
    */
   stickyHeader?: boolean;
+  /** Tighter row padding — the transactions/categories density. */
+  compact?: boolean;
   /**
    * Row selection. Providing `selectedIds` + `onToggleRow` adds a leading
    * checkbox column and a select-all control in the header.
@@ -70,6 +72,7 @@ export function Table<Row>({
   caption,
   responsive = true,
   stickyHeader = false,
+  compact = false,
   selectedIds,
   onToggleRow,
   onToggleAll,
@@ -91,7 +94,11 @@ export function Table<Row>({
 
   return (
     <div
-      className={clsx("lf-table-wrap", stickyHeader && "lf-table-wrap--sticky")}
+      className={clsx(
+        "lf-table-wrap",
+        stickyHeader && "lf-table-wrap--sticky",
+        compact && "lf-table-wrap--compact",
+      )}
       /* A capped, overflowing container is only scrollable with a pointer
          unless it can take focus. WCAG 2.1.1 (keyboard) requires the content
          be reachable, so a sticky-header table gets tabindex=0 and an

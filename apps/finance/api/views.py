@@ -1577,6 +1577,7 @@ class TransactionExportView(TenantScopedAPIView, APIView):
         header = [
             "id",
             "occurred_at",
+            "amount",
             "amount_minor",
             "currency",
             "status",
@@ -1586,6 +1587,14 @@ class TransactionExportView(TenantScopedAPIView, APIView):
             "memo",
         ]
 
+        def _major(amount_minor: int, currency: str) -> str:
+            from apps.fx.currencies import get_currency
+
+            meta = get_currency(currency)
+            digits = meta.digits if meta else 2
+            scale = 10**digits
+            return f"{amount_minor / scale:.{digits}f}"
+
         def _stream():
             yield writer.writerow(header)
             for r in rows:
@@ -1593,6 +1602,7 @@ class TransactionExportView(TenantScopedAPIView, APIView):
                     [
                         r["id"],
                         r["occurred_at"].isoformat() if r["occurred_at"] else "",
+                        _major(r["amount_minor"], r["currency"]),
                         r["amount_minor"],
                         r["currency"],
                         r["status"],

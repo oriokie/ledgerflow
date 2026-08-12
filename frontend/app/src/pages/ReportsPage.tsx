@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { reportsApi } from "../api/reports";
 import type { ReportFilters, ReportGroup, ReportMeta } from "../api/types";
 import { useReport, useReportCatalog } from "../hooks/useReports";
+import { useAuth } from "../lib/AuthContext";
 import { Link } from "react-router-dom";
 import { Card, EmptyState, Grid, Inline, PageHeader, SegmentedControl, SkeletonCard } from "../ui";
 import { FinancialIndependencePanel, ReportCard, ReportFilterBar } from "./analytics";
@@ -45,8 +46,12 @@ function Report({ meta, filters }: { meta: ReportMeta; filters: ReportFilters })
  * so they still render when embedded — just in a plain row instead of a
  * full PageHeader. */
 export function ReportsPage({ embedded }: { embedded?: boolean } = {}) {
+  const { activeWorkspace } = useAuth();
   const [group, setGroup] = useState<ReportGroup>("position");
-  const [filters, setFilters] = useState<ReportFilters>({ period: "last_12_months" });
+  const [filters, setFilters] = useState<ReportFilters>({
+    period: "last_12_months",
+    currency: activeWorkspace?.tenant.base_currency,
+  });
 
   const { data: catalog, isLoading } = useReportCatalog();
 

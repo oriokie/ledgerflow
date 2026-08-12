@@ -72,7 +72,11 @@ export function useDashboardModel() {
   const debtSummary = debtSummaryRaw ?? undefined;
   const { data: incomeSummary } = useIncomeSummary();
 
-  const primaryCurrency = netWorth?.[0]?.currency ?? accounts?.[0]?.currency ?? "USD";
+  const primaryCurrency =
+    netWorth?.[0]?.currency ??
+    accounts?.[0]?.currency ??
+    activeWorkspace?.tenant.base_currency ??
+    "KES";
   const primaryNetWorth = netWorth?.find((n) => n.currency === primaryCurrency) ?? netWorth?.[0];
   const primaryCashFlow = cashFlow?.find((c) => c.currency === primaryCurrency) ?? cashFlow?.[0];
 

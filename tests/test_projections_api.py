@@ -190,6 +190,8 @@ def test_the_baseline_projection_returns_position_and_points(tenant_context):
     assert res.data["position"]["currency"] == "USD"
     assert len(res.data["projection"]["points"]) == 24
     assert res.data["projection"]["assumptions"]
+    assert "cashflow_stack" in res.data
+    assert isinstance(res.data["cashflow_stack"], list)
 
 
 def test_the_baseline_horizon_is_bounded(tenant_context):

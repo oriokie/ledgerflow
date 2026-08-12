@@ -1151,6 +1151,76 @@ class PlatformSettingsView(PlatformAdminAPIView, APIView):
         return Response(settings_store.describe(spec))
 
 
+class PlatformTestEmailView(PlatformAdminAPIView, APIView):
+    """Send a one-line message to the operator so a broken relay is visible."""
+
+    capability_map = {"POST": Cap.STAFF_MANAGE}
+    serializer_class = None
+
+    def post(self, request):
+        from django.core.mail import send_mail
+
+        from apps.platform_admin.email_backend import resolve_from_email
+
+        to = request.user.email
+        try:
+            send_mail(
+                subject="LedgerFlow test email",
+                message="Outbound email is working. This is a test from platform settings.",
+                from_email=resolve_from_email(),
+                recipient_list=[to],
+                fail_silently=False,
+            )
+        except Exception as exc:  # noqa: BLE001 — surface the SMTP error
+            record(
+                action="setting.test_email_failed",
+                staff=self.staff,
+                module="settings",
+                target_type="platform_admin.PlatformSetting",
+                changes={"email": [None, str(exc)[:200]]},
+                reason="Test email failed.",
+                request=request,
+            )
+            return Response({"ok": False, "detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        record(
+            action="setting.test_email",
+            staff=self.staff,
+            module="settings",
+            target_type="platform_admin.PlatformSetting",
+            changes={"to": [None, to]},
+            reason="Sent a test email.",
+            request=request,
+        )
+        return Response({"ok": True, "to": to})
+
+
+class PlatformTestAIView(PlatformAdminAPIView, APIView):
+    """Ping the configured model without sending any household data."""
+
+    capability_map = {"POST": Cap.STAFF_MANAGE}
+    serializer_class = None
+
+    def post(self, request):
+        from apps.intelligence.llm import complete, get_llm_config
+
+        config = get_llm_config()
+        if not config.enabled:
+            return Response({"ok": False, "detail": "AI is turned off."}, status=status.HTTP_400_BAD_REQUEST)
+        if not config.model:
+            return Response(
+                {"ok": False, "detail": "No model is configured."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            reply = complete(
+                system="You are a connectivity check. Reply with the single word pong.",
+                user="ping",
+                config=config,
+            )
+        except Exception as exc:  # noqa: BLE001 — surface provider errors
+            return Response({"ok": False, "detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response({"ok": True, "model": config.model, "reply": (reply or "")[:240]})
+
+
 # ================================================================= saved views
 class SavedViewListView(PlatformAdminAPIView, APIView):
     serializer_class = s.SavedViewSerializer

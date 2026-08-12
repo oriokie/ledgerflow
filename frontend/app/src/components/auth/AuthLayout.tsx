@@ -49,9 +49,9 @@ export function AuthLayout({
   const panelCopy =
     scene === "signed-out"
       ? {
-          eyebrow: "Session complete",
+          eyebrow: "Until next time",
           title: "Your books stay private.",
-          body: "Everything is exactly where you left it, ready when you return.",
+          body: "Signed out cleanly. Come back whenever you need the next clear look.",
         }
       : {
           eyebrow: "Clarity, every day",

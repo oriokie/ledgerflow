@@ -286,7 +286,7 @@ export function AccountsPage() {
             title="Add your first account"
             body="Accounts hold your money — checking, savings, cash, credit cards. Everything else builds on them."
             tips={[
-              "Each account keeps its own currency; reports convert to your base.",
+              "Each account keeps its own currency. Reports stay in one currency at a time — they do not mix codes.",
               "Credit cards and loans are tracked as money you owe, not money you have.",
               "Group related accounts into a wallet once you have a few.",
             ]}
@@ -416,7 +416,7 @@ export function AccountsPage() {
                 label="Currency"
                 required
                 options={CURRENCY_OPTIONS}
-                hint="Fixed once set. Reports convert to your base currency."
+                hint="Fixed once set. Reports filter to one currency rather than converting."
                 error={accountForm.formState.errors.currency?.message}
                 {...accountForm.register("currency")}
               />

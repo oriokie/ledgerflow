@@ -542,6 +542,9 @@ export const platformApi = {
   settings: () => api.get<{ settings: PlatformSetting[] }>(`${BASE}/settings/`, NO_TENANT),
   writeSetting: (body: { key: string; value: unknown; reason?: string }) =>
     api.post<PlatformSetting>(`${BASE}/settings/`, body, NO_TENANT),
+  testEmail: () => api.post<{ ok: boolean; to: string }>(`${BASE}/settings/test-email/`, {}, NO_TENANT),
+  testAI: () =>
+    api.post<{ ok: boolean; model?: string; reply?: string }>(`${BASE}/settings/test-ai/`, {}, NO_TENANT),
 
   // Saved views
   savedViews: (surface?: string) =>
