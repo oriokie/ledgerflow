@@ -500,6 +500,9 @@ def test_api_exports_a_report_as_csv(tenant_context):
     assert resp["Content-Type"] == "text/csv"
     assert "largest_purchases.csv" in resp["Content-Disposition"]
     assert b"amount_minor" in resp.content
+    # Major units sit beside the minor-unit column so a spreadsheet does not
+    # treat 12500 cents as twelve thousand dollars.
+    assert b"125.00" in resp.content
 
 
 def test_api_export_is_204_when_there_is_nothing_to_export(tenant_context):

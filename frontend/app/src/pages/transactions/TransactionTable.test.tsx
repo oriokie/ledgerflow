@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Category, FinancialAccount, Transaction } from "../../api/types";
+import type { Category, FinancialAccount, Payee, Transaction } from "../../api/types";
 import { TransactionTable } from "./TransactionTable";
 
 const accounts: FinancialAccount[] = [
@@ -10,6 +10,7 @@ const categories: Category[] = [
   { id: "grocery", name: "Groceries", kind: "expense", path: "Groceries", depth: 0, parent_id: null },
   { id: "salary", name: "Salary", kind: "income", path: "Salary", depth: 0, parent_id: null },
 ];
+const payees: Payee[] = [{ id: "payee1", name: "Acme Corp" }];
 
 function txn(id: string, over: Partial<Transaction> = {}): Transaction {
   return {
@@ -21,8 +22,11 @@ function txn(id: string, over: Partial<Transaction> = {}): Transaction {
     status: "posted",
     source: "manual",
     category_id: null,
+    payee_id: null,
     counter_account_id: null,
     transfer_group: null,
+    split_group: null,
+    reconciled_at: null,
     memo: `Txn ${id}`,
     ...over,
   };
@@ -30,16 +34,21 @@ function txn(id: string, over: Partial<Transaction> = {}): Transaction {
 
 const rows = [txn("t1"), txn("t2"), txn("t3", { transfer_group: "grp" })];
 
-function setup(selected: Set<string>, handlers: Partial<Record<string, ReturnType<typeof vi.fn>>> = {}) {
+function setup(
+  selected: Set<string>,
+  handlers: Partial<Record<string, ReturnType<typeof vi.fn>>> = {},
+  overrideRows: Transaction[] = rows,
+) {
   const onToggle = handlers.onToggle ?? vi.fn();
   const onToggleAll = handlers.onToggleAll ?? vi.fn();
   const onOpen = handlers.onOpen ?? vi.fn();
   const onCategorize = handlers.onCategorize ?? vi.fn();
   render(
     <TransactionTable
-      rows={rows}
+      rows={overrideRows}
       accounts={accounts}
       categories={categories}
+      payees={payees}
       selected={selected}
       onToggle={onToggle}
       onToggleAll={onToggleAll}
@@ -111,5 +120,11 @@ describe("the ledger grid", () => {
     setup(new Set());
     const row = screen.getByText("Txn t3").closest("tr")!;
     expect(within(row).getByText(/Transfer/)).toBeInTheDocument();
+  });
+
+  it("falls back to the payee name when there's no memo", () => {
+    const noMemo = [txn("t4", { memo: "", payee_id: "payee1" })];
+    setup(new Set(), {}, noMemo);
+    expect(screen.getByText("Acme Corp")).toBeInTheDocument();
   });
 });

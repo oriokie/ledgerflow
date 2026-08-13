@@ -14,10 +14,12 @@ receives and throwing it away is how automation stays bad forever.
 grounded in what this household actually does.
 
 The governing rule: **automation proposes, a person disposes.** Nothing here
-posts to the ledger. The only action applied without a tap is a category on a
-high-confidence suggestion, and even that is recorded as `auto_applied` and is
-reversible — an action nobody can review isn't automation, it's something
-happening to you.
+posts to the ledger *unasked*. The only action applied without a tap is a
+category on a high-confidence suggestion, and even that is recorded as
+`auto_applied` and is reversible — an action nobody can review isn't
+automation, it's something happening to you. Approving a `transfer` finding is
+the one case that does touch the ledger, and only because it's an explicit,
+non-speculative confirmation, not a guess acted on early.
 """
 
 from __future__ import annotations
@@ -274,8 +276,10 @@ def _dedupe_key(finding: detect.Suggestion) -> str:
 # ---------------------------------------------------------------------------
 def pending_suggestions(*, kind: str | None = None, limit: int | None = None):
     """The review queue: undecided findings, most confident first."""
-    qs = AutomationSuggestion.objects.filter(status=ReviewStatus.PENDING).select_related(
-        "primary_transaction"
+    qs = (
+        AutomationSuggestion.objects.filter(status=ReviewStatus.PENDING)
+        .select_related("primary_transaction")
+        .prefetch_related("transactions__payee", "transactions__financial_account")
     )
     if kind:
         qs = qs.filter(kind=kind)
@@ -346,16 +350,20 @@ def bulk_decide(*, suggestion_ids: list, decision: str, actor_id=None) -> int:
 def _apply(suggestion: AutomationSuggestion) -> None:
     """Carry out what a suggestion proposes.
 
-    Only two kinds change anything, and both are metadata:
+    Three kinds change anything:
 
       * `category` sets a category and teaches the merchant profile;
-      * `recurring` marks the merchant as billing on a cadence.
+      * `recurring` marks the merchant as billing on a cadence;
+      * `transfer` reclassifies the matched pair into a real linked transfer.
 
-    Transfers, duplicates, refunds, splits and income are **advisory only**.
-    Acting on them would mean creating, deleting or re-posting ledger entries
-    on the strength of a guess, and the ledger is the one thing in this product
-    that must never be written speculatively. Approving them records the user's
-    judgement for the learning engine and marks the queue item done.
+    Duplicates, refunds, splits and income stay **advisory only** — acting on
+    those would mean deleting or re-posting ledger entries on the strength of
+    a guess, and the ledger must never be written speculatively. `transfer` is
+    the one exception: a user's explicit "Approve" click is not speculative,
+    it's confirmation, so it's the correct moment to fix a statement row that
+    was never income or spending in the first place. Approving any kind
+    records the user's judgement for the learning engine and marks the queue
+    item done.
     """
     from apps.finance.models import Category
 
@@ -378,6 +386,52 @@ def _apply(suggestion: AutomationSuggestion) -> None:
             profile.recurring_cadence = suggestion.payload.get("cadence", "")
             profile.save(update_fields=["is_recurring", "recurring_cadence", "updated_at"])
         _forecast_next_occurrence(suggestion)
+
+    elif suggestion.kind == SuggestionKind.TRANSFER:
+        _apply_transfer(suggestion)
+
+
+def _apply_transfer(suggestion: AutomationSuggestion) -> None:
+    """Reclassify the two legs `detect_transfers` matched into one real transfer.
+
+    Uses the detector's own payload (`from_account_id`/`to_account_id`/
+    `amount_minor`) and the earlier of the two `occurred_at` values. Silently
+    does nothing if either transaction has moved on since the finding was made
+    — already void, already a transfer, or part of a split — because approving
+    a stale finding must never error the whole review action; it just means
+    there's nothing left to fix.
+    """
+    from apps.finance import services as finance_services
+    from apps.finance.models import FinancialAccount, TransactionSource, TransactionStatus
+
+    payload = suggestion.payload or {}
+    from_account = FinancialAccount.objects.filter(id=payload.get("from_account_id")).first()
+    to_account = FinancialAccount.objects.filter(id=payload.get("to_account_id")).first()
+    amount_minor = payload.get("amount_minor")
+    txns = list(suggestion.transactions.all())
+    if not (from_account and to_account and amount_minor and len(txns) == 2):
+        return
+    if any(t.status == TransactionStatus.VOID or t.transfer_group or t.split_group for t in txns):
+        return
+
+    occurred_at = min(t.occurred_at for t in txns)
+    try:
+        for t in txns:
+            finance_services.void_transaction(txn=t)
+        # source=IMPORTED, matching reclassify_as_transfer: both legs were
+        # already reflected in their accounts' balances before this ran, so
+        # this never moves money that wasn't already moving — just corrects
+        # which side records what.
+        finance_services.record_transfer(
+            from_account=from_account,
+            to_account=to_account,
+            amount_minor=amount_minor,
+            occurred_at=occurred_at,
+            memo="Reclassified from a transfer suggestion",
+            source=TransactionSource.IMPORTED,
+        )
+    except finance_services.FinanceError as exc:
+        raise AutomationError(str(exc)) from exc
 
 
 def _forecast_next_occurrence(suggestion: AutomationSuggestion) -> None:

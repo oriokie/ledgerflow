@@ -8,7 +8,10 @@
   --lf-tone: var(--lf-status-success);
 }
 .lf-tone-soon {
-  --lf-tone: var(--lf-action-primary);
+  /* This is a severity signal ("worth a look soon"), not an interactive
+     element — --lf-action-primary is reserved for interaction, never data
+     or status (see tokens.css). --lf-status-warning is the correct hue. */
+  --lf-tone: var(--lf-status-warning);
 }
 .lf-tone-attention {
   --lf-tone: var(--lf-status-danger);
@@ -109,7 +112,10 @@
 /* ---------- health ---------- */
 .lf-health-head {
   display: flex;
-  align-items: center;
+  /* The score now renders through Figure, which stacks a label above the
+     value — flex-start keeps that label lined up with the top of the band
+     pill instead of splitting the difference against a taller sibling. */
+  align-items: flex-start;
   gap: var(--lf-space-3);
   margin-bottom: var(--lf-space-3);
 }
@@ -124,12 +130,11 @@
   color: var(--lf-tone);
   background: color-mix(in srgb, var(--lf-tone) 12%, transparent);
 }
-.lf-health-score {
-  font-family: var(--lf-font-display);
-  font-weight: var(--lf-weight-medium);
-  font-size: var(--lf-text-xl);
-  color: var(--lf-text-primary);
-  font-variant-numeric: tabular-nums;
+.lf-health-score-suffix {
+  margin-left: 2px;
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-regular);
+  color: var(--lf-text-tertiary);
 }
 .lf-health-lines {
   display: flex;

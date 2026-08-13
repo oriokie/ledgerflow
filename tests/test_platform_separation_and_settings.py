@@ -234,6 +234,24 @@ def test_an_unknown_key_is_a_field_error_not_a_500():
     assert "key" in response.json()
 
 
+def test_operator_can_send_a_test_email(mailoutbox):
+    member = make_staff(PlatformRole.OWNER)
+    response = client_for(member).post("/api/v1/platform/settings/test-email/", {}, format="json")
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert response.json()["to"] == member.user.email
+    assert len(mailoutbox) == 1
+    assert mailoutbox[0].subject == "LedgerFlow test email"
+
+
+def test_ai_connectivity_check_refuses_when_off(settings):
+    settings.LLM_ENABLED = False
+    member = make_staff(PlatformRole.OWNER)
+    response = client_for(member).post("/api/v1/platform/settings/test-ai/", {}, format="json")
+    assert response.status_code == 400
+    assert "turned off" in response.json()["detail"].lower()
+
+
 def test_ai_availability_is_a_platform_decision(settings):
     """Gate one of three: the operator decides whether AI exists at all."""
     settings.LLM_ENABLED = False
@@ -279,9 +297,9 @@ def test_a_closed_set_setting_refuses_a_value_outside_it():
     assert settings_store.get("appearance.illustration_style") == "motion"
 
 
-def test_the_illustration_style_defaults_to_clay():
+def test_the_illustration_style_defaults_to_editorial_doodle():
     settings_store.clear(key="appearance.illustration_style")
-    assert settings_store.get("appearance.illustration_style") == "clay"
+    assert settings_store.get("appearance.illustration_style") == "doodle"
 
 
 def test_the_appearance_endpoint_is_public(client):
@@ -291,7 +309,7 @@ def test_the_appearance_endpoint_is_public(client):
     settings_store.clear(key="appearance.illustration_style")
     resp = client.get("/api/v1/platform/appearance/")
     assert resp.status_code == 200
-    assert resp.json() == {"illustration_style": "clay"}
+    assert resp.json() == {"illustration_style": "doodle"}
 
 
 def test_the_appearance_endpoint_exposes_nothing_else(client):

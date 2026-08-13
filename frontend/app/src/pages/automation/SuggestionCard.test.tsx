@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AutomationSuggestion } from "../../api/types";
 import { SuggestionCard } from "./SuggestionCard";
@@ -23,12 +24,14 @@ const onDecide = vi.fn();
 
 function renderCard(overrides: Partial<AutomationSuggestion> = {}, selected = false) {
   return render(
-    <SuggestionCard
-      suggestion={{ ...SUGGESTION, ...overrides }}
-      selected={selected}
-      onSelect={onSelect}
-      onDecide={onDecide}
-    />,
+    <MemoryRouter>
+      <SuggestionCard
+        suggestion={{ ...SUGGESTION, ...overrides }}
+        selected={selected}
+        onSelect={onSelect}
+        onDecide={onDecide}
+      />
+    </MemoryRouter>,
   );
 }
 
@@ -56,14 +59,34 @@ describe("SuggestionCard", () => {
     expect(screen.getByText("Likely")).toBeInTheDocument();
   });
 
-  it("says how many transactions are involved when it's more than one", () => {
-    renderCard();
-    expect(screen.getByText("2 transactions")).toBeInTheDocument();
+  it("lists the transactions so a duplicate can be judged in place", () => {
+    renderCard({
+      transactions: [
+        {
+          id: "t1",
+          occurred_at: "2026-07-01T09:00:00Z",
+          amount_minor: 1250,
+          currency: "USD",
+          payee: "Corner Shop",
+          account_name: "Checking",
+        },
+        {
+          id: "t2",
+          occurred_at: "2026-07-01T09:05:00Z",
+          amount_minor: 1250,
+          currency: "USD",
+          payee: "Corner Shop",
+          account_name: "Checking",
+        },
+      ],
+    });
+    expect(screen.getAllByRole("link", { name: /corner shop/i })).toHaveLength(2);
+    expect(screen.queryByText("2 transactions")).not.toBeInTheDocument();
   });
 
-  it("omits the count for a single-transaction suggestion", () => {
-    renderCard({ kind: "category", transaction_ids: ["t1"] });
-    expect(screen.queryByText(/transactions$/)).not.toBeInTheDocument();
+  it("falls back to a count when nested evidence is missing", () => {
+    renderCard({ kind: "category", transaction_ids: ["t1", "t2"] });
+    expect(screen.getByText("2 transactions")).toBeInTheDocument();
   });
 
   it("offers both accept and dismiss, never just accept", () => {

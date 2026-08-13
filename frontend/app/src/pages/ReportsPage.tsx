@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { reportsApi } from "../api/reports";
 import type { ReportFilters, ReportGroup, ReportMeta } from "../api/types";
 import { useReport, useReportCatalog } from "../hooks/useReports";
+import { useAuth } from "../lib/AuthContext";
 import { Link } from "react-router-dom";
 import { Card, EmptyState, Grid, Inline, PageHeader, SegmentedControl, SkeletonCard } from "../ui";
 import { FinancialIndependencePanel, ReportCard, ReportFilterBar } from "./analytics";
@@ -40,10 +41,17 @@ function Report({ meta, filters }: { meta: ReportMeta; filters: ReportFilters })
  */
 /** `embedded` renders this page as a tab panel inside a hub (`/plan`,
  * `/insights`). The hub owns the <h1>, so the page must not render its own
- * PageHeader — two page titles on one route is a broken heading outline. */
+ * PageHeader — two page titles on one route is a broken heading outline.
+ * The period filter and the review link are not part of that title, though,
+ * so they still render when embedded — just in a plain row instead of a
+ * full PageHeader. */
 export function ReportsPage({ embedded }: { embedded?: boolean } = {}) {
+  const { activeWorkspace } = useAuth();
   const [group, setGroup] = useState<ReportGroup>("position");
-  const [filters, setFilters] = useState<ReportFilters>({ period: "last_12_months" });
+  const [filters, setFilters] = useState<ReportFilters>({
+    period: "last_12_months",
+    currency: activeWorkspace?.tenant.base_currency,
+  });
 
   const { data: catalog, isLoading } = useReportCatalog();
 
@@ -52,20 +60,28 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}) {
     [catalog, group],
   );
 
+  const actions = (
+    <Inline gap={2}>
+      <Link className="lf-section-link" to="/review">
+        Financial review
+      </Link>
+      <ReportFilterBar filters={filters} onChange={setFilters} />
+    </Inline>
+  );
+
   return (
     <>
-      {!embedded && (
+      {embedded ? (
+        <div className="lf-page-header-actions" style={{ justifyContent: "flex-end", marginBottom: "var(--lf-space-4)" }}>
+          {actions}
+        </div>
+      ) : (
         <PageHeader
+          eyebrow="Meaning"
           title="Reports"
           description="Fourteen views of your money. Pick a period once and it applies to all of them."
-          actions={
-            <Inline gap={2}>
-              <Link className="lf-section-link" to="/review">
-                Financial review
-              </Link>
-              <ReportFilterBar filters={filters} onChange={setFilters} />
-            </Inline>
-          }
+          illustration="insight"
+          actions={actions}
         />
       )}
 
@@ -93,6 +109,7 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}) {
         <Card>
           <EmptyState
             icon={BarChart3}
+            illustration="search"
             title="No reports available"
             body="Reports appear once there's activity to summarise."
           />

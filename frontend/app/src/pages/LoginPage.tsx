@@ -34,8 +34,18 @@ export function LoginPage() {
   const mfaForm = useForm<MfaForm>({ resolver: zodResolver(mfaSchema) });
   const email = credentialsForm.watch("email");
 
+  // Captured once so the deep link ProtectedRoute stashed in location.state
+  // (e.g. an invite link) survives both the password step and the MFA step
+  // instead of being dropped in favor of the dashboard. The full pathname +
+  // search + hash, not just pathname — an invite link is /invite?token=…,
+  // and dropping the query string strands the invitee on a bare /invite with
+  // no token once they've logged in.
+  const fromLocation = (location.state as { from?: Location })?.from;
+  const from = fromLocation
+    ? `${fromLocation.pathname}${fromLocation.search}${fromLocation.hash}`
+    : "/";
+
   if (isAuthenticated) {
-    const from = (location.state as { from?: Location })?.from?.pathname ?? "/";
     return <Navigate to={from} replace />;
   }
 
@@ -46,7 +56,7 @@ export function LoginPage() {
       if (result.status === "mfa_required") {
         setMfaToken(result.mfaToken);
       } else {
-        navigate("/", { replace: true });
+        navigate(from, { replace: true });
       }
     } catch (err) {
       setServerError(err instanceof ApiError ? err.detail : "Something went wrong. Please try again.");
@@ -58,7 +68,7 @@ export function LoginPage() {
     setServerError(null);
     try {
       await verifyMfa(mfaToken, code);
-      navigate("/", { replace: true });
+      navigate(from, { replace: true });
     } catch (err) {
       setServerError(err instanceof ApiError ? err.detail : "Invalid code. Please try again.");
     }
@@ -117,10 +127,10 @@ export function LoginPage() {
         <Stack gap={4}>
           <div>
             <Heading level={1} className="lf-auth-title">
-              Welcome back!
+              Welcome back
             </Heading>
             <Text size="sm" tone="secondary" style={{ marginTop: "var(--lf-space-3)" }}>
-              Your ledger is where you left it. Sign in to pick up the thread.
+              Sign in to see what changed and what comes next.
             </Text>
           </div>
 
@@ -143,6 +153,10 @@ export function LoginPage() {
             error={credentialsForm.formState.errors.password?.message}
             {...credentialsForm.register("password")}
           />
+
+          <Text tone="secondary" size="sm">
+            You&rsquo;ll stay signed in on this device for 14 days.
+          </Text>
 
           <div style={{ marginTop: "calc(-1 * var(--lf-space-2))", textAlign: "right" }}>
             <Link

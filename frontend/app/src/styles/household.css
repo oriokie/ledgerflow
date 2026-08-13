@@ -6,6 +6,36 @@
  * (480/640/768/1024/1280/1600) — `scripts/check_style_tokens.py` enforces it.
  */
 
+/* --- the hero: headline figures beside the household motif ------------- */
+.lf-household-hero {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-6);
+}
+
+.lf-household-hero-figures {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Qualified with the parent class, not just `.lf-household-hero-art` —
+   illustration.css loads after this file and its own `.lf-illus-frame {
+   width: 100% }` sits at equal specificity, so an unqualified rule here would
+   lose the cascade and the frame would fill the row instead of staying at
+   168px (the same bug this exact fix caught on the dashboard's onboarding
+   card). */
+.lf-household-hero .lf-household-hero-art {
+  flex: 0 0 auto;
+  width: 168px;
+}
+
+/* The art is a courtesy, not content — dropped first when the figures need
+   the room, and never fought over on a phone where four numbers already
+   contend for the width. */
+@media (max-width: 767px) {
+  .lf-household-hero-art { display: none; }
+}
+
 /* --- the split bar: who covers what, at a glance ----------------------- */
 .lf-split-bar {
   display: flex;
@@ -13,7 +43,7 @@
   height: 10px;
   border-radius: var(--lf-radius-full);
   overflow: hidden;
-  background: var(--lf-bg-subtle);
+  background: var(--lf-bg-sunken);
   gap: 2px;
 }
 
@@ -24,7 +54,7 @@
 
 /* Distinct without being a traffic light: this is a division of labour, not a
    scale of good to bad, so the segments must not read as ranked. */
-.lf-split-seg--0 { background: var(--lf-accent); }
+.lf-split-seg--0 { background: var(--lf-action-primary); }
 .lf-split-seg--1 { background: var(--lf-chart-3); }
 .lf-split-seg--2 { background: var(--lf-chart-4); }
 .lf-split-seg--3 { background: var(--lf-chart-5); }
@@ -50,7 +80,7 @@
   flex-direction: column;
   gap: var(--lf-space-2);
   padding: var(--lf-space-3);
-  border: 1px solid var(--lf-border);
+  border: 1px solid var(--lf-border-default);
   border-radius: var(--lf-radius-md);
   background: var(--lf-bg-surface);
 }
@@ -93,7 +123,7 @@
   inset-block: 14px -14px;
   inset-inline-start: 3px;
   width: 1px;
-  background: var(--lf-border);
+  background: var(--lf-border-default);
 }
 
 .lf-timeline-dot {
@@ -103,7 +133,7 @@
   margin-block-start: 6px;
   margin-inline-start: -13px;
   border-radius: var(--lf-radius-full);
-  background: var(--lf-accent);
+  background: var(--lf-action-primary);
 }
 
 .lf-timeline-private {

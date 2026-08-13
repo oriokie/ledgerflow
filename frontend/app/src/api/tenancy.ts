@@ -10,13 +10,14 @@ export const tenancyApi = {
     name: string;
     type?: string;
     base_currency?: string;
+    country?: string;
     locale?: string;
     timezone?: string;
   }) => api.post<Workspace>("/tenancy/workspaces/", payload, { skipTenant: true }),
 
   updateWorkspace: (
     tenantId: string,
-    payload: { name?: string; base_currency?: string; block_overdrafts?: boolean },
+    payload: { name?: string; base_currency?: string; country?: string; block_overdrafts?: boolean },
   ) =>
     api.patch<{
       id: string;
@@ -42,7 +43,7 @@ export const tenancyApi = {
 };
 
 // ---------------------------------------------------------------- members & invitations
-import type { Invitation, Member } from "./types";
+import type { Invitation, InvitationPreview, Member } from "./types";
 
 export const membersApi = {
   list: () => api.get<Member[]>("/tenancy/workspaces/members/"),
@@ -59,4 +60,10 @@ export const membersApi = {
   /** Not tenant-scoped by design — the caller has no membership yet. */
   acceptInvitation: (token: string) =>
     api.post("/tenancy/invitations/accept/", { token }, { skipTenant: true }),
+
+  /** Public, read-only lookup so an invitee can see what they're being asked
+   * to join before committing. No membership yet, so skip the tenant header;
+   * works whether or not the caller is signed in. */
+  previewInvitation: (token: string) =>
+    api.get<InvitationPreview>(`/tenancy/invitations/${encodeURIComponent(token)}/`, { skipTenant: true }),
 };

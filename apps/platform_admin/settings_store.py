@@ -98,7 +98,7 @@ SPECS: tuple[SettingSpec, ...] = (
         "illustrations appear, including the signed-out landing page. "
         "'motion' animates; it holds still for anyone who has asked their "
         "system to reduce motion, and inside the application it is static.",
-        default="clay",
+        default="doodle",
         choices=("clay", "doodle", "motion"),
     ),
     # ---------------------------------------------------------- invoicing
@@ -330,6 +330,44 @@ SPECS: tuple[SettingSpec, ...] = (
         "enabling AI. Local providers are unaffected — nothing leaves the host.",
         env_setting="LLM_SHARE_FINANCIAL_CONTEXT",
         default=False,
+    ),
+    # -------------------------------------------------------------- oauth
+    SettingSpec(
+        "oauth.google.client_id",
+        SettingKind.STRING,
+        "oauth",
+        "Google client ID",
+        "Overrides OAUTH_GOOGLE_CLIENT_ID. Required for Sign in with Google.",
+        env_setting="OAUTH_GOOGLE_CLIENT_ID",
+        default="",
+    ),
+    SettingSpec(
+        "oauth.google.client_secret",
+        SettingKind.SECRET,
+        "oauth",
+        "Google client secret",
+        "Overrides OAUTH_GOOGLE_CLIENT_SECRET. Stored encrypted, never read back.",
+        env_setting="OAUTH_GOOGLE_CLIENT_SECRET",
+        write_only=True,
+    ),
+    SettingSpec(
+        "oauth.apple.client_id",
+        SettingKind.STRING,
+        "oauth",
+        "Apple client ID",
+        "The Services ID. Overrides OAUTH_APPLE_CLIENT_ID.",
+        env_setting="OAUTH_APPLE_CLIENT_ID",
+        default="",
+    ),
+    SettingSpec(
+        "oauth.apple.client_secret",
+        SettingKind.SECRET,
+        "oauth",
+        "Apple client secret",
+        "A JWT generated from your Apple .p8 key, or the secret the provider "
+        "issued. Overrides OAUTH_APPLE_CLIENT_SECRET.",
+        env_setting="OAUTH_APPLE_CLIENT_SECRET",
+        write_only=True,
     ),
     # ----------------------------------------------------------- operations
     SettingSpec(

@@ -12,6 +12,10 @@ const categories = [{ id: "g", name: "Groceries", kind: "expense" as const }];
 vi.mock("../hooks/useFinance", () => ({
   useAccounts: () => ({ data: accounts }),
   useCategories: () => ({ data: categories }),
+  // No signal beyond `accounts`/the receipt itself in these tests — the page
+  // falls back to accounts[0] when this resolves nothing, which is enough to
+  // exercise the "guessed" hint without needing real transaction history here.
+  useTransactions: () => ({ data: undefined }),
 }));
 vi.mock("../lib/AuthContext", () => ({
   useAuth: () => ({ activeWorkspace: { role: "owner", tenant: { id: "t1", base_currency: "USD" } } }),

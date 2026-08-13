@@ -35,7 +35,10 @@ describe("SubscriptionRow", () => {
   it("shows the label and normalized monthly cost", () => {
     setup();
     expect(screen.getByText("Netflix")).toBeInTheDocument();
-    expect(screen.getByText("$15.00/mo")).toBeInTheDocument();
+    // Money renders the cents in their own span (see Money's ".lf-amount-cents"
+    // convention, ui/Figure.test.tsx), so the figure is split across nodes —
+    // check the whole row's text rather than a single getByText string match.
+    expect(document.querySelector(".lf-sub-cost-main")?.textContent).toBe("$15.00/mo");
   });
 
   it("pauses an active schedule", async () => {

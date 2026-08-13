@@ -30,7 +30,7 @@ from django.utils import timezone
 
 from apps.debt import selectors as debt_selectors
 from apps.finance import selectors as finance_selectors
-from apps.finance.models import AccountType, FinancialAccount, RecurringTransaction, RecurringType
+from apps.finance.models import AccountType, BillStatus, FinancialAccount, RecurringTransaction, RecurringType
 from apps.investments import selectors as investment_selectors
 
 from .engine import CompiledEvent, DebtPosition, FinancialPosition, project
@@ -236,6 +236,120 @@ def _monthly_flows(currency: str, as_of: date) -> tuple[int, int]:
     return median(inflows), median(outflows)
 
 
+_HOUSING_MARKERS = ("rent", "lease", "housing", "landlord", "mortgage")
+
+
+def _looks_like_housing(label: str) -> bool:
+    lowered = label.lower()
+    return any(marker in lowered for marker in _HOUSING_MARKERS)
+
+
+def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
+    """Named scheduled flows that feed the projection, plus a residual.
+
+    Every line is something already on the books: an income source, a
+    recurring template, or a repeating bill. Irregular income is omitted
+    rather than drawn as a smooth line. The residual is measured history
+    minus those schedules so groceries are not double-counted with rent.
+    """
+    from apps.finance.models import Bill, RecurringTransaction
+    from apps.income.models import Reliability
+    from apps.income.selectors import source_views
+
+    lines: list[dict] = []
+
+    for view in source_views(as_of=as_of, currency=currency):
+        if not view.is_active or not view.is_current or view.monthly_net_minor is None:
+            continue
+        if view.reliability == Reliability.IRREGULAR and not view.expected_is_observed:
+            continue
+        lines.append(
+            {
+                "id": f"income:{view.source_id}",
+                "kind": "income",
+                "direction": "in",
+                "label": view.name,
+                "monthly_minor": view.monthly_net_minor,
+                "stoppable": False,
+            }
+        )
+
+    has_income_sources = any(line["kind"] == "income" for line in lines)
+    recurring_rows = RecurringTransaction.objects.filter(is_active=True, currency=currency).select_related(
+        "payee"
+    )
+    for recurring in recurring_rows:
+        if recurring.ends_on is not None and recurring.ends_on < as_of:
+            continue
+        monthly = _to_monthly_minor(recurring.amount_minor, recurring.frequency, recurring.interval)
+        if monthly <= 0:
+            continue
+        if recurring.txn_type == RecurringType.TRANSFER:
+            continue
+        if recurring.txn_type == RecurringType.INCOME and has_income_sources:
+            continue
+        direction = "in" if recurring.txn_type == RecurringType.INCOME else "out"
+        label = recurring.payee.name if recurring.payee_id else (recurring.memo or "Recurring")
+        lines.append(
+            {
+                "id": f"recurring:{recurring.id}",
+                "kind": "recurring",
+                "direction": direction,
+                "label": label,
+                "monthly_minor": monthly,
+                "stoppable": direction == "out" and _looks_like_housing(label),
+            }
+        )
+
+    for bill in Bill.objects.filter(
+        currency=currency,
+        status__in=[BillStatus.UPCOMING, BillStatus.OVERDUE],
+    ).exclude(recurrence_frequency=""):
+        monthly = _to_monthly_minor(bill.amount_minor, bill.recurrence_frequency, bill.recurrence_interval)
+        if monthly <= 0:
+            continue
+        label = bill.name
+        lines.append(
+            {
+                "id": f"bill:{bill.id}",
+                "kind": "bill",
+                "direction": "out",
+                "label": label,
+                "monthly_minor": monthly,
+                "stoppable": _looks_like_housing(label),
+            }
+        )
+
+    hist_in, hist_out = _monthly_flows(currency, as_of)
+    scheduled_in = sum(line["monthly_minor"] for line in lines if line["direction"] == "in")
+    scheduled_out = sum(line["monthly_minor"] for line in lines if line["direction"] == "out")
+    residual_in = max(0, hist_in - scheduled_in)
+    residual_out = max(0, hist_out - scheduled_out)
+    if residual_in:
+        lines.append(
+            {
+                "id": "residual:in",
+                "kind": "residual",
+                "direction": "in",
+                "label": "Unscheduled income (measured)",
+                "monthly_minor": residual_in,
+                "stoppable": False,
+            }
+        )
+    if residual_out:
+        lines.append(
+            {
+                "id": "residual:out",
+                "kind": "residual",
+                "direction": "out",
+                "label": "Unscheduled spending (measured)",
+                "monthly_minor": residual_out,
+                "stoppable": False,
+            }
+        )
+    return lines
+
+
 def current_position(*, as_of: date | None = None) -> FinancialPosition:
     """Snapshot the household's position for the ambient tenant.
 
@@ -250,17 +364,15 @@ def current_position(*, as_of: date | None = None) -> FinancialPosition:
         raise NoPositionError("No liquid accounts to project from. Add a current or savings account first.")
 
     liquid = finance_selectors.liquid_balance_minor(currency)
-    history_income, history_expenses = _monthly_flows(currency, as_of)
-    scheduled_income, scheduled_expenses, _events = _scheduled_run_rate(currency, as_of)
+    stack = cashflow_stack(currency=currency, as_of=as_of)
+    income = sum(line["monthly_minor"] for line in stack if line["direction"] == "in")
+    expenses = sum(line["monthly_minor"] for line in stack if line["direction"] == "out")
+    if income == 0 and expenses == 0:
+        income, expenses = _monthly_flows(currency, as_of)
     debts = _debt_positions(currency)
-    # Known schedules floor the run-rate: a salary set up last week has not
-    # reached the trailing median yet, and must still be projected. History
-    # above the schedule is unscheduled flow (freelance, everyday spend) and
-    # is kept. Debt service is applied by the engine from `debts`, so any
-    # of it already sitting in the expense median would be counted twice.
-    debt_service = sum(d.monthly_payment_minor for d in debts)
-    income = max(history_income, scheduled_income)
-    expenses = max(0, max(history_expenses, scheduled_expenses) - debt_service)
+    # Debt service is applied by the engine from `debts`, so any of it already
+    # sitting in the expense stack would be counted twice.
+    expenses = max(0, expenses - sum(d.monthly_payment_minor for d in debts))
     contribution = _monthly_investment_contribution_minor(currency)
 
     return FinancialPosition(

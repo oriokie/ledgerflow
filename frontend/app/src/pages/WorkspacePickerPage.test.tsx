@@ -24,9 +24,6 @@ beforeEach(() => {
 async function submit(user: ReturnType<typeof userEvent.setup>, type: string) {
   await user.type(screen.getByLabelText(/workspace name/i), "The Riveras");
   await user.selectOptions(screen.getByLabelText(/^type$/i), type);
-  const currency = screen.getByLabelText(/base currency/i) as HTMLInputElement;
-  await user.clear(currency);
-  await user.type(currency, "USD");
   await user.click(screen.getByRole("button", { name: /create workspace/i }));
 }
 
@@ -37,7 +34,9 @@ describe("WorkspacePickerPage — workspace type mapping", () => {
     render(<WorkspacePickerPage />);
 
     await submit(user, "personal");
-    expect(createWorkspace).toHaveBeenCalledWith(expect.objectContaining({ type: "personal" }));
+    expect(createWorkspace).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "personal", country: "KE", base_currency: "KES" }),
+    );
   });
 
   it("maps 'Couple' to the backend's actual 'household' type", async () => {

@@ -20,6 +20,7 @@ import {
   Banner,
   Button,
   Card,
+  Checkbox,
   EmptyState,
   Figure,
   FigureRow,
@@ -32,9 +33,10 @@ import {
   SkeletonCard,
   Table,
   Text,
+  useToast,
 } from "../ui";
 import type { Column } from "../ui";
-import { AccountDetail, AccountList, StatementModal, WalletsSection } from "./accounts";
+import { AccountDetail, AccountList, EditAccountModal, StatementModal, WalletsSection } from "./accounts";
 import { AccountTypeIcon } from "./accounts/AccountTypeIcon";
 import { useOpenOnParam } from "../hooks/useOpenOnParam";
 import { CURRENCY_OPTIONS } from "../lib/currencies";
@@ -116,17 +118,20 @@ function SummaryBar({ accounts }: { accounts: FinancialAccount[] }) {
 export function AccountsPage() {
   const { activeWorkspace } = useAuth();
   const baseCurrency = activeWorkspace?.tenant.base_currency ?? "USD";
-  const { data: accounts, isLoading } = useAccounts();
+  const [showDeactivated, setShowDeactivated] = useState(false);
+  const { data: accounts, isLoading } = useAccounts(showDeactivated);
   const { data: wallets } = useWallets();
   const createAccount = useCreateAccount();
   const createWallet = useCreateWallet();
   const assign = useAssignAccountToWallet();
+  const toast = useToast();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
   const [showCreate, setShowCreate] = useOpenOnParam();
   const [showWallet, setShowWallet] = useState(false);
   const [statementFor, setStatementFor] = useState<FinancialAccount | null>(null);
+  const [editingAccount, setEditingAccount] = useState<FinancialAccount | null>(null);
   const [showLedger, setShowLedger] = useState(false);
   const { data: ledgerAccounts } = useLedgerAccounts(showLedger);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -200,6 +205,14 @@ export function AccountsPage() {
     }
   });
 
+  const onAssignWallet = async (accountId: string, walletId: string | null) => {
+    try {
+      await assign.mutateAsync({ accountId, walletId });
+    } catch (err) {
+      toast(err instanceof ApiError ? err.detail : "Couldn't move that account.", { tone: "danger" });
+    }
+  };
+
   const onCreateWallet = walletForm.handleSubmit(async (values) => {
     try {
       await createWallet.mutateAsync(values);
@@ -237,8 +250,14 @@ export function AccountsPage() {
   return (
     <>
       <PageHeader
-        eyebrow={accounts ? `${accounts.length} accounts · ${cur}` : undefined}
+        eyebrow="Position"
         title="Accounts"
+        description={
+          accounts
+            ? `${accounts.length} accounts · ${cur} — what you hold and what you owe.`
+            : "What you hold and what you owe."
+        }
+        illustration="vault"
         actions={
           <>
             <Button variant="secondary" onClick={() => setShowWallet(true)}>
@@ -263,10 +282,11 @@ export function AccountsPage() {
         <Card>
           <EmptyState
             icon={Landmark}
+            illustration="vault"
             title="Add your first account"
             body="Accounts hold your money — checking, savings, cash, credit cards. Everything else builds on them."
             tips={[
-              "Each account keeps its own currency; reports convert to your base.",
+              "Each account keeps its own currency. Reports stay in one currency at a time — they do not mix codes.",
               "Credit cards and loans are tracked as money you owe, not money you have.",
               "Group related accounts into a wallet once you have a few.",
             ]}
@@ -290,6 +310,13 @@ export function AccountsPage() {
                 onSelect={selectAccount}
                 primaryCurrency={cur}
               />
+              <div style={{ marginTop: "var(--lf-space-3)" }}>
+                <Checkbox
+                  label="Show deactivated accounts"
+                  checked={showDeactivated}
+                  onChange={(e) => setShowDeactivated(e.target.checked)}
+                />
+              </div>
             </div>
             <div className="lf-acct-detail-col">
               {selected && (
@@ -299,8 +326,9 @@ export function AccountsPage() {
                   wallets={wallets}
                   onSelect={selectAccount}
                   onBack={() => setMobileView("list")}
-                  onAssignWallet={(accountId, walletId) => assign.mutate({ accountId, walletId })}
+                  onAssignWallet={onAssignWallet}
                   onOpenStatement={() => setStatementFor(selected)}
+                  onEdit={() => setEditingAccount(selected)}
                 />
               )}
             </div>
@@ -388,7 +416,7 @@ export function AccountsPage() {
                 label="Currency"
                 required
                 options={CURRENCY_OPTIONS}
-                hint="Fixed once set. Reports convert to your base currency."
+                hint="Fixed once set. Reports filter to one currency rather than converting."
                 error={accountForm.formState.errors.currency?.message}
                 {...accountForm.register("currency")}
               />
@@ -466,6 +494,7 @@ export function AccountsPage() {
       </Modal>
 
       {statementFor && <StatementModal account={statementFor} onClose={() => setStatementFor(null)} />}
+      {editingAccount && <EditAccountModal account={editingAccount} onClose={() => setEditingAccount(null)} />}
     </>
   );
 }

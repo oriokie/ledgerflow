@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import { QuoteRotator } from "./QuoteRotator";
-import { Figure } from "../../ui";
-import { Illustration } from "../../ui/illustration";
+import { AuthHeroArt, type AuthScene } from "./AuthHeroArt";
+import { Illustration, type IllustrationName } from "../../ui/illustration";
 
 /** The LedgerFlow mark used across the auth surface. */
 export function AuthBrand({ inverted = false }: { inverted?: boolean }) {
@@ -24,28 +23,42 @@ interface AuthLayoutProps {
   footer?: ReactNode;
   /** Widen the card for content-heavy screens like the workspace picker. */
   maxWidth?: number;
+  /** Changes the narrative artwork without changing the form layout. */
+  scene?: AuthScene;
+  /** Motif for flows that already opt into a named illustration (recover, verify, welcome). */
+  illustration?: IllustrationName;
 }
 
 /**
  * The auth shell: the form on the left, a soft tinted showcase panel on the
- * right.
- *
- * Built to a supplied reference layout — form first in the reading order,
- * pill-shaped fields, a full-width dark primary, icon-only round social
- * buttons, and beside it an inset rounded panel holding flat vector artwork, a
- * floating figure card and position dots under a headline.
- *
- * Two deliberate departures from the reference. The artwork is LedgerFlow's
- * own illustration system rather than a copy of someone else's drawing, and
- * the floating card shows a real settled-vs-projected pair drawn by the same
- * component the app uses — the product's actual signature, not a stand-in.
+ * right with people-first doodle artwork.
  *
  * The panel disappears below 900px, leaving a focused single-column form with
  * the brand row up top. Every auth screen (login, register, reset, invite,
  * workspace picker, logged-out) renders through this, so the treatment is
  * identical everywhere.
  */
-export function AuthLayout({ children, footer, maxWidth }: AuthLayoutProps) {
+export function AuthLayout({
+  children,
+  footer,
+  maxWidth,
+  scene = "signin",
+  illustration,
+}: AuthLayoutProps) {
+  const resolvedIllustration = illustration ?? (scene === "signin" ? "secure" : undefined);
+  const panelCopy =
+    scene === "signed-out"
+      ? {
+          eyebrow: "Until next time",
+          title: "Your books stay private.",
+          body: "Signed out cleanly. Come back whenever you need the next clear look.",
+        }
+      : {
+          eyebrow: "Clarity, every day",
+          title: "Your money makes more sense here.",
+          body: "One calm place for balances, plans, goals, and the reasoning behind every number.",
+        };
+
   return (
     <div className="lf-auth-shell">
       <main className="lf-auth-main">
@@ -68,35 +81,27 @@ export function AuthLayout({ children, footer, maxWidth }: AuthLayoutProps) {
       {/* The showcase. Entirely decorative, so `aria-hidden` — a screen reader
           reaching the login form should meet the form, not a tour of it. */}
       <aside className="lf-auth-panel" aria-hidden="true">
+        <div className="lf-auth-panel-brand">
+          <AuthBrand />
+        </div>
         <div className="lf-auth-panel-inner">
           <div className="lf-auth-stage">
-            <Illustration name="secure" size="panel" className="lf-auth-illus" />
-
-            {/* The floating card in the reference is a task with a progress
-                ring. Here it is the product's actual signature: a settled
-                figure and a projected one, drawn by the same component the app
-                uses, so the thing being shown off is the real thing. */}
-            <div className="lf-auth-specimen">
-              <Figure
-                label="Settled"
-                amountMinor={4228381}
-                currency="KES"
-                neutral
-                certainty="settled"
-                size="inline"
-              />
-              <Figure
-                label="Projected"
-                amountMinor={540000}
-                currency="KES"
-                neutral
-                certainty="projected"
-                size="inline"
-              />
+            <div className="lf-auth-illus">
+              {resolvedIllustration ? (
+                <Illustration name={resolvedIllustration} size="panel" style="doodle" />
+              ) : (
+                <AuthHeroArt scene={scene} />
+              )}
             </div>
+            <span className="lf-auth-float lf-auth-float--top">Private by design</span>
+            <span className="lf-auth-float lf-auth-float--bottom">Always exportable</span>
           </div>
 
-          <QuoteRotator />
+          <div className="lf-auth-panel-copy">
+            <p className="lf-auth-panel-eyebrow">{panelCopy.eyebrow}</p>
+            <p className="lf-auth-panel-title">{panelCopy.title}</p>
+            <p className="lf-auth-panel-body">{panelCopy.body}</p>
+          </div>
         </div>
       </aside>
     </div>

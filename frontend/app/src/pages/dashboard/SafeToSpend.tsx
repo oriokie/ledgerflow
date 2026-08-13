@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useCashflowCalendar } from "../../hooks/useFinance";
-import { formatAmount, formatAmountSigned } from "../../lib/money";
-import { Card, Text } from "../../ui";
+import { formatAmountSigned } from "../../lib/money";
+import { Card, Figure, Text } from "../../ui";
 
 /**
  * The one number that answers "can I buy this?".
@@ -34,16 +34,21 @@ export function SafeToSpend() {
   return (
     <Card
       accent="money"
-      title="Safe to spend"
+      prominence="primary"
       action={
         <Link className="lf-section-link" to="/cashflow">
           How it's projected
         </Link>
       }
     >
-      <p className="lf-safe-amount" data-zero={amount === 0 || undefined}>
-        {formatAmount(amount, calendar.currency)}
-      </p>
+      <Figure
+        label="Safe to spend"
+        size="hero"
+        certainty="projected"
+        amountMinor={amount}
+        currency={calendar.currency}
+        neutral
+      />
       {amount > 0 ? (
         <Text tone="secondary" size="sm">
           {caption}.

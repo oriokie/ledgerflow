@@ -40,6 +40,7 @@ export function PlanPage() {
         eyebrow="Commitment"
         title="Plan"
         description="What's already spoken for — limits you've set, payments you owe, and where that leaves you."
+        illustration="cycle"
       />
 
       <Tabs label="Plan sections" value={tab} onChange={select} tabs={[...PLAN_TABS]} />

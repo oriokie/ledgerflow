@@ -5,6 +5,7 @@ import { tenancyApi } from "../../../api/tenancy";
 import { ApiError } from "../../../api/client";
 import { useAuth } from "../../../lib/AuthContext";
 import { Badge, Banner, Button, Input, Select, Switch, Text, useToast } from "../../../ui";
+import { COUNTRY_OPTIONS } from "../../../lib/countries";
 import { CURRENCY_OPTIONS } from "../../../lib/currencies";
 import { DangerZone, SettingsAdvanced, SettingsRow, SettingsSection } from "../components";
 
@@ -20,6 +21,7 @@ export function WorkspacePanel() {
   const baseCurrency = tenant?.base_currency ?? "USD";
   const [savingCurrency, setSavingCurrency] = useState(false);
   const [savedCurrency, setSavedCurrency] = useState(false);
+  const [savingCountry, setSavingCountry] = useState(false);
   const [blockOverdrafts, setBlockOverdrafts] = useState(tenant?.block_overdrafts ?? true);
   const [savingOverdrafts, setSavingOverdrafts] = useState(false);
 
@@ -54,7 +56,11 @@ export function WorkspacePanel() {
       await tenancyApi.updateWorkspace(tenant.id, { base_currency: code });
       setSavedCurrency(true);
       // Reload so the new base flows through context + defaults everywhere.
-      setTimeout(() => window.location.reload(), 400);
+      // Warn first — an invisible reload can cut off another panel's
+      // in-flight autosave (e.g. ProfilePanel's 800ms debounce) — and give
+      // that debounce a full window to land before the page goes away.
+      toast("Saved. Reloading to apply the new base currency everywhere…", { tone: "info", duration: 1500 });
+      setTimeout(() => window.location.reload(), 1500);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Couldn't update the base currency.");
     } finally {
@@ -108,7 +114,37 @@ export function WorkspacePanel() {
         <SettingsRow title="Your role">
           <Badge tone="neutral">{activeWorkspace?.role ?? "—"}</Badge>
         </SettingsRow>
-        <SettingsRow title="Base currency" description="Reports roll up to this. Existing transactions keep their own currency.">
+        <SettingsRow
+          title="Country"
+          description="Sets locale and timezone defaults. Does not convert amounts."
+        >
+          {isOwner ? (
+            <Select
+              aria-label="Country"
+              placeholder="Choose a country"
+              options={[...COUNTRY_OPTIONS]}
+              value={tenant?.country || ""}
+              onChange={(e) => {
+                if (!tenant) return;
+                setSavingCountry(true);
+                setError(null);
+                tenancyApi
+                  .updateWorkspace(tenant.id, { country: e.target.value })
+                  .then(() => window.location.reload())
+                  .catch((err) => {
+                    setError(err instanceof ApiError ? err.detail : "Couldn't update the country.");
+                    setSavingCountry(false);
+                  });
+              }}
+              disabled={savingCountry}
+            />
+          ) : (
+            <Text tone="secondary" size="sm">
+              {COUNTRY_OPTIONS.find((c) => c.value === tenant?.country)?.label ?? tenant?.country ?? "—"}
+            </Text>
+          )}
+        </SettingsRow>
+        <SettingsRow title="Base currency" description="New accounts default to this. Existing transactions keep their own currency; reports filter to one code rather than mixing them.">
           {isOwner ? (
             <div style={{ display: "flex", gap: "var(--lf-space-2)", alignItems: "center" }}>
               <Select

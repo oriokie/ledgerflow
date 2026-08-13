@@ -14,13 +14,16 @@ import type {
 } from "../api/household";
 import { changeRequestApi, householdApi } from "../api/household";
 import { formatAmount } from "../lib/money";
+import { Illustration } from "../ui/illustration";
 import {
   Badge,
   Banner,
   Button,
   Card,
+  ConfirmAction,
   EmptyState,
   Figure,
+  FigureRow,
   FormField,
   Grid,
   Input,
@@ -85,29 +88,54 @@ function Members({ summary }: { summary: HouseholdSummary }) {
   );
 }
 
-function Dependants({ items, onChanged }: { items: Dependant[]; onChanged: () => void }) {
+function Dependants({
+  items,
+  currency,
+  onChanged,
+}: {
+  items: Dependant[];
+  currency: string;
+  onChanged: () => void;
+}) {
   const [name, setName] = useState("");
   const [relationship, setRelationship] = useState("child");
   const [cost, setCost] = useState("");
   const [until, setUntil] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    await householdApi.addDependant({
-      name: name.trim(),
-      relationship,
-      monthly_cost_minor: cost ? Math.round(Number(cost) * 100) : null,
-      support_until_year: until ? Number(until) : null,
-    });
-    setName("");
-    setCost("");
-    setUntil("");
-    onChanged();
+    setError(null);
+    try {
+      await householdApi.addDependant({
+        name: name.trim(),
+        relationship,
+        monthly_cost_minor: cost ? Math.round(Number(cost) * 100) : null,
+        support_until_year: until ? Number(until) : null,
+      });
+      setName("");
+      setCost("");
+      setUntil("");
+      onChanged();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Couldn't add that dependant.");
+    }
+  };
+
+  const remove = async (id: string) => {
+    setError(null);
+    try {
+      await householdApi.removeDependant(id);
+      onChanged();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Couldn't remove that dependant.");
+    }
   };
 
   return (
     <Card title="Who you support">
+      {error && <Banner tone="danger">{error}</Banner>}
       {items.length > 0 && (
         <ul className="lf-finding-list">
           {items.map((d) => (
@@ -116,20 +144,18 @@ function Dependants({ items, onChanged }: { items: Dependant[]; onChanged: () =>
                 <Text size="sm" weight="medium">
                   {d.name}
                 </Text>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    await householdApi.removeDependant(d.id);
-                    onChanged();
-                  }}
-                >
-                  Remove
-                </Button>
+                <ConfirmAction
+                  label="Remove"
+                  confirmLabel="Remove dependant"
+                  cancelLabel="Keep"
+                  onConfirm={() => remove(d.id)}
+                />
               </div>
               <Text size="sm" tone="secondary">
                 {d.relationship}
-                {d.monthly_cost_minor ? ` · ${d.monthly_cost_minor / 100} a month` : " · no cost recorded"}
+                {d.monthly_cost_minor
+                  ? ` · ${formatAmount(d.monthly_cost_minor, currency)} a month`
+                  : " · no cost recorded"}
                 {d.support_until_year ? ` · until ${d.support_until_year}` : ""}
               </Text>
             </li>
@@ -193,9 +219,11 @@ function Dependants({ items, onChanged }: { items: Dependant[]; onChanged: () =>
  */
 function Approvals({ items, onChanged }: { items: ChangeRequest[]; onChanged: () => void }) {
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const resolve = async (id: string, action: "approve" | "decline") => {
     setError(null);
+    setBusyId(id);
     try {
       if (action === "approve") await changeRequestApi.approve(id);
       else await changeRequestApi.decline(id);
@@ -206,6 +234,8 @@ function Approvals({ items, onChanged }: { items: ChangeRequest[]; onChanged: ()
           ? err.detail
           : "Couldn't resolve that request.",
       );
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -239,10 +269,19 @@ function Approvals({ items, onChanged }: { items: ChangeRequest[]; onChanged: ()
               </div>
               {r.status === "pending" && (
                 <div className="lf-event-row-actions">
-                  <Button size="sm" onClick={() => resolve(r.id, "approve")}>
+                  <Button
+                    size="sm"
+                    loading={busyId === r.id}
+                    onClick={() => resolve(r.id, "approve")}
+                  >
                     Approve
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => resolve(r.id, "decline")}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    loading={busyId === r.id}
+                    onClick={() => resolve(r.id, "decline")}
+                  >
                     Decline
                   </Button>
                 </div>
@@ -312,7 +351,12 @@ export function HouseholdPage() {
   if (loading) {
     return (
       <>
-        <PageHeader title="Household" description="Where you stand together." />
+        <PageHeader
+          eyebrow="Meaning"
+          title="Household"
+          description="Where you stand together."
+          illustration="together"
+        />
         <SkeletonCard />
       </>
     );
@@ -321,9 +365,15 @@ export function HouseholdPage() {
   if (error || !summary) {
     return (
       <>
-        <PageHeader title="Household" description="Where you stand together." />
+        <PageHeader
+          eyebrow="Meaning"
+          title="Household"
+          description="Where you stand together."
+          illustration="together"
+        />
         <EmptyState
           icon={Users}
+          illustration="together"
           title="Nothing to show yet"
           body={error ?? "Add an account to get started."}
         />
@@ -337,33 +387,39 @@ export function HouseholdPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Meaning"
         title="Household"
         description="Where you stand together — including the parts you keep to yourselves."
+        illustration="together"
       />
 
       <Stack gap={5}>
-        <Grid cols={4}>
-          <Figure
-            label="Household net worth"
-            value={formatAmount(position.net_worth_minor, currency)}
-            hint="Counts every account, including private ones"
-          />
-          <Figure
-            label="What you can itemise"
-            value={formatAmount(position.visible_assets_minor, currency)}
-            hint={`${position.withheld_account_count} account(s) withheld`}
-          />
-          <Figure
-            label="Household runway"
-            value={`${coverage.household_runway_months} months`}
-            hint={
-              coverage.household_runway_months !== coverage.visible_runway_months
-                ? `${coverage.visible_runway_months} from what you can see`
-                : undefined
-            }
-          />
-          <Figure label="People supported" value={String(position.dependants)} />
-        </Grid>
+        <div className="lf-household-hero">
+          <FigureRow lead className="lf-household-hero-figures">
+            <Figure
+              size="hero"
+              label="Household net worth"
+              value={formatAmount(position.net_worth_minor, currency)}
+              hint="Counts every account, including private ones"
+            />
+            <Figure
+              label="What you can itemise"
+              value={formatAmount(position.visible_assets_minor, currency)}
+              hint={`${position.withheld_account_count} account(s) withheld`}
+            />
+            <Figure
+              label="Household runway"
+              value={`${coverage.household_runway_months} months`}
+              hint={
+                coverage.household_runway_months !== coverage.visible_runway_months
+                  ? `${coverage.visible_runway_months} from what you can see`
+                  : undefined
+              }
+            />
+            <Figure label="People supported" value={String(position.dependants)} />
+          </FigureRow>
+          <Illustration name="together" size="panel" className="lf-household-hero-art" />
+        </div>
 
         <Withheld count={position.withheld_account_count} />
 
@@ -375,7 +431,7 @@ export function HouseholdPage() {
 
         <Grid cols={2}>
           <Members summary={summary} />
-          <Dependants items={dependants} onChanged={load} />
+          <Dependants items={dependants} currency={currency} onChanged={load} />
         </Grid>
 
         {/* What the two of you act on, above the aggregates that give it

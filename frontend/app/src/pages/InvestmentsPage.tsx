@@ -46,8 +46,13 @@ export function InvestmentsPage() {
     <>
       <PageHeader
         title="Investments"
-        eyebrow={portfolio ? `${portfolio.holding_count} holdings` : undefined}
-        description="What you hold, what it cost, and what it's worth today."
+        eyebrow="Trajectory"
+        description={
+          portfolio
+            ? `${portfolio.holding_count} holdings — what you hold, what it cost, and what it's worth today.`
+            : "What you hold, what it cost, and what it's worth today."
+        }
+        illustration="portfolio"
         actions={
           <Inline gap={2}>
             <Button variant="secondary" onClick={() => setShowSecurity(true)}>
@@ -80,7 +85,7 @@ export function InvestmentsPage() {
         <Card>
           <EmptyState
             icon={TrendingUp}
-            illustration="no-data"
+            illustration="portfolio"
             title="No investments tracked yet"
             body="Add a security and record a purchase to start tracking cost basis, gains and allocation."
             action={

@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { amountDirectionClass, formatAmountParts } from "../lib/money";
+import { useFitFontSize } from "../lib/useFitFontSize";
 
 interface MoneyProps {
   amountMinor: number;
@@ -28,8 +29,12 @@ export function Money({ amountMinor, currency, isTransfer, hero, neutral, classN
   // Always signed. `neutral` governs colour, never whether the number is
   // truthful about its direction.
   const sign = amountMinor < 0 ? "\u2212" : "";
+  // A no-op unless `hero` \u2014 no ResizeObserver overhead on ordinary table/inline
+  // amounts, which is the overwhelming majority of renders.
+  const fitRef = useFitFontSize<HTMLDataElement>(!!hero, [amountMinor, currency]);
   return (
     <data
+      ref={hero ? fitRef : undefined}
       className={clsx(
         "lf-amount",
         !neutral && amountDirectionClass(amountMinor, !!isTransfer),

@@ -74,6 +74,7 @@ export const suggestionsApi = {
 
 export const automationApi = {
   list: () => api.get<AutomationRule[]>("/intelligence/automation-rules/"),
+  get: (ruleId: string) => api.get<AutomationRule>(`/intelligence/automation-rules/${ruleId}/`),
   create: (payload: {
     name: string;
     conditions: AutomationRule["conditions"];
@@ -81,5 +82,26 @@ export const automationApi = {
     priority?: number;
     stop_processing?: boolean;
   }) => api.post<AutomationRule>("/intelligence/automation-rules/", payload),
+  /** Every field optional — a PATCH can flip just `is_active` without
+   * resending the whole rule. */
+  update: (
+    ruleId: string,
+    payload: Partial<{
+      name: string;
+      conditions: AutomationRule["conditions"];
+      actions: AutomationRule["actions"];
+      priority: number;
+      is_active: boolean;
+      stop_processing: boolean;
+    }>,
+  ) => api.patch<AutomationRule>(`/intelligence/automation-rules/${ruleId}/`, payload),
   remove: (ruleId: string) => api.delete<void>(`/intelligence/automation-rules/${ruleId}/`),
+
+  /** Retroactive sweep — the complement to the live post_save pipeline, which
+   * only ever reaches a transaction at the moment it's created. */
+  applyRules: (payload: { scope?: "uncategorized" | "all"; limit?: number } = {}) =>
+    api.post<{ scanned: number; matched: number; effects: number; errors: { transaction_id: string; error: string }[] }>(
+      "/intelligence/automation/apply-rules/",
+      payload,
+    ),
 };

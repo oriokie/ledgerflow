@@ -1,6 +1,14 @@
 import type { ReactNode } from "react";
 import { useIllustrationStyleSetting } from "../hooks/usePlatform";
-import { IllustrationStyleProvider } from "../ui/illustration";
+import { ILLUSTRATION_STYLES, IllustrationStyleProvider, type IllustrationStyle } from "../ui/illustration";
+
+function devIllustrationOverride(): IllustrationStyle | undefined {
+  if (!import.meta.env.DEV) return undefined;
+  const raw = new URLSearchParams(window.location.search).get("illus");
+  return ILLUSTRATION_STYLES.includes(raw as IllustrationStyle)
+    ? (raw as IllustrationStyle)
+    : undefined;
+}
 
 /**
  * Reads the platform's illustration style once, near the root.
@@ -16,8 +24,9 @@ import { IllustrationStyleProvider } from "../ui/illustration";
  */
 export function IllustrationStyleGate({ children }: { children: ReactNode }) {
   const { data } = useIllustrationStyleSetting();
+  const override = devIllustrationOverride();
   return (
-    <IllustrationStyleProvider style={data?.illustration_style}>
+    <IllustrationStyleProvider style={override ?? data?.illustration_style}>
       {children}
     </IllustrationStyleProvider>
   );

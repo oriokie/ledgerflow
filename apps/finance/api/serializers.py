@@ -81,6 +81,8 @@ class CategoryUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=80, required=False)
     color = serializers.CharField(max_length=9, required=False, allow_blank=True)
     icon = serializers.CharField(max_length=40, required=False, allow_blank=True)
+    # null means "move to top-level"; omitted means "leave the parent alone".
+    parent_id = serializers.UUIDField(required=False, allow_null=True)
 
 
 class CategorySerializer(serializers.Serializer):
@@ -110,6 +112,11 @@ class TransferCreateSerializer(serializers.Serializer):
     amount_minor = serializers.IntegerField(min_value=1)
     occurred_at = serializers.DateTimeField()
     memo = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    idempotency_key = serializers.CharField(max_length=128, required=False, allow_blank=True)
+
+
+class TransactionReclassifyTransferSerializer(serializers.Serializer):
+    counter_account_id = serializers.UUIDField()
     idempotency_key = serializers.CharField(max_length=128, required=False, allow_blank=True)
 
 
@@ -263,6 +270,7 @@ class RecurringSerializer(serializers.Serializer):
     memo = serializers.CharField()
     category_id = serializers.UUIDField(allow_null=True)
     financial_account_id = serializers.UUIDField(allow_null=True)
+    counter_account_id = serializers.UUIDField(allow_null=True)
     payee_id = serializers.UUIDField(allow_null=True)
 
 

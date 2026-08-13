@@ -1,8 +1,10 @@
-import { RefreshCw } from "lucide-react";
+import { Download, RefreshCw, Upload } from "lucide-react";
 import { useState } from "react";
+import { financeExtendedApi } from "../api/finance";
 import type { RecurringTransaction } from "../api/types";
+import { ImportXlsxModal } from "../components/ImportXlsxModal";
 import { useCategories, useCancelRecurring, useRecurring, useSetRecurringActive } from "../hooks/useFinance";
-import { Button, Card, EmptyState, PageHeader, SkeletonCard, useToast } from "../ui";
+import { Button, Card, EmptyState, IconButton, PageHeader, SkeletonCard, useToast } from "../ui";
 import { RecurringModal, SubscriptionInsight, SubscriptionRow, SubscriptionSummary } from "./recurring";
 import { monthlyMinor } from "./recurring/recurringMath";
 
@@ -17,6 +19,7 @@ export function RecurringPage({ embedded }: { embedded?: boolean } = {}) {
   const toast = useToast();
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<RecurringTransaction | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const list = recurring ?? [];
   // Biggest cost first — where the easiest savings are.
@@ -42,12 +45,22 @@ export function RecurringPage({ embedded }: { embedded?: boolean } = {}) {
           eyebrow="Recurring & subscriptions"
           title="Subscriptions"
           actions={
-            <Button variant="primary" onClick={() => setShowCreate(true)}>
-              New recurring charge
-            </Button>
+            <>
+              <IconButton
+                label="Export CSV"
+                icon={<Download size={16} />}
+                onClick={() => financeExtendedApi.downloadRecurringCsv()}
+              />
+              <IconButton label="Import Excel" icon={<Upload size={16} />} onClick={() => setShowImport(true)} />
+              <Button variant="primary" onClick={() => setShowCreate(true)}>
+                New recurring transaction
+              </Button>
+            </>
           }
         />
       )}
+
+      {showImport && <ImportXlsxModal target="recurring" onClose={() => setShowImport(false)} />}
 
       {isLoading && <SkeletonCard />}
 
@@ -55,11 +68,12 @@ export function RecurringPage({ embedded }: { embedded?: boolean } = {}) {
         <Card>
           <EmptyState
             icon={RefreshCw}
-            title="No recurring charges yet"
-            body="Add your subscriptions and recurring bills — streaming, gym, rent — to see what they cost each month and spot what to trim."
+            illustration="cycle"
+            title="No recurring transactions yet"
+            body="Add subscriptions, recurring bills, income, or automatic savings transfers to keep your plan in one place."
             action={
               <Button variant="primary" onClick={() => setShowCreate(true)}>
-                Add a recurring charge
+                Add a recurring transaction
               </Button>
             }
           />

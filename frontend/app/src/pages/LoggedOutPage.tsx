@@ -1,30 +1,38 @@
-import { LogOut } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthLayout } from "../components/auth/AuthLayout";
 import { Heading, Stack, Text } from "../ui";
 
 /**
- * Where logout lands. Instead of dumping people at a login form mid-thought,
- * this closes the session with a calm goodbye — same split shell, same rotating
- * financial wisdom — and one clear way back in.
+ * Where logout lands. A calm close, then home — not a login form mid-thought.
  */
 export function LoggedOutPage() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => navigate("/", { replace: true }), 5000);
+    return () => window.clearTimeout(timer);
+  }, [navigate]);
+
   return (
-    <AuthLayout>
-      <Stack gap={4}>
-        <div>
-          <span className="lf-loggedout-icon" aria-hidden="true">
-            <LogOut size={20} strokeWidth={1.8} />
-          </span>
-          <Heading level={1}>You're signed out</Heading>
-        </div>
+    <AuthLayout scene="signed-out" illustration="path">
+      <Stack gap={4} className="lf-loggedout">
+        <p className="lf-cmd-eyebrow">Session closed</p>
+        <Heading level={1} className="lf-auth-title">
+          See you next time
+        </Heading>
         <Text tone="secondary">
-          Your session is closed and your data stays safe. Come back any time — your workspaces will be right
-          where you left them.
+          Your books are exactly where you left them. Taking you back to the homepage in a
+          moment.
         </Text>
-        <Link className="lf-btn lf-btn--primary" to="/login" style={{ justifyContent: "center" }}>
-          Sign back in
-        </Link>
+        <div className="lf-loggedout-actions">
+          <Link className="lf-btn lf-btn--primary" to="/" style={{ justifyContent: "center" }}>
+            Back to home
+          </Link>
+          <Link className="lf-btn lf-btn--ghost" to="/login" style={{ justifyContent: "center" }}>
+            Sign back in
+          </Link>
+        </div>
       </Stack>
     </AuthLayout>
   );

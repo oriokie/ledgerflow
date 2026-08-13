@@ -5,10 +5,12 @@ import { usePlans } from "../hooks/useBilling";
 import { formatAmount } from "../lib/money";
 import { AuthBrand } from "../components/auth/AuthLayout";
 import { Illustration } from "../ui/illustration";
-import { Figure } from "../ui";
+import { Banner, Figure } from "../ui";
 import { AppPreview } from "./landing/AppPreview";
 import { AdvisorShowcase } from "./landing/AdvisorShowcase";
-import { FAQ, FEATURES, TESTIMONIALS } from "./landing/marketingCopy";
+import { FAQ, FEATURES } from "./landing/marketingCopy";
+
+const DOODLE = { style: "doodle" as const };
 
 /**
  * The product's front door.
@@ -34,7 +36,6 @@ export function LandingPage() {
         <Features />
         <Intelligence />
         <AdvisorShowcase />
-        <Testimonials />
         <Pricing />
         <Faq />
         <ClosingCta />
@@ -54,6 +55,7 @@ function LandingHeader() {
         <AuthBrand />
       </Link>
       <nav className="lf-landing-nav" aria-label="Page sections">
+        <a href="#preview">How it works</a>
         <a href="#features">Features</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
@@ -72,32 +74,101 @@ function LandingHeader() {
 
 function Hero() {
   return (
-    <section className="lf-hero">
-      <div className="lf-hero-copy">
-        <p className="lf-hero-eyebrow">Personal finance, kept properly</p>
-        <h1 className="lf-hero-title">
-          Know exactly where you stand.
-          <span className="lf-hero-title-accent"> And why.</span>
-        </h1>
-        <p className="lf-hero-sub">
-          A double-entry ledger with the planning tools on top: budgets, goals, debt payoff and a
-          day-by-day cash-flow projection. Every figure shows what it was measured from, so you can
-          check it instead of trusting it.
-        </p>
-        <div className="lf-hero-actions">
-          <Link className="lf-btn lf-btn--primary" to="/register">
-            Start your free week
-            <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-          </Link>
-          <a className="lf-btn lf-btn--secondary" href="#preview">
-            See how it looks
-          </a>
+    <section className="lf-hero-shell">
+      <div className="lf-hero">
+        <div className="lf-hero-copy">
+          <p className="lf-hero-eyebrow">
+            <span aria-hidden="true" />
+            The calm financial operating system
+          </p>
+          <h1 className="lf-hero-title">
+            Your money,
+            <span className="lf-hero-title-accent"> made legible.</span>
+          </h1>
+          <p className="lf-hero-sub">
+            LedgerFlow turns scattered accounts, plans, goals, and obligations into one precise
+            picture—then shows the reasoning behind every figure.
+          </p>
+          <div className="lf-hero-actions">
+            <Link className="lf-btn lf-btn--primary lf-btn--lg" to="/register">
+              Build your financial picture
+              <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+            </Link>
+            <a className="lf-btn lf-btn--secondary lf-btn--lg" href="#preview">
+              Explore the product
+            </a>
+          </div>
+          <p className="lf-hero-note">Seven days free. No card required. Your data stays exportable.</p>
+          <ul className="lf-hero-trust" aria-label="What you get on every plan">
+            <li>
+              <Check size={15} strokeWidth={2.4} aria-hidden="true" />
+              Books that stay balanced
+            </li>
+            <li>
+              <Check size={15} strokeWidth={2.4} aria-hidden="true" />
+              Evidence behind every insight
+            </li>
+            <li>
+              <Check size={15} strokeWidth={2.4} aria-hidden="true" />
+              Private by design
+            </li>
+          </ul>
         </div>
-        <p className="lf-hero-note">Seven days free — no card asked for. Export everything, always.</p>
-      </div>
 
-      <div className="lf-hero-art">
-        <Illustration name="vault" size="hero" />
+        <div className="lf-hero-art">
+          <div className="lf-landing-hero-art">
+            <div className="lf-hero-art-halo" aria-hidden="true" />
+            <img
+              className="lf-hero-visual-image lf-hero-visual-image--light"
+              src="/illustrations/editorial/landing-hero.webp"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              decoding="async"
+            />
+            <img
+              className="lf-hero-visual-image lf-hero-visual-image--dark"
+              src="/illustrations/editorial/landing-hero-dark.webp"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              decoding="async"
+            />
+            <div className="lf-hero-art-card lf-hero-art-card--top">
+              <span className="lf-hero-art-card-icon">
+                <Check size={13} strokeWidth={2.5} aria-hidden="true" />
+              </span>
+              <span>
+                <strong>Books balanced</strong>
+                <small>Every entry has its other side</small>
+              </span>
+            </div>
+            <div className="lf-hero-art-card lf-hero-art-card--bottom">
+              <span className="lf-hero-certainty-line" aria-hidden="true" />
+              <span>
+                <strong>Known → projected</strong>
+                <small>Certainty stays visible</small>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="lf-hero-proof-rail" aria-label="LedgerFlow foundations">
+        <div>
+          <span>01</span>
+          <strong>One honest ledger</strong>
+          <p>Balanced, reconciled, and auditable.</p>
+        </div>
+        <div>
+          <span>02</span>
+          <strong>Planning with context</strong>
+          <p>Budgets, goals, debt, and cash flow together.</p>
+        </div>
+        <div>
+          <span>03</span>
+          <strong>Advice you can inspect</strong>
+          <p>Every conclusion keeps its evidence attached.</p>
+        </div>
       </div>
     </section>
   );
@@ -145,7 +216,7 @@ function Features() {
       <div className="lf-feature-grid">
         {FEATURES.map((feature) => (
           <article key={feature.title} className="lf-feature">
-            <Illustration name={feature.illustration} size="spot" />
+            <Illustration name={feature.illustration} size="spot" {...DOODLE} />
             <h3>{feature.title}</h3>
             <p>{feature.body}</p>
           </article>
@@ -180,49 +251,14 @@ function Intelligence() {
           </li>
         </ul>
       </div>
-      <Illustration name="insight" size="panel" />
+      <Illustration name="insight" size="panel" {...DOODLE} />
     </section>
     </div>
   );
 }
 
-function Testimonials() {
-  const anySample = TESTIMONIALS.some((t) => t.sample);
-  if (TESTIMONIALS.length === 0) return null;
-
-  return (
-    <section className="lf-landing-section">
-      <SectionHead eyebrow="In their words" title="What people say" />
-
-      {/* The notice is tied to the data, not written into the page: it appears
-          while any quote is flagged `sample` and disappears by itself once real
-          ones replace them. Shipping invented endorsements on a page arguing
-          this product tells you the truth would undercut the whole argument. */}
-      {anySample && (
-        <p className="lf-landing-sample-note" role="note">
-          <strong>Sample copy.</strong> These are written examples, not customer
-          endorsements — here so the section can be seen and adapted. Replace them in{" "}
-          <code>marketingCopy.ts</code> and this notice goes away.
-        </p>
-      )}
-
-      <div className="lf-landing-quotes">
-        {TESTIMONIALS.map((t) => (
-          <figure key={t.attribution} className="lf-landing-quote">
-            <blockquote>{t.quote}</blockquote>
-            <figcaption>
-              <span>{t.attribution}</span>
-              {t.sample && <span className="lf-landing-quote-tag">Example</span>}
-            </figcaption>
-          </figure>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function Pricing() {
-  const { data: plans } = usePlans("USD");
+  const { data: plans, isLoading, isError, refetch } = usePlans("USD");
 
   /* Monthly only, one row per tier. The annual variants exist in the catalogue
      but doubling the cards to show "two months free" is a worse trade than a
@@ -261,8 +297,22 @@ function Pricing() {
         body="Do you want the product to think with you, or just keep the books? Every new workspace starts with seven days free on Basic — no card asked for. Reconciliation, the audit trail, two-factor authentication and data export are on both plans; leaving with your books is never a paid feature."
       />
 
-      {monthly.length === 0 ? (
-        <p className="lf-landing-muted">Loading the current plans…</p>
+      {isError ? (
+        <Banner tone="danger">
+          Couldn't load the current plans. Try again in a moment.
+          <button
+            type="button"
+            className="lf-btn lf-btn--ghost lf-btn--sm"
+            style={{ marginLeft: "auto" }}
+            onClick={() => void refetch()}
+          >
+            Retry
+          </button>
+        </Banner>
+      ) : monthly.length === 0 ? (
+        <p className="lf-landing-muted">
+          {isLoading === false ? "No plans available right now." : "Loading the current plans…"}
+        </p>
       ) : (
         <div className="lf-price-grid">
           {monthly.map((plan) => (
@@ -349,7 +399,7 @@ function Faq() {
 function ClosingCta() {
   return (
     <section className="lf-landing-cta">
-      <Illustration name="welcome" size="spot" />
+      <Illustration name="welcome" size="spot" {...DOODLE} />
       <h2>Start with one account and a week of transactions.</h2>
       <p>That is enough for the projection to say something useful.</p>
       <Link className="lf-btn lf-btn--primary" to="/register">

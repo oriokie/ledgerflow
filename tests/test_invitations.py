@@ -225,6 +225,66 @@ def test_service_layer_rejects_invite_above_own_role_directly():
         )
 
 
+def test_preview_invitation_returns_workspace_role_and_inviter(tenant_context, api_client):
+    owner_membership, _client = tenant_context
+    invitation, raw_token = create_invitation(
+        tenant=owner_membership.tenant,
+        invited_by_membership=owner_membership,
+        email="invitee@example.com",
+        role=Role.MEMBER,
+    )
+
+    # No auth header at all -- the whole point is this works before sign-in.
+    resp = api_client.get(f"/api/v1/tenancy/invitations/{raw_token}/")
+    assert resp.status_code == 200
+    assert resp.data["workspace_name"] == owner_membership.tenant.name
+    assert resp.data["role"] == "member"
+    assert resp.data["invited_by_display"] == owner_membership.user.full_name
+    # Nothing about the workspace's data leaks out.
+    assert set(resp.data.keys()) == {"workspace_name", "role", "invited_by_display"}
+
+
+def test_preview_invitation_bad_token_rejected(api_client):
+    resp = api_client.get("/api/v1/tenancy/invitations/not-a-real-token/")
+    assert resp.status_code == 400
+
+
+def test_preview_expired_invitation_rejected(tenant_context, api_client):
+    owner_membership, _client = tenant_context
+    invitation, raw_token = create_invitation(
+        tenant=owner_membership.tenant,
+        invited_by_membership=owner_membership,
+        email="invitee@example.com",
+        role=Role.MEMBER,
+    )
+    invitation.expires_at = timezone.now() - timedelta(days=1)
+    invitation.save(update_fields=["expires_at"])
+
+    resp = api_client.get(f"/api/v1/tenancy/invitations/{raw_token}/")
+    assert resp.status_code == 400
+
+
+def test_preview_does_not_accept_the_invitation(tenant_context, api_client):
+    """Peeking is read-only -- it must not consume the invitation."""
+    owner_membership, _client = tenant_context
+    invitee = UserFactory(email="invitee@example.com")
+    invitation, raw_token = create_invitation(
+        tenant=owner_membership.tenant,
+        invited_by_membership=owner_membership,
+        email=invitee.email,
+        role=Role.MEMBER,
+    )
+
+    api_client.get(f"/api/v1/tenancy/invitations/{raw_token}/")
+
+    invitation.refresh_from_db()
+    assert invitation.status == InvitationStatus.PENDING
+
+    invitee_client = _bearer_client(invitee)
+    resp = invitee_client.post("/api/v1/tenancy/invitations/accept/", {"token": raw_token}, format="json")
+    assert resp.status_code == 201
+
+
 def test_invitation_token_is_hashed_at_rest(tenant_context):
     owner_membership, _client = tenant_context
     invitation, raw_token = create_invitation(

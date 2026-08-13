@@ -15,6 +15,10 @@ vi.mock("../hooks/useFinance", () => ({
   useCreateWallet: () => ({ mutateAsync: vi.fn() }),
   useAssignAccountToWallet: () => ({ mutate: vi.fn() }),
   useAccountStatement: () => ({ data: { opening_balance_minor: 0, lines: [] }, isLoading: false }),
+  useUpdateAccount: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useArchiveAccount: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUnarchiveAccount: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteAccount: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock("../hooks/useLedger", () => ({ useLedgerAccounts: () => ({ data: undefined }) }));
 vi.mock("../lib/AuthContext", () => ({

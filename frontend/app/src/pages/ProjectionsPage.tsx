@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError } from "../api/client";
 import type {
   BaselineResponse,
+  CashflowStackLine,
   EventKindMeta,
   Projection,
   Scenario,
@@ -15,6 +16,7 @@ import {
   Banner,
   Button,
   Card,
+  ConfirmAction,
   EmptyState,
   Figure,
   FormField,
@@ -115,6 +117,81 @@ function ProjectionSummary({
         certainty="projected"
       />
     </Grid>
+  );
+}
+
+function CashflowStack({
+  lines,
+  currency,
+}: {
+  lines: CashflowStackLine[];
+  currency: string;
+}) {
+  if (lines.length === 0) return null;
+  const incoming = lines.filter((l) => l.direction === "in");
+  const outgoing = lines.filter((l) => l.direction === "out");
+  return (
+    <Card title="What each month already counts">
+      <Text size="sm" tone="secondary">
+        Income sources, recurring charges, and bills already on the books. A
+        home purchase can replace rent by filling in the cost it stops — we
+        never invent a number that is not on this list.
+      </Text>
+      <Grid cols={2}>
+        <Stack gap={2}>
+          <Text size="xs" tone="tertiary">
+            Coming in
+          </Text>
+          {incoming.length === 0 ? (
+            <Text size="sm" tone="tertiary">
+              No scheduled income in this currency.
+            </Text>
+          ) : (
+            <ul className="lf-assumption-list">
+              {incoming.map((line) => (
+                <li key={line.id}>
+                  <Text size="sm">
+                    {line.label}{" "}
+                    <Text as="span" tone="secondary" size="sm">
+                      {formatAmount(line.monthly_minor, currency)} / mo
+                    </Text>
+                  </Text>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Stack>
+        <Stack gap={2}>
+          <Text size="xs" tone="tertiary">
+            Going out
+          </Text>
+          {outgoing.length === 0 ? (
+            <Text size="sm" tone="tertiary">
+              No scheduled spending in this currency.
+            </Text>
+          ) : (
+            <ul className="lf-assumption-list">
+              {outgoing.map((line) => (
+                <li key={line.id}>
+                  <Text size="sm">
+                    {line.label}{" "}
+                    <Text as="span" tone="secondary" size="sm">
+                      {formatAmount(line.monthly_minor, currency)} / mo
+                    </Text>
+                    {line.stoppable ? (
+                      <Text as="span" tone="tertiary" size="xs">
+                        {" "}
+                        · can stop if you buy a home
+                      </Text>
+                    ) : null}
+                  </Text>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Stack>
+      </Grid>
+    </Card>
   );
 }
 
@@ -264,7 +341,12 @@ export function ProjectionsPage() {
   if (loading) {
     return (
       <>
-        <PageHeader title="Projections" description="Where this is heading, and what would change it." />
+        <PageHeader
+          eyebrow="Trajectory"
+          title="Projections"
+          description="Where this is heading, and what would change it."
+          illustration="horizon"
+        />
         <SkeletonCard />
       </>
     );
@@ -273,9 +355,15 @@ export function ProjectionsPage() {
   if (error || !baseline) {
     return (
       <>
-        <PageHeader title="Projections" description="Where this is heading, and what would change it." />
+        <PageHeader
+          eyebrow="Trajectory"
+          title="Projections"
+          description="Where this is heading, and what would change it."
+          illustration="horizon"
+        />
         <EmptyState
           icon={Route}
+          illustration="horizon"
           title="Nothing to project yet"
           body={error ?? "Add an account and a little history first."}
         />
@@ -290,8 +378,10 @@ export function ProjectionsPage() {
   return (
     <>
       <PageHeader
+        eyebrow="Trajectory"
         title="Projections"
         description="Where this is heading if nothing changes — and what each decision would do to it."
+        illustration="horizon"
         actions={
           <SegmentedControl<HorizonValue>
             legend="Projection horizon"
@@ -344,6 +434,8 @@ export function ProjectionsPage() {
         )}
 
         <ChartDeck projection={shown} baseline={comparison} currency={currency} />
+
+        <CashflowStack lines={baseline.cashflow_stack ?? []} currency={currency} />
 
         <Grid cols={2}>
           <Card title="Scenarios">
@@ -413,16 +505,16 @@ export function ProjectionsPage() {
                 >
                   Archive
                 </Button>
-                <Button
-                  variant="ghost"
+                <ConfirmAction
+                  label="Delete"
+                  confirmLabel="Delete"
+                  cancelLabel="Keep"
                   size="sm"
-                  onClick={async () => {
+                  onConfirm={async () => {
                     await projectionsApi.deleteScenario(selected.id);
                     await refresh();
                   }}
-                >
-                  Delete
-                </Button>
+                />
               </Inline>
             )}
           </Card>

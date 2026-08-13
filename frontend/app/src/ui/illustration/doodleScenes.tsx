@@ -17,14 +17,13 @@ export function DoodleVault(props: DoodleProps) {
   return (
     <DoodleScene {...props} ids={ids}>
       <Wash tone={props.tone}>
-        <rect x="76" y="52" width="66" height="72" rx="12" />
+        <rect x="92" y="58" width="52" height="58" rx="10" />
       </Wash>
-      <rect x="76" y="52" width="66" height="72" rx="12" />
-      <circle cx="109" cy="88" r="14" />
-      <path d="M109 74v-5M109 107v5M95 88h-5M128 88h5" />
-      {/* Standing beside it, one hand raised — proud of the thing, not
-          guarding it. */}
-      <Figure x={52} y={100} scale={1} arms="wave" tilt={-2} />
+      <rect x="92" y="58" width="52" height="58" rx="10" transform="rotate(2 118 87)" />
+      <circle cx="118" cy="86" r="10" />
+      <path d="M118 76v-4M118 96v4M108 86h-4M128 86h4" strokeWidth="2.4" />
+      <Figure x={44} y={116} scale={1.02} arms="hold" hair="long" seated tilt={2} />
+      <Figure x={158} y={114} scale={1} arms="point" hair="short" tilt={-3} flip />
     </DoodleScene>
   );
 }
@@ -43,7 +42,8 @@ export function DoodleGrowth(props: DoodleProps) {
       <rect x="100" y="66" width="20" height="56" rx="5" transform="rotate(1 110 94)" />
       <rect x="128" y="44" width="20" height="78" rx="5" transform="rotate(-1 138 83)" />
       <path d="M74 40l14-10 12 8 22-18" strokeWidth="3" opacity="0.55" />
-      <Figure x={48} y={102} arms="point" />
+      <Figure x={42} y={116} scale={1.04} arms="point" hair="curly" tilt={-2} />
+      <Figure x={168} y={118} scale={0.92} arms="up" hair="bun" tilt={4} flip />
     </DoodleScene>
   );
 }
@@ -51,15 +51,41 @@ export function DoodleGrowth(props: DoodleProps) {
 /** Two people, one lock: the auth surface. */
 export function DoodleShield(props: DoodleProps) {
   const ids = useDoodleIds();
-  const shield = "M118 44c11 7 21 10 29 10v27c0 19-13 30-29 37-16-7-29-18-29-37V54c8 0 18-3 29-10z";
+  const shield = "M118 38c12 8 23 12 32 12v30c0 21-14 33-32 40-18-7-32-19-32-40V50c9 0 20-4 32-12z";
   return (
     <DoodleScene {...props} ids={ids}>
-      <Wash tone={props.tone}>
+      <Wash tone={props.tone} rotate={2}>
         <path d={shield} />
       </Wash>
-      <path d={shield} />
-      <path d="M105 82l9 9 17-19" />
-      <Figure x={50} y={104} arms="up" tilt={2} scale={0.94} />
+      <path d={shield} transform="rotate(1.5 118 70)" />
+
+      {/* The lock — what the two people are gathered around. */}
+      <Wash tone={props.tone} dx={2} dy={4} rotate={-1}>
+        <rect x="102" y="66" width="32" height="26" rx="7" />
+        <path d="M110 66v-12a8 8 0 0116 0v12" />
+      </Wash>
+      <g transform="rotate(-1.5 118 78)">
+        <path d="M110 66v-12a8 8 0 0116 0v12" />
+        <rect x="102" y="66" width="32" height="26" rx="7" />
+        <circle cx="118" cy="78" r="4.5" />
+        <path d="M118 82v5" strokeWidth="2.6" />
+      </g>
+
+      {/* Verified — the check sits on the lock, not the shield outline. */}
+      <path d="M108 88l7 7 14-16" strokeWidth="3" opacity="0.85" />
+
+      {/* A dotted path back in: "welcome back" without spelling it out. */}
+      <path
+        d="M62 92c18-10 32-12 46-8"
+        strokeWidth="2.6"
+        opacity="0.42"
+        strokeDasharray="5 7"
+      />
+      <path d="M92 48v5M89 50.5h6" strokeWidth="2.4" opacity="0.5" />
+      <path d="M152 52l5-5" strokeWidth="2.4" opacity="0.45" />
+
+      <Figure x={38} y={116} scale={0.98} arms="wave" hair="long" tilt={-4} />
+      <Figure x={162} y={118} scale={0.9} arms="point" hair="short" tilt={3} flip />
     </DoodleScene>
   );
 }
@@ -110,7 +136,8 @@ export function DoodleCompass(props: DoodleProps) {
       {/* Motion lines: the mark of drawing something in a hurry, and the
           cheapest way to say "going somewhere". */}
       <path d="M30 74h14M26 86h20M34 98h12" strokeWidth="2.6" opacity="0.5" />
-      <Figure x={58} y={104} arms="point" tilt={-4} />
+      <Figure x={48} y={116} scale={1.05} arms="point" hair="short" seated tilt={-3} />
+      <Figure x={172} y={114} scale={0.95} arms="wave" hair="long" tilt={5} flip />
     </DoodleScene>
   );
 }
@@ -227,6 +254,23 @@ export function DoodleBroken(props: DoodleProps) {
   );
 }
 
+/** Two people, under one roof. */
+export function DoodleTogether(props: DoodleProps) {
+  const ids = useDoodleIds();
+  const roof = "M56 84c8-26 30-40 44-40s36 14 44 40";
+  return (
+    <DoodleScene {...props} ids={ids}>
+      <Wash tone={props.tone}>
+        <path d={`${roof}v6H56z`} />
+      </Wash>
+      <path d={roof} />
+      <path d="M66 84v-2M134 84v-2" strokeWidth="2.6" opacity="0.5" />
+      <Figure x={78} y={112} arms="wave" tilt={-2} />
+      <Figure x={112} y={112} arms="point" tilt={2} flip />
+    </DoodleScene>
+  );
+}
+
 /** Someone having an idea. */
 export function DoodleInsight(props: DoodleProps) {
   const ids = useDoodleIds();
@@ -238,7 +282,8 @@ export function DoodleInsight(props: DoodleProps) {
       <path d="M126 42a24 24 0 0114 43v9h-28v-9a24 24 0 0114-43z" />
       <path d="M114 102h24M117 110h18" />
       <path d="M126 26v-8M154 40l7-6M98 40l-7-6" strokeWidth="2.8" opacity="0.6" />
-      <Figure x={52} y={104} arms="up" tilt={-2} />
+      <Figure x={44} y={116} scale={1.02} arms="up" hair="curly" tilt={-2} />
+      <Figure x={168} y={118} scale={0.88} arms="hold" hair="bun" tilt={3} flip />
     </DoodleScene>
   );
 }

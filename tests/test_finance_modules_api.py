@@ -553,6 +553,45 @@ def test_recurring_serializer_includes_label_fields(tenant_context):
     assert str(created.data["financial_account_id"]) == str(acct["id"])
 
 
+def test_recurring_transfer_api_preserves_both_accounts(tenant_context):
+    _, client = tenant_context
+    source = _account(client, name="Checking")
+    destination = _account(client, name="Savings", account_type="savings")
+    created = client.post(
+        "/api/v1/finance/recurring/",
+        {
+            "txn_type": "transfer",
+            "financial_account_id": source["id"],
+            "counter_account_id": destination["id"],
+            "amount_minor": 20_000,
+            "currency": "USD",
+            "frequency": "monthly",
+            "starts_on": "2026-01-01",
+            "memo": "Monthly savings",
+        },
+        format="json",
+    )
+    assert created.status_code == 201, created.data
+    assert str(created.data["financial_account_id"]) == str(source["id"])
+    assert str(created.data["counter_account_id"]) == str(destination["id"])
+    assert created.data["category_id"] is None
+
+    same_account = client.post(
+        "/api/v1/finance/recurring/",
+        {
+            "txn_type": "transfer",
+            "financial_account_id": source["id"],
+            "counter_account_id": source["id"],
+            "amount_minor": 20_000,
+            "currency": "USD",
+            "frequency": "monthly",
+            "starts_on": "2026-01-01",
+        },
+        format="json",
+    )
+    assert same_account.status_code == 422
+
+
 def test_recurring_pause_and_cancel(tenant_context):
     _, client = tenant_context
     acct = _account(client)

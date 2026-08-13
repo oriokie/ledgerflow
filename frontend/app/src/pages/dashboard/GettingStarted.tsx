@@ -5,6 +5,7 @@ import { ApiError } from "../../api/client";
 import { tenancyApi } from "../../api/tenancy";
 import { useAuth } from "../../lib/AuthContext";
 import { CURRENCY_OPTIONS } from "../../lib/currencies";
+import { Illustration } from "../../ui/illustration";
 import { buildSteps, type OnboardingState } from "./onboarding";
 
 /**
@@ -123,6 +124,16 @@ export function GettingStarted({
   return (
     <section className="lf-onboard" aria-labelledby="onboard-title">
       <header className="lf-onboard-head">
+        {/* Only the full card gets the art — this is the one moment the
+            checklist owns its whole surface. `compact` exists to give the
+            fold back to real data, and art there would undo the point. */}
+        {!compact && (
+          <Illustration
+            name={complete ? "success" : "insight"}
+            size="spot"
+            className="lf-onboard-art"
+          />
+        )}
         <div className="lf-onboard-head-main">
           <h2 className="lf-onboard-title" id="onboard-title">
             {complete ? "You're all set" : "Let's get you set up"}

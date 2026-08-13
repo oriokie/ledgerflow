@@ -79,6 +79,7 @@ export function RegisterPage() {
             <Input
               label="First name"
               autoComplete="given-name"
+              autoFocus
               error={errors.first_name?.message}
               {...register("first_name")}
             />

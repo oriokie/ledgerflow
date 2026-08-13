@@ -16,6 +16,7 @@ class TenantSerializer(serializers.ModelSerializer):
             # The client needs to know whether the currency was *chosen* or
             # merely defaulted, so first-run setup can ask exactly once.
             "base_currency_chosen_at",
+            "country",
             "block_overdrafts",
             "default_locale",
             "default_timezone",
@@ -37,8 +38,23 @@ class CreateWorkspaceSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=120)
     type = serializers.ChoiceField(choices=TenantType.choices, default=TenantType.PERSONAL)
     base_currency = serializers.CharField(max_length=3, default="USD")
+    country = serializers.CharField(max_length=2, required=False, allow_blank=True, default="")
     locale = serializers.CharField(max_length=10, default="en-US")
     timezone = serializers.CharField(max_length=64, default="UTC")
+
+    def validate_base_currency(self, value: str) -> str:
+        from apps.fx.currencies import is_supported
+
+        code = (value or "").upper()
+        if not is_supported(code):
+            raise serializers.ValidationError(f"{code} isn't a supported currency.")
+        return code
+
+    def validate_country(self, value: str) -> str:
+        code = (value or "").strip().upper()
+        if code and (len(code) != 2 or not code.isalpha()):
+            raise serializers.ValidationError("Use a two-letter country code, e.g. KE.")
+        return code
 
 
 class MemberSerializer(serializers.ModelSerializer):
@@ -80,6 +96,21 @@ class InvitationSerializer(serializers.ModelSerializer):
 
 class AcceptInvitationSerializer(serializers.Serializer):
     token = serializers.CharField()
+
+
+class InvitationPreviewSerializer(serializers.Serializer):
+    """What an invitee sees before accepting. Deliberately narrow -- just
+    enough to inform the decision, nothing about the workspace's data."""
+
+    workspace_name = serializers.CharField(source="tenant.name", read_only=True)
+    role = serializers.CharField(read_only=True)
+    invited_by_display = serializers.SerializerMethodField()
+
+    def get_invited_by_display(self, invitation: Invitation) -> str | None:
+        inviter = invitation.invited_by
+        if inviter is None:
+            return None
+        return inviter.full_name
 
 
 class WorkspaceAISettingsSerializer(serializers.Serializer):

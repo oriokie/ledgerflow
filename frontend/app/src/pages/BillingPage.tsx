@@ -55,6 +55,47 @@ const PAYMENT_TONE: Record<string, "success" | "warning" | "danger" | "neutral">
   refunded: "neutral",
 };
 
+interface BillingBanner {
+  message: string;
+  tone: "success" | "danger";
+}
+
+/**
+ * Describes what a downgrade actually costs the workspace, so the confirm
+ * step says something concrete instead of just "are you sure?". Combines
+ * features the target plan drops and any usage that would no longer fit.
+ */
+function planChangeWarning(
+  currentPlan: Plan | undefined,
+  targetPlan: Plan,
+  periodEnd: string | null,
+  accountsUsed: number,
+  membersUsed: number,
+): string {
+  const when = periodEnd ? ` on ${formatDateLong(periodEnd)}` : "";
+  const lostFeatures = currentPlan
+    ? currentPlan.resolved_features.filter(
+        (f) => !targetPlan.resolved_features.some((tf) => tf.key === f.key),
+      )
+    : [];
+
+  const bits: string[] = [];
+  if (lostFeatures.length > 0) {
+    const names = lostFeatures.slice(0, 2).map((f) => f.label);
+    const extra = lostFeatures.length - names.length;
+    bits.push(`you'll lose ${names.join(" and ")}${extra > 0 ? `, and ${extra} more feature${extra === 1 ? "" : "s"}` : ""} access${when}`);
+  }
+  if (accountsUsed > targetPlan.max_accounts) {
+    bits.push(`your ${accountsUsed} accounts won't fit the ${targetPlan.name} plan's ${targetPlan.max_accounts}-account limit`);
+  }
+  if (membersUsed > targetPlan.max_members) {
+    bits.push(`your ${membersUsed} members won't fit the ${targetPlan.name} plan's ${targetPlan.max_members}-member limit`);
+  }
+
+  if (bits.length === 0) return `Switch to the ${targetPlan.name} plan${when}`;
+  return bits.join("; ");
+}
+
 export function BillingPage() {
   const { activeWorkspace } = useAuth();
   const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
@@ -74,14 +115,20 @@ export function BillingPage() {
   const [showAddCard, setShowAddCard] = useState(false);
   const [showAddMpesa, setShowAddMpesa] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<Plan | null>(null);
-  const [banner, setBanner] = useState<string | null>(null);
+  const [banner, setBanner] = useState<BillingBanner | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const showSuccess = (message: string) => setBanner({ message, tone: "success" });
+  const showError = (err: unknown, fallback: string) =>
+    setBanner({ message: err instanceof ApiError ? err.detail : fallback, tone: "danger" });
 
   const canManage = activeWorkspace?.role === "owner" || activeWorkspace?.role === "admin";
   const shownPlans = plans?.filter((p) => p.interval === interval) ?? [];
   const currentPlanId = subscription?.plan.id;
   const currentTier = subscription?.plan.tier;
   const tierRank: Record<string, number> = { free: 0, plus: 1, family: 2, business: 3 };
+  const accountsUsed = accounts?.length ?? 0;
+  const membersUsed = members?.length ?? 0;
 
   const choosePlan = async (plan: Plan) => {
     setBanner(null);
@@ -90,9 +137,9 @@ export function BillingPage() {
     if (plan.price_minor === 0) {
       try {
         await subscribe.mutateAsync({ planId: plan.id });
-        setBanner(`You're now on the ${plan.name} plan.`);
+        showSuccess(`You're now on the ${plan.name} plan.`);
       } catch (err) {
-        setBanner(err instanceof ApiError ? err.detail : "Couldn't change plan.");
+        showError(err, "Couldn't change plan.");
       }
       return;
     }
@@ -105,9 +152,9 @@ export function BillingPage() {
     try {
       const defaultMethod = methods.find((m) => m.is_default) ?? methods[0];
       await subscribe.mutateAsync({ planId: plan.id, paymentMethodId: defaultMethod.id });
-      setBanner(`You're now on the ${plan.name} plan.`);
+      showSuccess(`You're now on the ${plan.name} plan.`);
     } catch (err) {
-      setBanner(err instanceof ApiError ? err.detail : "Couldn't change plan.");
+      showError(err, "Couldn't change plan.");
     }
   };
 
@@ -118,9 +165,9 @@ export function BillingPage() {
       setPendingPlan(null);
       try {
         await subscribe.mutateAsync({ planId: plan.id });
-        setBanner(`You're now on the ${plan.name} plan.`);
+        showSuccess(`You're now on the ${plan.name} plan.`);
       } catch (err) {
-        setBanner(err instanceof ApiError ? err.detail : "Card saved, but the plan change failed.");
+        showError(err, "Card saved, but the plan change failed.");
       }
     }
   };
@@ -145,11 +192,20 @@ export function BillingPage() {
 
   return (
     <>
-      <PageHeader eyebrow={activeWorkspace?.tenant.name} title="Billing & plans" />
+      <PageHeader
+        eyebrow="Workspace"
+        title="Billing & plans"
+        description={
+          activeWorkspace?.tenant.name
+            ? `Plan and invoices for ${activeWorkspace.tenant.name}.`
+            : "Your plan, invoices, and payment method."
+        }
+        illustration="steps"
+      />
 
       {banner && (
-        <Banner tone="success" onDismiss={() => setBanner(null)}>
-          {banner}
+        <Banner tone={banner.tone} onDismiss={() => setBanner(null)}>
+          {banner.message}
         </Banner>
       )}
 
@@ -196,9 +252,9 @@ export function BillingPage() {
                     onClick={async () => {
                       try {
                         await retry.mutateAsync();
-                        setBanner("Payment successful — your plan is active again.");
+                        showSuccess("Payment successful — your plan is active again.");
                       } catch (err) {
-                        setBanner(err instanceof ApiError ? err.detail : "Couldn't process the payment.");
+                        showError(err, "Couldn't process the payment.");
                       }
                     }}
                   >
@@ -208,20 +264,25 @@ export function BillingPage() {
               </div>
             )}
             {canManage && subscription.plan.price_minor > 0 && !subscription.cancel_at_period_end && (
-              <Button
-                variant="ghost"
-                style={{ marginTop: "var(--lf-space-2)" }}
-                onClick={async () => {
-                  try {
-                    await cancel.mutateAsync(true);
-                    setBanner("Your plan will not renew. You keep access until the period ends.");
-                  } catch (err) {
-                    setBanner(err instanceof ApiError ? err.detail : "Couldn't cancel.");
+              <div style={{ marginTop: "var(--lf-space-2)" }}>
+                <ConfirmAction
+                  label={
+                    subscription.current_period_end
+                      ? `Cancel at period end — you'll lose access on ${formatDateLong(subscription.current_period_end)}`
+                      : "Cancel at period end"
                   }
-                }}
-              >
-                Cancel at period end
-              </Button>
+                  confirmLabel="Cancel"
+                  cancelLabel="Keep plan"
+                  onConfirm={async () => {
+                    try {
+                      await cancel.mutateAsync(true);
+                      showSuccess("Your plan will not renew. You keep access until the period ends.");
+                    } catch (err) {
+                      showError(err, "Couldn't cancel.");
+                    }
+                  }}
+                />
+              </div>
             )}
           </>
         ) : (
@@ -232,8 +293,8 @@ export function BillingPage() {
       {subscription && (
         <PlanUsage
           subscription={subscription}
-          accountsUsed={accounts?.length ?? 0}
-          membersUsed={members?.length ?? 0}
+          accountsUsed={accountsUsed}
+          membersUsed={membersUsed}
         />
       )}
 
@@ -282,13 +343,24 @@ export function BillingPage() {
                     </li>
                   ))}
                 </ul>
-                {canManage && !isCurrent && (
-                  <Button
-                    variant={isDowngrade ? "ghost" : "primary"}
+                {canManage && !isCurrent && isDowngrade && (
+                  <ConfirmAction
+                    label={`${plan.price_minor === 0 ? "Switch to Free" : `Downgrade to ${plan.name}`} — ${planChangeWarning(
+                      subscription?.plan,
+                      plan,
+                      subscription?.current_period_end ?? null,
+                      accountsUsed,
+                      membersUsed,
+                    )}`}
+                    confirmLabel={plan.price_minor === 0 ? "Switch to Free" : "Downgrade"}
+                    cancelLabel="Keep current plan"
                     disabled={subscribe.isPending}
-                    onClick={() => choosePlan(plan)}
-                  >
-                    {plan.price_minor === 0 ? "Switch to Free" : isDowngrade ? "Downgrade" : "Choose " + plan.name}
+                    onConfirm={() => choosePlan(plan)}
+                  />
+                )}
+                {canManage && !isCurrent && !isDowngrade && (
+                  <Button variant="primary" disabled={subscribe.isPending} onClick={() => choosePlan(plan)}>
+                    {plan.price_minor === 0 ? "Switch to Free" : "Choose " + plan.name}
                   </Button>
                 )}
                 {!canManage && !isCurrent && (

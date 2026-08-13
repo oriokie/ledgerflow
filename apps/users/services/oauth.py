@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import secrets
 
 import requests
@@ -61,10 +62,35 @@ def _provider_config(provider: str) -> dict:
     providers = settings.OAUTH_PROVIDERS
     if provider not in providers:
         raise UnknownProviderError(f"Unknown OAuth provider: {provider!r}")
-    config = providers[provider]
+    config = dict(providers[provider])
+    try:
+        from apps.platform_admin.settings_store import get as store_get
+
+        stored_id = store_get(f"oauth.{provider}.client_id")
+        stored_secret = store_get(f"oauth.{provider}.client_secret")
+        if stored_id:
+            config["client_id"] = stored_id
+        if stored_secret:
+            config["client_secret"] = stored_secret
+    except Exception:  # pragma: no cover — store unavailable must not take login down
+        pass
     if not config.get("client_id") or not config.get("client_secret"):
         raise ProviderNotConfiguredError(f"OAuth provider {provider!r} is not configured.")
     return config
+
+
+def _profile_from_id_token(id_token: str | None) -> dict | None:
+    if not id_token or id_token.count(".") < 2:
+        return None
+    payload = id_token.split(".")[1]
+    padded = payload + "=" * (-len(payload) % 4)
+    try:
+        claims = json.loads(base64.urlsafe_b64decode(padded.encode()))
+    except (ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(claims, dict):
+        return None
+    return claims
 
 
 def _pkce_pair() -> tuple[str, str]:
@@ -117,22 +143,28 @@ def _exchange_code_for_userinfo(provider: str, config: dict, code: str, code_ver
         raise ProviderExchangeError(f"Token exchange with {provider} failed: {exc}") from exc
 
     access_token = token_data.get("access_token")
-    if not access_token:
+    if not access_token and not token_data.get("id_token"):
         raise ProviderExchangeError(f"{provider} did not return an access token.")
 
-    if not config.get("userinfo_url"):
-        raise ProviderExchangeError(f"{provider} userinfo endpoint is not configured.")
+    if config.get("userinfo_url") and access_token:
+        try:
+            userinfo_resp = requests.get(
+                config["userinfo_url"],
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=_REQUEST_TIMEOUT_SECONDS,
+            )
+            userinfo_resp.raise_for_status()
+            return userinfo_resp.json()
+        except requests.RequestException as exc:
+            raise ProviderExchangeError(f"Fetching userinfo from {provider} failed: {exc}") from exc
 
-    try:
-        userinfo_resp = requests.get(
-            config["userinfo_url"],
-            headers={"Authorization": f"Bearer {access_token}"},
-            timeout=_REQUEST_TIMEOUT_SECONDS,
-        )
-        userinfo_resp.raise_for_status()
-        return userinfo_resp.json()
-    except requests.RequestException as exc:
-        raise ProviderExchangeError(f"Fetching userinfo from {provider} failed: {exc}") from exc
+    # Apple (and some OIDC providers) put identity in the id_token rather than
+    # exposing a userinfo endpoint. The token arrived over HTTPS from the
+    # provider's own token URL, so we decode the payload without a second hop.
+    profile = _profile_from_id_token(token_data.get("id_token"))
+    if profile:
+        return profile
+    raise ProviderExchangeError(f"{provider} userinfo endpoint is not configured.")
 
 
 @transaction.atomic

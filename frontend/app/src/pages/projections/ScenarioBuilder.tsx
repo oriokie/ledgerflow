@@ -2,7 +2,18 @@ import { useMemo, useState } from "react";
 import { ApiError } from "../../api/client";
 import type { EventKindMeta, Scenario, ScenarioEvent } from "../../api/projections";
 import { projectionsApi } from "../../api/projections";
-import { Badge, Banner, Button, Card, FormField, Input, Select, Switch, Text } from "../../ui";
+import {
+  Badge,
+  Banner,
+  Button,
+  Card,
+  ConfirmAction,
+  FormField,
+  Input,
+  Select,
+  Switch,
+  Text,
+} from "../../ui";
 
 /** Parameter names ending in `_minor` are money and are typed in whole units —
  * people say "5,000", not "500000". Everything else is a plain number, except
@@ -30,6 +41,20 @@ function fromWire(name: string, value: unknown): string {
   if (isRate(name)) return String(n * 100);
   return String(n);
 }
+
+const PARAM_LABELS: Record<string, string> = {
+  stops_monthly_minor: "Monthly cost this replaces",
+  monthly_running_costs_minor: "New monthly running costs",
+  price_minor: "Price",
+  deposit_minor: "Deposit",
+  principal_minor: "Principal",
+  monthly_gross_increase_minor: "Monthly increase",
+};
+
+const PARAM_HINTS: Record<string, string> = {
+  stops_monthly_minor:
+    "Rent or a lease this purchase ends. Leave blank if nothing on the books stops.",
+};
 
 function unitFor(name: string) {
   if (isMoney(name)) return "amount";
@@ -118,9 +143,13 @@ export function ScenarioBuilder({ scenario, catalogue, onChanged }: Props) {
                   onChange={() => toggle(event)}
                   aria-label={`Include ${event.label} in this scenario`}
                 />
-                <Button variant="ghost" size="sm" onClick={() => remove(event)}>
-                  Remove
-                </Button>
+                <ConfirmAction
+                  label="Remove"
+                  confirmLabel="Remove"
+                  cancelLabel="Keep"
+                  size="sm"
+                  onConfirm={() => remove(event)}
+                />
               </div>
             </li>
           ))}
@@ -159,19 +188,20 @@ export function ScenarioBuilder({ scenario, catalogue, onChanged }: Props) {
           {selected?.params.map((spec) => (
             <FormField
               key={spec.name}
-              label={`${spec.name.replace(/_minor$/, "").replace(/_/g, " ")}${
+              label={`${PARAM_LABELS[spec.name] ?? spec.name.replace(/_minor$/, "").replace(/_/g, " ")}${
                 unitFor(spec.name) && unitFor(spec.name) !== "amount"
                   ? ` (${unitFor(spec.name)})`
                   : ""
               }`}
               htmlFor={`param-${spec.name}`}
-              hint={spec.required ? "Required" : undefined}
+              hint={PARAM_HINTS[spec.name] ?? (spec.required ? "Required" : undefined)}
             >
               <Input
                 id={`param-${spec.name}`}
                 type="number"
                 step="any"
                 required={spec.required}
+                amount={isMoney(spec.name)}
                 value={values[spec.name] ?? fromWire(spec.name, spec.default)}
                 onChange={(e) => setValues({ ...values, [spec.name]: e.target.value })}
               />

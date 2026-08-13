@@ -353,7 +353,19 @@
  * paired toggles would lose the column headings that explain what each does. */
 .lf-notif-prefs { display: grid; gap: var(--lf-space-3); margin-top: var(--lf-space-4); }
 
-.lf-notif-table { width: 100%; border-collapse: collapse; margin-top: var(--lf-space-3); }
+/* Own scroll container: `table` is an outer block box by default, so
+ * `overflow-x: auto` on the element itself scrolls without a wrapper div —
+ * cells resist compressing below their content's min-content width
+ * (table-layout: auto), so a narrow viewport scrolls horizontally instead of
+ * squashing or wrapping the alert labels, echoing `.lf-table-wrap`'s fallback
+ * for the shared Table component. */
+.lf-notif-table {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-collapse: collapse;
+  margin-top: var(--lf-space-3);
+}
 .lf-notif-table th[scope="col"] {
   text-align: center;
   font-size: var(--lf-text-xs);

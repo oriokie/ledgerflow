@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import type { CSSProperties, ReactNode } from "react";
+import { Illustration, type IllustrationName } from "./illustration";
 
 interface HeadingProps {
   children: ReactNode;
@@ -69,6 +70,8 @@ interface PageHeaderProps {
   eyebrow?: ReactNode;
   /** One line explaining what this page is for. */
   description?: ReactNode;
+  /** Optional semantic spot art for pages whose concept is otherwise abstract. */
+  illustration?: IllustrationName;
   /** Right-aligned actions (buttons). */
   actions?: ReactNode;
 }
@@ -77,15 +80,32 @@ interface PageHeaderProps {
  * Formalizes the `.lf-page-header` markup repeated on every page. The title
  * renders one full scale step above section headings — see `.lf-page-header h1`
  * in components.css — so page-level hierarchy is never ambiguous. */
-export function PageHeader({ title, eyebrow, description, actions }: PageHeaderProps) {
+export function PageHeader({
+  title,
+  eyebrow,
+  description,
+  illustration,
+  actions,
+}: PageHeaderProps) {
   return (
-    <div className="lf-page-header">
-      <div>
+    <header className="lf-page-header">
+      <div className="lf-page-header-copy">
         {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
         <Heading level={1}>{title}</Heading>
         {description && <p className="lf-page-header-desc">{description}</p>}
       </div>
-      {actions && <div className="lf-page-header-actions">{actions}</div>}
-    </div>
+      {(illustration || actions) && (
+        <div className="lf-page-header-actions">
+          {illustration && (
+            <Illustration
+              name={illustration}
+              size="spot"
+              className="lf-page-header-illustration"
+            />
+          )}
+          {actions}
+        </div>
+      )}
+    </header>
   );
 }

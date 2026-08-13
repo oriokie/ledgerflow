@@ -1,11 +1,12 @@
 import { endOfMonth, format, startOfMonth } from "date-fns";
-import { ArrowLeft, ChevronLeft, ChevronRight, FileText } from "lucide-react";
-import { useMemo } from "react";
+import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Pencil } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { ApiError } from "../../api/client";
 import type { FinancialAccount, Wallet } from "../../api/types";
-import { useAccountStatement } from "../../hooks/useFinance";
+import { useAccountStatement, useArchiveAccount, useDeleteAccount, useUnarchiveAccount } from "../../hooks/useFinance";
 import { formatDate } from "../../lib/money";
-import { Badge, Button, Card, Figure, FigureRow, IconButton, Money, Select, Skeleton, Text } from "../../ui";
+import { Badge, Banner, Button, Card, ConfirmAction, Figure, FigureRow, IconButton, Money, Select, Skeleton, Text } from "../../ui";
 import { AccountTypeIcon } from "./AccountTypeIcon";
 import { accountTypeLabel, statementSummary } from "./summary";
 
@@ -32,6 +33,7 @@ export function AccountDetail({
   onBack,
   onAssignWallet,
   onOpenStatement,
+  onEdit,
 }: {
   account: FinancialAccount;
   accounts: FinancialAccount[];
@@ -40,11 +42,43 @@ export function AccountDetail({
   onBack: () => void;
   onAssignWallet: (accountId: string, walletId: string | null) => void;
   onOpenStatement: () => void;
+  onEdit: () => void;
 }) {
   const now = useMemo(() => new Date(), []);
   const start = useMemo(() => startOfMonth(now).toISOString(), [now]);
   const end = useMemo(() => endOfMonth(now).toISOString(), [now]);
   const { data: statement, isLoading } = useAccountStatement(account.id, start, end);
+  const archiveAccount = useArchiveAccount();
+  const unarchiveAccount = useUnarchiveAccount();
+  const deleteAccount = useDeleteAccount();
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const deactivate = async () => {
+    setActionError(null);
+    try {
+      await archiveAccount.mutateAsync(account.id);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.detail : "Couldn't deactivate this account.");
+    }
+  };
+
+  const reactivate = async () => {
+    setActionError(null);
+    try {
+      await unarchiveAccount.mutateAsync(account.id);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.detail : "Couldn't reactivate this account.");
+    }
+  };
+
+  const remove = async () => {
+    setActionError(null);
+    try {
+      await deleteAccount.mutateAsync(account.id);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.detail : "Couldn't delete this account.");
+    }
+  };
 
   const summary = useMemo(() => statementSummary(statement?.lines), [statement]);
   const recent = useMemo(
@@ -80,6 +114,7 @@ export function AccountDetail({
             <span>{accountTypeLabel(account.account_type)}</span>
             <Badge tone="neutral">{account.currency}</Badge>
             {account.mask && <span>••{account.mask}</span>}
+            {account.is_archived && <Badge tone="neutral">Inactive</Badge>}
           </div>
         </div>
         <div className="lf-acct-nav">
@@ -148,6 +183,31 @@ export function AccountDetail({
         <Button variant="secondary" size="sm" icon={<FileText size={15} strokeWidth={1.8} />} onClick={onOpenStatement}>
           Full statement
         </Button>
+        <Button variant="ghost" size="sm" icon={<Pencil size={15} strokeWidth={1.8} />} onClick={onEdit}>
+          Edit
+        </Button>
+        {account.is_archived ? (
+          <Button variant="secondary" size="sm" onClick={reactivate} loading={unarchiveAccount.isPending}>
+            Reactivate
+          </Button>
+        ) : (
+          <ConfirmAction
+            label="Deactivate"
+            variant="secondary"
+            confirmLabel="Deactivate"
+            cancelLabel="Keep active"
+            disabled={archiveAccount.isPending}
+            onConfirm={deactivate}
+          />
+        )}
+        <ConfirmAction
+          label="Delete"
+          variant="danger"
+          confirmLabel="Delete permanently"
+          cancelLabel="Keep"
+          disabled={deleteAccount.isPending}
+          onConfirm={remove}
+        />
         {wallets && wallets.length > 0 && (
           <Select
             aria-label={`Assign ${account.name} to a wallet`}
@@ -158,6 +218,7 @@ export function AccountDetail({
           />
         )}
       </div>
+      {actionError && <Banner tone="danger">{actionError}</Banner>}
 
       {/* Recent transactions */}
       <div style={{ marginTop: "var(--lf-space-6)" }}>

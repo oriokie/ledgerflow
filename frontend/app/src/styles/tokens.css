@@ -359,6 +359,23 @@
   --lf-topbar-height: 56px;
   --lf-tabbar-height: 60px;
   --lf-touch-target: 44px; /* minimum interactive size */
+
+  /* ---------- marketing surfaces (landing + auth) ----------
+     Editorial palette for signed-out surfaces. Declared here so feature
+     stylesheets stay literal-free under the design-token ratchet; components
+     still consume the semantic aliases those pages define locally. */
+  --lf-market-ink: #1a1814;
+  --lf-market-muted: #5c564c;
+  --lf-market-soft: #f6f1e8;
+  --lf-market-wash: #ebe3d4;
+  --lf-market-accent: #2f6b4f;
+  --lf-market-card: #fffcf7;
+  --lf-market-auth-page: #f7f3ec;
+  --lf-market-auth-panel: #dfeadf;
+  --lf-market-auth-card: #fffdf9;
+  --lf-market-auth-muted: #625c52;
+  --lf-market-brand-inverted: #f2f4f8;
+  --lf-market-brand-mark: #6fd3b4;
 }
 
 /* ==========================================================================
@@ -396,6 +413,19 @@
   --lf-action-secondary-border: #33312b;
   --lf-focus-ring: #3fb3b8;
   --lf-selection-bg: #12313a;
+
+  --lf-market-ink: #f4efe6;
+  --lf-market-muted: color-mix(in srgb, var(--lf-market-ink) 72%, transparent);
+  --lf-market-soft: #12100e;
+  --lf-market-wash: #1c1916;
+  --lf-market-accent: #6ecf9a;
+  --lf-market-card: #1a1714;
+  --lf-market-auth-page: #12100e;
+  --lf-market-auth-panel: #18251e;
+  --lf-market-auth-card: #1a1714;
+  --lf-market-auth-muted: color-mix(in srgb, var(--lf-market-ink) 70%, transparent);
+  --lf-market-brand-inverted: #f2f4f8;
+  --lf-market-brand-mark: #6fd3b4;
 
   --lf-money-in: #3dbe86;
   --lf-money-out: #f2f0ea;

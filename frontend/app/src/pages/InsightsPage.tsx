@@ -14,7 +14,10 @@ import {
 import { Button, Card, EmptyState, Grid, SkeletonCard, Stack } from "../ui";
 import { AnomalyList, CashRunwayCard, GuidanceCard, HealthSummary, InsightsGreeting, MilestoneList, SuggestionCard } from "./insights";
 
-export function InsightsPage() {
+/** `embedded` renders this page as a tab panel inside the Insights hub
+ * (`/insights?tab=anomalies`). The hub owns the page's <h1>, so the greeting
+ * below demotes its own heading rather than rendering a second one. */
+export function InsightsPage({ embedded }: { embedded?: boolean } = {}) {
   const { aiEnabled } = useAiEnabled();
   const { data: health, isLoading: healthLoading } = useHealthScore(aiEnabled);
   const { data: recommendations } = useRecommendations(aiEnabled);
@@ -47,7 +50,7 @@ export function InsightsPage() {
 
   return (
     <>
-      <InsightsGreeting health={health} guidanceCount={guidance.length} />
+      <InsightsGreeting health={health} guidanceCount={guidance.length} embedded={embedded} />
 
       <div style={{ marginBottom: "var(--lf-space-4)" }}>
         <CashRunwayCard runway={runway} />

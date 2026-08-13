@@ -14,7 +14,7 @@ import {
 import { debtApi } from "../api/debt";
 import { majorToMinor } from "../lib/money";
 import { plural } from "../lib/plural";
-import { Button, Card, EmptyState, Inline, Input, Money, PageHeader, SkeletonCard, Text } from "../ui";
+import { Button, Card, EmptyState, Figure, Inline, Input, Money, PageHeader, SkeletonCard, Text } from "../ui";
 import {
   BorrowingCostCard,
   ConsolidationModal,
@@ -76,8 +76,13 @@ export function DebtPage() {
     <>
       <PageHeader
         title="Debt"
-        eyebrow={summary ? plural(summary.debt_count, "debt") : undefined}
-        description="What you owe, what it's costing, and the fastest way out."
+        eyebrow="Trajectory"
+        description={
+          summary
+            ? `${plural(summary.debt_count, "debt")} — what you owe, what it's costing, and the fastest way out.`
+            : "What you owe, what it's costing, and the fastest way out."
+        }
+        illustration="compass"
         actions={
           // Only once there is something to add *to*. While the page is empty
           // the empty state carries the CTA, and two identical buttons on one
@@ -130,7 +135,7 @@ export function DebtPage() {
         <Card>
           <EmptyState
             icon={CreditCard}
-            illustration="no-data"
+            illustration="path"
             title="No debt tracked"
             body="Cards, loans, and money borrowed from someone you know. Adding one here sets up the account behind it too, so nothing gets entered twice."
             tips={[
@@ -183,19 +188,20 @@ export function DebtPage() {
                   onChange={(e) => setExtraInput(e.target.value)}
                 />
                 {plan && plan.months_to_debt_free !== null && (
-                  <p className="lf-debt-extra-result">
-                    Debt free in <strong>{plan.months_to_debt_free} months</strong>
-                    {plan.debt_free_on && (
-                      <>
-                        {" "}
-                        —{" "}
-                        {new Date(plan.debt_free_on).toLocaleDateString(undefined, {
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </>
-                    )}
-                  </p>
+                  <Figure
+                    className="lf-debt-extra-result"
+                    label="Debt free in"
+                    value={`${plan.months_to_debt_free} months`}
+                    certainty="projected"
+                    hint={
+                      plan.debt_free_on
+                        ? new Date(plan.debt_free_on).toLocaleDateString(undefined, {
+                            month: "long",
+                            year: "numeric",
+                          })
+                        : undefined
+                    }
+                  />
                 )}
               </div>
 

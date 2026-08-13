@@ -21,6 +21,9 @@ vi.mock("../hooks/useFinance", () => ({
 vi.mock("../hooks/useIntelligence", () => ({
   useSpendingTrend: () => ({ data: trend }),
 }));
+vi.mock("../lib/AuthContext", () => ({
+  useAuth: () => ({ activeWorkspace: { tenant: { id: "t1", base_currency: "USD" } } }),
+}));
 
 import { AnalyticsPage } from "./AnalyticsPage";
 

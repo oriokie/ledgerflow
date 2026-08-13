@@ -2,7 +2,7 @@ import { Check, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { BudgetLineStatus } from "../../api/types";
 import { formatAmount, majorToMinor, minorToMajor } from "../../lib/money";
-import { Button, IconButton, Input, Money } from "../../ui";
+import { Button, IconButton, Input, Money, useToast } from "../../ui";
 import { BudgetProgressBar } from "./BudgetProgressBar";
 import { lineState } from "./budgetMath";
 
@@ -35,6 +35,7 @@ export function BudgetLineRow({
   const [value, setValue] = useState("");
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [busy, setBusy] = useState(false);
+  const toast = useToast();
 
   const startEdit = () => {
     setValue(String(minorToMajor(line.limit_minor)));
@@ -48,6 +49,7 @@ export function BudgetLineRow({
     try {
       await onUpdateLimit(line.line_id, majorToMinor(n));
       setEditing(false);
+      toast(`${line.category_name} limit updated`);
     } finally {
       setBusy(false);
     }
@@ -57,6 +59,7 @@ export function BudgetLineRow({
     setBusy(true);
     try {
       await onRemove(line.line_id);
+      toast(`${line.category_name} removed from budget`, { tone: "info" });
     } finally {
       setBusy(false);
       setConfirmRemove(false);

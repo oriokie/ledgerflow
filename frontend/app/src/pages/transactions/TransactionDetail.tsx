@@ -2,7 +2,11 @@ import { useState } from "react";
 import { ApiError } from "../../api/client";
 import type { Transaction } from "../../api/types";
 import {
+  useAccounts,
   useCategories,
+  useCreatePayee,
+  usePayees,
+  useReclassifyTransfer,
   useSetTransactionTags,
   useSplitTransaction,
   useTags,
@@ -10,25 +14,34 @@ import {
   useVoidTransaction,
 } from "../../hooks/useFinance";
 import { majorToMinor } from "../../lib/money";
-import { Badge, Banner, Button, Chip, Divider, Grid, Inline, Input, Modal, Money, Select, Stack, Text } from "../../ui";
+import { Badge, Banner, Button, Chip, ConfirmAction, Divider, Grid, Inline, Input, Modal, Money, Select, Stack, Text } from "../../ui";
 import { ReceiptManager } from "./ReceiptManager";
 
 export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose: () => void }) {
   const { data: categories } = useCategories();
+  const { data: payees } = usePayees();
   const { data: tags } = useTags();
+  const { data: accounts } = useAccounts();
   const updateTxn = useUpdateTransaction();
   const voidTxn = useVoidTransaction();
   const splitTxn = useSplitTransaction();
   const setTags = useSetTransactionTags();
+  const reclassifyTransfer = useReclassifyTransfer();
+  const createPayee = useCreatePayee();
 
   const [memo, setMemo] = useState(txn.memo);
   const [categoryId, setCategoryId] = useState(txn.category_id ?? "");
+  const [payeeId, setPayeeId] = useState(txn.payee_id ?? "");
+  const [addingPayee, setAddingPayee] = useState(false);
+  const [newPayeeName, setNewPayeeName] = useState("");
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
   const [splitting, setSplitting] = useState(false);
   const [parts, setParts] = useState([
     { category_id: "", amount: "" },
     { category_id: "", amount: "" },
   ]);
+  const [allocatingTransfer, setAllocatingTransfer] = useState(false);
+  const [counterAccountId, setCounterAccountId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const isTransfer = !!txn.transfer_group;
@@ -39,10 +52,26 @@ export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose:
   const save = async () => {
     setError(null);
     try {
-      await updateTxn.mutateAsync({ txnId: txn.id, payload: { memo, category_id: categoryId || null } });
+      await updateTxn.mutateAsync({
+        txnId: txn.id,
+        payload: { memo, category_id: categoryId || null, payee_id: payeeId || null },
+      });
       onClose();
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Couldn't save changes.");
+    }
+  };
+
+  const addPayee = async () => {
+    if (!newPayeeName.trim()) return;
+    setError(null);
+    try {
+      const created = await createPayee.mutateAsync({ name: newPayeeName.trim() });
+      setPayeeId(created.id);
+      setNewPayeeName("");
+      setAddingPayee(false);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Couldn't create the payee.");
     }
   };
 
@@ -79,6 +108,17 @@ export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose:
     }
   };
 
+  const doAllocateTransfer = async () => {
+    setError(null);
+    if (!counterAccountId) return setError("Choose the other account this money moved to or from.");
+    try {
+      await reclassifyTransfer.mutateAsync({ txnId: txn.id, counterAccountId });
+      onClose();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Couldn't allocate this as a transfer.");
+    }
+  };
+
   return (
     <Modal open onClose={onClose} title="Transaction" size="lg">
       <div className="lf-card-header" style={{ marginBottom: "var(--lf-space-3)" }}>
@@ -88,16 +128,52 @@ export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose:
       <Text tone="secondary" size="sm">
         {new Date(txn.occurred_at).toLocaleString()}
       </Text>
+      {typeof txn.metadata?.mpesa_receipt === "string" && (
+        <Text tone="tertiary" size="sm">
+          M-Pesa receipt: {txn.metadata.mpesa_receipt}
+        </Text>
+      )}
 
       {!isTransfer && (
         <>
-          <Grid cols={2} gap={4} style={{ marginTop: "var(--lf-space-4)" }}>
+          <Grid cols={3} gap={4} style={{ marginTop: "var(--lf-space-4)" }}>
             <Select
               label="Category"
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
               options={[{ value: "", label: "Uncategorized" }, ...usableCategories.map((c) => ({ value: c.id, label: c.name }))]}
             />
+            <div>
+              <Select
+                label="Payee"
+                value={payeeId}
+                onChange={(e) => setPayeeId(e.target.value)}
+                placeholder="No payee"
+                options={(payees ?? []).map((p) => ({ value: p.id, label: p.name }))}
+              />
+              {!addingPayee ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setAddingPayee(true)}
+                  style={{ marginTop: "var(--lf-space-1)" }}
+                >
+                  + New payee
+                </Button>
+              ) : (
+                <Inline gap={2} wrap={false} style={{ marginTop: "var(--lf-space-1)" }}>
+                  <Input
+                    aria-label="New payee name"
+                    placeholder="Payee name"
+                    value={newPayeeName}
+                    onChange={(e) => setNewPayeeName(e.target.value)}
+                  />
+                  <Button variant="secondary" size="sm" onClick={addPayee} loading={createPayee.isPending}>
+                    Add
+                  </Button>
+                </Inline>
+              )}
+            </div>
             <Input label="Memo" value={memo} onChange={(e) => setMemo(e.target.value)} />
           </Grid>
           <Button variant="primary" onClick={save} loading={updateTxn.isPending}>
@@ -192,12 +268,56 @@ export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose:
         </div>
       )}
 
+      {!isTransfer && txn.status === "posted" && (
+        <div style={{ marginTop: "var(--lf-space-5)" }}>
+          {!allocatingTransfer ? (
+            <Button
+              variant="ghost"
+              onClick={() => setAllocatingTransfer(true)}
+              disabled={!!txn.split_group}
+              title={
+                txn.split_group
+                  ? "This is part of a split — void the split and re-enter it first."
+                  : txn.reconciled_at
+                    ? "Un-reconcile this transaction first."
+                    : undefined
+              }
+            >
+              Allocate as transfer…
+            </Button>
+          ) : (
+            <div>
+              <p className="lf-label">
+                Move money between your own accounts, not {txn.amount_minor > 0 ? "income" : "spending"}
+              </p>
+              <Text tone="tertiary" size="sm" style={{ marginBottom: "var(--lf-space-2)" }}>
+                {txn.amount_minor > 0
+                  ? "Which account did this money actually come from?"
+                  : "Which account did this money actually go to?"}
+              </Text>
+              <Inline gap={2} wrap={false}>
+                <Select
+                  aria-label="Other account"
+                  value={counterAccountId}
+                  onChange={(e) => setCounterAccountId(e.target.value)}
+                  placeholder="Choose account…"
+                  options={(accounts ?? [])
+                    .filter((a) => a.id !== txn.financial_account_id)
+                    .map((a) => ({ value: a.id, label: a.name }))}
+                />
+                <Button variant="primary" onClick={doAllocateTransfer} loading={reclassifyTransfer.isPending}>
+                  Allocate
+                </Button>
+              </Inline>
+            </div>
+          )}
+        </div>
+      )}
+
       {txn.status === "posted" && (
         <div style={{ marginTop: "var(--lf-space-5)" }}>
           <Divider />
-          <Button variant="danger" onClick={doVoid} loading={voidTxn.isPending}>
-            Void transaction
-          </Button>
+          <ConfirmAction label="Void transaction" confirmLabel="Void" cancelLabel="Keep" onConfirm={doVoid} />
           <Text tone="tertiary" size="sm" style={{ marginTop: "var(--lf-space-2)" }}>
             Voiding reverses the posting in the ledger; history is preserved.
           </Text>

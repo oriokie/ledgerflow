@@ -12,14 +12,12 @@ describe("illustration system", () => {
     // An illustration that repeats the heading beside it is noise in a screen
     // reader. Decorative is the default; a title is the opt-in.
     const { container, rerender } = render(<Illustration name="vault" />);
-    const svg = container.querySelector("svg")!;
-    expect(svg).toHaveAttribute("aria-hidden", "true");
-    expect(svg).not.toHaveAttribute("role");
+    const image = container.querySelector("img, svg")!;
+    expect(image).toHaveAttribute("aria-hidden", "true");
 
     rerender(<Illustration name="vault" title="A locked vault" />);
-    const labelled = container.querySelector("svg")!;
-    expect(labelled).toHaveAttribute("role", "img");
-    expect(labelled).toHaveAttribute("aria-label", "A locked vault");
+    const labelled = container.querySelector("img, svg")!;
+    expect(labelled).toHaveAccessibleName("A locked vault");
     expect(labelled).not.toHaveAttribute("aria-hidden");
   });
 
@@ -28,8 +26,8 @@ describe("illustration system", () => {
     // the first one's fill — a bug that only appears on pages with both.
     const { container } = render(
       <>
-        <Illustration name="vault" />
-        <Illustration name="growth" />
+        <Illustration name="vault" style="clay" />
+        <Illustration name="growth" style="clay" />
       </>,
     );
     const ids = [...container.querySelectorAll("linearGradient, radialGradient")].map((g) => g.id);
@@ -42,7 +40,7 @@ describe("illustration system", () => {
     // itself in dark mode with no second asset, and its contrast is gated by
     // the same script as the rest of the palette. A literal colour would break
     // both of those silently.
-    const { container } = render(<Illustration name="secure" />);
+    const { container } = render(<Illustration name="secure" style="clay" />);
     const markup = container.innerHTML;
     expect(markup).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     expect(markup).not.toMatch(/rgba?\(/i);
@@ -63,13 +61,13 @@ describe("illustration system", () => {
     for (const name of ILLUSTRATION_NAMES) {
       for (const style of ILLUSTRATION_STYLES) {
         const { container, unmount } = render(<Illustration name={name} style={style} />);
-        expect(container.querySelector("svg"), `${name} in ${style}`).not.toBeNull();
+        expect(container.querySelector("img, svg"), `${name} in ${style}`).not.toBeNull();
         unmount();
       }
     }
   });
 
-  it("follows the platform setting, and falls back to clay without one", () => {
+  it("follows the platform setting, and falls back to editorial artwork without one", () => {
     // An unreachable settings endpoint must degrade to *an* illustration set,
     // never to blank surfaces.
     const { container: fallback } = render(
@@ -77,7 +75,7 @@ describe("illustration system", () => {
         <Illustration name="welcome" />
       </IllustrationStyleProvider>,
     );
-    expect(fallback.querySelector(".lf-illus-frame")).toHaveAttribute("data-style", "clay");
+    expect(fallback.querySelector(".lf-illus-frame")).toHaveAttribute("data-style", "doodle");
 
     const { container: doodle } = render(
       <IllustrationStyleProvider style="doodle">
@@ -87,13 +85,16 @@ describe("illustration system", () => {
     expect(doodle.querySelector(".lf-illus-frame")).toHaveAttribute("data-style", "doodle");
   });
 
-  it("draws people in the doodle set", () => {
-    // The point of the second set: the clay language draws the thing, this one
-    // draws somebody doing something with it.
+  it("loads people-first editorial assets for the doodle set", () => {
     const { container } = render(<Illustration name="welcome" style="doodle" />);
-    // The figure is a head circle plus limbs — at minimum a circle and paths.
-    expect(container.querySelectorAll("circle").length).toBeGreaterThan(0);
-    expect(container.querySelectorAll("path").length).toBeGreaterThan(3);
+    expect(container.querySelector(".lf-editorial-image--light")).toHaveAttribute(
+      "src",
+      "/illustrations/editorial/welcome.webp",
+    );
+    expect(container.querySelector(".lf-editorial-image--dark")).toHaveAttribute(
+      "src",
+      "/illustrations/editorial/welcome-dark.webp",
+    );
   });
 
   it("puts a trail and money in every motion motif", () => {

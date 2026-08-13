@@ -380,6 +380,7 @@ class BaselineProjectionView(TenantScopedAPIView, APIView):
         )
         return Response(
             {
+                "cashflow_stack": adapters.cashflow_stack(currency=position.currency, as_of=position.as_of),
                 "position": {
                     "currency": position.currency,
                     "as_of": position.as_of,

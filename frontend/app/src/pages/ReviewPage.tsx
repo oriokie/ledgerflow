@@ -2,8 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../lib/AuthContext";
-import { formatAmount, formatAmountSigned } from "../lib/money";
-import { Badge, Banner, Card, Grid, PageHeader, Select, Skeleton, Text } from "../ui";
+import { Badge, Banner, Card, Figure, FigureRow, Grid, Money, PageHeader, Select, Skeleton, Text } from "../ui";
 
 /** Mirrors apps.intelligence.review.compose — every figure traceable to the
  * selector that produced it, no arithmetic re-done client-side. */
@@ -101,14 +100,13 @@ export function ReviewPage() {
     retry: false,
   });
 
-  const money = (minor: number) => formatAmount(minor, data?.currency ?? "USD");
-
   return (
     <>
       <PageHeader
-        eyebrow="Financial review"
+        eyebrow="Meaning"
         title={data?.period.label ?? "Financial review"}
         description="Where you stand, what changed, and what to do next — the sit-down an advisor would run, from your own ledger."
+        illustration="insight"
         actions={
           <Select
             aria-label="Review period"
@@ -122,7 +120,7 @@ export function ReviewPage() {
       {isLoading && <Skeleton width="50%" />}
 
       {error && (
-        <Banner tone="info">
+        <Banner>
           {error instanceof ApiError && typeof error.detail === "string"
             ? error.detail
             : "Couldn't put the review together."}
@@ -133,37 +131,41 @@ export function ReviewPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--lf-space-4)" }}>
           <Grid cols={2} gap={4}>
             <Card title="Net worth">
-              <p className="lf-review-figure">
-                {formatAmountSigned(data.sections.net_worth.delta_minor, data.currency)}
-                <Text tone="tertiary" size="sm" as="span">
-                  {" "}
-                  over the period
-                </Text>
-              </p>
+              <Figure
+                label="Change over the period"
+                amountMinor={data.sections.net_worth.delta_minor}
+                currency={data.currency}
+                neutral
+                size="primary"
+              />
               <Text tone="secondary" size="sm">
-                {money(data.sections.net_worth.opening_minor)} →{" "}
-                {money(data.sections.net_worth.closing_minor)}
+                <Money amountMinor={data.sections.net_worth.opening_minor} currency={data.currency} neutral />{" "}
+                →{" "}
+                <Money amountMinor={data.sections.net_worth.closing_minor} currency={data.currency} neutral />
                 {data.sections.net_worth.approximate && " (history reconstructed from flows)"}
               </Text>
             </Card>
 
             <Card title="Cash flow">
-              <p className="lf-review-figure">
-                {data.sections.cashflow.savings_rate_pct === null
-                  ? "No income recorded"
-                  : `${data.sections.cashflow.savings_rate_pct}% saved`}
-                {data.sections.cashflow.previous_savings_rate_pct !== null &&
-                  data.sections.cashflow.savings_rate_pct !== null && (
-                    <Text tone="tertiary" size="sm" as="span">
-                      {" "}
-                      (was {data.sections.cashflow.previous_savings_rate_pct}%)
-                    </Text>
-                  )}
-              </p>
+              <Figure
+                label="Savings rate"
+                value={
+                  data.sections.cashflow.savings_rate_pct === null
+                    ? "No income recorded"
+                    : `${data.sections.cashflow.savings_rate_pct}% saved`
+                }
+                size="primary"
+                delta={
+                  data.sections.cashflow.previous_savings_rate_pct !== null &&
+                  data.sections.cashflow.savings_rate_pct !== null
+                    ? `was ${data.sections.cashflow.previous_savings_rate_pct}%`
+                    : undefined
+                }
+              />
               <Text tone="secondary" size="sm">
-                In {money(data.sections.cashflow.inflow_minor)} · out{" "}
-                {money(data.sections.cashflow.outflow_minor)} · kept{" "}
-                {formatAmountSigned(data.sections.cashflow.saved_minor, data.currency)}
+                In <Money amountMinor={data.sections.cashflow.inflow_minor} currency={data.currency} neutral /> ·
+                out <Money amountMinor={data.sections.cashflow.outflow_minor} currency={data.currency} neutral /> ·
+                kept <Money amountMinor={data.sections.cashflow.saved_minor} currency={data.currency} neutral />
               </Text>
             </Card>
           </Grid>
@@ -183,7 +185,9 @@ export function ReviewPage() {
                   {data.sections.movers.increases.map((mover) => (
                     <p key={mover.category_name} className="lf-review-mover">
                       {mover.category_name}{" "}
-                      <span>+{money(mover.delta_minor)}</span>
+                      <span>
+                        +<Money amountMinor={mover.delta_minor} currency={data.currency} neutral />
+                      </span>
                     </p>
                   ))}
                 </div>
@@ -194,7 +198,9 @@ export function ReviewPage() {
                   {data.sections.movers.decreases.map((mover) => (
                     <p key={mover.category_name} className="lf-review-mover">
                       {mover.category_name}{" "}
-                      <span>{formatAmountSigned(mover.delta_minor, data.currency)}</span>
+                      <span>
+                        <Money amountMinor={mover.delta_minor} currency={data.currency} neutral />
+                      </span>
                     </p>
                   ))}
                 </div>
@@ -204,19 +210,21 @@ export function ReviewPage() {
 
           {data.sections.subscriptions && (
             <Card title="Subscriptions & fees">
-              <p className="lf-review-figure">
-                {money(data.sections.subscriptions.annual_total_minor)}
-                <Text tone="tertiary" size="sm" as="span">
-                  {" "}
-                  a year across {data.sections.subscriptions.count} standing order
-                  {data.sections.subscriptions.count === 1 ? "" : "s"}
-                </Text>
-              </p>
+              <Figure
+                label="Annual total"
+                amountMinor={data.sections.subscriptions.annual_total_minor}
+                currency={data.currency}
+                neutral
+                size="primary"
+                hint={`across ${data.sections.subscriptions.count} standing order${
+                  data.sections.subscriptions.count === 1 ? "" : "s"
+                }`}
+              />
               {data.sections.subscriptions.top.map((sub) => (
                 <p key={sub.name} className="lf-review-mover">
                   {sub.name}{" "}
                   <span>
-                    {money(sub.annual_minor)}/yr
+                    <Money amountMinor={sub.annual_minor} currency={data.currency} neutral />/yr
                   </span>
                 </p>
               ))}
@@ -229,7 +237,8 @@ export function ReviewPage() {
                     <p key={rise.payee} className="lf-review-mover">
                       {rise.payee}{" "}
                       <span>
-                        {money(rise.previous_minor)} → {money(rise.current_minor)} (+
+                        <Money amountMinor={rise.previous_minor} currency={data.currency} neutral /> →{" "}
+                        <Money amountMinor={rise.current_minor} currency={data.currency} neutral /> (+
                         {Math.round(rise.delta_pct * 100)}%)
                       </span>
                     </p>
@@ -242,30 +251,64 @@ export function ReviewPage() {
           <Grid cols={2} gap={4}>
             {data.sections.debt && (
               <Card title="Debt">
-                <p className="lf-review-figure">{money(data.sections.debt.total_balance_minor)}</p>
-                <Text tone="secondary" size="sm">
-                  across {data.sections.debt.count} debt
-                  {data.sections.debt.count === 1 ? "" : "s"} ·{" "}
-                  {money(data.sections.debt.total_minimums_minor)}/mo in minimums
-                </Text>
+                <Figure
+                  label="Total balance"
+                  amountMinor={data.sections.debt.total_balance_minor}
+                  currency={data.currency}
+                  neutral
+                  size="primary"
+                  hint={
+                    <>
+                      across {data.sections.debt.count} debt{data.sections.debt.count === 1 ? "" : "s"} ·{" "}
+                      <Money
+                        amountMinor={data.sections.debt.total_minimums_minor}
+                        currency={data.currency}
+                        neutral
+                      />
+                      /mo in minimums
+                    </>
+                  }
+                />
               </Card>
             )}
 
             {data.sections.fi && (
               <Card title="Financial independence">
-                <p className="lf-review-figure">
-                  {data.sections.fi.never_at_current_pace
-                    ? "Not on the current path"
-                    : `~${data.sections.fi.years} years${
-                        data.sections.fi.around_year ? ` (${data.sections.fi.around_year})` : ""
-                      }`}
-                </p>
+                {data.sections.fi.never_at_current_pace ? (
+                  <Figure
+                    label="Time to FI"
+                    value="Not on the current path"
+                    size="primary"
+                    certainty="projected"
+                  />
+                ) : (
+                  <Figure
+                    label="Time to FI"
+                    value={`${data.sections.fi.years} years`}
+                    size="primary"
+                    certainty="projected"
+                    hint={
+                      data.sections.fi.around_year ? `around ${data.sections.fi.around_year}` : undefined
+                    }
+                  />
+                )}
                 <Text tone="secondary" size="sm">
                   {data.sections.fi.progress_pct}% of your{" "}
-                  {money(data.sections.fi.fi_number_minor)} number
+                  <Money amountMinor={data.sections.fi.fi_number_minor} currency={data.currency} neutral />{" "}
+                  number
                   {data.sections.fi.never_at_current_pace &&
-                    data.sections.fi.required_monthly_for_horizon_minor !== null &&
-                    ` — ${money(data.sections.fi.required_monthly_for_horizon_minor)}/mo would change that`}
+                    data.sections.fi.required_monthly_for_horizon_minor !== null && (
+                      <>
+                        {" "}
+                        —{" "}
+                        <Money
+                          amountMinor={data.sections.fi.required_monthly_for_horizon_minor}
+                          currency={data.currency}
+                          neutral
+                        />
+                        /mo would change that
+                      </>
+                    )}
                 </Text>
               </Card>
             )}
@@ -273,17 +316,27 @@ export function ReviewPage() {
 
           {data.sections.goals.length > 0 && (
             <Card title="Goals">
-              {data.sections.goals.map((goal) => (
-                <p key={goal.name} className="lf-review-mover">
-                  {goal.name} <span>{goal.percent}%</span>
-                  {goal.success_probability !== null && (
-                    <Text tone="tertiary" size="xs" as="span">
-                      {" "}
-                      · {Math.round(goal.success_probability * 100)}% likely on current pace
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--lf-space-4)" }}>
+                {data.sections.goals.map((goal) => (
+                  <div key={goal.name}>
+                    <Text as="span" style={{ display: "block", marginBottom: "var(--lf-space-1)" }}>
+                      {goal.name}
                     </Text>
-                  )}
-                </p>
-              ))}
+                    <FigureRow>
+                      <Figure label="Saved" value={`${goal.percent}%`} size="inline" />
+                      {goal.success_probability !== null && (
+                        <Figure
+                          label="Likely on current pace"
+                          value={`${Math.round(goal.success_probability * 100)}%`}
+                          size="inline"
+                          certainty="speculative"
+                          confidence="A simulation from your current pace and time remaining, not a guarantee."
+                        />
+                      )}
+                    </FigureRow>
+                  </div>
+                ))}
+              </div>
             </Card>
           )}
 

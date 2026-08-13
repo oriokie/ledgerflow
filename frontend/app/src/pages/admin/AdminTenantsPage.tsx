@@ -32,26 +32,50 @@ import {
   Text,
   useToast,
 } from "../../ui";
-import { bytes, day, humanize, money } from "./format";
-
-function statusTone(status: string): "success" | "warning" | "danger" | "neutral" {
-  if (status === "active") return "success";
-  if (status === "trialing") return "neutral";
-  if (status === "past_due" || status === "incomplete") return "warning";
-  if (status === "canceled") return "danger";
-  return "neutral";
-}
+import type { SortDirection } from "../../ui";
+import { bytes, day, humanize, money, tone } from "./format";
 
 export function AdminTenantsPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
+  const [planId, setPlanId] = useState("");
+  const [country, setCountry] = useState("");
   const [page, setPage] = useState(1);
-  const { data, isLoading } = useTenants({ q: query, status, page });
+  const [sort, setSort] = useState<{ key: string; direction: SortDirection }>({
+    key: "created_at",
+    direction: "desc",
+  });
+  const { data, isLoading } = useTenants({
+    q: query,
+    status,
+    plan_id: planId,
+    country,
+    order_by: `${sort.direction === "desc" ? "-" : ""}${sort.key}`,
+    page,
+  });
+  const { data: plans } = usePlatformPlans();
+
+  // No dedicated facet endpoint backs the country filter, so its options are
+  // read off the page already in hand — same data, no extra request. The
+  // currently-selected country is always kept in the list even once
+  // filtering narrows `data.results` down to that one country, so choosing a
+  // country never makes its own option disappear.
+  const countryOptions = Array.from(
+    new Set([...(data?.results.map((row) => row.country).filter(Boolean) ?? []), country].filter(Boolean)),
+  ).sort() as string[];
+
+  const handleSort = (key: string) => {
+    setSort((prev) =>
+      prev.key === key ? { key, direction: prev.direction === "asc" ? "desc" : "asc" } : { key, direction: "asc" },
+    );
+    setPage(1);
+  };
 
   const columns = [
     {
       key: "name",
       header: "Workspace",
+      sortable: true,
       render: (row: TenantRow) => (
         <Stack gap={1}>
           <Link to={`/admin/tenants/${row.id}`} className="lf-admin-link">
@@ -70,7 +94,7 @@ export function AdminTenantsPage() {
         <Stack gap={1}>
           <span>{row.plan_name || "—"}</span>
           {row.subscription_status && (
-            <Badge tone={statusTone(row.subscription_status)}>
+            <Badge tone={tone(row.subscription_status)}>
               {row.subscription_status.replace(/_/g, " ")}
             </Badge>
           )}
@@ -88,6 +112,7 @@ export function AdminTenantsPage() {
       header: "Seats",
       align: "right" as const,
       hideMobile: true,
+      sortable: true,
       render: (row: TenantRow) => String(row.member_count),
     },
     {
@@ -103,9 +128,10 @@ export function AdminTenantsPage() {
         row.is_active ? <Badge tone="success">Active</Badge> : <Badge tone="danger">Suspended</Badge>,
     },
     {
-      key: "created",
+      key: "created_at",
       header: "Joined",
       hideMobile: true,
+      sortable: true,
       render: (row: TenantRow) => day(row.created_at),
     },
   ];
@@ -145,6 +171,30 @@ export function AdminTenantsPage() {
             setPage(1);
           }}
         />
+        <Select
+          label="Plan"
+          value={planId}
+          options={[
+            { value: "", label: "All" },
+            ...(plans ?? []).map((plan) => ({ value: plan.id, label: plan.name })),
+          ]}
+          onChange={(event) => {
+            setPlanId(event.target.value);
+            setPage(1);
+          }}
+        />
+        <Select
+          label="Country"
+          value={country}
+          options={[
+            { value: "", label: "All" },
+            ...countryOptions.map((code) => ({ value: code, label: code })),
+          ]}
+          onChange={(event) => {
+            setCountry(event.target.value);
+            setPage(1);
+          }}
+        />
       </div>
 
       {isLoading && !data ? (
@@ -160,6 +210,8 @@ export function AdminTenantsPage() {
             caption="Customer workspaces"
             responsive
             stickyHeader
+            sort={sort}
+            onSort={handleSort}
           />
           <div className="lf-admin-pagination">
             <Text size="sm" tone="secondary">
@@ -323,7 +375,7 @@ export function AdminTenantDetailPage() {
               </div>
               <div className="lf-admin-kv">
                 <span>Status</span>
-                <Badge tone={statusTone(sub.status)}>{sub.status.replace(/_/g, " ")}</Badge>
+                <Badge tone={tone(sub.status)}>{sub.status.replace(/_/g, " ")}</Badge>
               </div>
               <div className="lf-admin-kv">
                 <span>MRR</span>
@@ -408,7 +460,7 @@ export function AdminTenantDetailPage() {
                 <tr key={invoice.id}>
                   <td>{invoice.number}</td>
                   <td>
-                    <Badge tone={statusTone(invoice.status)}>{humanize(invoice.status)}</Badge>
+                    <Badge tone={tone(invoice.status)}>{humanize(invoice.status)}</Badge>
                   </td>
                   <td className="lf-admin-mini-amount">{money(invoice.total_minor, invoice.currency)}</td>
                   <td>{day(invoice.issue_date)}</td>

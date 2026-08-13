@@ -23,6 +23,7 @@ const accounts: FinancialAccount[] = [
 vi.mock("../hooks/useFinance", () => ({
   useAccounts: () => ({ data: accounts }),
   useCategories: () => ({ data: [{ id: "g", name: "Groceries", kind: "expense" as const }] }),
+  useTransactions: () => ({ data: undefined }),
 }));
 vi.mock("../lib/AuthContext", () => ({
   useAuth: () => ({ activeWorkspace: { role: "owner", tenant: { id: "t1", base_currency: "USD" } } }),

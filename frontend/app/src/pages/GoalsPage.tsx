@@ -6,7 +6,7 @@ import {
   useGoalRecommendations,
   useGoals,
 } from "../hooks/useGoals";
-import { Button, Card, Checkbox, EmptyState, Grid, PageHeader, Skeleton } from "../ui";
+import { Button, Card, Checkbox, EmptyState, Grid, PageHeader, SkeletonCard } from "../ui";
 import { CreateGoalForm, GoalCard, GoalRecommendations, GoalsSummary } from "./goals";
 import { sortGoals } from "./goals/goalMath";
 import { useOpenOnParam } from "../hooks/useOpenOnParam";
@@ -30,8 +30,10 @@ export function GoalsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Savings"
+        eyebrow="Trajectory"
         title="Goals"
+        description="What you're saving toward, and how close you are."
+        illustration="growth"
         actions={
           <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
             {showCreate ? "Close" : "New goal"}
@@ -49,12 +51,13 @@ export function GoalsPage() {
         />
       )}
 
-      {isLoading && <Skeleton width="50%" />}
+      {isLoading && <SkeletonCard />}
 
       {goals && goals.length === 0 && !showCreate && (
         <Card>
           <EmptyState
             icon={Target}
+            illustration="success"
             title="Set your first savings goal"
             body="Name what you're saving for, set a target, and watch your progress fill up as you contribute."
             tips={[

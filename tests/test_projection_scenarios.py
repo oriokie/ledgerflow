@@ -152,6 +152,17 @@ def test_a_schedule_end_date_drops_the_amount_from_later_months(tenant):
     assert result.points[2].income_minor == 0  # November, past ends_on
 
 
+def test_the_cashflow_stack_names_measured_income_and_spend(tenant):
+    with tenant_scope(tenant):
+        _seed()
+        stack = adapters.cashflow_stack(currency="USD", as_of=timezone.localdate())
+
+    labels = {line["label"] for line in stack}
+    assert "Salary" in labels or any(line["direction"] == "in" for line in stack)
+    assert any(line["direction"] == "out" for line in stack)
+    assert all(line["monthly_minor"] > 0 for line in stack)
+
+
 def test_a_real_debts_apr_is_converted_from_percent_to_a_fraction(tenant):
     """The debt context stores APR as a percentage (21.5) and the engine takes
     fractions (0.215). The two conventions meet in the adapter and nowhere else.

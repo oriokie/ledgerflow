@@ -1,12 +1,20 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { Search } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ApiError } from "../api/client";
 import { tenancyApi } from "../api/tenancy";
 import { useAuth } from "../lib/AuthContext";
 import { AuthLayout } from "../components/auth/AuthLayout";
+import { CURRENCY_OPTIONS } from "../lib/currencies";
+import { COUNTRY_OPTIONS, CURRENCY_BY_COUNTRY } from "../lib/countries";
 import { Banner, Button, Grid, Heading, Inline, Input, Select, Stack, Text } from "../ui";
+
+/** Below this count the list is a glance; a search box would be clutter for
+ * the common case of 1-3 workspaces. Past it (an advisor with several
+ * clients, a family with several households) it earns its keep. */
+const FILTER_THRESHOLD = 5;
 
 const schema = z.object({
   name: z.string().min(1, "Give this workspace a name."),
@@ -20,7 +28,8 @@ const schema = z.object({
   // at submission time in onSubmit below, so the two more relatable labels
   // stay in the picker without inventing backend values nothing reads.
   type: z.enum(["personal", "couple", "family"]),
-  base_currency: z.string().length(3, "Use a 3-letter currency code, e.g. USD."),
+  country: z.string().length(2, "Choose a country."),
+  base_currency: z.string().length(3, "Choose a currency."),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -42,13 +51,20 @@ export function WorkspacePickerPage() {
   const creating = creatingOverride ?? workspaces.length === 0;
   const setCreating = setCreatingOverride;
   const [serverError, setServerError] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
+  const filteredWorkspaces = useMemo(() => {
+    const query = filter.trim().toLowerCase();
+    if (!query) return workspaces;
+    return workspaces.filter((ws) => ws.tenant.name.toLowerCase().includes(query));
+  }, [filter, workspaces]);
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { type: "personal", base_currency: "USD" },
+    defaultValues: { type: "personal", country: "KE", base_currency: "KES" },
   });
 
   // Reachable two ways: ProtectedRoute sends here when there's no active
@@ -71,11 +87,21 @@ export function WorkspacePickerPage() {
   });
 
   return (
-    <AuthLayout maxWidth={440}>
+    <AuthLayout maxWidth={440} illustration="welcome">
       {workspaces.length > 0 && !creating ? (
         <Stack gap={2}>
           <Heading level={1}>Choose a workspace</Heading>
-          {workspaces.map((ws) => (
+          {workspaces.length > FILTER_THRESHOLD && (
+            <Input
+              leading={<Search size={16} strokeWidth={1.8} aria-hidden="true" />}
+              type="search"
+              placeholder="Search workspaces"
+              aria-label="Search workspaces"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            />
+          )}
+          {filteredWorkspaces.map((ws) => (
             <button
               key={ws.tenant.id}
               type="button"
@@ -89,6 +115,11 @@ export function WorkspacePickerPage() {
               </Text>
             </button>
           ))}
+          {filteredWorkspaces.length === 0 && (
+            <Text tone="secondary" size="sm">
+              No workspaces match &ldquo;{filter}&rdquo;.
+            </Text>
+          )}
           <Button variant="ghost" onClick={() => setCreating(true)}>
             + New workspace
           </Button>
@@ -113,20 +144,33 @@ export function WorkspacePickerPage() {
               {...register("name")}
             />
 
+            <Select
+              label="Type"
+              options={[
+                { value: "personal", label: "Personal" },
+                { value: "couple", label: "Couple" },
+                { value: "family", label: "Family" },
+              ]}
+              {...register("type")}
+            />
+
             <Grid cols={2} gap={4}>
               <Select
-                label="Type"
-                options={[
-                  { value: "personal", label: "Personal" },
-                  { value: "couple", label: "Couple" },
-                  { value: "family", label: "Family" },
-                ]}
-                {...register("type")}
+                label="Country"
+                options={[...COUNTRY_OPTIONS]}
+                error={errors.country?.message}
+                {...register("country", {
+                  onChange: (event) => {
+                    const next = CURRENCY_BY_COUNTRY[event.target.value];
+                    if (next) setValue("base_currency", next);
+                  },
+                })}
               />
-              <Input
+              <Select
                 label="Base currency"
-                maxLength={3}
+                options={CURRENCY_OPTIONS}
                 error={errors.base_currency?.message}
+                hint="Amounts stay in this currency. Reports never mix codes."
                 {...register("base_currency")}
               />
             </Grid>

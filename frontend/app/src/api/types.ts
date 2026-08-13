@@ -49,6 +49,8 @@ export interface Tenant {
    * first-run setup ask exactly once instead of every time.
    */
   base_currency_chosen_at: string | null;
+  /** ISO-3166 alpha-2. Blank when the workspace has not stated a country. */
+  country?: string;
   /** Whether a manual posting that would overdraw an asset account is refused. */
   block_overdrafts: boolean;
   default_locale: string;
@@ -107,6 +109,10 @@ export interface Payee {
   name: string;
 }
 
+export interface TransactionMetadata {
+  mpesa_receipt?: string;
+}
+
 export interface Transaction {
   id: string;
   financial_account_id: string;
@@ -116,10 +122,13 @@ export interface Transaction {
   status: string;
   source: string;
   category_id: string | null;
+  payee_id: string | null;
   counter_account_id: string | null;
   transfer_group: string | null;
-  split_group?: string | null;
+  split_group: string | null;
+  reconciled_at: string | null;
   memo: string;
+  metadata?: TransactionMetadata;
 }
 
 export interface Paginated<T> {
@@ -404,7 +413,7 @@ export interface Statement {
 // ---------------------------------------------------------------- recurring
 export interface RecurringTransaction {
   id: string;
-  txn_type: string;
+  txn_type: "income" | "expense" | "transfer";
   amount_minor: number;
   currency: string;
   frequency: string;
@@ -417,6 +426,7 @@ export interface RecurringTransaction {
   memo: string;
   category_id: string | null;
   financial_account_id: string | null;
+  counter_account_id?: string | null;
   payee_id: string | null;
 }
 
@@ -480,6 +490,14 @@ export interface Invitation {
   invited_by_email: string | null;
   created_at?: string;
   expires_at?: string;
+}
+
+/** What an invitee sees before accepting — enough to inform the decision,
+ * nothing about the workspace's data. */
+export interface InvitationPreview {
+  workspace_name: string;
+  role: string;
+  invited_by_display: string | null;
 }
 
 // ---------------------------------------------------------------- ledger
@@ -1221,6 +1239,15 @@ export interface AutomationSuggestion {
   merchant_key: string;
   primary_transaction_id: string | null;
   transaction_ids: string[];
+  /** Nested evidence so a duplicate can be judged without opening the ledger. */
+  transactions?: {
+    id: string;
+    occurred_at: string;
+    amount_minor: number;
+    currency: string;
+    payee: string;
+    account_name: string;
+  }[];
   created_at: string;
   decided_at: string | null;
 }

@@ -1,7 +1,7 @@
 import { HandCoins } from "lucide-react";
 import { useReceivables, useReceivableSummary } from "../hooks/useReceivables";
 import { useOpenOnParam } from "../hooks/useOpenOnParam";
-import { Button, Card, EmptyState, Grid, Figure, PageHeader, Skeleton, Text } from "../ui";
+import { Button, Card, EmptyState, Grid, Figure, PageHeader, SkeletonCard, Text } from "../ui";
 import { CreateReceivableForm, ReceivableRow } from "./receivables";
 
 /**
@@ -28,9 +28,10 @@ export function ReceivablesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Owed to you"
+        eyebrow="Trajectory"
         title="Receivables"
         description="Money you're waiting to get back, and how long you've been waiting."
+        illustration="waiting"
         actions={
           <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
             {showCreate ? "Close" : "Add what you're owed"}
@@ -45,12 +46,13 @@ export function ReceivablesPage() {
         />
       )}
 
-      {isLoading && <Skeleton width="50%" />}
+      {isLoading && <SkeletonCard />}
 
       {rows && !hasRows && !showCreate && (
         <Card>
           <EmptyState
             icon={HandCoins}
+            illustration="waiting"
             title="Nothing owed to you"
             body="LedgerFlow tracks what you owe in detail. This is the other direction — the money you've lent out, invoiced, or fronted for someone and haven't got back yet."
             tips={[

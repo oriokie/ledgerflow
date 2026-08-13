@@ -14,24 +14,9 @@ import {
   SearchScene,
   ShieldScene,
   SuccessScene,
+  TogetherScene,
   VaultScene,
 } from "./scenes";
-import {
-  DoodleBroken,
-  DoodleCompass,
-  DoodleEmpty,
-  DoodleEnvelope,
-  DoodleGrowth,
-  DoodleInsight,
-  DoodleKey,
-  DoodleLost,
-  DoodleMaintenance,
-  DoodleOffline,
-  DoodleSearch,
-  DoodleShield,
-  DoodleSuccess,
-  DoodleVault,
-} from "./doodleScenes";
 import {
   MotionBroken,
   MotionCompass,
@@ -46,8 +31,52 @@ import {
   MotionSearch,
   MotionShield,
   MotionSuccess,
+  MotionTogether,
   MotionVault,
 } from "./motionScenes";
+import {
+  EditorialScene,
+  type EditorialAssetName,
+} from "./EditorialScene";
+
+export const ILLUSTRATION_STYLES = ["clay", "doodle", "motion"] as const;
+export type IllustrationStyle = (typeof ILLUSTRATION_STYLES)[number];
+
+export const ILLUSTRATION_NAMES = [
+  "secure",
+  "welcome",
+  "insight",
+  "no-data",
+  "vault",
+  "growth",
+  "compass",
+  "success",
+  "envelope",
+  "cycle",
+  "path",
+  "waiting",
+  "holdings",
+  "portfolio",
+  "horizon",
+  "search",
+  "conversation",
+  "together",
+  "adjust",
+  "signal",
+  "steps",
+  "lost",
+  "offline",
+  "maintenance",
+  "broken",
+  // Compatibility names retained for existing callers and status routes.
+  "recover",
+  "verify",
+  "no-results",
+  "not-found",
+  "error",
+] as const;
+
+export type IllustrationName = (typeof ILLUSTRATION_NAMES)[number];
 
 /**
  * Illustrations are addressed by **what they mean**, never by what they show.
@@ -75,30 +104,10 @@ const CLAY = {
   "not-found": LostScene,
   error: BrokenScene,
   insight: InsightScene,
+  together: TogetherScene,
 } as const;
 
-export type IllustrationName = keyof typeof CLAY;
-
-/** Same keys, by construction — `Record<IllustrationName, …>` is the guard. */
-const DOODLE: Record<IllustrationName, (props: SceneProps) => ReactNode> = {
-  vault: DoodleVault,
-  growth: DoodleGrowth,
-  secure: DoodleShield,
-  recover: DoodleKey,
-  verify: DoodleEnvelope,
-  welcome: DoodleCompass,
-  success: DoodleSuccess,
-  "no-data": DoodleEmpty,
-  "no-results": DoodleSearch,
-  offline: DoodleOffline,
-  maintenance: DoodleMaintenance,
-  "not-found": DoodleLost,
-  error: DoodleBroken,
-  insight: DoodleInsight,
-};
-
-/** Same keys again — the `Record<IllustrationName, …>` is what enforces it. */
-const MOTION: Record<IllustrationName, (props: SceneProps) => ReactNode> = {
+const MOTION = {
   vault: MotionVault,
   growth: MotionGrowth,
   secure: MotionShield,
@@ -113,20 +122,82 @@ const MOTION: Record<IllustrationName, (props: SceneProps) => ReactNode> = {
   "not-found": MotionLost,
   error: MotionBroken,
   insight: MotionInsight,
-};
+  together: MotionTogether,
+} as const;
 
-/** Every registry, keyed by style — so adding a fourth set is one entry here
- * rather than another branch at the render site. */
-const SETS: Record<IllustrationStyle, Record<IllustrationName, (props: SceneProps) => ReactNode>> = {
+const VECTOR_SETS = {
   clay: CLAY,
-  doodle: DOODLE,
   motion: MOTION,
+} satisfies Record<
+  Exclude<IllustrationStyle, "doodle">,
+  Partial<Record<IllustrationName, (props: SceneProps) => ReactNode>>
+>;
+
+const VECTOR_FALLBACKS: Record<IllustrationName, keyof typeof CLAY> = {
+  secure: "secure",
+  welcome: "welcome",
+  insight: "insight",
+  "no-data": "no-data",
+  vault: "vault",
+  growth: "growth",
+  compass: "welcome",
+  success: "success",
+  envelope: "verify",
+  cycle: "growth",
+  path: "growth",
+  waiting: "together",
+  holdings: "vault",
+  portfolio: "insight",
+  horizon: "growth",
+  search: "no-results",
+  conversation: "together",
+  together: "together",
+  adjust: "insight",
+  signal: "verify",
+  steps: "growth",
+  lost: "not-found",
+  offline: "offline",
+  maintenance: "maintenance",
+  broken: "error",
+  recover: "recover",
+  verify: "verify",
+  "no-results": "no-results",
+  "not-found": "not-found",
+  error: "error",
 };
 
-export const ILLUSTRATION_STYLES = ["clay", "doodle", "motion"] as const;
-export type IllustrationStyle = (typeof ILLUSTRATION_STYLES)[number];
-
-export const ILLUSTRATION_NAMES = Object.keys(CLAY) as IllustrationName[];
+const EDITORIAL_ASSETS: Record<IllustrationName, EditorialAssetName> = {
+  secure: "secure",
+  welcome: "welcome",
+  insight: "insight",
+  "no-data": "no-data",
+  vault: "vault",
+  growth: "growth",
+  compass: "compass",
+  success: "success",
+  envelope: "envelope",
+  cycle: "cycle",
+  path: "path",
+  waiting: "waiting",
+  holdings: "holdings",
+  portfolio: "portfolio",
+  horizon: "horizon",
+  search: "search",
+  conversation: "conversation",
+  together: "together",
+  adjust: "adjust",
+  signal: "signal",
+  steps: "steps",
+  lost: "lost",
+  offline: "offline",
+  maintenance: "maintenance",
+  broken: "broken",
+  recover: "secure",
+  verify: "envelope",
+  "no-results": "search",
+  "not-found": "lost",
+  error: "broken",
+};
 
 /**
  * The active style.
@@ -136,7 +207,7 @@ export const ILLUSTRATION_NAMES = Object.keys(CLAY) as IllustrationName[];
  * to wait on a request would flash empty on every screen it appears on —
  * including the login form, which is the first thing anyone sees.
  */
-const StyleContext = createContext<IllustrationStyle>("clay");
+const StyleContext = createContext<IllustrationStyle>("doodle");
 
 export function IllustrationStyleProvider({
   style,
@@ -145,7 +216,7 @@ export function IllustrationStyleProvider({
   style: IllustrationStyle | undefined;
   children: ReactNode;
 }) {
-  return <StyleContext.Provider value={style ?? "clay"}>{children}</StyleContext.Provider>;
+  return <StyleContext.Provider value={style ?? "doodle"}>{children}</StyleContext.Provider>;
 }
 
 export function useIllustrationStyle(): IllustrationStyle {
@@ -191,7 +262,16 @@ export function Illustration({
 }) {
   const active = useIllustrationStyle();
   const resolved = style ?? active;
-  const Scene = SETS[resolved][name];
+  let content: ReactNode;
+
+  if (resolved === "doodle") {
+    content = <EditorialScene asset={EDITORIAL_ASSETS[name]} {...scene} />;
+  } else {
+    const set: Partial<Record<IllustrationName, (props: SceneProps) => ReactNode>> =
+      VECTOR_SETS[resolved];
+    const Scene = set[name] ?? set[VECTOR_FALLBACKS[name]];
+    content = Scene ? <Scene {...scene} /> : null;
+  }
 
   return (
     <div
@@ -200,7 +280,7 @@ export function Illustration({
       data-style={resolved}
       data-animate={animate ? "true" : undefined}
     >
-      <Scene {...scene} />
+      {content}
     </div>
   );
 }
