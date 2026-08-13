@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from apps.budgeting.models import Budget
 from apps.budgeting.selectors import budget_status
-from apps.finance.models import Transaction
+from apps.finance.models import Transaction, TransactionStatus
 
 # `_COUNTED` (posted + reconciled) is the finance layer's own definition of a
 # transaction that counts toward reported figures. Imported rather than
@@ -214,7 +214,9 @@ def build_amount_observations(*, days: int = 120) -> list[AmountObservation]:
     excluded — moving money isn't spending)."""
     since = timezone.now() - timedelta(days=days)
     rows = (
-        Transaction.objects.filter(occurred_at__gte=since, transfer_group__isnull=True, amount_minor__lt=0)
+        Transaction.objects.filter(
+            occurred_at__gte=since, transfer_group__isnull=True, amount_minor__lt=0, status__in=[TransactionStatus.POSTED, TransactionStatus.RECONCILED]
+        )
         .select_related("payee")
         .order_by("occurred_at")
     )
@@ -256,6 +258,7 @@ def _income_stability(as_of: date) -> float | None:
             occurred_at__date__lt=prev_end,
             amount_minor__gt=0,
             transfer_group__isnull=True,
+            status__in=[TransactionStatus.POSTED, TransactionStatus.RECONCILED],
         ).aggregate(total=Sum("amount_minor"))
         monthly.append(agg["total"] or 0)
         cursor = prev_start
@@ -294,6 +297,7 @@ def build_cashflow_history(*, months: int = 6, as_of: date | None = None) -> lis
             occurred_at__date__gte=start,
             occurred_at__date__lt=nxt,
             transfer_group__isnull=True,
+            status__in=[TransactionStatus.POSTED, TransactionStatus.RECONCILED],
         ).aggregate(
             income=Sum("amount_minor", filter=models.Q(amount_minor__gt=0)),
             expense=Sum("amount_minor", filter=models.Q(amount_minor__lt=0)),
@@ -311,65 +315,47 @@ def build_cashflow_history(*, months: int = 6, as_of: date | None = None) -> lis
 def net_worth_history(*, months: int = 12, as_of: date | None = None) -> list[dict]:
     """Net-worth as a dated monthly series.
 
-    The account half is reconstructed from the immutable ledger: for each month
-    end we sum every account's signed cash-flow up to that point (assets add,
-    liabilities subtract), giving a running net figure.
+    Today's figure is the materialized position (opening balances, voids and
+    all). Earlier months are that position walked backwards through counted
+    activity, so voiding a transaction and the opening-balance journal — neither
+    of which is a remaining Transaction row — cannot make the chart disagree
+    with the headline.
 
-    Owned assets — a house, a car — cannot be reconstructed that way, because
-    their worth changes without a posting. They are **interpolated between
-    valuations** instead, and never extrapolated past the last one: continuing a
-    trend beyond the final real figure would invent growth nobody measured, and
-    would mean this chart drawn today showed a different past than the same
-    chart drawn next year. See `assets.selectors.value_at`.
-
-    Single-currency assumption noted (same as the rest of intelligence): the
-    per-currency FX consolidation layer is the documented seam. Costs one
-    grouped query per month boundary — `months` is small — plus one pass over
-    assets for the whole series.
+    Owned assets — a house, a car — cannot be reconstructed from postings.
+    They are **interpolated between valuations** instead, and never extrapolated
+    past the last one. See `assets.selectors.value_at`.
     """
     from apps.assets import selectors as asset_selectors
     from apps.finance.models import FinancialAccount
-    from apps.finance.selectors import _ASSET_TYPES, _dominant_liquid_currency
+    from apps.finance.selectors import _ASSET_TYPES, _COUNTED, _dominant_liquid_currency, net_worth
 
     as_of = as_of or timezone.localdate()
-    accounts = list(FinancialAccount.objects.all())
-    asset_ids = {a.id for a in accounts if a.account_type in _ASSET_TYPES}
+    currency = _dominant_liquid_currency()
+    position = next((n for n in net_worth() if n.currency == currency), None) if currency else None
+    assets = position.assets_minor if position else 0
+    liabilities = position.liabilities_minor if position else 0
+
+    included = {
+        a.id: a.account_type in _ASSET_TYPES
+        for a in FinancialAccount.objects.filter(include_in_net_worth=True, archived_at__isnull=True)
+    }
 
     series: list[dict] = []
     month_start = as_of.replace(day=1)
-    boundaries: list[date] = []
+    windows: list[tuple[date, date]] = []
     for _ in range(months):
-        # month END = first day of next month
         nxt = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
-        boundaries.append(nxt)
+        windows.append((month_start, nxt))
         month_start = _prev_month_first(month_start)
 
-    # One pass over assets for every boundary, rather than a query per asset
-    # per month.
-    currency = _dominant_liquid_currency()
     asset_values = (
-        asset_selectors.total_value_on([b - timedelta(days=1) for b in sorted(boundaries)], currency=currency)
+        asset_selectors.total_value_on([nxt - timedelta(days=1) for _, nxt in windows], currency=currency)
         if currency
         else {}
     )
 
-    for boundary in sorted(boundaries):
-        rows = (
-            Transaction.objects.filter(occurred_at__date__lt=boundary)
-            .exclude(status="void")
-            .values("financial_account_id")
-            .annotate(total=Sum("amount_minor"))
-        )
-        assets = 0
-        liabilities = 0
-        for r in rows:
-            total = r["total"] or 0
-            if r["financial_account_id"] in asset_ids:
-                assets += total
-            else:
-                # liability txns are signed like cash flow; owed balance is the negative
-                liabilities += -total
-        on = boundary - timedelta(days=1)
+    for start, nxt in windows:  # newest first
+        on = nxt - timedelta(days=1)
         owned = asset_values.get(on, 0)
         series.append(
             {
@@ -377,12 +363,29 @@ def net_worth_history(*, months: int = 12, as_of: date | None = None) -> list[di
                 "assets_minor": assets + owned,
                 "liabilities_minor": liabilities,
                 "net_minor": assets + owned - liabilities,
-                # Broken out so a chart can show what is ledger-true and what is
-                # an estimate between valuations, rather than presenting both
-                # with the same confidence.
                 "asset_value_minor": owned,
             }
         )
+        if currency is None:
+            continue
+        rows = (
+            Transaction.objects.filter(
+                _COUNTED,
+                currency=currency,
+                financial_account_id__in=included,
+                occurred_at__date__gte=start,
+                occurred_at__date__lt=nxt,
+            )
+            .values("financial_account_id")
+            .annotate(total=Sum("amount_minor"))
+        )
+        for row in rows:
+            total = row["total"] or 0
+            if included.get(row["financial_account_id"]):
+                assets -= total
+            else:
+                liabilities -= -total
+    series.reverse()
     return series
 
 

@@ -410,6 +410,8 @@ export interface RecurringTransaction {
   frequency: string;
   interval: number;
   next_run_on: string;
+  starts_on: string;
+  ends_on: string | null;
   occurrences_created: number;
   is_active: boolean;
   memo: string;

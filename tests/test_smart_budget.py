@@ -269,6 +269,47 @@ def test_apply_creates_a_real_budget_with_the_proposed_lines(tenant):
     assert lines[0].limit_minor == 50_000
 
 
+def test_voided_spending_does_not_inflate_the_proposal(tenant):
+    """Voiding reverses the money. A proposal that still counted the voided
+    rows would budget for spending that never happened."""
+    with tenant_scope(tenant):
+        account = _account()
+        groceries = _category("Groceries")
+        _salary()
+        _history(account, groceries, [50_000, 50_000, 50_000])
+        for i in range(3):
+            month_anchor = smart._months_back(AS_OF.replace(day=1), i + 1)
+            txn = finance_services.record_expense(
+                financial_account=account,
+                category=groceries,
+                amount_minor=100_000,
+                occurred_at=datetime(month_anchor.year, month_anchor.month, 20, 12, tzinfo=UTC),
+            )
+            finance_services.void_transaction(txn=txn)
+
+        proposal = smart.propose_budget(as_of=AS_OF)
+
+    (line,) = [ln for ln in proposal.lines if ln.category_name == "Groceries"]
+    assert line.limit_minor == 50_000
+
+
+def test_repeating_uncategorized_spend_is_treated_as_likely_next_month(tenant):
+    """Insurance paid in February and July is not on a schedule, but it landed
+    last month and once before in the window — highly likely next month, unlike
+    a one-off wedding gift."""
+    with tenant_scope(tenant):
+        account = _account()
+        insurance = _category("Insurance")
+        _salary()
+        _spend(account, insurance, 80_000, date(2026, 2, 10))
+        _spend(account, insurance, 80_000, date(2026, 7, 10))
+
+        proposal = smart.propose_budget(as_of=AS_OF)
+
+    names = [ln.category_name for ln in proposal.lines]
+    assert "Insurance" in names
+
+
 # ------------------------------------------------------------------- API
 def test_api_returns_a_proposal(tenant_context):
     membership, client = tenant_context

@@ -34,13 +34,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
-from . import calculators as calc
+from . import adapters, calculators as calc
 from .engine import (
     CompiledEvent,
     DebtPosition,
     EconomicAssumptions,
     FinancialPosition,
-    project,
 )
 from .risk import RUNWAY_FLOOR_MONTHS, RUNWAY_TARGET_MONTHS
 
@@ -182,7 +181,7 @@ def can_i_afford_mortgage(
         monthly_expense_delta_minor=quote.monthly_tax_minor + quote.monthly_insurance_minor,
     )
     horizon = min(calc.MAX_HORIZON_MONTHS, years * 12)
-    projected = project(
+    projected = adapters.project_live(
         position=position,
         assumptions=assumptions or EconomicAssumptions(),
         events=[purchase],
@@ -515,10 +514,10 @@ def debt_or_invest(
             "Freed minimum, invested", cleared_minimum + 1, highest.monthly_payment_minor
         )
 
-    debt_leg = project(
+    debt_leg = adapters.project_live(
         position=replace(position, debts=faster), assumptions=base, events=debt_events, months=months
     )
-    invest_leg = project(position=position, assumptions=base, events=invest_events, months=months)
+    invest_leg = adapters.project_live(position=position, assumptions=base, events=invest_events, months=months)
 
     difference = debt_leg.closing_net_worth_minor - invest_leg.closing_net_worth_minor
     debt_wins = difference > 0
@@ -742,7 +741,7 @@ def buy_or_rent(
     )
     monthly_maintenance = round(property_price_minor * maintenance_rate / 12)
 
-    buying = project(
+    buying = adapters.project_live(
         position=position,
         assumptions=base,
         events=[
@@ -764,7 +763,7 @@ def buy_or_rent(
         ],
         months=months,
     )
-    renting = project(
+    renting = adapters.project_live(
         position=position,
         assumptions=base,
         events=[

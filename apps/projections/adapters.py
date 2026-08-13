@@ -6,11 +6,14 @@ tenant arrives through here as a `FinancialPosition`. Keeping the boundary this
 sharp is what makes a projection reproducible: capture the position once and
 the same numbers come out forever, whatever the ledger does afterwards.
 
-Every figure is *measured*, never asked for. The product already knows what the
-household earns, spends, owes and holds, and a planner that opens with a
-questionnaire is a planner that gets answered aspirationally — people type the
-grocery budget they intend to keep, not the one the ledger records. The two
-differ by a lot, and only one of them predicts anything.
+Every figure is *measured*, never asked for — with one honest exception.
+The product already knows what the household earns, spends, owes and holds, and
+a planner that opens with a questionnaire is a planner that gets answered
+aspirationally. Recurring income and expenses captured under Recurring (and
+income sources) are not a questionnaire: they are the household's own plan,
+including when that plan ends. History still leads; a known schedule floors
+the run-rate when history has not caught up yet, and an `ends_on` drops it
+from the months after it stops.
 
 **Single currency, like everything else in the finance context.** `net_worth()`
 and `cashflow_statement()` both refuse to sum across currencies, and so does
@@ -27,10 +30,10 @@ from django.utils import timezone
 
 from apps.debt import selectors as debt_selectors
 from apps.finance import selectors as finance_selectors
-from apps.finance.models import AccountType, FinancialAccount
+from apps.finance.models import AccountType, FinancialAccount, RecurringTransaction, RecurringType
 from apps.investments import selectors as investment_selectors
 
-from .engine import DebtPosition, FinancialPosition
+from .engine import CompiledEvent, DebtPosition, FinancialPosition, project
 
 #: Trailing complete months used to measure the household's run rate. Six is
 #: the same window `fi.py` uses, deliberately: two modules disagreeing about
@@ -103,6 +106,102 @@ def _other_assets_minor(currency: str) -> int:
     return max(0, row.assets_minor - liquid - investments)
 
 
+def _month_offset(as_of: date, when: date) -> int:
+    """Calendar months from `as_of`'s month to `when`'s. 0 is the same month."""
+    return (when.year - as_of.year) * 12 + (when.month - as_of.month)
+
+
+def _scheduled_run_rate(currency: str, as_of: date) -> tuple[int, int, list[CompiledEvent]]:
+    """Known forward income and expenses, plus events that start or end them.
+
+    History is what happened; a schedule is what is promised. A salary entered
+    last week has not yet reached the median of trailing months, and a lease
+    that ends in six months must not be projected as a forty-year rent. Both
+    numbers live here so the engine can apply the known plan and drop it when
+    it actually stops.
+
+    Linked income sources and their posting templates are the same money —
+    counting both would double every paycheck.
+    """
+    from apps.common.tenant_context import get_current_tenant_id
+    from apps.income.models import IncomeSource
+    from apps.income.selectors import source_views
+
+    if get_current_tenant_id() is None:
+        return 0, 0, []
+
+    events: list[CompiledEvent] = []
+    income = 0
+    expenses = 0
+
+    linked_template_ids = set(
+        IncomeSource.objects.filter(recurring_transaction_id__isnull=False).values_list(
+            "recurring_transaction_id", flat=True
+        )
+    )
+
+    def apply(label: str, monthly: int, kind: str, starts_on: date, ends_on: date | None) -> None:
+        nonlocal income, expenses
+        if monthly <= 0:
+            return
+        if ends_on is not None and ends_on < as_of:
+            return
+
+        income_delta = monthly if kind == "income" else 0
+        expense_delta = monthly if kind == "expense" else 0
+        start_offset = _month_offset(as_of, starts_on)
+        last_offset = _month_offset(as_of, ends_on) if ends_on is not None else None
+
+        if start_offset > 0:
+            # Has not started yet — the base run-rate must not include it.
+            events.append(
+                CompiledEvent(
+                    label=label,
+                    start_month=start_offset,
+                    end_month=last_offset if last_offset and last_offset >= start_offset else None,
+                    monthly_income_delta_minor=income_delta,
+                    monthly_expense_delta_minor=expense_delta,
+                )
+            )
+            return
+
+        # Already running. Engine month 1 is next calendar month, so a schedule
+        # that ends this month does not belong in the forward run-rate at all.
+        if last_offset is not None and last_offset < 1:
+            return
+
+        if kind == "income":
+            income += monthly
+        else:
+            expenses += monthly
+        if last_offset is not None:
+            events.append(
+                CompiledEvent(
+                    label=f"{label} ends",
+                    start_month=last_offset + 1,
+                    monthly_income_delta_minor=-income_delta,
+                    monthly_expense_delta_minor=-expense_delta,
+                )
+            )
+
+    for view in source_views(as_of=as_of, currency=currency):
+        monthly = view.monthly_net_minor or 0
+        apply(view.name, monthly, "income", view.starts_on, view.ends_on)
+
+    templates = RecurringTransaction.objects.filter(
+        is_active=True, currency=currency, txn_type__in=[RecurringType.INCOME, RecurringType.EXPENSE]
+    )
+    for template in templates:
+        if template.id in linked_template_ids:
+            continue
+        kind = "income" if template.txn_type == RecurringType.INCOME else "expense"
+        monthly = _to_monthly_minor(template.amount_minor, template.frequency, template.interval)
+        label = template.memo.strip() or ("Recurring income" if kind == "income" else "Recurring expense")
+        apply(label, monthly, kind, template.starts_on, template.ends_on)
+
+    return income, expenses, events
+
+
 def _monthly_flows(currency: str, as_of: date) -> tuple[int, int]:
     """Median monthly net income and expenses over the trailing window.
 
@@ -151,7 +250,17 @@ def current_position(*, as_of: date | None = None) -> FinancialPosition:
         raise NoPositionError("No liquid accounts to project from. Add a current or savings account first.")
 
     liquid = finance_selectors.liquid_balance_minor(currency)
-    income, expenses = _monthly_flows(currency, as_of)
+    history_income, history_expenses = _monthly_flows(currency, as_of)
+    scheduled_income, scheduled_expenses, _events = _scheduled_run_rate(currency, as_of)
+    debts = _debt_positions(currency)
+    # Known schedules floor the run-rate: a salary set up last week has not
+    # reached the trailing median yet, and must still be projected. History
+    # above the schedule is unscheduled flow (freelance, everyday spend) and
+    # is kept. Debt service is applied by the engine from `debts`, so any
+    # of it already sitting in the expense median would be counted twice.
+    debt_service = sum(d.monthly_payment_minor for d in debts)
+    income = max(history_income, scheduled_income)
+    expenses = max(0, max(history_expenses, scheduled_expenses) - debt_service)
     contribution = _monthly_investment_contribution_minor(currency)
 
     return FinancialPosition(
@@ -163,7 +272,39 @@ def current_position(*, as_of: date | None = None) -> FinancialPosition:
         monthly_net_income_minor=income,
         monthly_expenses_minor=expenses,
         monthly_investment_contribution_minor=contribution,
-        debts=_debt_positions(currency),
+        debts=debts,
+    )
+
+
+def schedule_adjustments(position: FinancialPosition) -> list[CompiledEvent]:
+    """Start/end events for schedules the run-rate itself cannot expire.
+
+    The position carries this month's promised income and expenses as a
+    constant. Anything with an `ends_on` (or a start still in the future)
+    becomes a compiled event so the engine drops or introduces it on the
+    right month rather than projecting a finished contract for forty years.
+    """
+    _income, _expenses, events = _scheduled_run_rate(position.currency, position.as_of)
+    return events
+
+
+def project_live(
+    *,
+    position: FinancialPosition,
+    assumptions=None,
+    events: list[CompiledEvent] | None = None,
+    months: int = 120,
+):
+    """Project a live household, honouring known schedule start and end dates.
+
+    Pure `engine.project` stays ignorant of the database; this is the seam
+    that feeds it the dates the rest of the product already stores.
+    """
+    return project(
+        position=position,
+        assumptions=assumptions,
+        events=[*schedule_adjustments(position), *(events or [])],
+        months=months,
     )
 
 
@@ -175,8 +316,6 @@ def _monthly_investment_contribution_minor(currency: str) -> int:
     would understate the saving rate and push every projection pessimistic,
     which is the mirror of the optimism this module works to avoid.
     """
-    from apps.finance.models import RecurringTransaction, RecurringType
-
     investment_ids = set(
         FinancialAccount.objects.filter(
             account_type=AccountType.INVESTMENT, archived_at__isnull=True

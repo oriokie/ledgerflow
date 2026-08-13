@@ -40,6 +40,9 @@ export interface IncomeSource {
   frequency: IncomeFrequency;
   reliability: Reliability;
   is_active: boolean;
+  starts_on: string;
+  ends_on: string | null;
+  is_current: boolean;
 
   /** What the user said one payment is worth. */
   stated_net_minor: number;

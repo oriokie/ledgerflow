@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
+from . import adapters
 from .engine import (
     CompiledEvent,
     DebtPosition,
@@ -126,7 +127,7 @@ def analyse(
 ) -> SensitivityResult:
     """Rank the assumptions by how much each moves the outcome on its own."""
     base = assumptions or EconomicAssumptions()
-    events = list(events or [])
+    events = [*adapters.schedule_adjustments(position), *(events or [])]
     baseline = _closing(position, base, events, months)
 
     swings: list[Swing] = []
@@ -213,7 +214,7 @@ def what_if(
     card and the corresponding bar of the tornado cannot disagree.
     """
     base = assumptions or EconomicAssumptions()
-    events = list(events or [])
+    events = [*adapters.schedule_adjustments(position), *(events or [])]
 
     changed_assumptions = base
     changed_position = position

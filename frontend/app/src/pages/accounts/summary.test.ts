@@ -57,6 +57,16 @@ describe("summarizeByCurrency", () => {
     expect(totals.map((t) => t.currency)).toEqual(["USD", "EUR"]);
   });
 
+  it("lets a negative asset balance reduce total assets", () => {
+    const accounts = [
+      acct({ account_type: "checking", balance_minor: -200_00 }),
+      acct({ account_type: "savings", balance_minor: 500_00 }),
+    ];
+    const [usd] = summarizeByCurrency(accounts);
+    expect(usd.assets_minor).toBe(300_00);
+    expect(usd.net_minor).toBe(300_00);
+  });
+
   it("is empty for no accounts", () => {
     expect(summarizeByCurrency([])).toEqual([]);
     expect(summarizeByCurrency(undefined)).toEqual([]);

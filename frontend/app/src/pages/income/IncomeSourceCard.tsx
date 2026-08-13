@@ -52,6 +52,9 @@ export function IncomeSourceCard({
             {source.payer}
           </Text>
         )}
+        {!source.is_current && (
+          <Badge tone="warning">{source.ends_on ? "Ended" : "Not started"}</Badge>
+        )}
       </div>
 
       {/* Two figures, not three.

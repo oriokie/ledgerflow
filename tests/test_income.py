@@ -212,6 +212,17 @@ def test_summary_reports_take_home_rate_and_concentration():
         assert summary.concentration_pct == 80.0
 
 
+def test_an_ended_source_does_not_feed_this_month_s_income():
+    """A finished contract left `is_active` still inflates every plan unless
+    `ends_on` is honoured on read, not just on write."""
+    tid = uuid.uuid4()
+    with tenant_scope(tid):
+        _source(name="Old job", net_minor=300_000, starts_on=date(2024, 1, 1), ends_on=date(2026, 3, 31))
+        views = selectors.source_views(as_of=TODAY)
+        assert views[0].is_current is False
+        assert selectors.income_summary(as_of=TODAY) is None
+
+
 def test_one_unknowable_deduction_makes_the_total_unknown():
     """A partial total presented as a whole is worse than no total."""
     tid = uuid.uuid4()

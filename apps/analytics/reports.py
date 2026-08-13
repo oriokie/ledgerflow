@@ -99,7 +99,7 @@ def _scoped_transactions(filters: ReportFilters, start: date, end: date):
     qs = Transaction.objects.filter(
         occurred_at__gte=_aware(start),
         occurred_at__lte=_aware(end, end=True),
-        status=TransactionStatus.POSTED,
+        status__in=[TransactionStatus.POSTED, TransactionStatus.RECONCILED],
         transfer_group__isnull=True,
     )
     if filters.account_ids:

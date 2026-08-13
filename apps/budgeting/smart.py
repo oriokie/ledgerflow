@@ -11,13 +11,15 @@ a budget a person edits, instead of a grid they must invent.
 The arithmetic, in the order it is applied:
 
 1. **History.** Median monthly spend per expense category over the trailing
-   complete months. Median, not mean: one car repair must not become a
-   permanent budget line. A category seen in only one month is ignored for the
-   same reason, unless a commitment (step 2) vouches for it.
+   complete months (six, so a quarterly bill is not mistaken for a one-off).
+   Median, not mean: one car repair must not become a permanent budget line.
+   Voided transactions are ignored. A category with no recurring commitment is
+   kept only when it landed last month *and* at least once before — the signal
+   it is highly likely next month, not a wedding gift.
 2. **Floors.** Recurring bills and active expense templates are converted to
-   monthly figures per category. A line never proposes less than its floor —
-   trimming a category below its own contractual commitments is not a budget,
-   it is a plan to fail.
+   monthly figures per category. Templates past their end date are skipped.
+   A line never proposes less than its floor — trimming a category below its
+   own contractual commitments is not a budget, it is a plan to fail.
 3. **The envelope.** Expected monthly income, minus debt minimums, minus what
    the household's goals need each month. What is left is what the budget may
    spend in total.
@@ -50,11 +52,15 @@ from apps.finance.models import (
     RecurringTransaction,
     RecurringType,
     Transaction,
+    TransactionStatus,
 )
 from apps.goals.models import GoalStatus, SavingsGoal
 
-#: Trailing complete months of history consulted.
-DEFAULT_MONTHS = 3
+#: Trailing complete months of history consulted. Six catches quarterly
+#: habits (insurance, school fees) that a three-month window sees once and
+#: discards as a one-off — those are exactly the non-recurring costs that
+#: are highly likely to land again next month.
+DEFAULT_MONTHS = 6
 
 _PER_YEAR = {"daily": 365, "weekly": 52, "monthly": 12, "yearly": 1}
 
@@ -126,7 +132,9 @@ class NothingToProposeError(Exception):
 
 def _dominant_expense_currency(since: date) -> str | None:
     row = (
-        Transaction.objects.filter(occurred_at__date__gte=since, amount_minor__lt=0)
+        Transaction.objects.filter(
+            occurred_at__date__gte=since, amount_minor__lt=0, status__in=[TransactionStatus.POSTED, TransactionStatus.RECONCILED]
+        )
         .values("currency")
         .annotate(total=Sum("amount_minor"))
         .order_by("total")  # most negative first = most spent
@@ -185,6 +193,7 @@ def propose_budget(*, as_of: date | None = None, months: int = DEFAULT_MONTHS) -
             amount_minor__lt=0,
             currency=currency,
             category__kind=CategoryKind.EXPENSE,
+            status__in=[TransactionStatus.POSTED, TransactionStatus.RECONCILED],
         )
         .annotate(month=TruncMonth("occurred_at"))
         .values("category_id", "category__name", "month")
@@ -192,8 +201,13 @@ def propose_budget(*, as_of: date | None = None, months: int = DEFAULT_MONTHS) -
     )
     by_category: dict[str, dict] = {}
     for row in rows:
-        entry = by_category.setdefault(str(row["category_id"]), {"name": row["category__name"], "months": []})
+        month = row["month"]
+        month_start = month.date().replace(day=1) if hasattr(month, "date") else date(month.year, month.month, 1)
+        entry = by_category.setdefault(
+            str(row["category_id"]), {"name": row["category__name"], "months": [], "month_starts": []}
+        )
         entry["months"].append(-row["total"])  # store as positive spend
+        entry["month_starts"].append(month_start)
 
     # ---- commitment floors per category
     floors: dict[str, int] = {}
@@ -210,6 +224,8 @@ def propose_budget(*, as_of: date | None = None, months: int = DEFAULT_MONTHS) -
     for template in RecurringTransaction.objects.filter(
         is_active=True, currency=currency, txn_type=RecurringType.EXPENSE
     ):
+        if template.ends_on is not None and template.ends_on < as_of:
+            continue
         if template.category_id is None:
             continue
         key = str(template.category_id)
@@ -220,14 +236,18 @@ def propose_budget(*, as_of: date | None = None, months: int = DEFAULT_MONTHS) -
         for category in Category.objects.filter(id__in=floors.keys()):
             floor_names[str(category.id)] = category.name
 
-    # ---- assemble raw lines
+    most_recent_month = _months_back(_month_start(as_of), 1)
     raw: list[dict] = []
     seen = set()
     for key, entry in by_category.items():
         observed = sorted(entry["months"])
-        # One appearance in the window is an event, not a habit — unless a
-        # commitment (floor) independently vouches for the category.
-        if len(observed) < 2 and key not in floors:
+        appeared_last_month = most_recent_month in entry["month_starts"]
+        # One appearance is an event, not a habit — unless a commitment
+        # independently vouches for the category. Non-recurring spend is kept
+        # when it landed last month *and* at least once before: that is the
+        # signal it is highly likely next month (quarterly insurance, termly
+        # fees), not a wedding gift.
+        if key not in floors and (len(observed) < 2 or not appeared_last_month):
             continue
         median = int(statistics.median(observed)) if observed else 0
         raw.append(

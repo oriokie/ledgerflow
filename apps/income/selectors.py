@@ -79,6 +79,13 @@ class SourceView:
     frequency: str
     reliability: str
     is_active: bool
+    starts_on: date
+    ends_on: date | None
+    #: True when `as_of` sits inside [starts_on, ends_on]. A source that has
+    #: ended (or not yet started) stays on the list so it can be edited, but
+    #: it must not feed this month's income, committed-income ratio, or
+    #: envelope — that is how a finished contract quietly inflates every plan.
+    is_current: bool
 
     #: What the user said one payment is worth.
     stated_net_minor: int
@@ -198,6 +205,10 @@ def source_views(*, as_of: date | None = None, currency: str | None = None) -> l
                 frequency=source.frequency,
                 reliability=source.reliability,
                 is_active=source.is_active,
+                starts_on=source.starts_on,
+                ends_on=source.ends_on,
+                is_current=source.starts_on <= as_of
+                and (source.ends_on is None or source.ends_on >= as_of),
                 stated_net_minor=source.net_minor,
                 stated_gross_minor=source.gross_minor,
                 observed_mean_minor=mean,
@@ -222,7 +233,10 @@ def _dominant_income_currency() -> str | None:
     """
     totals: dict[str, int] = {}
     counts: dict[str, int] = {}
+    today = timezone.localdate()
     for source in IncomeSource.objects.filter(is_active=True):
+        if source.starts_on > today or (source.ends_on is not None and source.ends_on < today):
+            continue
         counts[source.currency] = counts.get(source.currency, 0) + 1
         monthly = monthly_equivalent_minor(source.net_minor, source.frequency)
         # An ad-hoc source has no monthly value but is still income, and its
@@ -295,10 +309,11 @@ def income_summary(*, as_of: date | None = None, currency: str | None = None) ->
         return None
 
     views = [v for v in source_views(as_of=as_of, currency=currency)]
-    if not views:
+    current = [v for v in views if v.is_current]
+    if not current:
         return None
 
-    monthly = [v for v in views if v.monthly_net_minor is not None]
+    monthly = [v for v in current if v.monthly_net_minor is not None]
     total = sum(v.monthly_net_minor for v in monthly)
 
     deduction_parts = []
@@ -320,9 +335,9 @@ def income_summary(*, as_of: date | None = None, currency: str | None = None) ->
             v.monthly_net_minor for v in monthly if v.reliability != Reliability.FIXED
         ),
         monthly_deductions_minor=sum(deduction_parts) if deduction_parts is not None else None,
-        source_count=len(views),
-        ad_hoc_count=sum(1 for v in views if v.frequency == IncomeFrequency.AD_HOC),
-        speculative_count=sum(1 for v in views if v.is_speculative),
+        source_count=len(current),
+        ad_hoc_count=sum(1 for v in current if v.frequency == IncomeFrequency.AD_HOC),
+        speculative_count=sum(1 for v in current if v.is_speculative),
         concentration_pct=concentration,
     )
 
@@ -399,18 +414,24 @@ def _monthly_bills_minor(*, currency: str, as_of: date) -> int:
     return total
 
 
-def _monthly_recurring_expenses_minor(*, currency: str) -> int:
+def _monthly_recurring_expenses_minor(*, currency: str, as_of: date) -> int:
     """Recurring expense templates, as a monthly figure.
 
     Transfers are excluded. Moving money to savings is a decision the household
     makes, not a commitment it is bound by, and counting it would report a
     diligent saver as being under more pressure than a spendthrift.
+
+    Templates past `ends_on` are skipped even if still marked active — an
+    ended lease is not a commitment, and leaving it in would overstate the
+    ratio until someone remembered to pause the schedule.
     """
     total = 0
     templates = RecurringTransaction.objects.filter(
         is_active=True, currency=currency, txn_type=RecurringType.EXPENSE
     )
     for template in templates:
+        if template.ends_on is not None and template.ends_on < as_of:
+            continue
         per_year = {"daily": 365, "weekly": 52, "monthly": 12, "yearly": 1}.get(template.frequency)
         if per_year is None:
             continue
@@ -450,7 +471,9 @@ def committed_income(*, as_of: date | None = None, currency: str | None = None) 
         monthly_fixed_income_minor=summary.monthly_fixed_minor,
         bills_minor=_monthly_bills_minor(currency=summary.currency, as_of=as_of),
         debt_minimums_minor=debt_minimums,
-        recurring_expenses_minor=_monthly_recurring_expenses_minor(currency=summary.currency),
+        recurring_expenses_minor=_monthly_recurring_expenses_minor(
+            currency=summary.currency, as_of=as_of
+        ),
     )
 
 
@@ -471,6 +494,8 @@ def expected_by_recurring(*, currency: str, as_of: date | None = None) -> dict[s
         is_active=True, currency=currency, recurring_transaction__isnull=False
     )
     for source in sources:
+        if source.ends_on is not None and source.ends_on < as_of:
+            continue
         mean, _stdev, _count, _last = _observed(source, as_of=as_of)
         use_observed = mean is not None and source.reliability != Reliability.FIXED
         expected = mean if use_observed else source.net_minor

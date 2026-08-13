@@ -48,6 +48,7 @@ export function SubscriptionRow({
         <div className="lf-sub-meta">
           {isIncome ? "Income · " : ""}
           {cadenceLabel(rec)} · next {formatDate(rec.next_run_on)}
+          {rec.ends_on ? ` · ends ${formatDate(rec.ends_on)}` : ""}
           {!rec.is_active ? " · paused" : ""}
         </div>
       </div>
