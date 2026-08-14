@@ -34,7 +34,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
-from . import adapters, calculators as calc
+from . import adapters
+from . import calculators as calc
 from .engine import (
     CompiledEvent,
     DebtPosition,
