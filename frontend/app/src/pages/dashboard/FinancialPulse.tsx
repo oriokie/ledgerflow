@@ -224,11 +224,11 @@ export function FinancialPulse({
                     : ""}
                   .
                 </>
-              )}{" "}
-              <Link className="lf-link" to="/plan?tab=cashflow">
-                Projection
-              </Link>
+              )}
             </Text>
+            <Link className="lf-section-link" to="/plan?tab=cashflow">
+              Projection
+            </Link>
           </div>
         )}
       </div>
