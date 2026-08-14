@@ -133,7 +133,9 @@ class NothingToProposeError(Exception):
 def _dominant_expense_currency(since: date) -> str | None:
     row = (
         Transaction.objects.filter(
-            occurred_at__date__gte=since, amount_minor__lt=0, status__in=[TransactionStatus.POSTED, TransactionStatus.RECONCILED]
+            occurred_at__date__gte=since,
+            amount_minor__lt=0,
+            status__in=[TransactionStatus.POSTED, TransactionStatus.RECONCILED],
         )
         .values("currency")
         .annotate(total=Sum("amount_minor"))
@@ -202,7 +204,9 @@ def propose_budget(*, as_of: date | None = None, months: int = DEFAULT_MONTHS) -
     by_category: dict[str, dict] = {}
     for row in rows:
         month = row["month"]
-        month_start = month.date().replace(day=1) if hasattr(month, "date") else date(month.year, month.month, 1)
+        month_start = (
+            month.date().replace(day=1) if hasattr(month, "date") else date(month.year, month.month, 1)
+        )
         entry = by_category.setdefault(
             str(row["category_id"]), {"name": row["category__name"], "months": [], "month_starts": []}
         )

@@ -518,7 +518,9 @@ def debt_or_invest(
     debt_leg = adapters.project_live(
         position=replace(position, debts=faster), assumptions=base, events=debt_events, months=months
     )
-    invest_leg = adapters.project_live(position=position, assumptions=base, events=invest_events, months=months)
+    invest_leg = adapters.project_live(
+        position=position, assumptions=base, events=invest_events, months=months
+    )
 
     difference = debt_leg.closing_net_worth_minor - invest_leg.closing_net_worth_minor
     debt_wins = difference > 0

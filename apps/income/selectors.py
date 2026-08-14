@@ -207,8 +207,7 @@ def source_views(*, as_of: date | None = None, currency: str | None = None) -> l
                 is_active=source.is_active,
                 starts_on=source.starts_on,
                 ends_on=source.ends_on,
-                is_current=source.starts_on <= as_of
-                and (source.ends_on is None or source.ends_on >= as_of),
+                is_current=source.starts_on <= as_of and (source.ends_on is None or source.ends_on >= as_of),
                 stated_net_minor=source.net_minor,
                 stated_gross_minor=source.gross_minor,
                 observed_mean_minor=mean,
@@ -471,9 +470,7 @@ def committed_income(*, as_of: date | None = None, currency: str | None = None) 
         monthly_fixed_income_minor=summary.monthly_fixed_minor,
         bills_minor=_monthly_bills_minor(currency=summary.currency, as_of=as_of),
         debt_minimums_minor=debt_minimums,
-        recurring_expenses_minor=_monthly_recurring_expenses_minor(
-            currency=summary.currency, as_of=as_of
-        ),
+        recurring_expenses_minor=_monthly_recurring_expenses_minor(currency=summary.currency, as_of=as_of),
     )
 
 

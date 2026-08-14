@@ -96,7 +96,10 @@ def test_recurring_income_floors_the_projection_when_history_has_not_caught_up(t
 
     with tenant_scope(tenant):
         account = finance_services.create_financial_account(
-            name="Checking", account_type=AccountType.CHECKING, currency="USD", opening_balance_minor=1_000_000
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
         )
         salary = finance_services.create_category(name="Salary", kind=CategoryKind.INCOME, currency="USD")
         recurring_service.create_recurring_transaction(
@@ -130,7 +133,10 @@ def test_a_schedule_end_date_drops_the_amount_from_later_months(tenant):
     as_of = date(2026, 8, 13)
     with tenant_scope(tenant):
         account = finance_services.create_financial_account(
-            name="Checking", account_type=AccountType.CHECKING, currency="USD", opening_balance_minor=1_000_000
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
         )
         salary = finance_services.create_category(name="Salary", kind=CategoryKind.INCOME, currency="USD")
         recurring_service.create_recurring_transaction(
