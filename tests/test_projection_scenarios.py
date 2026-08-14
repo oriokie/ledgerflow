@@ -169,6 +169,52 @@ def test_the_cashflow_stack_names_measured_income_and_spend(tenant):
     assert all(line["monthly_minor"] > 0 for line in stack)
 
 
+def test_unlinked_recurring_income_is_named_on_the_stack_alongside_a_source(tenant):
+    """A salary captured as an income source must not hide a second paycheck
+    that only exists as a Recurring INCOME template."""
+    from apps.finance import recurring as recurring_service
+    from apps.finance.models import RecurringType
+    from apps.income import services as income_services
+    from apps.income.models import IncomeKind, Reliability
+
+    as_of = date(2026, 8, 13)
+    with tenant_scope(tenant):
+        account = finance_services.create_financial_account(
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
+        )
+        salary = finance_services.create_category(name="Salary", kind=CategoryKind.INCOME, currency="USD")
+        income_services.create_source(
+            name="Day job",
+            kind=IncomeKind.EMPLOYMENT,
+            currency="USD",
+            net_minor=300_000,
+            frequency="monthly",
+            reliability=Reliability.FIXED,
+            starts_on=date(2026, 1, 1),
+        )
+        recurring_service.create_recurring_transaction(
+            txn_type=RecurringType.INCOME,
+            financial_account=account,
+            category=salary,
+            amount_minor=150_000,
+            currency="USD",
+            frequency="monthly",
+            starts_on=date(2026, 1, 1),
+            memo="Side gig",
+        )
+        stack = adapters.cashflow_stack(currency="USD", as_of=as_of)
+        position = adapters.current_position(as_of=as_of)
+
+    incoming = [line for line in stack if line["direction"] == "in" and line["kind"] != "residual"]
+    labels = {line["label"] for line in incoming}
+    assert "Day job" in labels
+    assert "Side gig" in labels
+    assert position.monthly_net_income_minor >= 450_000
+
+
 def test_a_real_debts_apr_is_converted_from_percent_to_a_fraction(tenant):
     """The debt context stores APR as a percentage (21.5) and the engine takes
     fractions (0.215). The two conventions meet in the adapter and nowhere else.

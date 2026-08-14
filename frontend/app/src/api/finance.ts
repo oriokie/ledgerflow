@@ -149,6 +149,8 @@ export const financeApi = {
   listTransactions: (filters: TransactionFilters = {}) =>
     api.get<Paginated<Transaction>>(`/finance/transactions/${qs(filters)}`),
 
+  getTransaction: (txnId: string) => api.get<Transaction>(`/finance/transactions/${txnId}/`),
+
   createTransaction: (payload: {
     type: "income" | "expense";
     financial_account_id: string;

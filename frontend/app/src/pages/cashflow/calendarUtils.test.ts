@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { CashflowCalendarDay } from "../../api/types";
 import {
+  applyScenarioOverlay,
   dayTone,
+  formatFullDate,
   isSameDay,
   parseDay,
   toBalanceSeries,
@@ -234,5 +236,43 @@ describe("toBalanceSeries", () => {
     const days = many(365);
     const series = toBalanceSeries(days, 30);
     expect(series[series.length - 1].balanceMinor).toBe(days[364].closing_minor);
+  });
+});
+
+describe("formatFullDate", () => {
+  it("includes the year", () => {
+    expect(formatFullDate("2027-03-12", "en-GB")).toMatch(/2027/);
+  });
+});
+
+describe("applyScenarioOverlay", () => {
+  const calendar = {
+    currency: "USD",
+    start: "2026-01-01",
+    end: "2026-01-02",
+    opening_balance_minor: 10_000,
+    closing_balance_minor: 10_000,
+    lowest_balance_minor: 10_000,
+    lowest_balance_on: "2026-01-01",
+    first_negative_on: null,
+    negative_day_count: 0,
+    safe_to_spend_minor: 10_000,
+    safe_to_spend_basis: "scheduled" as const,
+    everyday: null,
+    days: [day("2026-01-01", 10_000), day("2026-01-02", 10_000)],
+  };
+
+  it("leaves the series alone when the deltas are zero", () => {
+    expect(applyScenarioOverlay(calendar, 0, 0)).toBe(calendar);
+  });
+
+  it("raises later days more than earlier ones, and updates the table figures", () => {
+    // 36_500 minor/month × 12 / 365 = 1_200/day, so day 1 +1_200, day 2 +2_400.
+    const next = applyScenarioOverlay(calendar, 36_500, 0);
+    expect(next.days[0].closing_minor).toBe(11_200);
+    expect(next.days[1].closing_minor).toBe(12_400);
+    expect(next.days[1].inflow_minor).toBeGreaterThan(0);
+    expect(next.closing_balance_minor).toBe(12_400);
+    expect(next.lowest_balance_minor).toBe(11_200);
   });
 });

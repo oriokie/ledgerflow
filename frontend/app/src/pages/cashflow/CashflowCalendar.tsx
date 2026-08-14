@@ -8,6 +8,7 @@ import {
   dayTone,
   isSameDay,
   monthHeadingForWeek,
+  formatFullDate,
   parseDay,
   SOURCE_ICONS,
   toWeekGrid,
@@ -233,7 +234,7 @@ export function CashflowCalendar({ calendar }: { calendar: Calendar }) {
         <p className="lf-cal-alert" role="status">
           <AlertTriangle size={15} strokeWidth={2} aria-hidden="true" />
           <span>
-            Projected to go below zero on <strong>{shortDate(calendar.first_negative_on)}</strong>
+            Projected to go below zero on <strong>{formatFullDate(calendar.first_negative_on)}</strong>
             {calendar.negative_day_count > 1 && ` and ${calendar.negative_day_count - 1} other days`}.
           </span>
         </p>

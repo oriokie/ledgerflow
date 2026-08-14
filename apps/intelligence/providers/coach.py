@@ -575,7 +575,6 @@ class RuleBasedCoach:
             self._overspending_pace,
             self._spending_anomalies,
             self._debt,
-            self._duplicates,
             self._large_purchases,
             self._income_changes,
             self._savings_opportunity,

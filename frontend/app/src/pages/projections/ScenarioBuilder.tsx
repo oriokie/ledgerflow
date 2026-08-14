@@ -14,6 +14,7 @@ import {
   Switch,
   Text,
 } from "../../ui";
+import type { ScenarioHints } from "./scenarioHints";
 
 /** Parameter names ending in `_minor` are money and are typed in whole units —
  * people say "5,000", not "500000". Everything else is a plain number, except
@@ -64,10 +65,28 @@ function unitFor(name: string) {
   return "";
 }
 
+function defaultsForKind(kind: string, hints?: ScenarioHints): Record<string, string> {
+  if (!hints) return {};
+  const major = (n: number) => String(n / 100);
+  const out: Record<string, string> = {};
+  if (kind === "invest_more" && hints.surplusMinor > 0) {
+    out.monthly_amount_minor = major(hints.surplusMinor);
+  }
+  if (kind === "home_purchase") {
+    if (hints.rentMinor) out.stops_monthly_minor = major(hints.rentMinor);
+    if (hints.depositMinor) out.deposit_minor = major(hints.depositMinor);
+  }
+  if (kind === "debt_payoff" && hints.surplusMinor > 0) {
+    out.amount_minor = major(hints.surplusMinor);
+  }
+  return out;
+}
+
 interface Props {
   scenario: Scenario;
   catalogue: EventKindMeta[];
   onChanged: () => void;
+  hints?: ScenarioHints;
 }
 
 /**
@@ -76,10 +95,12 @@ interface Props {
  * child has a support duration — adding a sixteenth life event is a backend
  * change and this picks it up for free.
  */
-export function ScenarioBuilder({ scenario, catalogue, onChanged }: Props) {
+export function ScenarioBuilder({ scenario, catalogue, onChanged, hints }: Props) {
   const [kind, setKind] = useState(catalogue[0]?.kind ?? "");
   const [startMonth, setStartMonth] = useState("1");
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    defaultsForKind(catalogue[0]?.kind ?? "", hints),
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -102,7 +123,7 @@ export function ScenarioBuilder({ scenario, catalogue, onChanged }: Props) {
         start_month: Number(startMonth) || 1,
         params,
       });
-      setValues({});
+      setValues(defaultsForKind(kind, hints));
       onChanged();
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Couldn't add that event.");
@@ -165,7 +186,7 @@ export function ScenarioBuilder({ scenario, catalogue, onChanged }: Props) {
               value={kind}
               onChange={(e) => {
                 setKind(e.target.value);
-                setValues({});
+                setValues(defaultsForKind(e.target.value, hints));
               }}
             >
               {catalogue.map((c) => (

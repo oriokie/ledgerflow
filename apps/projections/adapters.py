@@ -253,7 +253,7 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
     minus those schedules so groceries are not double-counted with rent.
     """
     from apps.finance.models import Bill, RecurringTransaction
-    from apps.income.models import Reliability
+    from apps.income.models import IncomeSource, Reliability
     from apps.income.selectors import source_views
 
     lines: list[dict] = []
@@ -274,11 +274,22 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
             }
         )
 
-    has_income_sources = any(line["kind"] == "income" for line in lines)
+    # Same money as an income source must not appear twice. Unlinked Recurring
+    # INCOME — a side gig that never became a source — still belongs here; the
+    # old `has_income_sources` skip hid every paycheck of that kind.
+    linked_template_ids = set(
+        IncomeSource.objects.filter(recurring_transaction_id__isnull=False).values_list(
+            "recurring_transaction_id", flat=True
+        )
+    )
     recurring_rows = RecurringTransaction.objects.filter(is_active=True, currency=currency).select_related(
         "payee"
     )
     for recurring in recurring_rows:
+        if recurring.id in linked_template_ids:
+            continue
+        if recurring.starts_on is not None and recurring.starts_on > as_of:
+            continue
         if recurring.ends_on is not None and recurring.ends_on < as_of:
             continue
         monthly = _to_monthly_minor(recurring.amount_minor, recurring.frequency, recurring.interval)
@@ -286,10 +297,12 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
             continue
         if recurring.txn_type == RecurringType.TRANSFER:
             continue
-        if recurring.txn_type == RecurringType.INCOME and has_income_sources:
-            continue
         direction = "in" if recurring.txn_type == RecurringType.INCOME else "out"
-        label = recurring.payee.name if recurring.payee_id else (recurring.memo or "Recurring")
+        label = (recurring.memo or "").strip() or (
+            recurring.payee.name
+            if recurring.payee_id
+            else ("Recurring income" if direction == "in" else "Recurring")
+        )
         lines.append(
             {
                 "id": f"recurring:{recurring.id}",

@@ -65,6 +65,7 @@ describe("ScenarioPanel", () => {
 
     expect(await screen.findByText(/never in this window/i)).toBeInTheDocument();
     expect(screen.getByText(/28 Aug|Aug 28/)).toBeInTheDocument();
+    expect(screen.getByText(/2026/)).toBeInTheDocument();
   });
 
   it("runs nothing until asked", () => {

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, ApiError } from "../../api/client";
 import { formatAmount } from "../../lib/money";
 import { Banner, Button, Card, Input, Text } from "../../ui";
+import { formatFullDate } from "./calendarUtils";
 
 interface ScenarioLeg {
   safe_to_spend_minor: number | null;
@@ -24,7 +25,11 @@ interface ScenarioResult {
  * displayed number. Inputs are whole currency units (people think in "5,000
  * more", not minor units); the API speaks minor.
  */
-export function ScenarioPanel() {
+export function ScenarioPanel({
+  onApplied,
+}: {
+  onApplied?: (incomeDeltaMinor: number, expenseDeltaMinor: number) => void;
+}) {
   const [incomeDelta, setIncomeDelta] = useState("");
   const [expenseDelta, setExpenseDelta] = useState("");
   const [result, setResult] = useState<ScenarioResult | null>(null);
@@ -40,6 +45,10 @@ export function ScenarioPanel() {
         monthly_expense_delta_minor: Math.round((Number(expenseDelta) || 0) * 100),
       });
       setResult(body);
+      onApplied?.(
+        Math.round((Number(incomeDelta) || 0) * 100),
+        Math.round((Number(expenseDelta) || 0) * 100),
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Couldn't run that scenario.");
     } finally {
@@ -47,10 +56,7 @@ export function ScenarioPanel() {
     }
   };
 
-  const fmtDate = (iso: string | null) =>
-    iso
-      ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" })
-      : "never in this window";
+  const fmtDate = (iso: string | null) => (iso ? formatFullDate(iso) : "never in this window");
 
   const row = (
     label: string,
@@ -79,8 +85,9 @@ export function ScenarioPanel() {
     <Card title="What if…">
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--lf-space-3)" }}>
         <Text tone="secondary" size="sm">
-          Model a change before you make it — a raise, a rent rise, a cut. The projections re-run
-          with the change applied; nothing is saved.
+          Model a change before you make it — a raise, a rent rise, a cut. Preview re-runs the
+          figures on this page (the table, the chart, the trough) as well as the comparison below.
+          Nothing is saved.
         </Text>
         <div style={{ display: "flex", gap: "var(--lf-space-3)", flexWrap: "wrap" }}>
           <Input
