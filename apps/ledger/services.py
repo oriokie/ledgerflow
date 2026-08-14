@@ -111,8 +111,16 @@ def post_journal_entry(
                 idempotency_key=idempotency_key,
                 reverses=reverses,
             )
-    except IntegrityError:  # lost an idempotency race — return the winner
-        return JournalEntry.objects.get(idempotency_key=idempotency_key)
+    except IntegrityError:
+        # Lost a race on idempotency_key, or on "one reversal per original".
+        winner = JournalEntry.objects.filter(idempotency_key=idempotency_key).first()
+        if winner is not None:
+            return winner
+        if reverses is not None:
+            winner = JournalEntry.objects.filter(reverses=reverses).first()
+            if winner is not None:
+                return winner
+        raise
 
     LedgerLine.objects.bulk_create(
         [
@@ -181,8 +189,17 @@ def _invalidate_derived_caches(tenant_id) -> None:
 
 @transaction.atomic
 def reverse_journal_entry(*, entry: JournalEntry, idempotency_key: str, memo: str = "") -> JournalEntry:
-    """Correct a mistake by posting the mirror image — never by mutating history."""
-    original_lines = list(entry.lines.select_related("account"))
+    """Correct a mistake by posting the mirror image — never by mutating history.
+
+    An entry may be reversed only once. A transfer (and a split) is several
+    domain rows on one journal; voiding the second row must return the same
+    reversal, not post another copy that would overshoot the accounts.
+    """
+    locked = JournalEntry.objects.select_for_update().get(pk=entry.pk)
+    existing = JournalEntry.objects.filter(reverses_id=locked.id).first()
+    if existing is not None:
+        return existing
+    original_lines = list(locked.lines.select_related("account"))
     flipped = [
         LineInput(
             account_id=str(ln.account_id),
@@ -192,11 +209,11 @@ def reverse_journal_entry(*, entry: JournalEntry, idempotency_key: str, memo: st
         for ln in original_lines
     ]
     return post_journal_entry(
-        occurred_at=entry.occurred_at,
+        occurred_at=locked.occurred_at,
         lines=flipped,
         idempotency_key=idempotency_key,
-        memo=memo or f"Reversal of {entry.id}",
-        reverses=entry,
+        memo=memo or f"Reversal of {locked.id}",
+        reverses=locked,
     )
 
 

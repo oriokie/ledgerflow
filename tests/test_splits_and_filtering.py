@@ -97,6 +97,50 @@ def test_split_preserves_account_balance():
         assert before == after
 
 
+def test_voiding_every_split_part_restores_the_account_once():
+    """Each split part shares one journal. Bulk-voiding them all must reverse
+    that journal once, not once per part."""
+    tenant_id = uuid.uuid4()
+    with tenant_scope(tenant_id):
+        checking, groceries, household, salary = _seed()
+        services.record_income(
+            financial_account=checking, category=salary, amount_minor=50_000, occurred_at=_now()
+        )
+        txn = services.record_expense(
+            financial_account=checking, category=groceries, amount_minor=9000, occurred_at=_now()
+        )
+        parts = services.split_transaction(
+            txn=txn,
+            parts=[
+                services.SplitPart(category=groceries, amount_minor=6000),
+                services.SplitPart(category=household, amount_minor=3000),
+            ],
+        )
+        after_split = selectors.account_current_balance_minor(checking)
+        services.bulk_void_transactions(txns=parts)
+        assert selectors.account_current_balance_minor(checking) == after_split + 9000
+        for part in parts:
+            part.refresh_from_db()
+            assert part.status == TransactionStatus.VOID
+
+
+def test_filter_by_void_status_returns_voided_rows():
+    tenant_id = uuid.uuid4()
+    with tenant_scope(tenant_id):
+        checking, groceries, _, _ = _seed()
+        live = services.record_expense(
+            financial_account=checking, category=groceries, amount_minor=1000, occurred_at=_now()
+        )
+        gone = services.record_expense(
+            financial_account=checking, category=groceries, amount_minor=2000, occurred_at=_now()
+        )
+        services.void_transaction(txn=gone)
+        default = list(selectors.list_transactions())
+        assert {t.id for t in default} == {live.id}
+        voided = list(selectors.list_transactions(filters=selectors.TransactionFilters(status="void")))
+        assert {t.id for t in voided} == {gone.id}
+
+
 def test_income_cannot_be_split():
     tenant_id = uuid.uuid4()
     with tenant_scope(tenant_id):

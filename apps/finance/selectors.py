@@ -259,7 +259,7 @@ def list_transactions(
     f = filters or TransactionFilters()
     account = financial_account if financial_account is not None else f.account
 
-    qs = Transaction.objects.exclude(status=TransactionStatus.VOID)
+    qs = Transaction.objects.all()
     if account is not None:
         qs = qs.filter(financial_account=account)
     if f.category_id is not None:
@@ -269,8 +269,14 @@ def list_transactions(
     if f.tag_id is not None:
         # distinct(): a txn could match on the join once per live tag row
         qs = qs.filter(transactiontag__tag_id=f.tag_id, transactiontag__deleted_at__isnull=True).distinct()
-    if f.status is not None:
-        qs = qs.filter(status=f.status)
+    # Default list hides voids so the activity feed is live money. Asking
+    # for status=void must not then exclude them — that combination used
+    # to return an empty page.
+    qs = (
+        qs.filter(status=f.status)
+        if f.status is not None
+        else qs.exclude(status=TransactionStatus.VOID)
+    )
     if f.txn_type == "transfer":
         qs = qs.filter(transfer_group__isnull=False)
     elif f.txn_type == "income":

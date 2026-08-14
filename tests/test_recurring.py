@@ -48,6 +48,30 @@ def test_create_sets_first_run_to_anchor(tenant_id):
         assert rec.occurrences_created == 0
 
 
+def test_editing_next_run_does_not_move_the_anchor(tenant_id):
+    """The next due date is not a new start date. Moving the anchor would
+    make projections treat an already-running charge as not yet started."""
+    with tenant_scope(tenant_id):
+        checking, _savings, rent, _salary = _seed()
+        rec = recurring.create_recurring_transaction(
+            txn_type=RecurringType.EXPENSE,
+            financial_account=checking,
+            category=rent,
+            amount_minor=150000,
+            currency="USD",
+            frequency="monthly",
+            starts_on=date(2026, 1, 1),
+        )
+        rec.occurrences_created = 7
+        rec.save(update_fields=["occurrences_created"])
+        rec = recurring.update_recurring_transaction(
+            rec=rec, next_run_on=date(2026, 9, 5), amount_minor=160000
+        )
+        assert rec.starts_on == date(2026, 1, 1)
+        assert rec.next_run_on == date(2026, 9, 5)
+        assert rec.amount_minor == 160000
+
+
 def test_not_due_posts_nothing(tenant_id):
     with tenant_scope(tenant_id):
         checking, _savings, rent, _salary = _seed()

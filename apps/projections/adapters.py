@@ -111,6 +111,67 @@ def _month_offset(as_of: date, when: date) -> int:
     return (when.year - as_of.year) * 12 + (when.month - as_of.month)
 
 
+def _continues_past_this_month(ends_on: date | None, as_of: date) -> bool:
+    """Engine month 1 is next calendar month. A contract that ends this month
+    must not sit in the forward run-rate."""
+    if ends_on is None:
+        return True
+    return _month_offset(as_of, ends_on) >= 1
+
+
+def _recurring_already_running(rec: RecurringTransaction, as_of: date) -> bool:
+    """True when this template belongs in *this* month's promised cashflow.
+
+    Posted occurrences beat the stored `starts_on`. The edit form used to send
+    the next due date as `starts_on`, which parked an already-running rent in
+    the future and made projections ignore it.
+    """
+    if rec.occurrences_created > 0:
+        return True
+    return _month_offset(as_of, rec.starts_on) <= 0
+
+
+def _recurring_label(rec: RecurringTransaction) -> str:
+    memo = (rec.memo or "").strip()
+    if memo:
+        return memo
+    if rec.payee_id and getattr(rec, "payee", None) is not None:
+        return rec.payee.name
+    if rec.txn_type == RecurringType.INCOME:
+        return "Recurring income"
+    if rec.txn_type == RecurringType.EXPENSE:
+        return "Recurring expense"
+    return "Recurring"
+
+
+def _source_plan_status(view, as_of: date) -> str:
+    """`current`, `upcoming`, or `skip` — the same gate for the stack and events."""
+    from apps.income.models import Reliability
+
+    if not view.is_active or view.monthly_net_minor is None:
+        return "skip"
+    if view.reliability == Reliability.IRREGULAR and not view.expected_is_observed:
+        return "skip"
+    if not _continues_past_this_month(view.ends_on, as_of):
+        return "skip"
+    if _month_offset(as_of, view.starts_on) > 0:
+        return "upcoming"
+    return "current"
+
+
+def _linked_templates_for_sources(source_ids: list[str]) -> set:
+    """Posting templates already represented by an income source on the stack."""
+    if not source_ids:
+        return set()
+    from apps.income.models import IncomeSource
+
+    return set(
+        IncomeSource.objects.filter(id__in=source_ids)
+        .exclude(recurring_transaction_id=None)
+        .values_list("recurring_transaction_id", flat=True)
+    )
+
+
 def _scheduled_run_rate(currency: str, as_of: date) -> tuple[int, int, list[CompiledEvent]]:
     """Known forward income and expenses, plus events that start or end them.
 
@@ -121,10 +182,11 @@ def _scheduled_run_rate(currency: str, as_of: date) -> tuple[int, int, list[Comp
     it actually stops.
 
     Linked income sources and their posting templates are the same money —
-    counting both would double every paycheck.
+    counting both would double every paycheck. A template is skipped only when
+    its source actually made it onto the plan; an inactive or irregular source
+    must not hide a live paycheck.
     """
     from apps.common.tenant_context import get_current_tenant_id
-    from apps.income.models import IncomeSource
     from apps.income.selectors import source_views
 
     if get_current_tenant_id() is None:
@@ -134,26 +196,29 @@ def _scheduled_run_rate(currency: str, as_of: date) -> tuple[int, int, list[Comp
     income = 0
     expenses = 0
 
-    linked_template_ids = set(
-        IncomeSource.objects.filter(recurring_transaction_id__isnull=False).values_list(
-            "recurring_transaction_id", flat=True
-        )
-    )
-
-    def apply(label: str, monthly: int, kind: str, starts_on: date, ends_on: date | None) -> None:
+    def apply(
+        label: str,
+        monthly: int,
+        kind: str,
+        starts_on: date,
+        ends_on: date | None,
+        *,
+        running: bool,
+    ) -> None:
         nonlocal income, expenses
         if monthly <= 0:
+            return
+        if not _continues_past_this_month(ends_on, as_of) and running:
             return
         if ends_on is not None and ends_on < as_of:
             return
 
         income_delta = monthly if kind == "income" else 0
         expense_delta = monthly if kind == "expense" else 0
-        start_offset = _month_offset(as_of, starts_on)
+        start_offset = 0 if running else _month_offset(as_of, starts_on)
         last_offset = _month_offset(as_of, ends_on) if ends_on is not None else None
 
         if start_offset > 0:
-            # Has not started yet — the base run-rate must not include it.
             events.append(
                 CompiledEvent(
                     label=label,
@@ -165,8 +230,6 @@ def _scheduled_run_rate(currency: str, as_of: date) -> tuple[int, int, list[Comp
             )
             return
 
-        # Already running. Engine month 1 is next calendar month, so a schedule
-        # that ends this month does not belong in the forward run-rate at all.
         if last_offset is not None and last_offset < 1:
             return
 
@@ -184,20 +247,44 @@ def _scheduled_run_rate(currency: str, as_of: date) -> tuple[int, int, list[Comp
                 )
             )
 
+    counted_source_ids: list[str] = []
     for view in source_views(as_of=as_of, currency=currency):
-        monthly = view.monthly_net_minor or 0
-        apply(view.name, monthly, "income", view.starts_on, view.ends_on)
+        status = _source_plan_status(view, as_of)
+        if status == "skip":
+            continue
+        counted_source_ids.append(view.source_id)
+        apply(
+            view.name,
+            view.monthly_net_minor or 0,
+            "income",
+            view.starts_on,
+            view.ends_on,
+            running=status == "current",
+        )
 
+    hidden_templates = _linked_templates_for_sources(counted_source_ids)
     templates = RecurringTransaction.objects.filter(
         is_active=True, currency=currency, txn_type__in=[RecurringType.INCOME, RecurringType.EXPENSE]
-    )
+    ).select_related("payee")
     for template in templates:
-        if template.id in linked_template_ids:
+        if template.id in hidden_templates:
+            continue
+        if not _continues_past_this_month(template.ends_on, as_of) and _recurring_already_running(
+            template, as_of
+        ):
+            continue
+        if template.ends_on is not None and template.ends_on < as_of:
             continue
         kind = "income" if template.txn_type == RecurringType.INCOME else "expense"
         monthly = _to_monthly_minor(template.amount_minor, template.frequency, template.interval)
-        label = template.memo.strip() or ("Recurring income" if kind == "income" else "Recurring expense")
-        apply(label, monthly, kind, template.starts_on, template.ends_on)
+        apply(
+            _recurring_label(template),
+            monthly,
+            kind,
+            template.starts_on,
+            template.ends_on,
+            running=_recurring_already_running(template, as_of),
+        )
 
     return income, expenses, events
 
@@ -244,6 +331,29 @@ def _looks_like_housing(label: str) -> bool:
     return any(marker in lowered for marker in _HOUSING_MARKERS)
 
 
+def _stack_line(
+    *,
+    line_id: str,
+    kind: str,
+    direction: str,
+    label: str,
+    monthly_minor: int,
+    current: bool,
+    starts_on: date | None = None,
+    stoppable: bool = False,
+) -> dict:
+    return {
+        "id": line_id,
+        "kind": kind,
+        "direction": direction,
+        "label": label,
+        "monthly_minor": monthly_minor,
+        "current": current,
+        "starts_on": starts_on.isoformat() if starts_on is not None and not current else None,
+        "stoppable": stoppable,
+    }
+
+
 def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
     """Named scheduled flows that feed the projection, plus a residual.
 
@@ -251,67 +361,63 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
     recurring template, or a repeating bill. Irregular income is omitted
     rather than drawn as a smooth line. The residual is measured history
     minus those schedules so groceries are not double-counted with rent.
+
+    Upcoming schedules stay on the list so a person can see them, but they
+    are not part of this month's run-rate (`current=False`).
     """
-    from apps.finance.models import Bill, RecurringTransaction
-    from apps.income.models import IncomeSource, Reliability
+    from apps.finance.models import Bill
     from apps.income.selectors import source_views
 
     lines: list[dict] = []
+    counted_source_ids: list[str] = []
 
     for view in source_views(as_of=as_of, currency=currency):
-        if not view.is_active or not view.is_current or view.monthly_net_minor is None:
+        status = _source_plan_status(view, as_of)
+        if status == "skip":
             continue
-        if view.reliability == Reliability.IRREGULAR and not view.expected_is_observed:
-            continue
+        counted_source_ids.append(view.source_id)
         lines.append(
-            {
-                "id": f"income:{view.source_id}",
-                "kind": "income",
-                "direction": "in",
-                "label": view.name,
-                "monthly_minor": view.monthly_net_minor,
-                "stoppable": False,
-            }
+            _stack_line(
+                line_id=f"income:{view.source_id}",
+                kind="income",
+                direction="in",
+                label=view.name,
+                monthly_minor=view.monthly_net_minor or 0,
+                current=status == "current",
+                starts_on=view.starts_on,
+            )
         )
 
-    # Same money as an income source must not appear twice. Unlinked Recurring
-    # INCOME — a side gig that never became a source — still belongs here; the
-    # old `has_income_sources` skip hid every paycheck of that kind.
-    linked_template_ids = set(
-        IncomeSource.objects.filter(recurring_transaction_id__isnull=False).values_list(
-            "recurring_transaction_id", flat=True
-        )
-    )
+    hidden_templates = _linked_templates_for_sources(counted_source_ids)
     recurring_rows = RecurringTransaction.objects.filter(is_active=True, currency=currency).select_related(
         "payee"
     )
     for recurring in recurring_rows:
-        if recurring.id in linked_template_ids:
+        if recurring.id in hidden_templates:
             continue
-        if recurring.starts_on is not None and recurring.starts_on > as_of:
+        if recurring.txn_type == RecurringType.TRANSFER:
             continue
         if recurring.ends_on is not None and recurring.ends_on < as_of:
+            continue
+        running = _recurring_already_running(recurring, as_of)
+        if running and not _continues_past_this_month(recurring.ends_on, as_of):
             continue
         monthly = _to_monthly_minor(recurring.amount_minor, recurring.frequency, recurring.interval)
         if monthly <= 0:
             continue
-        if recurring.txn_type == RecurringType.TRANSFER:
-            continue
         direction = "in" if recurring.txn_type == RecurringType.INCOME else "out"
-        label = (recurring.memo or "").strip() or (
-            recurring.payee.name
-            if recurring.payee_id
-            else ("Recurring income" if direction == "in" else "Recurring")
-        )
+        label = _recurring_label(recurring)
         lines.append(
-            {
-                "id": f"recurring:{recurring.id}",
-                "kind": "recurring",
-                "direction": direction,
-                "label": label,
-                "monthly_minor": monthly,
-                "stoppable": direction == "out" and _looks_like_housing(label),
-            }
+            _stack_line(
+                line_id=f"recurring:{recurring.id}",
+                kind="recurring",
+                direction=direction,
+                label=label,
+                monthly_minor=monthly,
+                current=running,
+                starts_on=recurring.starts_on,
+                stoppable=direction == "out" and _looks_like_housing(label),
+            )
         )
 
     for bill in Bill.objects.filter(
@@ -323,42 +429,47 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
             continue
         label = bill.name
         lines.append(
-            {
-                "id": f"bill:{bill.id}",
-                "kind": "bill",
-                "direction": "out",
-                "label": label,
-                "monthly_minor": monthly,
-                "stoppable": _looks_like_housing(label),
-            }
+            _stack_line(
+                line_id=f"bill:{bill.id}",
+                kind="bill",
+                direction="out",
+                label=label,
+                monthly_minor=monthly,
+                current=True,
+                stoppable=_looks_like_housing(label),
+            )
         )
 
     hist_in, hist_out = _monthly_flows(currency, as_of)
-    scheduled_in = sum(line["monthly_minor"] for line in lines if line["direction"] == "in")
-    scheduled_out = sum(line["monthly_minor"] for line in lines if line["direction"] == "out")
+    scheduled_in = sum(
+        line["monthly_minor"] for line in lines if line["direction"] == "in" and line["current"]
+    )
+    scheduled_out = sum(
+        line["monthly_minor"] for line in lines if line["direction"] == "out" and line["current"]
+    )
     residual_in = max(0, hist_in - scheduled_in)
     residual_out = max(0, hist_out - scheduled_out)
     if residual_in:
         lines.append(
-            {
-                "id": "residual:in",
-                "kind": "residual",
-                "direction": "in",
-                "label": "Unscheduled income (measured)",
-                "monthly_minor": residual_in,
-                "stoppable": False,
-            }
+            _stack_line(
+                line_id="residual:in",
+                kind="residual",
+                direction="in",
+                label="Unscheduled income (measured)",
+                monthly_minor=residual_in,
+                current=True,
+            )
         )
     if residual_out:
         lines.append(
-            {
-                "id": "residual:out",
-                "kind": "residual",
-                "direction": "out",
-                "label": "Unscheduled spending (measured)",
-                "monthly_minor": residual_out,
-                "stoppable": False,
-            }
+            _stack_line(
+                line_id="residual:out",
+                kind="residual",
+                direction="out",
+                label="Unscheduled spending (measured)",
+                monthly_minor=residual_out,
+                current=True,
+            )
         )
     return lines
 
@@ -378,8 +489,12 @@ def current_position(*, as_of: date | None = None) -> FinancialPosition:
 
     liquid = finance_selectors.liquid_balance_minor(currency)
     stack = cashflow_stack(currency=currency, as_of=as_of)
-    income = sum(line["monthly_minor"] for line in stack if line["direction"] == "in")
-    expenses = sum(line["monthly_minor"] for line in stack if line["direction"] == "out")
+    income = sum(
+        line["monthly_minor"] for line in stack if line["direction"] == "in" and line.get("current", True)
+    )
+    expenses = sum(
+        line["monthly_minor"] for line in stack if line["direction"] == "out" and line.get("current", True)
+    )
     if income == 0 and expenses == 0:
         income, expenses = _monthly_flows(currency, as_of)
     debts = _debt_positions(currency)
