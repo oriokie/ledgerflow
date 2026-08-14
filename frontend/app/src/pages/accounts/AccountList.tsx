@@ -1,12 +1,15 @@
 import type { FinancialAccount } from "../../api/types";
 import { Card, Money } from "../../ui";
 import { AccountTypeIcon } from "./AccountTypeIcon";
-import { accountTypeLabel, groupAccounts } from "./summary";
+import { accountTypeLabel, groupAccounts, isLiability } from "./summary";
 
 function subtotal(accounts: FinancialAccount[], currency: string): number {
   return accounts
     .filter((a) => a.currency === currency)
-    .reduce((sum, a) => sum + Math.abs(a.balance_minor), 0);
+    .reduce((sum, a) => {
+      const balance = a.balance_minor;
+      return sum + (isLiability(a.account_type) ? Math.abs(balance) : balance);
+    }, 0);
 }
 
 function AccountRow({

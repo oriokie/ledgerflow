@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import type { FinancialAccount } from "../../api/types";
-import { formatAmount } from "../../lib/money";
+import { formatAmountSigned } from "../../lib/money";
 import { Illustration } from "../../ui/illustration";
 
 export function AccountsSnapshot({
@@ -42,7 +42,7 @@ export function AccountsSnapshot({
                 <span className="lf-acct-type">{a.account_type.replace(/_/g, " ")}</span>
               </div>
               <span className="lf-acct-bal">
-                {formatAmount(a.balance_minor, a.currency || currency)}
+                {formatAmountSigned(a.balance_minor, a.currency || currency)}
               </span>
             </li>
           ))}

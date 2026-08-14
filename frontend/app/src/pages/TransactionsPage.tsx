@@ -1,7 +1,7 @@
 import { ArrowLeftRight, Download, RefreshCw, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { financeExtendedApi } from "../api/finance";
+import { financeApi, financeExtendedApi } from "../api/finance";
 import type { Transaction } from "../api/types";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { useApplyAutomationRules } from "../hooks/useIntelligence";
@@ -70,6 +70,23 @@ export function TransactionsPage({ embedded }: { embedded?: boolean } = {}) {
   const apiFilters = useMemo(() => toApiFilters(filters, cursor ?? undefined), [filters, cursor]);
   const { data: page, isLoading } = useTransactions(apiFilters);
   const rows = page?.results ?? [];
+  const txId = searchParams.get("tx");
+
+  useEffect(() => {
+    if (!txId) return;
+    let cancelled = false;
+    financeApi
+      .getTransaction(txId)
+      .then((txn) => {
+        if (!cancelled) setDetailTxn(txn);
+      })
+      .catch(() => {
+        /* missing or unauthorized: leave the list as-is */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [txId]);
 
   // Selection helpers
   const toggle = (id: string) =>
@@ -272,7 +289,19 @@ export function TransactionsPage({ embedded }: { embedded?: boolean } = {}) {
         </>
       )}
 
-      {detailTxn && <TransactionDetail txn={detailTxn} onClose={() => setDetailTxn(null)} />}
+      {detailTxn && (
+        <TransactionDetail
+          txn={detailTxn}
+          onClose={() => {
+            setDetailTxn(null);
+            if (searchParams.get("tx")) {
+              const next = new URLSearchParams(searchParams);
+              next.delete("tx");
+              setSearchParams(next, { replace: true });
+            }
+          }}
+        />
+      )}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
     </>
   );

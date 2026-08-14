@@ -16,7 +16,7 @@ import {
   Text,
 } from "../ui";
 import { CashflowCalendar, CashflowOutlook, ScenarioPanel } from "./cashflow";
-import { hasScheduledActivity, parseDay } from "./cashflow/calendarUtils";
+import { hasScheduledActivity, parseDay, applyScenarioOverlay, formatFullDate } from "./cashflow/calendarUtils";
 
 /**
  * Projection windows.
@@ -48,6 +48,10 @@ function shortDate(iso: string): string {
   return parseDay(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
+function firstNegativeDate(iso: string): string {
+  return formatFullDate(iso);
+}
+
 /**
  * The full-page cash flow calendar.
  *
@@ -63,8 +67,15 @@ export function CashflowPage({ embedded }: { embedded?: boolean } = {}) {
   const [window, setWindow] = useState("60");
   const days = Number(window);
   const { data: calendar, isLoading } = useCashflowCalendar({ days });
+  const [incomeDeltaMinor, setIncomeDeltaMinor] = useState(0);
+  const [expenseDeltaMinor, setExpenseDeltaMinor] = useState(0);
 
-  const scheduled = hasScheduledActivity(calendar?.days);
+  const displayCalendar = useMemo(
+    () => (calendar ? applyScenarioOverlay(calendar, incomeDeltaMinor, expenseDeltaMinor) : undefined),
+    [calendar, incomeDeltaMinor, expenseDeltaMinor],
+  );
+
+  const scheduled = hasScheduledActivity(displayCalendar?.days);
   const isLongHorizon = days > GRID_LIMIT_DAYS;
   const [view, setView] = useState<ViewMode>("calendar");
 
@@ -76,25 +87,27 @@ export function CashflowPage({ embedded }: { embedded?: boolean } = {}) {
   }, [isLongHorizon]);
 
   const stats = useMemo(() => {
-    if (!calendar) return null;
-    const c = calendar.currency;
+    if (!displayCalendar) return null;
+    const c = displayCalendar.currency;
     return {
-      opening: formatAmount(calendar.opening_balance_minor, c),
-      closing: formatAmount(calendar.closing_balance_minor, c),
-      lowest: formatAmount(calendar.lowest_balance_minor, c),
-      lowestOn: calendar.lowest_balance_on ? shortDate(calendar.lowest_balance_on) : undefined,
-      negativeDays: calendar.negative_day_count,
-      firstNegative: calendar.first_negative_on ? shortDate(calendar.first_negative_on) : null,
-      isTight: calendar.lowest_balance_minor < 0,
+      opening: formatAmount(displayCalendar.opening_balance_minor, c),
+      closing: formatAmount(displayCalendar.closing_balance_minor, c),
+      lowest: formatAmount(displayCalendar.lowest_balance_minor, c),
+      lowestOn: displayCalendar.lowest_balance_on ? shortDate(displayCalendar.lowest_balance_on) : undefined,
+      negativeDays: displayCalendar.negative_day_count,
+      firstNegative: displayCalendar.first_negative_on
+        ? firstNegativeDate(displayCalendar.first_negative_on)
+        : null,
+      isTight: displayCalendar.lowest_balance_minor < 0,
     };
-  }, [calendar]);
+  }, [displayCalendar]);
 
   return (
     <>
       {!embedded && (
         <PageHeader
           title="Cash flow"
-          eyebrow={calendar ? `Projected in ${calendar.currency}` : undefined}
+          eyebrow={displayCalendar ? `Projected in ${displayCalendar.currency}` : undefined}
           description="What your balance is expected to do, day by day, based on your scheduled income and bills."
           actions={
             <Inline gap={2}>
@@ -135,7 +148,7 @@ export function CashflowPage({ embedded }: { embedded?: boolean } = {}) {
         </Card>
       )}
 
-      {calendar && stats && (
+      {displayCalendar && stats && (
         <>
           {/* Answers the question the page exists for before the user has to
               read a single cell. */}
@@ -148,8 +161,8 @@ export function CashflowPage({ embedded }: { embedded?: boolean } = {}) {
               <Figure
                 label="Lowest point"
                 size="hero"
-                amountMinor={calendar.lowest_balance_minor}
-                currency={calendar.currency}
+                amountMinor={displayCalendar.lowest_balance_minor}
+                currency={displayCalendar.currency}
                 neutral
                 certainty="projected"
                 hint={stats.lowestOn ? `on ${stats.lowestOn}` : undefined}
@@ -157,14 +170,14 @@ export function CashflowPage({ embedded }: { embedded?: boolean } = {}) {
               />
               <Figure
                 label="Starting balance"
-                amountMinor={calendar.opening_balance_minor}
-                currency={calendar.currency}
+                amountMinor={displayCalendar.opening_balance_minor}
+                currency={displayCalendar.currency}
                 neutral
               />
               <Figure
                 label="Ends at"
-                amountMinor={calendar.closing_balance_minor}
-                currency={calendar.currency}
+                amountMinor={displayCalendar.closing_balance_minor}
+                currency={displayCalendar.currency}
                 neutral
                 certainty="projected"
               />
@@ -207,7 +220,7 @@ export function CashflowPage({ embedded }: { embedded?: boolean } = {}) {
                   flat — on the demo workspace it falls by over KES 7,000 across
                   90 days — and saying it is would be a false claim the product
                   can already disprove from its own data. */}
-              {!scheduled && !calendar.everyday ? (
+              {!scheduled && !displayCalendar.everyday ? (
                 <EmptyState
                   icon={CalendarClock}
                   title="Nothing scheduled"
@@ -231,15 +244,20 @@ export function CashflowPage({ embedded }: { embedded?: boolean } = {}) {
                       alone. Adding bills and recurring income will sharpen it.
                     </Banner>
                   )}
-                  <CashflowOutlook calendar={calendar} />
+                  <CashflowOutlook calendar={displayCalendar} />
                 </>
               ) : (
-                <CashflowCalendar calendar={calendar} />
+                <CashflowCalendar calendar={displayCalendar} />
               )}
             </Card>
           </div>
           <div className="lf-dash-section">
-            <ScenarioPanel />
+            <ScenarioPanel
+              onApplied={(incomeMinor, expenseMinor) => {
+                setIncomeDeltaMinor(incomeMinor);
+                setExpenseDeltaMinor(expenseMinor);
+              }}
+            />
           </div>
         </>
       )}

@@ -12,7 +12,7 @@ import {
 import type { CashflowCalendar as Calendar } from "../../api/types";
 import { formatAmount, formatAmountSigned } from "../../lib/money";
 import { Banner, Money, Table, Text, type Column } from "../../ui";
-import { parseDay, toMonthlyRollups, type MonthlyRollup } from "./calendarUtils";
+import { parseDay, formatFullDate, toMonthlyRollups, type MonthlyRollup } from "./calendarUtils";
 import { CHART_TICK_FONT_PX } from "../dashboard/chartTheme";
 
 function shortDate(iso: string, locale?: string): string {
@@ -113,7 +113,7 @@ export function CashflowOutlook({ calendar }: { calendar: Calendar }) {
       {goesNegative && calendar.first_negative_on && (
         <Banner tone="danger">
           <AlertTriangle size={16} aria-hidden="true" style={{ verticalAlign: "-3px", marginRight: 6 }} />
-          Projected to go below zero on {shortDate(calendar.first_negative_on)}, and to stay under
+          Projected to go below zero on {formatFullDate(calendar.first_negative_on)}, and to stay under
           on {calendar.negative_day_count} day{calendar.negative_day_count === 1 ? "" : "s"} in this
           window.
         </Banner>

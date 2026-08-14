@@ -40,6 +40,7 @@ import { DecisionAssistant } from "./projections/DecisionAssistant";
 import { RiskAndSimulation } from "./projections/RiskAndSimulation";
 import { TwinPanel } from "./projections/TwinPanel";
 import { ScenarioBuilder } from "./projections/ScenarioBuilder";
+import { scenarioHints } from "./projections/scenarioHints";
 
 /** `SegmentedControl` is generic over a string union, so the horizon travels as
  * a string and is parsed at the one place it becomes a number. */
@@ -338,6 +339,14 @@ export function ProjectionsPage() {
     if (selectedId && !list.some((s) => s.id === selectedId)) setSelectedId(list[0]?.id ?? null);
   }, [loadScenarios, selectedId]);
 
+  const applySuggestion = async (name: string, kind: string, params: Record<string, unknown>) => {
+    const created = await projectionsApi.createScenario({ name, horizon_months: horizon });
+    await projectionsApi.addEvent(created.id, { kind, start_month: 1, params });
+    await loadScenarios();
+    setSelectedId(created.id);
+    setSection("projection");
+  };
+
   if (loading) {
     return (
       <>
@@ -374,6 +383,7 @@ export function ProjectionsPage() {
   const currency = baseline.position.currency;
   const shown = run ? run.scenario : baseline.projection;
   const comparison = run ? run.baseline : undefined;
+  const hints = scenarioHints(baseline.position, baseline.cashflow_stack ?? []);
 
   return (
     <>
@@ -401,7 +411,10 @@ export function ProjectionsPage() {
 
       {section === "decisions" && (
         <div className="lf-section-body">
-          <DecisionAssistant />
+          <DecisionAssistant
+            position={baseline?.position}
+            stack={baseline?.cashflow_stack}
+          />
         </div>
       )}
 
@@ -439,6 +452,44 @@ export function ProjectionsPage() {
 
         <Grid cols={2}>
           <Card title="Scenarios">
+            {(hints.surplusMinor > 0 || hints.debtLabel) && (
+              <Stack gap={2} style={{ marginBottom: "var(--lf-space-3)" }}>
+                <Text size="sm" tone="secondary">
+                  Start from a decision this ledger can already measure, rather than a blank form.
+                </Text>
+                <Inline gap={2}>
+                  {hints.surplusMinor > 0 && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() =>
+                        applySuggestion("Invest the monthly surplus", "invest_more", {
+                          monthly_amount_minor: hints.surplusMinor,
+                        })
+                      }
+                    >
+                      Invest {formatAmount(hints.surplusMinor, currency)} / mo
+                    </Button>
+                  )}
+                  {hints.surplusMinor > 0 && hints.debtLabel && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() =>
+                        applySuggestion(`Extra on ${hints.debtLabel}`, "debt_payoff", {
+                          amount_minor: hints.surplusMinor,
+                          debt_label: hints.debtLabel,
+                        })
+                      }
+                    >
+                      Extra on {hints.debtLabel}
+                    </Button>
+                  )}
+                </Inline>
+              </Stack>
+            )}
             {scenarios.length === 0 ? (
               <Text size="sm" tone="secondary">
                 No scenarios yet. Name one below — a scenario changes nothing about your real
@@ -520,7 +571,12 @@ export function ProjectionsPage() {
           </Card>
 
           {selected ? (
-            <ScenarioBuilder scenario={selected} catalogue={catalogue} onChanged={refresh} />
+            <ScenarioBuilder
+              scenario={selected}
+              catalogue={catalogue}
+              onChanged={refresh}
+              hints={hints}
+            />
           ) : (
             <Card title="What happens">
               <Text size="sm" tone="secondary">

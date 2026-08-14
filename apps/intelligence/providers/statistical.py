@@ -132,47 +132,9 @@ class StatisticalAnomalyDetector(AnomalyProvider):
                         )
                     )
 
-            # duplicate: same payee + identical amount within 3 days
-            for earlier, later in zip(obs_list, obs_list[1:], strict=False):
-                if earlier.amount_minor == later.amount_minor:
-                    gap_days = abs((later.occurred_at - earlier.occurred_at).days)
-                    if gap_days <= 3:
-                        anomalies.append(
-                            Anomaly(
-                                transaction_id=later.transaction_id,
-                                kind=AnomalyKind.DUPLICATE,
-                                severity=0.7,
-                                explanation=(
-                                    f"{payee}: identical charge of {abs(later.amount_minor) / 100:.2f} "
-                                    f"{gap_days} day(s) apart — possible double charge."
-                                ),
-                                provenance=Provenance(
-                                    provider="StatisticalAnomalyDetector",
-                                    kind=ProviderKind.STATISTICAL,
-                                    version=ANOMALY_VERSION,
-                                    rationale="same payee+amount within 3 days",
-                                ),
-                            )
-                        )
-
-            # large first-time payee: single observation, above a floor
-            if len(amounts) == 1 and amounts[0] >= 50000:  # >= 500.00
-                only = obs_list[0]
-                anomalies.append(
-                    Anomaly(
-                        transaction_id=only.transaction_id,
-                        kind=AnomalyKind.NEW_PAYEE_LARGE,
-                        severity=0.5,
-                        explanation=(
-                            f"{payee}: first-ever charge and it's large " f"({amounts[0] / 100:.2f})."
-                        ),
-                        provenance=Provenance(
-                            provider="StatisticalAnomalyDetector",
-                            kind=ProviderKind.STATISTICAL,
-                            version=ANOMALY_VERSION,
-                            rationale="first observation for payee ≥ 500.00",
-                        ),
-                    )
-                )
+            # Duplicate same-amount charges and "large first-time payee" are
+            # not surfaced. Two Netflix charges a day apart are usually two
+            # real bills, and a first payment to a new plumber is not an
+            # anomaly — both cost more trust than they catch.
 
         return anomalies

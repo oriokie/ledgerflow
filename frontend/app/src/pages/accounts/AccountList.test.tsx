@@ -33,6 +33,21 @@ describe("AccountList", () => {
     expect(onSelect).toHaveBeenCalledWith("cc");
   });
 
+  it("lets a negative asset balance reduce the Assets group total", () => {
+    const withOverdraft: FinancialAccount[] = [
+      { id: "chk", name: "Everyday Checking", account_type: "checking", currency: "USD", balance_minor: -200_00 },
+      { id: "sav", name: "Rainy Day", account_type: "savings", currency: "USD", balance_minor: 500_00 },
+    ];
+    render(
+      <AccountList accounts={withOverdraft} selectedId="chk" onSelect={() => {}} primaryCurrency="USD" />,
+    );
+    // 500 − 200 = 300, not 700 from abs'ing the overdraft. Money splits the
+    // integer and cents, so match the group total as one string.
+    const assetsHead = screen.getByText("Assets").closest(".lf-acct-group-head");
+    expect(assetsHead?.textContent).toContain("300");
+    expect(assetsHead?.textContent).not.toContain("700");
+  });
+
   it("marks a deactivated account as inactive", () => {
     const withInactive: FinancialAccount[] = [
       ...ACCOUNTS,

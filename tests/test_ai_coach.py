@@ -179,7 +179,7 @@ def test_a_line_within_its_limit_produces_nothing():
     assert not [i for i in RuleBasedCoach().generate(ctx) if i.kind == InsightKind.OVERSPENDING]
 
 
-def test_duplicate_wording_observes_rather_than_asserts():
+def test_coach_does_not_nag_about_same_amount_charges():
     ctx = _ctx(
         possible_duplicates=(
             {
@@ -191,13 +191,7 @@ def test_duplicate_wording_observes_rather_than_asserts():
             },
         )
     )
-    [insight] = [i for i in RuleBasedCoach().generate(ctx) if i.kind == InsightKind.DUPLICATE_TRANSACTION]
-
-    # Telling someone they were double-charged when they bought two coffees
-    # costs more trust than the catch was worth.
-    assert "worth checking" in insight.body.lower()
-    assert insight.severity == InsightSeverity.INFO
-    assert insight.confidence < 1.0
+    assert not [i for i in RuleBasedCoach().generate(ctx) if i.kind == InsightKind.DUPLICATE_TRANSACTION]
 
 
 def test_only_cashflow_risk_earns_critical_severity():
@@ -808,7 +802,12 @@ def test_every_insight_kind_is_reachable():
 
     # BUDGET_RECOMMENDATION only fires when there is *no* budget, so it is
     # mutually exclusive with OVERSPENDING and excluded here by design.
-    expected = set(InsightKind.values) - {InsightKind.BUDGET_RECOMMENDATION}
+    # DUPLICATE_TRANSACTION is no longer emitted: same-amount charges are
+    # usually two real bills, not a double charge.
+    expected = set(InsightKind.values) - {
+        InsightKind.BUDGET_RECOMMENDATION,
+        InsightKind.DUPLICATE_TRANSACTION,
+    }
     assert produced == expected, f"unreachable kinds: {sorted(expected - produced)}"
 
 

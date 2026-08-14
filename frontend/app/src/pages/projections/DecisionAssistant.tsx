@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { ApiError } from "../../api/client";
-import type { DecisionFinding, DecisionResult, QuestionMeta, Verdict } from "../../api/projections";
+import type {
+  CashflowStackLine,
+  DecisionFinding,
+  DecisionResult,
+  Position,
+  QuestionMeta,
+  Verdict,
+} from "../../api/projections";
 import { advisorApi } from "../../api/projections";
 import { formatAmount } from "../../lib/money";
 import { Badge, Banner, Button, Card, FormField, Input, Select, Stack, Text } from "../../ui";
+import { decisionFieldDefaults, scenarioHints } from "./scenarioHints";
 
 /** Money fields are typed in whole units; rates as percentages. Same rule as
  * the scenario builder, and for the same reason: people say "5,000", not
@@ -164,7 +172,13 @@ function Answer({ result }: { result: DecisionResult }) {
  * withdrawal rate — the same discipline as the scenario builder, so a sixth
  * question is a backend change alone.
  */
-export function DecisionAssistant() {
+export function DecisionAssistant({
+  position,
+  stack,
+}: {
+  position?: Position;
+  stack?: CashflowStackLine[];
+}) {
   const [questions, setQuestions] = useState<QuestionMeta[]>([]);
   const [slug, setSlug] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
@@ -181,6 +195,11 @@ export function DecisionAssistant() {
       })
       .catch(() => setError("Couldn't load the questions."));
   }, []);
+
+  useEffect(() => {
+    if (!slug || !position) return;
+    setValues(decisionFieldDefaults(slug, scenarioHints(position, stack ?? []), position));
+  }, [slug, position, stack]);
 
   const selected = useMemo(() => questions.find((q) => q.slug === slug), [questions, slug]);
 
@@ -216,7 +235,6 @@ export function DecisionAssistant() {
               value={slug}
               onChange={(e) => {
                 setSlug(e.target.value);
-                setValues({});
                 setResult(null);
               }}
             >

@@ -7,7 +7,7 @@ import {
   Repeat,
   type LucideIcon,
 } from "lucide-react";
-import type { CashflowCalendarDay, CashflowEventSource } from "../../api/types";
+import type { CashflowCalendar, CashflowCalendarDay, CashflowEventSource } from "../../api/types";
 
 export type CalendarView = "month" | "week" | "timeline";
 
@@ -63,6 +63,12 @@ export function dayTone(day: CashflowCalendarDay, openingBalanceMinor: number): 
 export function parseDay(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d);
+}
+
+/** Day, month and year — first-negative dates must name the year so a
+ * twelve-month window does not look like it overdrafts "on 12 Mar" forever. */
+export function formatFullDate(iso: string, locale?: string): string {
+  return parseDay(iso).toLocaleDateString(locale, { day: "numeric", month: "short", year: "numeric" });
 }
 
 export function isSameDay(a: Date, b: Date): boolean {
@@ -236,4 +242,71 @@ export function toBalanceSeries(days: CashflowCalendarDay[], maxPoints = 120): B
  */
 export function hasScheduledActivity(days: CashflowCalendarDay[] | undefined): boolean {
   return (days ?? []).some((d) => d.events.length > 0 || d.net_minor !== 0);
+}
+
+/**
+ * Apply a persistent monthly income/spend change to every projected day.
+ *
+ * Matches `apps.analytics.scenarios._cashflow_leg`: the drip accumulates, so
+ * day *n* carries n days of the change. The outlook table, chart and hero
+ * figures all read this result — a what-if that only moved a comparison box
+ * was not a what-if the person could see.
+ */
+export function applyScenarioOverlay(
+  calendar: CashflowCalendar,
+  monthlyIncomeDeltaMinor: number,
+  monthlyExpenseDeltaMinor: number,
+): CashflowCalendar {
+  const netMonthly = monthlyIncomeDeltaMinor - monthlyExpenseDeltaMinor;
+  if (netMonthly === 0) return calendar;
+
+  const daily = (netMonthly * 12) / 365;
+  let lowest = Number.POSITIVE_INFINITY;
+  let lowestOn: string | null = null;
+  let firstNegative: string | null = null;
+  let negativeCount = 0;
+
+  const days = calendar.days.map((day, index) => {
+    const n = index + 1;
+    const prevAdj = Math.round(daily * (n - 1));
+    const adj = Math.round(daily * n);
+    const step = adj - prevAdj;
+    const closing = day.closing_minor + adj;
+    const opening = index === 0 ? day.opening_minor : day.opening_minor + prevAdj;
+    const inflow = day.inflow_minor + Math.max(0, step);
+    const outflow = day.outflow_minor + Math.max(0, -step);
+    const isNegative = closing < 0;
+    if (closing < lowest) {
+      lowest = closing;
+      lowestOn = day.day;
+    }
+    if (isNegative) {
+      negativeCount += 1;
+      if (firstNegative === null) firstNegative = day.day;
+    }
+    return {
+      ...day,
+      opening_minor: opening,
+      closing_minor: closing,
+      inflow_minor: inflow,
+      outflow_minor: outflow,
+      net_minor: day.net_minor + step,
+      is_negative: isNegative,
+      expected_minor: day.expected_minor === null ? null : day.expected_minor + adj,
+      expected_low_minor: day.expected_low_minor === null ? null : day.expected_low_minor + adj,
+      expected_high_minor: day.expected_high_minor === null ? null : day.expected_high_minor + adj,
+    };
+  });
+
+  const last = days[days.length - 1];
+  return {
+    ...calendar,
+    days,
+    closing_balance_minor: last ? last.closing_minor : calendar.closing_balance_minor,
+    lowest_balance_minor: days.length ? lowest : calendar.lowest_balance_minor,
+    lowest_balance_on: lowestOn,
+    first_negative_on: firstNegative,
+    negative_day_count: negativeCount,
+    safe_to_spend_minor: days.length ? Math.max(0, lowest) : calendar.safe_to_spend_minor,
+  };
 }

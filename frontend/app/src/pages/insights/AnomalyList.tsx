@@ -3,12 +3,15 @@ import { Link } from "react-router-dom";
 import type { Anomaly } from "../../api/types";
 import { anomalyView } from "./insightsCopy";
 
+const IGNORED_KINDS = new Set(["duplicate", "new_payee_large"]);
+
 /** Anomalies as plain "worth a look" notes rather than model output — a human
  * headline, the specifics, and a way to see the transaction. */
 export function AnomalyList({ anomalies }: { anomalies: Anomaly[] }) {
+  const visible = anomalies.filter((a) => !IGNORED_KINDS.has(a.kind));
   return (
     <div>
-      {anomalies.map((a, i) => {
+      {visible.map((a, i) => {
         const v = anomalyView(a);
         return (
           <div key={a.transaction_id ?? i} className={`lf-worth lf-tone-${v.tone}`}>
@@ -20,7 +23,7 @@ export function AnomalyList({ anomalies }: { anomalies: Anomaly[] }) {
                 {a.transaction_id && (
                   <>
                     {" · "}
-                    <Link to="/transactions">view transactions</Link>
+                    <Link to={`/transactions?tx=${a.transaction_id}`}>view transaction</Link>
                   </>
                 )}
               </div>
