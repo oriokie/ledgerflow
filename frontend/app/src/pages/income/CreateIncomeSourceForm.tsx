@@ -26,6 +26,7 @@ const FIELD_LABEL: Record<string, string> = {
   pay_day: "Pay day",
   second_pay_day: "Second pay day",
   starts_on: "Starting from",
+  ends_on: "Ending on",
   reliability: "How reliable",
 };
 
@@ -72,6 +73,7 @@ export function CreateIncomeSourceForm({
   const [payDay, setPayDay] = useState("");
   const [secondPayDay, setSecondPayDay] = useState("");
   const [startsOn, setStartsOn] = useState(() => new Date().toISOString().slice(0, 10));
+  const [endsOn, setEndsOn] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const baseCurrency = activeWorkspace?.tenant.base_currency ?? "USD";
@@ -143,6 +145,7 @@ export function CreateIncomeSourceForm({
         pay_day: payDayValue,
         second_pay_day: secondPayDayValue,
         starts_on: startsOn,
+        ends_on: endsOn.trim() ? endsOn : undefined,
       });
       onCreated();
     } catch (err) {
@@ -267,6 +270,15 @@ export function CreateIncomeSourceForm({
             value={startsOn}
             onChange={(e) => setStartsOn(e.target.value)}
             required
+          />
+
+          <Input
+            label="Ending on"
+            type="date"
+            optional
+            hint="Leave blank if this income has no end date."
+            value={endsOn}
+            onChange={(e) => setEndsOn(e.target.value)}
           />
 
           <Text size="xs" tone="tertiary">

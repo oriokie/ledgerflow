@@ -31,7 +31,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from . import adapters
-from .engine import CompiledEvent, EconomicAssumptions, FinancialPosition, ProjectionResult, project
+from .engine import CompiledEvent, EconomicAssumptions, FinancialPosition, ProjectionResult
 from .events import EventParamError, compile_event
 from .models import AssumptionSet, Scenario, ScenarioEvent, ScenarioStatus, ScenarioVisibility
 
@@ -272,9 +272,11 @@ def run(
     assumptions = to_engine_assumptions(scenario.assumption_set)
     months = scenario.horizon_months
 
-    baseline = project(position=position, assumptions=assumptions, events=[], months=months)
+    baseline = adapters.project_live(position=position, assumptions=assumptions, events=[], months=months)
     events = compile_scenario_events(scenario, position, assumptions)
-    projected = project(position=position, assumptions=assumptions, events=events, months=months)
+    projected = adapters.project_live(
+        position=position, assumptions=assumptions, events=events, months=months
+    )
 
     notes = [
         "The baseline is this same position with the scenario's events removed — "

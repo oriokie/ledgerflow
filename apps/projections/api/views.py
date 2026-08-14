@@ -373,9 +373,7 @@ class BaselineProjectionView(TenantScopedAPIView, APIView):
             return _position_error(exc)
 
         assumption_set = services.ensure_default_assumption_set()
-        from ..engine import project
-
-        result = project(
+        result = adapters.project_live(
             position=position,
             assumptions=services.to_engine_assumptions(assumption_set),
             months=months,

@@ -212,6 +212,48 @@ def test_void_reverses_balance_and_marks_void(tenant_id):
         assert selectors.account_current_balance_minor(checking) == 0  # reversed
 
 
+def test_void_does_not_drop_opening_balance_from_the_statement(tenant_id):
+    """Voiding reverses the ledger without leaving a reversing Transaction.
+    Reconstructing the statement from remaining rows would forget the opening
+    journal and report a zero account that still holds its opening money."""
+    with tenant_scope(tenant_id):
+        checking = services.create_financial_account(
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=10_000_00,
+        )
+        groceries = services.create_category(name="Groceries", kind=CategoryKind.EXPENSE, currency="USD")
+        t0 = datetime(2026, 8, 1, tzinfo=UTC)
+        txn = services.record_expense(
+            financial_account=checking, category=groceries, amount_minor=500_00, occurred_at=t0
+        )
+        services.void_transaction(txn=txn)
+        opening, rows = selectors.account_statement(
+            financial_account=checking,
+            start=datetime(2026, 8, 1, tzinfo=UTC),
+            end=datetime(2026, 9, 1, tzinfo=UTC),
+        )
+        assert selectors.account_current_balance_minor(checking) == 10_000_00
+        assert opening == 10_000_00
+        assert rows == []
+
+
+def test_overdraft_reduces_total_assets(tenant_id):
+    """A negative checking balance is not abs'd away — it reduces assets."""
+    with tenant_scope(tenant_id):
+        checking, _card, _savings, groceries, salary = _seed()
+        services.record_income(
+            financial_account=checking, category=salary, amount_minor=50_000, occurred_at=_now()
+        )
+        services.record_expense(
+            financial_account=checking, category=groceries, amount_minor=80_000, occurred_at=_now()
+        )
+        nw = {n.currency: n for n in selectors.net_worth()}["USD"]
+        assert nw.assets_minor == -30_000
+        assert nw.net_minor == -30_000
+
+
 def test_void_transfer_voids_both_halves(tenant_id):
     with tenant_scope(tenant_id):
         checking, _card, savings, _groceries, _salary = _seed()

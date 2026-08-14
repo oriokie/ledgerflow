@@ -33,6 +33,7 @@ import random
 import statistics
 from dataclasses import dataclass, field, replace
 
+from . import adapters
 from .calculators import MAX_HORIZON_MONTHS
 from .engine import (
     CompiledEvent,
@@ -209,7 +210,7 @@ def simulate(
 
     base = assumptions or EconomicAssumptions()
     settings = settings or SimulationSettings()
-    events = list(events or [])
+    events = [*adapters.schedule_adjustments(position), *(events or [])]
 
     closings: list[int] = []
     troughs: list[int] = []

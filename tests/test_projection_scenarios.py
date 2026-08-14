@@ -87,6 +87,77 @@ def test_the_position_is_measured_from_the_ledger_not_asked_for(tenant):
     assert position.liquid_minor > 0
 
 
+def test_recurring_income_floors_the_projection_when_history_has_not_caught_up(tenant):
+    """A salary entered as a schedule last week has not reached the trailing
+    median yet. The projection must still use it — that is the whole point of
+    capturing recurring income."""
+    from apps.finance import recurring as recurring_service
+    from apps.finance.models import RecurringType
+
+    with tenant_scope(tenant):
+        account = finance_services.create_financial_account(
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
+        )
+        salary = finance_services.create_category(name="Salary", kind=CategoryKind.INCOME, currency="USD")
+        recurring_service.create_recurring_transaction(
+            txn_type=RecurringType.INCOME,
+            financial_account=account,
+            category=salary,
+            amount_minor=400_000,
+            currency="USD",
+            frequency="monthly",
+            starts_on=date(2026, 1, 1),
+        )
+        position = adapters.current_position(as_of=date(2026, 8, 13))
+
+    assert position.monthly_net_income_minor == 400_000
+
+
+def test_a_schedule_end_date_drops_the_amount_from_later_months(tenant):
+    """A contract that ends in October must not be projected as a forty-year
+    salary. Month 1–2 still have it; November does not."""
+    from apps.finance import recurring as recurring_service
+    from apps.finance.models import RecurringType
+    from apps.projections.engine import EconomicAssumptions
+
+    flat = EconomicAssumptions(
+        annual_inflation=0.0,
+        annual_salary_growth=0.0,
+        annual_investment_return=0.0,
+        annual_cash_return=0.0,
+        annual_property_growth=0.0,
+    )
+    as_of = date(2026, 8, 13)
+    with tenant_scope(tenant):
+        account = finance_services.create_financial_account(
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
+        )
+        salary = finance_services.create_category(name="Salary", kind=CategoryKind.INCOME, currency="USD")
+        recurring_service.create_recurring_transaction(
+            txn_type=RecurringType.INCOME,
+            financial_account=account,
+            category=salary,
+            amount_minor=400_000,
+            currency="USD",
+            frequency="monthly",
+            starts_on=date(2026, 1, 1),
+            ends_on=date(2026, 10, 31),
+        )
+        position = adapters.current_position(as_of=as_of)
+        result = adapters.project_live(position=position, assumptions=flat, months=6)
+
+    assert position.monthly_net_income_minor == 400_000
+    assert result.points[0].income_minor == 400_000  # September
+    assert result.points[1].income_minor == 400_000  # October
+    assert result.points[2].income_minor == 0  # November, past ends_on
+
+
 def test_the_cashflow_stack_names_measured_income_and_spend(tenant):
     with tenant_scope(tenant):
         _seed()

@@ -28,6 +28,7 @@ const schema = z.object({
   currency: z.string().length(3, "3-letter code."),
   cadence: z.string().min(1, "Choose how often."),
   starts_on: z.string().min(1, "Choose a start date."),
+  ends_on: z.string().optional(),
   memo: z.string().optional(),
 }).superRefine((values, ctx) => {
   if (values.txn_type === "transfer") {
@@ -93,6 +94,7 @@ export function RecurringModal({
       currency: baseCurrency,
       cadence: "monthly",
       starts_on: new Date().toISOString().slice(0, 10),
+      ends_on: "",
     },
   });
 
@@ -116,6 +118,7 @@ export function RecurringModal({
         currency: editing.currency,
         cadence: cadenceFor(editing)?.value ?? "monthly",
         starts_on: editing.next_run_on,
+        ends_on: editing.ends_on ?? "",
         memo: editing.memo ?? "",
       });
     } else {
@@ -128,6 +131,7 @@ export function RecurringModal({
         currency: baseCurrency,
         cadence: "monthly",
         starts_on: new Date().toISOString().slice(0, 10),
+        ends_on: "",
         memo: "",
       });
     }
@@ -147,6 +151,7 @@ export function RecurringModal({
       setServerError("Choose how often this repeats.");
       return;
     }
+    const endsOn = values.ends_on?.trim() ? values.ends_on : null;
     try {
       if (editing) {
         await updateRecurring.mutateAsync({
@@ -157,6 +162,7 @@ export function RecurringModal({
           frequency: cadence.frequency,
           interval: cadence.interval,
           starts_on: values.starts_on,
+          ends_on: endsOn,
           memo: values.memo ?? "",
         });
       } else {
@@ -170,6 +176,7 @@ export function RecurringModal({
           frequency: cadence.frequency,
           interval: cadence.interval,
           starts_on: values.starts_on,
+          ends_on: endsOn ?? undefined,
           memo: values.memo,
         });
       }
@@ -284,15 +291,24 @@ export function RecurringModal({
               error={errors.starts_on?.message}
               {...register("starts_on")}
             />
-            <Select
-              label="Currency"
-              options={CURRENCY_OPTIONS}
-              disabled={isEdit}
-              hint={isEdit ? "Locked — transactions already posted in it." : undefined}
-              error={errors.currency?.message}
-              {...register("currency")}
+            <Input
+              label="Ends on"
+              type="date"
+              optional
+              hint="Leave blank if it does not end."
+              error={errors.ends_on?.message}
+              {...register("ends_on")}
             />
           </Grid>
+
+          <Select
+            label="Currency"
+            options={CURRENCY_OPTIONS}
+            disabled={isEdit}
+            hint={isEdit ? "Locked — transactions already posted in it." : undefined}
+            error={errors.currency?.message}
+            {...register("currency")}
+          />
 
           <Input
             label="Name / memo"

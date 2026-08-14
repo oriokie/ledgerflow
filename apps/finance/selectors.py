@@ -182,14 +182,17 @@ def account_statement(*, financial_account: FinancialAccount, start: datetime, e
     Two aggregate reads + one windowed read — no per-row queries.
     """
     sign = _kind_sign(financial_account)
-    counted = Transaction.objects.filter(_COUNTED, financial_account=financial_account).exclude(
-        status=TransactionStatus.VOID
-    )
+    counted = Transaction.objects.filter(_COUNTED, financial_account=financial_account)
 
-    opening_cashflow = counted.filter(occurred_at__lt=start).aggregate(
-        s=Coalesce(Sum("amount_minor"), Value(0))
-    )["s"]
-    opening_balance = sign * opening_cashflow
+    # Opening is reconstructed from today's materialized balance minus later
+    # counted activity, not from summing historical rows. Opening-balance
+    # journals never become Transactions, and a void reverses the ledger
+    # without leaving a reversing Transaction — so a sum of remaining rows
+    # quietly drops both, and the statement disagrees with the account header
+    # the moment either is present.
+    current = account_current_balance_minor(financial_account)
+    later = counted.filter(occurred_at__gte=start).aggregate(s=Coalesce(Sum("amount_minor"), Value(0)))["s"]
+    opening_balance = current - sign * later
 
     rows = (
         counted.filter(occurred_at__gte=start, occurred_at__lt=end)

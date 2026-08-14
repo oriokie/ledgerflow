@@ -14,6 +14,8 @@ function rec(over: Partial<RecurringTransaction>): RecurringTransaction {
     frequency: "monthly",
     interval: 1,
     next_run_on: "2026-02-01",
+    starts_on: "2026-01-01",
+    ends_on: null,
     occurrences_created: 1,
     is_active: true,
     memo: "",

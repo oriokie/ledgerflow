@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import type { HealthScore, NetWorthByCurrency, NetWorthHistoryPoint } from "../../api/types";
 import { useNetWorthBase } from "../../hooks/useFinance";
-import { formatAmount, minorToMajor } from "../../lib/money";
+import { formatAmount, formatAmountSigned, minorToMajor } from "../../lib/money";
 import { Badge, Card, Figure, Meter, Text } from "../../ui";
 import { ChartTooltip } from "./chart";
 import { formatDelta, percentChange } from "./metrics";
@@ -72,8 +72,8 @@ export function NetWorthCard({
         delta={<DeltaChip pct={delta} suffix="6 mo" />}
         hint={
           <>
-            {formatAmount(netWorth.assets_minor, currency)} assets &minus;{" "}
-            {formatAmount(netWorth.liabilities_minor, currency)} liabilities
+            {formatAmountSigned(netWorth.assets_minor, currency)} assets &minus;{" "}
+            {formatAmountSigned(netWorth.liabilities_minor, currency)} liabilities
           </>
         }
       />

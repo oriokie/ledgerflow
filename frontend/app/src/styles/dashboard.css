@@ -355,6 +355,12 @@
   line-height: 1;
 }
 
+.lf-pulse-sts {
+  display: grid;
+  gap: var(--lf-space-2);
+  justify-items: start;
+}
+
 .lf-pulse-sts-figure {
   margin: 0;
   font-family: var(--lf-font-display);

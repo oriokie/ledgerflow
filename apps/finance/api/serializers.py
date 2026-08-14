@@ -263,6 +263,8 @@ class RecurringSerializer(serializers.Serializer):
     frequency = serializers.CharField()
     interval = serializers.IntegerField()
     next_run_on = serializers.DateField()
+    starts_on = serializers.DateField()
+    ends_on = serializers.DateField(allow_null=True)
     occurrences_created = serializers.IntegerField()
     is_active = serializers.BooleanField()
     memo = serializers.CharField()
