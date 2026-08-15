@@ -272,11 +272,7 @@ def list_transactions(
     # Default list hides voids so the activity feed is live money. Asking
     # for status=void must not then exclude them — that combination used
     # to return an empty page.
-    qs = (
-        qs.filter(status=f.status)
-        if f.status is not None
-        else qs.exclude(status=TransactionStatus.VOID)
-    )
+    qs = qs.filter(status=f.status) if f.status is not None else qs.exclude(status=TransactionStatus.VOID)
     if f.txn_type == "transfer":
         qs = qs.filter(transfer_group__isnull=False)
     elif f.txn_type == "income":
