@@ -319,7 +319,11 @@ export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose:
           <Divider />
           <ConfirmAction label="Void transaction" confirmLabel="Void" cancelLabel="Keep" onConfirm={doVoid} />
           <Text tone="tertiary" size="sm" style={{ marginTop: "var(--lf-space-2)" }}>
-            Voiding reverses the posting in the ledger; history is preserved.
+            {txn.transfer_group
+              ? "Voiding restores both accounts to how they were before this transfer. History is kept."
+              : txn.split_group
+                ? "Voiding reverses the whole split, not just this part. History is kept."
+                : "Voiding reverses the posting in the ledger; history is preserved."}
           </Text>
         </div>
       )}

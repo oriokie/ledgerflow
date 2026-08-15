@@ -802,7 +802,13 @@ def record_transfer(
 def void_transaction(*, txn: Transaction, idempotency_key: str | None = None, memo: str = "") -> None:
     """Void by posting the reversing journal entry (never by mutating history)
     and marking the domain transaction(s) VOID. Handles transfers by voiding
-    both halves off the single shared entry."""
+    both halves off the single shared entry.
+
+    The reversal is keyed by the *journal*, not the domain row. Voiding the
+    other half of a transfer (or every part of a split) must not post a second
+    mirror — that would overshoot the accounts instead of restoring them.
+    """
+    txn = Transaction.objects.select_for_update().get(pk=txn.pk)
     if txn.status == TransactionStatus.VOID:
         return
     if txn.journal_entry_id is None:
@@ -810,12 +816,14 @@ def void_transaction(*, txn: Transaction, idempotency_key: str | None = None, me
 
     ledger_services.reverse_journal_entry(
         entry=txn.journal_entry,
-        idempotency_key=_idem(f"void:{txn.id}", idempotency_key),
+        idempotency_key=idempotency_key or f"void:{txn.journal_entry_id}",
         memo=memo or f"Void of transaction {txn.id}",
     )
 
-    siblings = Transaction.objects.filter(journal_entry_id=txn.journal_entry_id)
+    siblings = Transaction.objects.select_for_update().filter(journal_entry_id=txn.journal_entry_id)
     for sibling in siblings:
+        if sibling.status == TransactionStatus.VOID:
+            continue
         sibling.status = TransactionStatus.VOID
         sibling.save(update_fields=["status", "updated_at"])
         # Voiding is the destructive money operation a member can perform, and

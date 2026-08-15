@@ -1,5 +1,6 @@
 import { Route } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { ApiError } from "../api/client";
 import type {
   BaselineResponse,
@@ -121,23 +122,45 @@ function ProjectionSummary({
   );
 }
 
+function startsMonthLabel(iso: string): string {
+  const [year, month] = iso.split("-").map(Number);
+  if (!year || !month) return iso;
+  return new Date(year, month - 1, 1).toLocaleDateString(undefined, {
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function CashflowStack({
   lines,
   currency,
+  incomeMinor,
+  expensesMinor,
 }: {
   lines: CashflowStackLine[];
   currency: string;
+  incomeMinor: number;
+  expensesMinor: number;
 }) {
-  if (lines.length === 0) return null;
   const incoming = lines.filter((l) => l.direction === "in");
   const outgoing = lines.filter((l) => l.direction === "out");
   return (
     <Card title="What each month already counts">
       <Text size="sm" tone="secondary">
-        Income sources, recurring charges, and bills already on the books. A
-        home purchase can replace rent by filling in the cost it stops — we
-        never invent a number that is not on this list.
+        Recurring income, recurring charges, income sources, and bills already
+        on the books. A home purchase can replace rent by filling in the cost it
+        stops — we never invent a number that is not on this list.
       </Text>
+      <Grid cols={2}>
+        <Figure
+          label="Promised income / mo"
+          value={formatAmount(incomeMinor, currency)}
+        />
+        <Figure
+          label="Promised spending / mo"
+          value={formatAmount(expensesMinor, currency)}
+        />
+      </Grid>
       <Grid cols={2}>
         <Stack gap={2}>
           <Text size="xs" tone="tertiary">
@@ -145,7 +168,9 @@ function CashflowStack({
           </Text>
           {incoming.length === 0 ? (
             <Text size="sm" tone="tertiary">
-              No scheduled income in this currency.
+              No recurring income in this currency. Add a paycheck under{" "}
+              <Link to="/recurring">Recurring</Link> or{" "}
+              <Link to="/income">Income</Link>.
             </Text>
           ) : (
             <ul className="lf-assumption-list">
@@ -156,6 +181,12 @@ function CashflowStack({
                     <Text as="span" tone="secondary" size="sm">
                       {formatAmount(line.monthly_minor, currency)} / mo
                     </Text>
+                    {line.current === false && line.starts_on ? (
+                      <Text as="span" tone="tertiary" size="xs">
+                        {" "}
+                        · starts {startsMonthLabel(line.starts_on)}
+                      </Text>
+                    ) : null}
                   </Text>
                 </li>
               ))}
@@ -168,7 +199,8 @@ function CashflowStack({
           </Text>
           {outgoing.length === 0 ? (
             <Text size="sm" tone="tertiary">
-              No scheduled spending in this currency.
+              No recurring expenses in this currency. Add rent and bills under{" "}
+              <Link to="/recurring">Recurring</Link>.
             </Text>
           ) : (
             <ul className="lf-assumption-list">
@@ -179,6 +211,12 @@ function CashflowStack({
                     <Text as="span" tone="secondary" size="sm">
                       {formatAmount(line.monthly_minor, currency)} / mo
                     </Text>
+                    {line.current === false && line.starts_on ? (
+                      <Text as="span" tone="tertiary" size="xs">
+                        {" "}
+                        · starts {startsMonthLabel(line.starts_on)}
+                      </Text>
+                    ) : null}
                     {line.stoppable ? (
                       <Text as="span" tone="tertiary" size="xs">
                         {" "}
@@ -448,7 +486,12 @@ export function ProjectionsPage() {
 
         <ChartDeck projection={shown} baseline={comparison} currency={currency} />
 
-        <CashflowStack lines={baseline.cashflow_stack ?? []} currency={currency} />
+        <CashflowStack
+          lines={baseline.cashflow_stack ?? []}
+          currency={currency}
+          incomeMinor={baseline.position.monthly_net_income_minor}
+          expensesMinor={baseline.position.monthly_expenses_minor}
+        />
 
         <Grid cols={2}>
           <Card title="Scenarios">

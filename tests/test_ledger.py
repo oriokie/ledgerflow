@@ -106,7 +106,7 @@ def test_idempotent_replay_does_not_double_post(tenant_id):
 
 def test_reversal_zeroes_the_effect(tenant_id):
     from apps.ledger import selectors, services
-    from apps.ledger.models import Account
+    from apps.ledger.models import Account, JournalEntry
 
     with tenant_scope(tenant_id):
         checking, groceries = _seed_accounts(services, None)
@@ -120,3 +120,8 @@ def test_reversal_zeroes_the_effect(tenant_id):
         )
         services.reverse_journal_entry(entry=entry, idempotency_key="rev")
         assert selectors.account_balance(Account.objects.get(id=checking.id)).amount_minor == 0
+        # A second reverse of the same original must be a no-op, not a second
+        # credit that would overshoot the account.
+        services.reverse_journal_entry(entry=entry, idempotency_key="rev-again")
+        assert selectors.account_balance(Account.objects.get(id=checking.id)).amount_minor == 0
+        assert JournalEntry.objects.filter(reverses=entry).count() == 1

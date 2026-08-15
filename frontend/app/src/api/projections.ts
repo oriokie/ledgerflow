@@ -104,6 +104,9 @@ export interface CashflowStackLine {
   label: string;
   monthly_minor: number;
   stoppable: boolean;
+  /** False when the schedule starts in a later month — listed, not in this month's rate. */
+  current?: boolean;
+  starts_on?: string | null;
 }
 
 export interface BaselineResponse {

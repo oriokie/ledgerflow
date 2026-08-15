@@ -215,6 +215,158 @@ def test_unlinked_recurring_income_is_named_on_the_stack_alongside_a_source(tena
     assert position.monthly_net_income_minor >= 450_000
 
 
+def test_recurring_expense_is_named_going_out(tenant):
+    """Rent captured under Recurring must appear as a named Going-out line,
+    not only as anonymous residual spending."""
+    from apps.finance import recurring as recurring_service
+    from apps.finance.models import RecurringType
+
+    as_of = date(2026, 8, 13)
+    with tenant_scope(tenant):
+        account = finance_services.create_financial_account(
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
+        )
+        rent = finance_services.create_category(name="Rent", kind=CategoryKind.EXPENSE, currency="USD")
+        recurring_service.create_recurring_transaction(
+            txn_type=RecurringType.EXPENSE,
+            financial_account=account,
+            category=rent,
+            amount_minor=80_000,
+            currency="USD",
+            frequency="monthly",
+            starts_on=date(2026, 1, 1),
+            memo="Rent",
+        )
+        stack = adapters.cashflow_stack(currency="USD", as_of=as_of)
+        position = adapters.current_position(as_of=as_of)
+
+    outgoing = [line for line in stack if line["direction"] == "out" and line["kind"] == "recurring"]
+    assert any(line["label"] == "Rent" and line["monthly_minor"] == 80_000 for line in outgoing)
+    assert position.monthly_expenses_minor >= 80_000
+
+
+def test_a_posted_schedule_still_counts_when_starts_on_was_moved_to_next_due(tenant):
+    """Editing used to write next_run_on into starts_on. A rent that has
+    already posted must still floor the projection."""
+    from apps.finance import recurring as recurring_service
+    from apps.finance.models import RecurringTransaction, RecurringType
+
+    as_of = date(2026, 8, 13)
+    with tenant_scope(tenant):
+        account = finance_services.create_financial_account(
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
+        )
+        rent = finance_services.create_category(name="Rent", kind=CategoryKind.EXPENSE, currency="USD")
+        rec = recurring_service.create_recurring_transaction(
+            txn_type=RecurringType.EXPENSE,
+            financial_account=account,
+            category=rent,
+            amount_minor=80_000,
+            currency="USD",
+            frequency="monthly",
+            starts_on=date(2026, 1, 1),
+            memo="Rent",
+        )
+        RecurringTransaction.objects.filter(pk=rec.pk).update(
+            occurrences_created=7,
+            starts_on=date(2026, 9, 1),
+            next_run_on=date(2026, 9, 1),
+        )
+        stack = adapters.cashflow_stack(currency="USD", as_of=as_of)
+        position = adapters.current_position(as_of=as_of)
+
+    outgoing = [line for line in stack if line["label"] == "Rent"]
+    assert outgoing and outgoing[0]["current"] is True
+    assert position.monthly_expenses_minor >= 80_000
+
+
+def test_an_irregular_linked_source_does_not_hide_the_paycheck_template(tenant):
+    """A linked IncomeSource that itself does not count (irregular, no
+    receipts) must not take the Recurring INCOME template down with it."""
+    from apps.finance import recurring as recurring_service
+    from apps.finance.models import RecurringType
+    from apps.income import services as income_services
+    from apps.income.models import IncomeKind, Reliability
+
+    as_of = date(2026, 8, 13)
+    with tenant_scope(tenant):
+        account = finance_services.create_financial_account(
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
+        )
+        salary = finance_services.create_category(name="Salary", kind=CategoryKind.INCOME, currency="USD")
+        template = recurring_service.create_recurring_transaction(
+            txn_type=RecurringType.INCOME,
+            financial_account=account,
+            category=salary,
+            amount_minor=400_000,
+            currency="USD",
+            frequency="monthly",
+            starts_on=date(2026, 1, 1),
+            memo="Paycheck",
+        )
+        income_services.create_source(
+            name="Freelance",
+            kind=IncomeKind.SELF_EMPLOYMENT,
+            currency="USD",
+            net_minor=400_000,
+            frequency="monthly",
+            reliability=Reliability.IRREGULAR,
+            starts_on=date(2026, 1, 1),
+            recurring_transaction=template,
+        )
+        stack = adapters.cashflow_stack(currency="USD", as_of=as_of)
+        position = adapters.current_position(as_of=as_of)
+
+    incoming = [line for line in stack if line["direction"] == "in" and line["kind"] != "residual"]
+    labels = {line["label"] for line in incoming}
+    assert "Paycheck" in labels
+    assert "Freelance" not in labels
+    assert position.monthly_net_income_minor >= 400_000
+
+
+def test_a_schedule_that_starts_next_month_is_listed_but_not_in_this_months_rate(tenant):
+    from apps.finance import recurring as recurring_service
+    from apps.finance.models import RecurringType
+
+    as_of = date(2026, 8, 13)
+    with tenant_scope(tenant):
+        account = finance_services.create_financial_account(
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
+        )
+        rent = finance_services.create_category(name="Rent", kind=CategoryKind.EXPENSE, currency="USD")
+        recurring_service.create_recurring_transaction(
+            txn_type=RecurringType.EXPENSE,
+            financial_account=account,
+            category=rent,
+            amount_minor=90_000,
+            currency="USD",
+            frequency="monthly",
+            starts_on=date(2026, 10, 1),
+            memo="New lease",
+        )
+        stack = adapters.cashflow_stack(currency="USD", as_of=as_of)
+        position = adapters.current_position(as_of=as_of)
+        events = adapters.schedule_adjustments(position)
+
+    line = next(line for line in stack if line["label"] == "New lease")
+    assert line["current"] is False
+    assert line["starts_on"] == "2026-10-01"
+    assert position.monthly_expenses_minor == 0
+    assert any(event.label == "New lease" and event.start_month == 2 for event in events)
+
+
 def test_a_real_debts_apr_is_converted_from_percent_to_a_fraction(tenant):
     """The debt context stores APR as a percentage (21.5) and the engine takes
     fractions (0.215). The two conventions meet in the adapter and nowhere else.

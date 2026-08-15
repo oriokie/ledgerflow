@@ -274,6 +274,47 @@ def test_void_transfer_voids_both_halves(tenant_id):
         assert selectors.account_current_balance_minor(savings) == 0
 
 
+def test_voiding_both_transfer_legs_restores_balances_once(tenant_id):
+    """Each leg is its own row. Select-all + bulk void used to reverse the
+    shared journal twice, so the source account overshot the pre-transfer
+    balance instead of returning to it."""
+    with tenant_scope(tenant_id):
+        checking, _card, savings, _groceries, _salary = _seed()
+        income = services.create_category(name="In", kind=CategoryKind.INCOME, currency="USD")
+        services.record_income(
+            financial_account=checking, category=income, amount_minor=50000, occurred_at=_now()
+        )
+        out_txn, in_txn = services.record_transfer(
+            from_account=checking, to_account=savings, amount_minor=20000, occurred_at=_now()
+        )
+        assert selectors.account_current_balance_minor(checking) == 30000
+        assert selectors.account_current_balance_minor(savings) == 20000
+
+        services.bulk_void_transactions(txns=[out_txn, in_txn])
+        out_txn.refresh_from_db()
+        in_txn.refresh_from_db()
+        assert out_txn.status == TransactionStatus.VOID
+        assert in_txn.status == TransactionStatus.VOID
+        assert selectors.account_current_balance_minor(checking) == 50000
+        assert selectors.account_current_balance_minor(savings) == 0
+
+
+def test_voiding_the_other_transfer_leg_does_not_reverse_again(tenant_id):
+    with tenant_scope(tenant_id):
+        checking, _card, savings, _groceries, _salary = _seed()
+        income = services.create_category(name="In", kind=CategoryKind.INCOME, currency="USD")
+        services.record_income(
+            financial_account=checking, category=income, amount_minor=50000, occurred_at=_now()
+        )
+        out_txn, in_txn = services.record_transfer(
+            from_account=checking, to_account=savings, amount_minor=20000, occurred_at=_now()
+        )
+        services.void_transaction(txn=out_txn)
+        services.void_transaction(txn=in_txn)
+        assert selectors.account_current_balance_minor(checking) == 50000
+        assert selectors.account_current_balance_minor(savings) == 0
+
+
 # --------------------------------------------------------------- statements
 def test_account_statement_running_balance_asset(tenant_id):
     with tenant_scope(tenant_id):

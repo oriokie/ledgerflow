@@ -63,6 +63,13 @@ class JournalEntry(TenantOwnedModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["tenant_id", "idempotency_key"], name="uniq_entry_idempotency"),
+            # One reversing entry per original. Voiding both legs of a transfer
+            # (or every part of a split) must not post a second mirror.
+            models.UniqueConstraint(
+                fields=["reverses"],
+                condition=models.Q(reverses__isnull=False),
+                name="uniq_entry_reverses",
+            ),
         ]
         # BRIN: tiny index ideal for append-only, time-ordered rows at scale.
         indexes = [BrinIndex(fields=["occurred_at"], name="journalentry_occurred_brin")]

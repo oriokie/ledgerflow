@@ -290,6 +290,7 @@ class RecurringUpdateSerializer(serializers.Serializer):
     frequency = serializers.ChoiceField(choices=Frequency.choices, required=False)
     interval = serializers.IntegerField(min_value=1, required=False)
     starts_on = serializers.DateField(required=False)
+    next_run_on = serializers.DateField(required=False)
     ends_on = serializers.DateField(required=False, allow_null=True)
     max_occurrences = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     memo = serializers.CharField(max_length=255, required=False, allow_blank=True)

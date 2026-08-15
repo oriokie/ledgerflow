@@ -28,6 +28,7 @@ const schema = z.object({
   currency: z.string().length(3, "3-letter code."),
   cadence: z.string().min(1, "Choose how often."),
   starts_on: z.string().min(1, "Choose a start date."),
+  next_run_on: z.string().optional(),
   ends_on: z.string().optional(),
   memo: z.string().optional(),
 }).superRefine((values, ctx) => {
@@ -94,6 +95,7 @@ export function RecurringModal({
       currency: baseCurrency,
       cadence: "monthly",
       starts_on: new Date().toISOString().slice(0, 10),
+      next_run_on: "",
       ends_on: "",
     },
   });
@@ -117,7 +119,8 @@ export function RecurringModal({
         amount: String(minorToMajor(editing.amount_minor)),
         currency: editing.currency,
         cadence: cadenceFor(editing)?.value ?? "monthly",
-        starts_on: editing.next_run_on,
+        starts_on: editing.starts_on,
+        next_run_on: editing.next_run_on,
         ends_on: editing.ends_on ?? "",
         memo: editing.memo ?? "",
       });
@@ -131,6 +134,7 @@ export function RecurringModal({
         currency: baseCurrency,
         cadence: "monthly",
         starts_on: new Date().toISOString().slice(0, 10),
+        next_run_on: "",
         ends_on: "",
         memo: "",
       });
@@ -161,7 +165,7 @@ export function RecurringModal({
           amount_minor: majorToMinor(Number(values.amount)),
           frequency: cadence.frequency,
           interval: cadence.interval,
-          starts_on: values.starts_on,
+          next_run_on: values.next_run_on || undefined,
           ends_on: endsOn,
           memo: values.memo ?? "",
         });
@@ -285,12 +289,21 @@ export function RecurringModal({
           </Grid>
 
           <Grid cols={2} gap={4}>
-            <Input
-              label={isEdit ? "Next transaction on" : "Starts on"}
-              type="date"
-              error={errors.starts_on?.message}
-              {...register("starts_on")}
-            />
+            {isEdit ? (
+              <Input
+                label="Next transaction on"
+                type="date"
+                error={errors.next_run_on?.message}
+                {...register("next_run_on")}
+              />
+            ) : (
+              <Input
+                label="Starts on"
+                type="date"
+                error={errors.starts_on?.message}
+                {...register("starts_on")}
+              />
+            )}
             <Input
               label="Ends on"
               type="date"

@@ -331,6 +331,7 @@ export const financeExtendedApi = {
       frequency?: string;
       interval?: number;
       starts_on?: string;
+      next_run_on?: string;
       ends_on?: string | null;
       max_occurrences?: number | null;
       memo?: string;

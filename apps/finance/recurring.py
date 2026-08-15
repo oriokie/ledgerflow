@@ -60,6 +60,7 @@ EDITABLE_FIELDS = frozenset(
         "interval",
         "starts_on",
         "ends_on",
+        "next_run_on",
         "max_occurrences",
     }
 )
@@ -79,11 +80,16 @@ def update_recurring_transaction(*, rec: RecurringTransaction, **changes) -> Rec
     would drift: a schedule moved from monthly to quarterly after nine
     occurrences must land a quarter after the *ninth* occurrence's anchor, not
     a quarter after whatever date happened to be sitting in the column.
+
+    An explicit ``next_run_on`` is the next due date, not a new anchor. The
+    edit form used to send that date as ``starts_on``, which made projections
+    treat an already-running charge as not yet started.
     """
     unknown = set(changes) - EDITABLE_FIELDS
     if unknown:
         raise RecurringError(f"Cannot change {', '.join(sorted(unknown))} on an existing schedule.")
 
+    explicit_next = "next_run_on" in changes
     for field, value in changes.items():
         setattr(rec, field, value)
 
@@ -110,7 +116,7 @@ def update_recurring_transaction(*, rec: RecurringTransaction, **changes) -> Rec
     # Re-anchor the next run whenever the cadence or the anchor moved. Counting
     # from `occurrences_created` keeps every occurrence already posted valid and
     # places the next one where the new schedule says it belongs.
-    if {"frequency", "interval", "starts_on"} & set(changes):
+    if {"frequency", "interval", "starts_on"} & set(changes) and not explicit_next:
         rec.next_run_on = nth_occurrence(
             starts_on=rec.starts_on,
             frequency=rec.frequency,

@@ -118,7 +118,18 @@ export function TransactionsPage({ embedded }: { embedded?: boolean } = {}) {
     clearSelection();
   };
   const bulkVoidSelected = async () => {
-    const ids = [...selected];
+    // A transfer (and a split) is several rows on one journal. Sending every
+    // selected id used to reverse that journal once per row and overshoot
+    // the accounts. One id per movement is enough — the server voids siblings.
+    const chosen = rows.filter((r) => selected.has(r.id));
+    const seen = new Set<string>();
+    const ids: string[] = [];
+    for (const row of chosen) {
+      const group = row.transfer_group ?? row.split_group ?? row.id;
+      if (seen.has(group)) continue;
+      seen.add(group);
+      ids.push(row.id);
+    }
     const res = await bulkVoid.mutateAsync({ ids });
     setBulkNote(bulkMessage(res, "Voided"));
     clearSelection();
