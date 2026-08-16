@@ -7,10 +7,14 @@ an overdraft fee.
 
 Everything here is **projection, not record**. No ledger entry is written, and
 nothing is cached — a stale forecast is worse than a slow one. The calendar
-reads three sources of known future movement:
+reads four sources of known future movement:
 
+  * ``IncomeSource`` — salary and other dated income recorded on /income,
+    placed on the payday at the full payment amount. Sources already linked
+    to a ``RecurringTransaction`` are skipped so they are not counted twice.
   * ``RecurringTransaction`` — templates that auto-post on a schedule. Covers
-    salary, subscriptions, loan payments, and standing transfers.
+    subscriptions, loan payments, standing transfers, and income that was
+    captured as a posting template rather than an income source.
   * ``Bill`` — money owed and not yet paid, including future occurrences of a
     recurring bill that hasn't been paid forward yet.
   * current liquid balances — the starting point the projection runs from.
@@ -104,6 +108,7 @@ class CashflowEvent:
     #: Origin ids, so the UI can deep-link back to the underlying record.
     bill_id: str | None = None
     recurring_id: str | None = None
+    income_source_id: str | None = None
     #: True when the amount comes from an income source the user marked
     #: irregular and which has no receipt history to measure instead. The
     #: figure is a hope, and the UI may not draw it like a fact.
@@ -377,6 +382,55 @@ def _classify_income(recurring: RecurringTransaction) -> str:
     return EventSource.INCOME
 
 
+def _income_source_events(
+    *, currency: str, start: date, end: date, in_scope: set[str]
+) -> list[CashflowEvent]:
+    """Dated income sources that are not already a posting template.
+
+    Recording salary on /income must not write ledger entries, so it never
+    creates a RecurringTransaction. The calendar still has to show payday —
+    otherwise "can I make it to payday?" is asked of a blank week. Amounts are
+    the full payment on the due day, not a monthly smear.
+    """
+    from apps.income.models import IncomeSource, Reliability
+    from apps.income.selectors import _observed, iter_income_paydays
+
+    events: list[CashflowEvent] = []
+    sources = IncomeSource.objects.filter(
+        is_active=True,
+        currency=currency,
+        recurring_transaction__isnull=True,
+    ).select_related("deposit_account")
+    for source in sources:
+        if source.ends_on is not None and source.ends_on < start:
+            continue
+        if source.deposit_account_id is not None and str(source.deposit_account_id) not in in_scope:
+            continue
+        mean, _stdev, _count, _last = _observed(source, as_of=end)
+        use_observed = mean is not None and source.reliability != Reliability.FIXED
+        if source.reliability == Reliability.IRREGULAR and not use_observed:
+            continue
+        expected = mean if use_observed else source.net_minor
+        if expected <= 0:
+            continue
+        kind = EventSource.SALARY if source.kind in PAYDAY_KINDS else EventSource.INCOME
+        account = source.deposit_account
+        for occurs in iter_income_paydays(source, start=start, end=end):
+            events.append(
+                CashflowEvent(
+                    occurs_on=occurs,
+                    amount_minor=expected,
+                    description=source.name,
+                    source=kind,
+                    currency=currency,
+                    account_id=str(account.id) if account is not None else None,
+                    account_name=account.name if account is not None else "",
+                    income_source_id=str(source.id),
+                )
+            )
+    return events
+
+
 def _recurring_events(*, currency: str, start: date, end: date, in_scope: set[str]) -> list[CashflowEvent]:
     """Expand active recurring templates into dated occurrences in the window.
 
@@ -589,6 +643,7 @@ def cashflow_calendar(
     opening = liquid_balance_minor(currency)
 
     events = [
+        *_income_source_events(currency=currency, start=start, end=end, in_scope=in_scope),
         *_recurring_events(currency=currency, start=start, end=end, in_scope=in_scope),
         *_bill_events(currency=currency, start=start, end=end, today=today),
     ]

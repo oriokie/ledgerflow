@@ -17,7 +17,8 @@ calendar can be trusted at all.
 
 | Source | What it contributes |
 |---|---|
-| `RecurringTransaction` | Salary, subscriptions, loan payments, standing transfers |
+| `IncomeSource` | Salary and other dated income from /income, at the full payment on the payday. Sources already linked to a posting template are skipped so they are not counted twice. |
+| `RecurringTransaction` | Subscriptions, loan payments, standing transfers, and income captured as a posting template |
 | `Bill` | Unpaid and overdue bills, plus projected future occurrences of recurring ones |
 | Liquid balances | The starting point |
 

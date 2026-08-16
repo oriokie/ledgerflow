@@ -103,8 +103,8 @@ export function CashflowDayDetail({
         )}
 
         <Text tone="tertiary" size="xs">
-          Projections come from recurring transactions and unpaid bills. Anything you haven't scheduled
-          won't appear here.
+          Projections come from income you recorded, recurring transactions, and unpaid bills.
+          Anything you haven't scheduled won't appear here.
         </Text>
       </div>
     </Modal>

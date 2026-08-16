@@ -32,6 +32,7 @@ from apps.debt import selectors as debt_selectors
 from apps.finance import selectors as finance_selectors
 from apps.finance.models import AccountType, BillStatus, FinancialAccount, RecurringTransaction, RecurringType
 from apps.finance.schedule import amount_in_month, is_periodical, iter_occurrences, monthly_run_rate_minor
+from apps.income.models import INCOME_SCHEDULE_UNIT
 from apps.investments import selectors as investment_selectors
 
 from .calculators import MAX_HORIZON_MONTHS
@@ -108,21 +109,8 @@ def _other_assets_minor(currency: str) -> int:
     return max(0, row.assets_minor - liquid - investments)
 
 
-#: Income cadences mapped onto the finance schedule unit × interval. Quarterly
-#: and annual are periodical; the rest still convert to a monthly run-rate.
-_INCOME_TO_UNIT = {
-    "daily": ("daily", 1),
-    "weekly": ("weekly", 1),
-    "fortnightly": ("weekly", 2),
-    "semi_monthly": ("monthly", 1),
-    "monthly": ("monthly", 1),
-    "quarterly": ("monthly", 3),
-    "annual": ("yearly", 1),
-}
-
-
 def _income_unit(frequency: str) -> tuple[str, int] | None:
-    return _INCOME_TO_UNIT.get(str(frequency).lower())
+    return INCOME_SCHEDULE_UNIT.get(str(frequency).lower())
 
 
 def _next_occurrence(

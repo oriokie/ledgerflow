@@ -633,6 +633,7 @@ export interface CashflowEvent {
   is_overdue: boolean;
   bill_id: string | null;
   recurring_id: string | null;
+  income_source_id?: string | null;
 }
 
 export interface CashflowCalendarDay {

@@ -145,6 +145,29 @@ PAYMENTS_PER_YEAR: dict[str, int] = {
 }
 
 
+#: Finance schedule unit × interval for each income cadence. Used to place a
+#: source on a calendar day. ``AD_HOC`` is absent: there is no date to name.
+INCOME_SCHEDULE_UNIT: dict[str, tuple[str, int]] = {
+    IncomeFrequency.DAILY: ("daily", 1),
+    IncomeFrequency.WEEKLY: ("weekly", 1),
+    IncomeFrequency.FORTNIGHTLY: ("weekly", 2),
+    IncomeFrequency.MONTHLY: ("monthly", 1),
+    IncomeFrequency.QUARTERLY: ("monthly", 3),
+    IncomeFrequency.ANNUAL: ("yearly", 1),
+}
+
+#: Cadences that land on a numbered day of the month rather than an interval
+#: counted from an anchor date. Semi-monthly is handled as two monthly series.
+INCOME_DAY_OF_MONTH_CADENCES = frozenset(
+    {
+        IncomeFrequency.SEMI_MONTHLY,
+        IncomeFrequency.MONTHLY,
+        IncomeFrequency.QUARTERLY,
+        IncomeFrequency.ANNUAL,
+    }
+)
+
+
 class IncomeSource(SoftDeletableModel):
     """One arrangement that pays money in.
 

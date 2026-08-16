@@ -14,6 +14,7 @@ from django.db import transaction
 
 from .models import (
     DEFAULT_RELIABILITY_BY_KIND,
+    INCOME_DAY_OF_MONTH_CADENCES,
     PAYMENTS_PER_YEAR,
     IncomeDeduction,
     IncomeFrequency,
@@ -28,16 +29,7 @@ class IncomeError(ValueError):
     """A write that would produce an income record the product cannot defend."""
 
 
-#: Cadences that land on a numbered day of the month rather than an interval
-#: counted from an anchor date.
-DAY_OF_MONTH_CADENCES = frozenset(
-    {
-        IncomeFrequency.SEMI_MONTHLY,
-        IncomeFrequency.MONTHLY,
-        IncomeFrequency.QUARTERLY,
-        IncomeFrequency.ANNUAL,
-    }
-)
+DAY_OF_MONTH_CADENCES = INCOME_DAY_OF_MONTH_CADENCES
 
 
 def _validate(
