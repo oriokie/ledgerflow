@@ -29,6 +29,19 @@ def nth_occurrence(*, starts_on: date, frequency: str, interval: int, n: int) ->
     return starts_on + _UNIT[frequency](interval * n)
 
 
+def first_month_day_on_or_after(starts_on: date, *, day: int) -> date:
+    """First `day`-of-month on or after `starts_on`.
+
+    `day` is clamped to 28 so a "31st" payday does not silently skip February.
+    """
+    day = min(max(1, day), 28)
+    candidate = date(starts_on.year, starts_on.month, day)
+    if candidate < starts_on:
+        candidate = candidate + relativedelta(months=1)
+        candidate = date(candidate.year, candidate.month, day)
+    return candidate
+
+
 def add_period(anchor: date, frequency: str, interval: int = 1) -> date:
     """Advance `anchor` by one recurrence step. Used to spawn the next
     occurrence of a recurring bill from the one just paid. For an unbroken

@@ -166,6 +166,108 @@ def test_salary_is_marked_distinctly_from_other_income(tenant):
         assert cc.EventSource.INCOME in sources
 
 
+def test_unlinked_income_source_raises_the_balance_on_payday(tenant):
+    """Salary on /income is a plan, not a posting template. The calendar must
+    still show payday — otherwise the screen cannot answer its own question."""
+    from apps.income.models import IncomeFrequency
+
+    with tenant_scope(tenant):
+        _account("Checking", opening=100_00)
+        payday = _today() + timedelta(days=3)
+        IncomeSource.objects.create(
+            name="Monthly salary",
+            kind=IncomeKind.EMPLOYMENT,
+            currency="USD",
+            net_minor=2_000_00,
+            reliability=Reliability.FIXED,
+            frequency=IncomeFrequency.MONTHLY,
+            starts_on=payday,
+        )
+
+        cal = cc.cashflow_calendar(days=14)
+        assert cal is not None
+        day = next(d for d in cal.days if d.day == payday)
+        assert day.inflow_minor == 2_000_00
+        assert {e.source for e in day.events} == {cc.EventSource.SALARY}
+        assert cal.days[-1].closing_minor == 2_100_00
+
+
+def test_a_linked_income_source_is_not_counted_twice(tenant):
+    """The template already posts the money. The source must not add a second payday."""
+    from apps.income.models import IncomeFrequency
+
+    with tenant_scope(tenant):
+        account = _account("Checking", opening=0)
+        payday = _today() + timedelta(days=2)
+        template = _recur(
+            txn_type=RecurringType.INCOME,
+            financial_account=account,
+            amount_minor=3_000_00,
+            currency="USD",
+            frequency=Frequency.MONTHLY,
+            starts_on=payday,
+            memo="Salary",
+        )
+        IncomeSource.objects.create(
+            name="Salary",
+            kind=IncomeKind.EMPLOYMENT,
+            currency="USD",
+            net_minor=3_000_00,
+            reliability=Reliability.FIXED,
+            frequency=IncomeFrequency.MONTHLY,
+            starts_on=payday,
+            recurring_transaction=template,
+        )
+
+        cal = cc.cashflow_calendar(days=7)
+        day = next(d for d in cal.days if d.day == payday)
+        assert day.inflow_minor == 3_000_00
+        assert len(day.events) == 1
+
+
+def test_quarterly_income_lands_as_the_full_block_on_the_due_day(tenant):
+    from apps.income.models import IncomeFrequency
+
+    with tenant_scope(tenant):
+        _account("Checking", opening=0)
+        due = _today() + timedelta(days=4)
+        IncomeSource.objects.create(
+            name="School bonus",
+            kind=IncomeKind.EMPLOYMENT,
+            currency="USD",
+            net_minor=300_000,
+            reliability=Reliability.FIXED,
+            frequency=IncomeFrequency.QUARTERLY,
+            starts_on=due,
+        )
+
+        cal = cc.cashflow_calendar(days=40)
+        due_day = next(d for d in cal.days if d.day == due)
+        assert due_day.inflow_minor == 300_000
+        other = [d.inflow_minor for d in cal.days if d.day != due]
+        assert all(amount == 0 for amount in other)
+
+
+def test_ad_hoc_income_is_not_placed_on_the_calendar(tenant):
+    from apps.income.models import IncomeFrequency
+
+    with tenant_scope(tenant):
+        _account("Checking", opening=50_00)
+        IncomeSource.objects.create(
+            name="Freelance",
+            kind=IncomeKind.SELF_EMPLOYMENT,
+            currency="USD",
+            net_minor=80_000,
+            reliability=Reliability.IRREGULAR,
+            frequency=IncomeFrequency.AD_HOC,
+            starts_on=_today(),
+        )
+
+        cal = cc.cashflow_calendar(days=14)
+        assert cal is not None
+        assert all(d.inflow_minor == 0 for d in cal.days)
+
+
 def test_a_payday_in_another_language_is_still_a_payday(tenant):
     """The regression this whole model exists to prevent.
 

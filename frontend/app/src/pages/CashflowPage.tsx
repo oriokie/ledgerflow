@@ -230,6 +230,9 @@ export function CashflowPage({ embedded }: { embedded?: boolean } = {}) {
                       <Link className="lf-btn lf-btn--primary lf-btn--sm" to="/bills">
                         Add a bill
                       </Link>
+                      <Link className="lf-btn lf-btn--secondary lf-btn--sm" to="/income">
+                        Add income
+                      </Link>
                       <Link className="lf-btn lf-btn--secondary lf-btn--sm" to="/recurring">
                         Detect from history
                       </Link>

@@ -29,9 +29,11 @@ from datetime import date, timedelta
 from django.utils import timezone
 
 from apps.finance.models import Bill, BillStatus, RecurringTransaction, RecurringType
-from apps.finance.schedule import amount_in_month
+from apps.finance.schedule import amount_in_month, first_month_day_on_or_after, iter_occurrences
 
 from .models import (
+    INCOME_DAY_OF_MONTH_CADENCES,
+    INCOME_SCHEDULE_UNIT,
     PAYMENTS_PER_YEAR,
     IncomeDeduction,
     IncomeFrequency,
@@ -176,6 +178,51 @@ def _observed(source: IncomeSource, *, as_of: date) -> tuple[int | None, int | N
         return None, None, len(values), last_on
 
     return round(statistics.fmean(values)), round(statistics.stdev(values)), len(values), last_on
+
+
+def iter_income_paydays(source: IncomeSource, *, start: date, end: date):
+    """Yield the dates this source is expected to pay inside `[start, end]`.
+
+    Semi-monthly is two monthly series. A numbered pay day beats `starts_on`'s
+    day-of-month so a salary recorded on the 16th still lands on the 25th.
+    """
+    if source.frequency == IncomeFrequency.AD_HOC:
+        return
+    window_start = max(start, source.starts_on)
+    window_end = end if source.ends_on is None else min(end, source.ends_on)
+    if window_start > window_end:
+        return
+
+    if source.frequency == IncomeFrequency.SEMI_MONTHLY:
+        for day in (source.pay_day, source.second_pay_day):
+            if day is None:
+                continue
+            yield from iter_occurrences(
+                anchor=first_month_day_on_or_after(source.starts_on, day=day),
+                frequency="monthly",
+                interval=1,
+                start=window_start,
+                end=window_end,
+                ends_on=source.ends_on,
+            )
+        return
+
+    unit = INCOME_SCHEDULE_UNIT.get(source.frequency)
+    if unit is None:
+        return
+    freq, interval = unit
+    if source.pay_day and source.frequency in INCOME_DAY_OF_MONTH_CADENCES:
+        anchor = first_month_day_on_or_after(source.starts_on, day=source.pay_day)
+    else:
+        anchor = source.starts_on
+    yield from iter_occurrences(
+        anchor=anchor,
+        frequency=freq,
+        interval=interval,
+        start=window_start,
+        end=window_end,
+        ends_on=source.ends_on,
+    )
 
 
 def source_views(*, as_of: date | None = None, currency: str | None = None) -> list[SourceView]:

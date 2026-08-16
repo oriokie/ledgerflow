@@ -2017,6 +2017,7 @@ def _event_out(event) -> dict:
         "is_overdue": event.is_overdue,
         "bill_id": event.bill_id,
         "recurring_id": event.recurring_id,
+        "income_source_id": event.income_source_id,
     }
 
 
