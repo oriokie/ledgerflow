@@ -336,7 +336,7 @@ def _scheduled_run_rate(currency: str, as_of: date) -> tuple[int, int, list[Comp
                     label=view.name,
                     amount=view.expected_net_minor or view.stated_net_minor,
                     kind="income",
-                    anchor=view.starts_on,
+                    anchor=view.anchor,
                     frequency=unit[0],
                     interval=unit[1],
                     ends_on=view.ends_on,
@@ -545,14 +545,14 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
                     amount_minor=block,
                     frequency=unit[0],
                     interval=unit[1],
-                    anchor=view.starts_on,
+                    anchor=view.anchor,
                     as_of=as_of,
                     ends_on=view.ends_on,
                 )
                 > 0
             )
             next_on = _next_occurrence(
-                anchor=view.starts_on,
+                anchor=view.anchor,
                 frequency=unit[0],
                 interval=unit[1],
                 on_or_after=as_of,

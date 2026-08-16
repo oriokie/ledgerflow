@@ -21,7 +21,7 @@ export function CashflowStatement() {
         <EmptyState
           icon={Droplets}
           title="No cash activity yet"
-          body="Add accounts and transactions and your monthly liquidity statement builds itself."
+          body="Add accounts and transactions and your monthly liquidity statement builds itself. Salary recorded on Income appears on Cash flow on payday, and in this month's money-in once the month is under way."
         />
       </Card>
     );

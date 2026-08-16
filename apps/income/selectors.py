@@ -108,6 +108,9 @@ class SourceView:
     #: Monthly equivalent of `expected_net_minor`. `None` for ad-hoc cadence.
     monthly_net_minor: int | None
     deductions_minor: int | None
+    #: First payday on or after `starts_on`. Periodical projections count from
+    #: this date, not from the day the source was recorded.
+    anchor: date
 
     @property
     def is_speculative(self) -> bool:
@@ -180,6 +183,19 @@ def _observed(source: IncomeSource, *, as_of: date) -> tuple[int | None, int | N
     return round(statistics.fmean(values)), round(statistics.stdev(values)), len(values), last_on
 
 
+def occurrence_anchor(source: IncomeSource) -> date:
+    """The date series this source is counted from.
+
+    A numbered pay day beats `starts_on`'s day-of-month so a salary recorded
+    on the 16th still lands on the 25th — the same rule the cash-flow calendar
+    uses, so projections and analytics cannot disagree about which month the
+    block belongs to.
+    """
+    if source.pay_day and source.frequency in INCOME_DAY_OF_MONTH_CADENCES:
+        return first_month_day_on_or_after(source.starts_on, day=source.pay_day)
+    return source.starts_on
+
+
 def iter_income_paydays(source: IncomeSource, *, start: date, end: date):
     """Yield the dates this source is expected to pay inside `[start, end]`.
 
@@ -211,18 +227,51 @@ def iter_income_paydays(source: IncomeSource, *, start: date, end: date):
     if unit is None:
         return
     freq, interval = unit
-    if source.pay_day and source.frequency in INCOME_DAY_OF_MONTH_CADENCES:
-        anchor = first_month_day_on_or_after(source.starts_on, day=source.pay_day)
-    else:
-        anchor = source.starts_on
     yield from iter_occurrences(
-        anchor=anchor,
+        anchor=occurrence_anchor(source),
         frequency=freq,
         interval=interval,
         start=window_start,
         end=window_end,
         ends_on=source.ends_on,
     )
+
+
+def _expected_payment_minor(source: IncomeSource, *, as_of: date) -> int | None:
+    """Amount the calendar would place on payday, or ``None`` to skip."""
+    mean, _stdev, _count, _last = _observed(source, as_of=as_of)
+    use_observed = mean is not None and source.reliability != Reliability.FIXED
+    if source.reliability == Reliability.IRREGULAR and not use_observed:
+        return None
+    expected = mean if use_observed else source.net_minor
+    if expected <= 0:
+        return None
+    return expected
+
+
+def scheduled_income_minor(*, currency: str, start: date, end: date) -> int:
+    """Unlinked IncomeSource payments expected in ``[start, end]``.
+
+    Linked posting templates already appear as transactions (or calendar
+    recurring events). Callers that must not invent the past pass *today* as
+    ``start``: a payday that came and went without posting is a miss, not
+    income.
+    """
+    if start > end:
+        return 0
+    total = 0
+    sources = IncomeSource.objects.filter(
+        is_active=True,
+        currency=currency,
+        recurring_transaction__isnull=True,
+    )
+    for source in sources:
+        expected = _expected_payment_minor(source, as_of=end)
+        if expected is None:
+            continue
+        for _occurs in iter_income_paydays(source, start=start, end=end):
+            total += expected
+    return total
 
 
 def source_views(*, as_of: date | None = None, currency: str | None = None) -> list[SourceView]:
@@ -266,6 +315,7 @@ def source_views(*, as_of: date | None = None, currency: str | None = None) -> l
                 expected_is_observed=use_observed,
                 monthly_net_minor=monthly_equivalent_minor(expected, source.frequency),
                 deductions_minor=deductions_for(source),
+                anchor=occurrence_anchor(source),
             )
         )
     return views

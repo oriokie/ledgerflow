@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAccounts, useCategoryBreakdown } from "../hooks/useFinance";
+import { useIncomeSources } from "../hooks/useIncome";
 import { useSpendingTrend } from "../hooks/useIntelligence";
 import { useAuth } from "../lib/AuthContext";
 import { Card, PageHeader, SegmentedControl, SkeletonCard, Text } from "../ui";
@@ -25,6 +26,7 @@ export function AnalyticsPage({ embedded }: { embedded?: boolean } = {}) {
   const months = Number(monthsStr);
 
   const { data: accounts } = useAccounts();
+  const { data: sources } = useIncomeSources();
   const { data: trend, isLoading: trendLoading } = useSpendingTrend(months);
   const { start, end } = useMemo(() => rangeForMonths(months), [months]);
   const { data: breakdown } = useCategoryBreakdown(start, end, type);
@@ -32,6 +34,7 @@ export function AnalyticsPage({ embedded }: { embedded?: boolean } = {}) {
   const currency = activeWorkspace?.tenant.base_currency ?? accounts?.[0]?.currency ?? "KES";
   const comparison = comparisonFromTrend(trend);
   const rows = topN(breakdownWithShare(breakdown), 8);
+  const hasIncomePlan = (sources ?? []).some((s) => s.is_current);
 
   return (
     <>
@@ -100,6 +103,22 @@ export function AnalyticsPage({ embedded }: { embedded?: boolean } = {}) {
               selectedId={selected?.id ?? null}
               onSelect={(id, name) => setSelected({ id, name })}
               currency={currency}
+              empty={
+                type === "income" ? (
+                  hasIncomePlan ? (
+                    <>
+                      No posted income in this range yet — payday is on{" "}
+                      <Link to="/cashflow">Cash flow</Link>.
+                    </>
+                  ) : (
+                    <>
+                      No posted income in this range.{" "}
+                      <Link to="/income">Add income</Link> and it shows here once it lands, and on{" "}
+                      <Link to="/cashflow">Cash flow</Link> on payday.
+                    </>
+                  )
+                ) : undefined
+              }
             />
           </Card>
 

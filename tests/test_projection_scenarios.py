@@ -215,6 +215,43 @@ def test_unlinked_recurring_income_is_named_on_the_stack_alongside_a_source(tena
     assert position.monthly_net_income_minor >= 450_000
 
 
+def test_periodical_income_lands_in_the_pay_month_not_the_start_month(tenant):
+    """Recorded on 20 July, paid on the 5th — August is the due month.
+
+    Using `starts_on` as the occurrence anchor put the quarterly block in July
+    and left August empty, which is the opposite of payday.
+    """
+    from apps.income import services as income_services
+    from apps.income.models import IncomeKind, Reliability
+
+    with tenant_scope(tenant):
+        finance_services.create_financial_account(
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=0,
+        )
+        income_services.create_source(
+            name="Quarterly bonus",
+            kind=IncomeKind.EMPLOYMENT,
+            currency="USD",
+            net_minor=900_000,
+            frequency="quarterly",
+            reliability=Reliability.FIXED,
+            starts_on=date(2026, 7, 20),
+            pay_day=5,
+        )
+        july = adapters.cashflow_stack(currency="USD", as_of=date(2026, 7, 31))
+        august = adapters.cashflow_stack(currency="USD", as_of=date(2026, 8, 16))
+
+    bonus_july = next(line for line in july if line["label"] == "Quarterly bonus")
+    bonus_august = next(line for line in august if line["label"] == "Quarterly bonus")
+    assert bonus_july["periodical"] is True
+    assert bonus_july["current"] is False
+    assert bonus_august["current"] is True
+    assert bonus_august["monthly_minor"] == 900_000
+
+
 def test_recurring_expense_is_named_going_out(tenant):
     """Rent captured under Recurring must appear as a named Going-out line,
     not only as anonymous residual spending."""
