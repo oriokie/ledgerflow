@@ -1,45 +1,22 @@
 from django.db import migrations, models
-from django.db.models import Count
-from django.db.utils import IntegrityError, OperationalError, ProgrammingError
+
+# Intentionally not applied as database DDL.
+#
+# `FORCE ROW LEVEL SECURITY` is on `ledger_journalentry`. During migrate there
+# is no `app.current_tenant`, so an ORM duplicate-check sees zero rows. The
+# unique index then scans the real table, hits leftover double-void reversals,
+# raises, and (even if Python catches it) Postgres aborts the transaction —
+# Django cannot record the migration, entrypoint.sh never starts gunicorn, and
+# the site 502s. Application code in `reverse_journal_entry` already refuses a
+# second reverse. The constraint stays in Django state so `makemigrations`
+# does not try to recreate it.
+
 
 CONSTRAINT = models.UniqueConstraint(
     condition=models.Q(("reverses__isnull", False)),
     fields=("reverses",),
     name="uniq_entry_reverses",
 )
-
-
-def apply_constraint(apps, schema_editor):
-    """Add one-reversal-per-original, unless this ledger already has two.
-
-    The double-void bug posted a second reversing entry for the same original.
-    Those rows cannot be deleted (ledger is append-only), and adding the
-    unique constraint on top of them aborts migrate — which, in entrypoint.sh,
-    means gunicorn never starts and the site 502s. Application code already
-    refuses a second reverse; skip the constraint when history is dirty.
-    """
-    JournalEntry = apps.get_model("ledger", "JournalEntry")
-    has_duplicates = (
-        JournalEntry.objects.filter(reverses__isnull=False)
-        .values("reverses")
-        .annotate(n=Count("id"))
-        .filter(n__gt=1)
-        .exists()
-    )
-    if has_duplicates:
-        return
-    try:
-        schema_editor.add_constraint(JournalEntry, CONSTRAINT)
-    except (IntegrityError, OperationalError, ProgrammingError):
-        return
-
-
-def drop_constraint(apps, schema_editor):
-    JournalEntry = apps.get_model("ledger", "JournalEntry")
-    try:
-        schema_editor.remove_constraint(JournalEntry, CONSTRAINT)
-    except (IntegrityError, OperationalError, ProgrammingError):
-        return
 
 
 class Migration(migrations.Migration):
@@ -49,9 +26,7 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.SeparateDatabaseAndState(
-            database_operations=[
-                migrations.RunPython(apply_constraint, drop_constraint),
-            ],
+            database_operations=[],
             state_operations=[
                 migrations.AddConstraint(
                     model_name="journalentry",
