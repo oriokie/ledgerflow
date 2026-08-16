@@ -315,6 +315,38 @@ def test_voiding_the_other_transfer_leg_does_not_reverse_again(tenant_id):
         assert selectors.account_current_balance_minor(savings) == 0
 
 
+def test_correct_duplicate_reversals_undoes_double_void_overshoot(tenant_id):
+    """Skipping uniq_entry_reverses lets migrate finish; it does not move money.
+    Extra reversals of the transfer journal still overshoot until each extra
+    is itself reversed."""
+    from apps.ledger import services as ledger_services
+    from apps.ledger.models import JournalEntry
+    from tests.test_ledger import _post_extra_reversal
+
+    with tenant_scope(tenant_id):
+        checking, _card, savings, _groceries, _salary = _seed()
+        income = services.create_category(name="In", kind=CategoryKind.INCOME, currency="USD")
+        services.record_income(
+            financial_account=checking, category=income, amount_minor=50000, occurred_at=_now()
+        )
+        out_txn, _in_txn = services.record_transfer(
+            from_account=checking, to_account=savings, amount_minor=20000, occurred_at=_now()
+        )
+        services.void_transaction(txn=out_txn)
+        assert selectors.account_current_balance_minor(checking) == 50000
+        assert selectors.account_current_balance_minor(savings) == 0
+
+        original = out_txn.journal_entry
+        extra = _post_extra_reversal(ledger_services, original, "dup-void-leg")
+        assert selectors.account_current_balance_minor(checking) == 70000
+        assert selectors.account_current_balance_minor(savings) == -20000
+
+        assert ledger_services.correct_duplicate_reversals() == 1
+        assert selectors.account_current_balance_minor(checking) == 50000
+        assert selectors.account_current_balance_minor(savings) == 0
+        assert JournalEntry.objects.filter(reverses=extra).count() == 1
+
+
 # --------------------------------------------------------------- statements
 def test_account_statement_running_balance_asset(tenant_id):
     with tenant_scope(tenant_id):

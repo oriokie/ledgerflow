@@ -125,3 +125,113 @@ def test_reversal_zeroes_the_effect(tenant_id):
         services.reverse_journal_entry(entry=entry, idempotency_key="rev-again")
         assert selectors.account_balance(Account.objects.get(id=checking.id)).amount_minor == 0
         assert JournalEntry.objects.filter(reverses=entry).count() == 1
+
+
+def _drop_uniq_entry_reverses():
+    """Production never got this index (leftover duplicates blocked ADD CONSTRAINT).
+    Tests that reused a DB from when 0003 still created it must drop it to
+    recreate the extra reversal rows the repair undoes."""
+    from django.db import connection
+
+    with connection.cursor() as cursor:
+        cursor.execute("DROP INDEX IF EXISTS uniq_entry_reverses")
+
+
+def _post_extra_reversal(services, original, idempotency_key: str):
+    """Bypass reverse_journal_entry to recreate the historical double-void bug."""
+    from apps.ledger.models import Direction
+
+    _drop_uniq_entry_reverses()
+    flipped = [
+        services.LineInput(
+            account_id=str(ln.account_id),
+            direction=Direction.CREDIT if ln.direction == Direction.DEBIT else Direction.DEBIT,
+            amount_minor=ln.amount_minor,
+        )
+        for ln in original.lines.all()
+    ]
+    extra = services.post_journal_entry(
+        occurred_at=original.occurred_at,
+        lines=flipped,
+        idempotency_key=idempotency_key,
+        memo="simulated extra reversal",
+        reverses=original,
+    )
+    assert extra.id != original.id
+    assert extra.reverses_id == original.id
+    return extra
+
+
+def test_correct_duplicate_reversals_undoes_extra_mirror(tenant_id):
+    from apps.ledger import selectors, services
+    from apps.ledger.models import Account, JournalEntry
+
+    with tenant_scope(tenant_id):
+        checking, groceries = _seed_accounts(services, None)
+        original = services.post_journal_entry(
+            occurred_at=datetime.now(UTC),
+            idempotency_key="orig",
+            lines=[
+                services.LineInput(str(groceries.id), "debit", 2500),
+                services.LineInput(str(checking.id), "credit", 2500),
+            ],
+        )
+        services.reverse_journal_entry(entry=original, idempotency_key="rev")
+        assert selectors.account_balance(Account.objects.get(id=checking.id)).amount_minor == 0
+
+        extra = _post_extra_reversal(services, original, "rev-dup")
+        assert selectors.account_balance(Account.objects.get(id=checking.id)).amount_minor == 2500
+        assert JournalEntry.objects.filter(reverses=original).count() == 2
+
+        assert services.correct_duplicate_reversals() == 1
+        assert selectors.account_balance(Account.objects.get(id=checking.id)).amount_minor == 0
+        assert JournalEntry.objects.filter(reverses=original).count() == 2
+        assert JournalEntry.objects.filter(reverses=extra).count() == 1
+
+        assert services.correct_duplicate_reversals() == 1
+        assert selectors.account_balance(Account.objects.get(id=checking.id)).amount_minor == 0
+        assert JournalEntry.objects.filter(reverses=extra).count() == 1
+
+
+def test_correct_duplicate_reversals_is_noop_when_clean(tenant_id):
+    from apps.ledger import services
+    from apps.ledger.models import JournalEntry
+
+    with tenant_scope(tenant_id):
+        checking, groceries = _seed_accounts(services, None)
+        original = services.post_journal_entry(
+            occurred_at=datetime.now(UTC),
+            idempotency_key="orig",
+            lines=[
+                services.LineInput(str(groceries.id), "debit", 2500),
+                services.LineInput(str(checking.id), "credit", 2500),
+            ],
+        )
+        services.reverse_journal_entry(entry=original, idempotency_key="rev")
+        assert services.correct_duplicate_reversals() == 0
+        assert JournalEntry.objects.count() == 2
+
+
+def test_correct_duplicate_reversals_scans_tenants_without_ambient_context(tenant_id):
+    from apps.ledger import selectors, services
+    from apps.ledger.models import Account
+    from apps.tenancy.models import Tenant
+
+    Tenant.objects.create(id=tenant_id, name="Repair")
+    with tenant_scope(tenant_id):
+        checking, groceries = _seed_accounts(services, None)
+        original = services.post_journal_entry(
+            occurred_at=datetime.now(UTC),
+            idempotency_key="orig",
+            lines=[
+                services.LineInput(str(groceries.id), "debit", 2500),
+                services.LineInput(str(checking.id), "credit", 2500),
+            ],
+        )
+        services.reverse_journal_entry(entry=original, idempotency_key="rev")
+        _post_extra_reversal(services, original, "rev-dup")
+        assert selectors.account_balance(Account.objects.get(id=checking.id)).amount_minor == 2500
+
+    assert services.correct_duplicate_reversals() == 1
+    with tenant_scope(tenant_id):
+        assert selectors.account_balance(Account.objects.get(id=checking.id)).amount_minor == 0

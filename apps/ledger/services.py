@@ -11,9 +11,11 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 
 from apps.common.outbox import OutboxEvent
+from apps.common.rls import bind_db_tenant
+from apps.common.tenant_context import get_current_tenant_id, use_tenant
 
 from .models import Account, AccountBalance, Direction, JournalEntry, LedgerLine
 
@@ -215,6 +217,78 @@ def reverse_journal_entry(*, entry: JournalEntry, idempotency_key: str, memo: st
         memo=memo or f"Reversal of {locked.id}",
         reverses=locked,
     )
+
+
+def correct_duplicate_reversals() -> int:
+    """Undo extra reversing journals left by voiding both legs of a transfer.
+
+    Journal rows are append-only, so the extras are not deleted. The first
+    reversal of each original is kept; every later reversal of that same
+    original is itself reversed, which restores the balances the first
+    reversal already produced. Safe to run more than once: a second pass
+    finds the extras already reversed and posts nothing.
+    """
+    if get_current_tenant_id() is not None:
+        return _correct_duplicate_reversals_for_current_tenant()
+
+    repaired = 0
+    for tenant_id in _tenant_ids_to_scan():
+        with transaction.atomic():
+            bind_db_tenant(tenant_id)
+            with use_tenant(tenant_id):
+                repaired += _correct_duplicate_reversals_for_current_tenant()
+    return repaired
+
+
+def _tenant_ids_to_scan():
+    from apps.tenancy.models import Tenant
+
+    ids = list(Tenant.objects.values_list("id", flat=True))
+    if ids:
+        return ids
+    if connection.vendor != "postgresql":
+        return list(
+            JournalEntry.unscoped.filter(reverses_id__isnull=False)
+            .values_list("tenant_id", flat=True)
+            .distinct()
+        )
+    # FORCE RLS hides every journal row when migrate has no tenant GUC.
+    with connection.cursor() as cursor:
+        cursor.execute("ALTER TABLE ledger_journalentry NO FORCE ROW LEVEL SECURITY")
+        try:
+            cursor.execute("""
+                SELECT tenant_id
+                FROM ledger_journalentry
+                WHERE reverses_id IS NOT NULL
+                GROUP BY tenant_id, reverses_id
+                HAVING COUNT(*) > 1
+                """)
+            return list({row[0] for row in cursor.fetchall()})
+        finally:
+            cursor.execute("ALTER TABLE ledger_journalentry FORCE ROW LEVEL SECURITY")
+
+
+def _correct_duplicate_reversals_for_current_tenant() -> int:
+    first_by_original: dict = {}
+    extras: list[JournalEntry] = []
+    for entry in JournalEntry.objects.filter(reverses_id__isnull=False).order_by("created_at", "id"):
+        if entry.reverses_id in first_by_original:
+            extras.append(entry)
+        else:
+            first_by_original[entry.reverses_id] = entry
+    if extras:
+        logger.warning(
+            "correcting %s duplicate reversal(s) for tenant %s",
+            len(extras),
+            get_current_tenant_id(),
+        )
+    for extra in extras:
+        reverse_journal_entry(
+            entry=extra,
+            idempotency_key=f"fix-dup-reversal:{extra.id}",
+            memo=f"Correct duplicate reversal of {extra.reverses_id}",
+        )
+    return len(extras)
 
 
 # imported lazily to keep the module import graph clean in tooling
