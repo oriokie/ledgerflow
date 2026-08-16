@@ -248,6 +248,55 @@ def test_recurring_expense_is_named_going_out(tenant):
     assert position.monthly_expenses_minor >= 80_000
 
 
+def test_a_quarterly_expense_is_the_block_in_the_due_month_not_a_monthly_smear(tenant):
+    """Insurance of 300 due in October must not appear as 100 in August, September
+    and October. The cash hits once, when it is stated to hit."""
+    from apps.finance import recurring as recurring_service
+    from apps.finance.models import RecurringType
+    from apps.projections.engine import EconomicAssumptions
+
+    flat = EconomicAssumptions(
+        annual_inflation=0.0,
+        annual_salary_growth=0.0,
+        annual_investment_return=0.0,
+        annual_cash_return=0.0,
+        annual_property_growth=0.0,
+    )
+    as_of = date(2026, 8, 13)
+    with tenant_scope(tenant):
+        account = finance_services.create_financial_account(
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
+        )
+        cover = finance_services.create_category(name="Insurance", kind=CategoryKind.EXPENSE, currency="USD")
+        recurring_service.create_recurring_transaction(
+            txn_type=RecurringType.EXPENSE,
+            financial_account=account,
+            category=cover,
+            amount_minor=30_000,
+            currency="USD",
+            frequency="monthly",
+            interval=3,
+            starts_on=date(2026, 1, 15),
+            memo="Car insurance",
+        )
+        stack = adapters.cashflow_stack(currency="USD", as_of=as_of)
+        position = adapters.current_position(as_of=as_of)
+        result = adapters.project_live(position=position, assumptions=flat, months=6)
+
+    insurance = next(line for line in stack if line["label"] == "Car insurance")
+    assert insurance["monthly_minor"] == 30_000
+    assert insurance["periodical"] is True
+    assert insurance["current"] is False
+    assert position.monthly_expenses_minor == 0
+    # Engine month 1 is September; October is month 2.
+    assert result.points[0].expenses_minor == 0
+    assert result.points[1].expenses_minor == 30_000
+    assert result.points[2].expenses_minor == 0
+
+
 def test_a_posted_schedule_still_counts_when_starts_on_was_moved_to_next_due(tenant):
     """Editing used to write next_run_on into starts_on. A rent that has
     already posted must still floor the projection."""

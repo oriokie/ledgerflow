@@ -20,9 +20,31 @@ function annualRaw(rec: Pick<RecurringTransaction, "amount_minor" | "frequency" 
   }
 }
 
-/** Normalized cost per month (minor units). */
+/** Normalized cost per month (minor units) for cadences that hit a month more
+ * than once. Periodical schedules use `recognizedMinor` instead. */
 export function monthlyMinor(rec: Pick<RecurringTransaction, "amount_minor" | "frequency" | "interval">): number {
   return Math.round(annualRaw(rec) / 12);
+}
+
+/** True when the schedule fires at most once per calendar month. The amount
+ * is the block that lands on the due date, not a monthly smear. */
+export function isPeriodical(rec: Pick<RecurringTransaction, "frequency" | "interval">): boolean {
+  const n = rec.interval || 1;
+  if (rec.frequency === "yearly") return true;
+  return rec.frequency === "monthly" && n >= 2;
+}
+
+/** Amount to show for a schedule: the block for periodical cadences, else the
+ * monthly run-rate. */
+export function recognizedMinor(
+  rec: Pick<RecurringTransaction, "amount_minor" | "frequency" | "interval">,
+): number {
+  return isPeriodical(rec) ? rec.amount_minor : monthlyMinor(rec);
+}
+
+function sameCalendarMonth(isoDate: string, asOf: Date): boolean {
+  const [year, month] = isoDate.split("-").map(Number);
+  return year === asOf.getFullYear() && month === asOf.getMonth() + 1;
 }
 
 /** Normalized cost per year (minor units). */
@@ -43,7 +65,10 @@ export interface RecurringTotals {
  * the most common currency (schedules can differ); expense count spans that
  * currency. Income schedules are tracked separately so the headline is "spend".
  */
-export function recurringTotals(list: RecurringTransaction[] | undefined): RecurringTotals {
+export function recurringTotals(
+  list: RecurringTransaction[] | undefined,
+  asOf: Date = new Date(),
+): RecurringTotals {
   const items = list ?? [];
   const counts = new Map<string, number>();
   for (const r of items) {
@@ -57,12 +82,17 @@ export function recurringTotals(list: RecurringTransaction[] | undefined): Recur
   let expenseCount = 0;
   for (const r of items) {
     if (r.currency !== currency) continue;
+    const thisMonth = isPeriodical(r)
+      ? sameCalendarMonth(r.next_run_on, asOf)
+        ? r.amount_minor
+        : 0
+      : monthlyMinor(r);
     if (r.txn_type === "expense") {
-      monthlyExpense += monthlyMinor(r);
+      monthlyExpense += thisMonth;
       annualExpense += annualMinor(r);
       expenseCount += 1;
     } else if (r.txn_type === "income") {
-      monthlyIncome += monthlyMinor(r);
+      monthlyIncome += thisMonth;
     }
   }
   return { currency, monthlyExpense, annualExpense, monthlyIncome, expenseCount };
