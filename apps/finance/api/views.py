@@ -914,7 +914,11 @@ class CashFlowView(TenantScopedAPIView, APIView):
                     "expense_minor": c.expense_minor,
                     "net_minor": c.net_minor,
                 }
-                for c in selectors.cash_flow(start=q.validated_data["start"], end=q.validated_data["end"])
+                for c in selectors.cash_flow(
+                    start=q.validated_data["start"],
+                    end=q.validated_data["end"],
+                    include_scheduled=True,
+                )
             ]
         )
 

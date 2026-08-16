@@ -10,9 +10,10 @@ number, which is what makes them worse than an error.
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pytest
+from django.utils import timezone
 
 from apps.finance import services as finance_services
 from apps.finance.models import AccountType
@@ -398,3 +399,67 @@ def test_currency_cannot_be_edited():
         source.refresh_from_db()
         assert source.currency == "USD"
         assert source.name == "Renamed"
+
+
+def test_occurrence_anchor_prefers_pay_day_over_starts_on():
+    tid = uuid.uuid4()
+    with tenant_scope(tid):
+        source = _source(starts_on=date(2026, 6, 10), pay_day=25)
+        assert selectors.occurrence_anchor(source) == date(2026, 6, 25)
+
+
+def test_scheduled_income_counts_remaining_paydays():
+    """Analytics and this-month cash flow floor with payday still to come."""
+    tid = uuid.uuid4()
+    with tenant_scope(tid):
+        _source(net_minor=200_000, starts_on=date(2026, 1, 1), pay_day=25)
+        assert selectors.scheduled_income_minor(currency="USD", start=TODAY, end=date(2026, 6, 30)) == 200_000
+        # A payday that already passed this month is record, not a remaining claim.
+        assert (
+            selectors.scheduled_income_minor(currency="USD", start=date(2026, 6, 26), end=date(2026, 6, 30))
+            == 0
+        )
+
+
+def test_unposted_salary_floors_this_month_on_analytics_and_cash_flow():
+    """Salary on /income with no ledger row must still appear in this month."""
+    from datetime import time as dt_time
+
+    from apps.finance.models import AccountType
+    from apps.finance.selectors import cash_flow, cashflow_statement
+    from apps.intelligence.selectors import spending_trend
+
+    as_of = timezone.localdate()
+    this_month = as_of.replace(day=1)
+    last_month = (this_month - timedelta(days=1)).replace(day=1)
+    next_month = (this_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+
+    tid = uuid.uuid4()
+    with tenant_scope(tid):
+        finance_services.create_financial_account(
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=0,
+        )
+        _source(net_minor=500_000, starts_on=as_of)
+
+        trend = spending_trend(months=3, as_of=as_of)
+        current = next(p for p in trend if p["period_start"] == this_month.isoformat())
+        previous = next(p for p in trend if p["period_start"] == last_month.isoformat())
+        assert current["income_minor"] == 500_000
+        assert previous["income_minor"] == 0
+
+        start = timezone.make_aware(datetime.combine(this_month, dt_time.min))
+        end = timezone.make_aware(datetime.combine(next_month, dt_time.min))
+        flows = cash_flow(start=start, end=end, include_scheduled=True)
+        assert flows[0].income_minor == 500_000
+        posted_only = cash_flow(start=start, end=end)
+        assert posted_only == []
+
+        stmt = cashflow_statement(months=3, as_of=as_of)
+        assert stmt is not None
+        current_row = stmt.rows[-1]
+        assert current_row.period_start == this_month
+        assert current_row.inflow_minor == 500_000
+        assert current_row.ending_balance_minor == 0

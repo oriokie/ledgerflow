@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { formatAmount } from "../../lib/money";
 import { Meter } from "../../ui";
 import type { BreakdownRowWithShare } from "./analyticsMath";
@@ -9,14 +10,16 @@ export function CategoryBreakdown({
   selectedId,
   onSelect,
   currency,
+  empty,
 }: {
   rows: BreakdownRowWithShare[];
   selectedId: string | null;
   onSelect: (categoryId: string, categoryName: string) => void;
   currency: string;
+  empty?: ReactNode;
 }) {
   if (rows.length === 0) {
-    return <div className="lf-drill-empty">No activity in this range.</div>;
+    return <div className="lf-drill-empty">{empty ?? "No activity in this range."}</div>;
   }
   const maxShare = Math.max(...rows.map((r) => r.share), 0.0001);
 

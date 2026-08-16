@@ -327,10 +327,22 @@ def build_cashflow_history(*, months: int = 6, as_of: date | None = None) -> lis
             income=Sum("amount_minor", filter=models.Q(amount_minor__gt=0)),
             expense=Sum("amount_minor", filter=models.Q(amount_minor__lt=0)),
         )
+        income = agg["income"] or 0
+        # Remaining /income paydays belong in this month's bar. A completed
+        # month is record, and inventing a salary that never posted would
+        # disagree with the ledger.
+        if currency and start.year == as_of.year and start.month == as_of.month:
+            from apps.income.selectors import scheduled_income_minor
+
+            income += scheduled_income_minor(
+                currency=currency,
+                start=as_of,
+                end=nxt - timedelta(days=1),
+            )
         points.append(
             CashflowPoint(
                 period_start=start,
-                income_minor=agg["income"] or 0,
+                income_minor=income,
                 expense_minor=abs(agg["expense"] or 0),
             )
         )

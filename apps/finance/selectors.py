@@ -8,7 +8,7 @@ of accounts), not O(number of transactions).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 
 from django.db.models import F, Q, Sum, Value, Window
@@ -91,9 +91,15 @@ class CashFlow:
         return self.income_minor - self.expense_minor
 
 
-def cash_flow(*, start: datetime, end: datetime) -> list[CashFlow]:
+def cash_flow(*, start: datetime, end: datetime, include_scheduled: bool = False) -> list[CashFlow]:
     """Income vs expense over [start, end), per currency. Transfers are
-    excluded — moving your own money between accounts is neither."""
+    excluded — moving your own money between accounts is neither.
+
+    ``include_scheduled`` adds remaining unlinked IncomeSource paydays from
+    today through the end of the window. Past months stay as posted record;
+    this is only so this month's dashboard and analytics do not read as if
+    a salary recorded on /income does not exist.
+    """
     rows = (
         Transaction.objects.filter(_COUNTED, _NOT_TRANSFER, occurred_at__gte=start, occurred_at__lt=end)
         .values("currency")
@@ -102,10 +108,47 @@ def cash_flow(*, start: datetime, end: datetime) -> list[CashFlow]:
             expense=Coalesce(Sum("amount_minor", filter=Q(amount_minor__lt=0)), Value(0)),
         )
     )
-    return [
+    flows = [
         CashFlow(currency=r["currency"], income_minor=r["income"], expense_minor=-r["expense"])
         for r in sorted(rows, key=lambda r: r["currency"])
     ]
+    if not include_scheduled:
+        return flows
+    return _with_scheduled_income(flows, start=start, end=end)
+
+
+def _with_scheduled_income(flows: list[CashFlow], *, start: datetime, end: datetime) -> list[CashFlow]:
+    """Floor posted income with remaining /income paydays in the window."""
+    from apps.income.models import IncomeSource
+    from apps.income.selectors import scheduled_income_minor
+
+    today = timezone.localdate()
+    from_day = max(start.date(), today)
+    to_day = (end - timedelta(microseconds=1)).date()
+    if from_day > to_day:
+        return flows
+
+    by_ccy = {flow.currency: flow for flow in flows}
+    currencies = set(by_ccy)
+    currencies.update(
+        IncomeSource.objects.filter(is_active=True, recurring_transaction__isnull=True).values_list(
+            "currency", flat=True
+        )
+    )
+    for currency in currencies:
+        extra = scheduled_income_minor(currency=currency, start=from_day, end=to_day)
+        if extra <= 0:
+            continue
+        existing = by_ccy.get(currency)
+        if existing is None:
+            by_ccy[currency] = CashFlow(currency=currency, income_minor=extra, expense_minor=0)
+        else:
+            by_ccy[currency] = CashFlow(
+                currency=currency,
+                income_minor=existing.income_minor + extra,
+                expense_minor=existing.expense_minor,
+            )
+    return [by_ccy[currency] for currency in sorted(by_ccy)]
 
 
 @dataclass(frozen=True, slots=True)
@@ -386,6 +429,10 @@ def cashflow_statement(*, months: int = 6, as_of: date | None = None) -> Cashflo
     liquid account, transfer legs included) — so moving cash into an investment
     correctly shows liquidity leaving. The inflow/outflow columns exclude
     transfers, matching the cash-flow endpoint's income/spending semantics.
+
+    The current month's inflow is floored with remaining /income paydays so
+    a salary that has not posted yet still appears. Ending balance stays the
+    money actually held — scheduled income is a claim, not cash.
     """
     currency = _dominant_liquid_currency()
     if currency is None:
@@ -424,6 +471,14 @@ def cashflow_statement(*, months: int = 6, as_of: date | None = None) -> Cashflo
         )
         ending -= delta  # previous month ended before this month's movement
     rows.reverse()
+    if rows and currency:
+        from apps.income.selectors import scheduled_income_minor
+
+        month_end = (as_of.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+        extra = scheduled_income_minor(currency=currency, start=as_of, end=month_end)
+        if extra:
+            last = rows[-1]
+            rows[-1] = replace(last, inflow_minor=last.inflow_minor + extra)
     return CashflowStatement(currency=currency, liquid_balance_minor=balance_now, rows=rows)
 
 
