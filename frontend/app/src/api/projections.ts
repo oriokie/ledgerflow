@@ -107,6 +107,8 @@ export interface CashflowStackLine {
   /** False when the schedule starts in a later month — listed, not in this month's rate. */
   current?: boolean;
   starts_on?: string | null;
+  /** True when the amount is a block due this cadence, not a monthly smear. */
+  periodical?: boolean;
 }
 
 export interface BaselineResponse {

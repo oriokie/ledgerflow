@@ -31,9 +31,11 @@ from django.utils import timezone
 from apps.debt import selectors as debt_selectors
 from apps.finance import selectors as finance_selectors
 from apps.finance.models import AccountType, BillStatus, FinancialAccount, RecurringTransaction, RecurringType
+from apps.finance.schedule import amount_in_month, is_periodical, iter_occurrences, monthly_run_rate_minor
 from apps.investments import selectors as investment_selectors
 
-from .engine import CompiledEvent, DebtPosition, FinancialPosition, project
+from .calculators import MAX_HORIZON_MONTHS
+from .engine import CompiledEvent, DebtPosition, FinancialPosition, add_months, project
 
 #: Trailing complete months used to measure the household's run rate. Six is
 #: the same window `fi.py` uses, deliberately: two modules disagreeing about
@@ -104,6 +106,92 @@ def _other_assets_minor(currency: str) -> int:
     liquid = finance_selectors.liquid_balance_minor(currency)
     investments = _investment_total_minor(currency)
     return max(0, row.assets_minor - liquid - investments)
+
+
+#: Income cadences mapped onto the finance schedule unit × interval. Quarterly
+#: and annual are periodical; the rest still convert to a monthly run-rate.
+_INCOME_TO_UNIT = {
+    "daily": ("daily", 1),
+    "weekly": ("weekly", 1),
+    "fortnightly": ("weekly", 2),
+    "semi_monthly": ("monthly", 1),
+    "monthly": ("monthly", 1),
+    "quarterly": ("monthly", 3),
+    "annual": ("yearly", 1),
+}
+
+
+def _income_unit(frequency: str) -> tuple[str, int] | None:
+    return _INCOME_TO_UNIT.get(str(frequency).lower())
+
+
+def _next_occurrence(
+    *,
+    anchor: date,
+    frequency: str,
+    interval: int,
+    on_or_after: date,
+    ends_on: date | None,
+) -> date | None:
+    horizon = add_months(on_or_after, MAX_HORIZON_MONTHS)
+    for occurs in iter_occurrences(
+        anchor=anchor,
+        frequency=frequency,
+        interval=interval,
+        start=on_or_after,
+        end=horizon,
+        ends_on=ends_on,
+    ):
+        return occurs
+    return None
+
+
+def _lump_events(
+    *,
+    label: str,
+    amount: int,
+    kind: str,
+    anchor: date,
+    frequency: str,
+    interval: int,
+    ends_on: date | None,
+    as_of: date,
+    max_n: int | None = None,
+) -> list[CompiledEvent]:
+    """One compiled event per occurrence month, at the full block amount.
+
+    Engine month 1 is the calendar month after `as_of`. This month's occurrence
+    belongs in the position, not here.
+    """
+    if amount <= 0:
+        return []
+    events: list[CompiledEvent] = []
+    horizon = add_months(as_of, MAX_HORIZON_MONTHS)
+    for occurs in iter_occurrences(
+        anchor=anchor,
+        frequency=frequency,
+        interval=interval,
+        start=as_of.replace(day=1),
+        end=horizon,
+        ends_on=ends_on,
+        max_n=max_n,
+    ):
+        offset = _month_offset(as_of, occurs)
+        if offset < 1:
+            continue
+        if offset > MAX_HORIZON_MONTHS:
+            break
+        events.append(
+            CompiledEvent(
+                label=label,
+                start_month=offset,
+                end_month=offset,
+                monthly_income_delta_minor=amount if kind == "income" else 0,
+                monthly_expense_delta_minor=amount if kind == "expense" else 0,
+                monthly_investment_delta_minor=amount if kind == "invest" else 0,
+            )
+        )
+    return events
 
 
 def _month_offset(as_of: date, when: date) -> int:
@@ -253,6 +341,21 @@ def _scheduled_run_rate(currency: str, as_of: date) -> tuple[int, int, list[Comp
         if status == "skip":
             continue
         counted_source_ids.append(view.source_id)
+        unit = _income_unit(view.frequency)
+        if unit is not None and is_periodical(*unit):
+            events.extend(
+                _lump_events(
+                    label=view.name,
+                    amount=view.expected_net_minor or view.stated_net_minor,
+                    kind="income",
+                    anchor=view.starts_on,
+                    frequency=unit[0],
+                    interval=unit[1],
+                    ends_on=view.ends_on,
+                    as_of=as_of,
+                )
+            )
+            continue
         apply(
             view.name,
             view.monthly_net_minor or 0,
@@ -276,7 +379,27 @@ def _scheduled_run_rate(currency: str, as_of: date) -> tuple[int, int, list[Comp
         if template.ends_on is not None and template.ends_on < as_of:
             continue
         kind = "income" if template.txn_type == RecurringType.INCOME else "expense"
-        monthly = _to_monthly_minor(template.amount_minor, template.frequency, template.interval)
+        remaining = None
+        if template.max_occurrences is not None:
+            remaining = max(0, template.max_occurrences - template.occurrences_created)
+            if remaining == 0:
+                continue
+        if is_periodical(template.frequency, template.interval):
+            events.extend(
+                _lump_events(
+                    label=_recurring_label(template),
+                    amount=template.amount_minor,
+                    kind=kind,
+                    anchor=template.next_run_on,
+                    frequency=template.frequency,
+                    interval=template.interval,
+                    ends_on=template.ends_on,
+                    as_of=as_of,
+                    max_n=remaining,
+                )
+            )
+            continue
+        monthly = monthly_run_rate_minor(template.amount_minor, template.frequency, template.interval)
         apply(
             _recurring_label(template),
             monthly,
@@ -285,6 +408,53 @@ def _scheduled_run_rate(currency: str, as_of: date) -> tuple[int, int, list[Comp
             template.ends_on,
             running=_recurring_already_running(template, as_of),
         )
+
+    from apps.finance.models import Bill
+
+    for bill in Bill.objects.filter(
+        currency=currency,
+        status__in=[BillStatus.UPCOMING, BillStatus.OVERDUE],
+    ).exclude(recurrence_frequency=""):
+        if not is_periodical(bill.recurrence_frequency, bill.recurrence_interval):
+            continue
+        events.extend(
+            _lump_events(
+                label=bill.name,
+                amount=bill.amount_minor,
+                kind="expense",
+                anchor=bill.due_on,
+                frequency=bill.recurrence_frequency,
+                interval=bill.recurrence_interval,
+                ends_on=None,
+                as_of=as_of,
+            )
+        )
+
+    investment_ids = set(
+        FinancialAccount.objects.filter(
+            account_type=AccountType.INVESTMENT, archived_at__isnull=True
+        ).values_list("id", flat=True)
+    )
+    if investment_ids:
+        for recurring in RecurringTransaction.objects.filter(
+            is_active=True, txn_type=RecurringType.TRANSFER, currency=currency
+        ):
+            if recurring.counter_account_id not in investment_ids:
+                continue
+            if not is_periodical(recurring.frequency, recurring.interval):
+                continue
+            events.extend(
+                _lump_events(
+                    label=_recurring_label(recurring),
+                    amount=recurring.amount_minor,
+                    kind="invest",
+                    anchor=recurring.next_run_on,
+                    frequency=recurring.frequency,
+                    interval=recurring.interval,
+                    ends_on=recurring.ends_on,
+                    as_of=as_of,
+                )
+            )
 
     return income, expenses, events
 
@@ -341,6 +511,7 @@ def _stack_line(
     current: bool,
     starts_on: date | None = None,
     stoppable: bool = False,
+    periodical: bool = False,
 ) -> dict:
     return {
         "id": line_id,
@@ -351,6 +522,7 @@ def _stack_line(
         "current": current,
         "starts_on": starts_on.isoformat() if starts_on is not None and not current else None,
         "stoppable": stoppable,
+        "periodical": periodical,
     }
 
 
@@ -376,6 +548,41 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
         if status == "skip":
             continue
         counted_source_ids.append(view.source_id)
+        unit = _income_unit(view.frequency)
+        periodical = unit is not None and is_periodical(*unit)
+        if periodical:
+            block = view.expected_net_minor or view.stated_net_minor
+            due_this_month = (
+                amount_in_month(
+                    amount_minor=block,
+                    frequency=unit[0],
+                    interval=unit[1],
+                    anchor=view.starts_on,
+                    as_of=as_of,
+                    ends_on=view.ends_on,
+                )
+                > 0
+            )
+            next_on = _next_occurrence(
+                anchor=view.starts_on,
+                frequency=unit[0],
+                interval=unit[1],
+                on_or_after=as_of,
+                ends_on=view.ends_on,
+            )
+            lines.append(
+                _stack_line(
+                    line_id=f"income:{view.source_id}",
+                    kind="income",
+                    direction="in",
+                    label=view.name,
+                    monthly_minor=block,
+                    current=status == "current" and due_this_month,
+                    starts_on=next_on or view.starts_on,
+                    periodical=True,
+                )
+            )
+            continue
         lines.append(
             _stack_line(
                 line_id=f"income:{view.source_id}",
@@ -402,7 +609,33 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
         running = _recurring_already_running(recurring, as_of)
         if running and not _continues_past_this_month(recurring.ends_on, as_of):
             continue
-        monthly = _to_monthly_minor(recurring.amount_minor, recurring.frequency, recurring.interval)
+        periodical = is_periodical(recurring.frequency, recurring.interval)
+        if periodical:
+            monthly = recurring.amount_minor
+            due_this_month = (
+                amount_in_month(
+                    amount_minor=recurring.amount_minor,
+                    frequency=recurring.frequency,
+                    interval=recurring.interval,
+                    anchor=recurring.next_run_on,
+                    as_of=as_of,
+                    ends_on=recurring.ends_on,
+                )
+                > 0
+            )
+            current = running and due_this_month
+            next_on = _next_occurrence(
+                anchor=recurring.next_run_on,
+                frequency=recurring.frequency,
+                interval=recurring.interval,
+                on_or_after=as_of,
+                ends_on=recurring.ends_on,
+            )
+            starts_on = next_on or recurring.starts_on
+        else:
+            monthly = monthly_run_rate_minor(recurring.amount_minor, recurring.frequency, recurring.interval)
+            current = running
+            starts_on = recurring.starts_on
         if monthly <= 0:
             continue
         direction = "in" if recurring.txn_type == RecurringType.INCOME else "out"
@@ -414,9 +647,10 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
                 direction=direction,
                 label=label,
                 monthly_minor=monthly,
-                current=running,
-                starts_on=recurring.starts_on,
+                current=current,
+                starts_on=starts_on,
                 stoppable=direction == "out" and _looks_like_housing(label),
+                periodical=periodical,
             )
         )
 
@@ -424,7 +658,32 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
         currency=currency,
         status__in=[BillStatus.UPCOMING, BillStatus.OVERDUE],
     ).exclude(recurrence_frequency=""):
-        monthly = _to_monthly_minor(bill.amount_minor, bill.recurrence_frequency, bill.recurrence_interval)
+        periodical = is_periodical(bill.recurrence_frequency, bill.recurrence_interval)
+        if periodical:
+            monthly = bill.amount_minor
+            current = (
+                amount_in_month(
+                    amount_minor=bill.amount_minor,
+                    frequency=bill.recurrence_frequency,
+                    interval=bill.recurrence_interval,
+                    anchor=bill.due_on,
+                    as_of=as_of,
+                )
+                > 0
+            )
+            next_on = _next_occurrence(
+                anchor=bill.due_on,
+                frequency=bill.recurrence_frequency,
+                interval=bill.recurrence_interval,
+                on_or_after=as_of,
+                ends_on=None,
+            )
+        else:
+            monthly = monthly_run_rate_minor(
+                bill.amount_minor, bill.recurrence_frequency, bill.recurrence_interval
+            )
+            current = True
+            next_on = None
         if monthly <= 0:
             continue
         label = bill.name
@@ -435,8 +694,10 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
                 direction="out",
                 label=label,
                 monthly_minor=monthly,
-                current=True,
+                current=current,
+                starts_on=next_on,
                 stoppable=_looks_like_housing(label),
+                periodical=periodical,
             )
         )
 
@@ -501,7 +762,7 @@ def current_position(*, as_of: date | None = None) -> FinancialPosition:
     # Debt service is applied by the engine from `debts`, so any of it already
     # sitting in the expense stack would be counted twice.
     expenses = max(0, expenses - sum(d.monthly_payment_minor for d in debts))
-    contribution = _monthly_investment_contribution_minor(currency)
+    contribution = _monthly_investment_contribution_minor(currency, as_of)
 
     return FinancialPosition(
         currency=currency,
@@ -548,13 +809,16 @@ def project_live(
     )
 
 
-def _monthly_investment_contribution_minor(currency: str) -> int:
+def _monthly_investment_contribution_minor(currency: str, as_of: date) -> int:
     """Recurring transfers into investment accounts.
 
     Counted separately from expenses because they are not consumption — money
     moved into a brokerage is still the household's. Treating it as spending
     would understate the saving rate and push every projection pessimistic,
     which is the mirror of the optimism this module works to avoid.
+
+    Periodical standing orders (quarterly, yearly) contribute the full block
+    in the month they run, not a twelfth of it every month.
     """
     investment_ids = set(
         FinancialAccount.objects.filter(
@@ -572,28 +836,14 @@ def _monthly_investment_contribution_minor(currency: str) -> int:
         # `counter_account` is the destination leg of a transfer. A standing
         # order into a brokerage is the signal we want; one *out* of it is a
         # withdrawal and must not be counted as a contribution.
-        if recurring.counter_account_id in investment_ids:
-            total += _to_monthly_minor(recurring.amount_minor, recurring.frequency, recurring.interval)
+        if recurring.counter_account_id not in investment_ids:
+            continue
+        total += amount_in_month(
+            amount_minor=recurring.amount_minor,
+            frequency=recurring.frequency,
+            interval=recurring.interval,
+            anchor=recurring.next_run_on,
+            as_of=as_of,
+            ends_on=recurring.ends_on,
+        )
     return total
-
-
-#: Periods per month for each frequency the finance context supports. Only the
-#: four in `Frequency` exist; anything else falls back to monthly rather than
-#: silently contributing zero.
-_FREQUENCY_TO_MONTHLY = {
-    "daily": 30.0,
-    "weekly": 52 / 12,
-    "monthly": 1.0,
-    "yearly": 1 / 12,
-}
-
-
-def _to_monthly_minor(amount_minor: int, frequency: str, interval: int = 1) -> int:
-    """Monthly equivalent of a recurring amount.
-
-    `interval` is the "every N periods" multiplier the schedule carries — a
-    fortnightly standing order is stored as weekly with an interval of two, and
-    ignoring it would double the contribution.
-    """
-    per_month = _FREQUENCY_TO_MONTHLY.get(str(frequency).lower(), 1.0)
-    return round(amount_minor * per_month / max(1, interval))

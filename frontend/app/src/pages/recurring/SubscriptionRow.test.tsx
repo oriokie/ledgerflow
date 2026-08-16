@@ -41,6 +41,11 @@ describe("SubscriptionRow", () => {
     expect(document.querySelector(".lf-sub-cost-main")?.textContent).toBe("$15.00/mo");
   });
 
+  it("shows a quarterly block without spreading it per month", () => {
+    setup({}, { frequency: "monthly", interval: 3, amount_minor: 30_000, memo: "Insurance" });
+    expect(document.querySelector(".lf-sub-cost-main")?.textContent).toBe("$300.00");
+  });
+
   it("pauses an active schedule", async () => {
     const { onSetActive } = setup();
     fireEvent.click(screen.getByRole("button", { name: /pause netflix/i }));

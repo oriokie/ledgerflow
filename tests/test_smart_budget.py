@@ -133,6 +133,35 @@ def test_recurring_bills_floor_their_category(tenant):
     assert line.floor_minor == 100_000
 
 
+def test_a_quarterly_bill_floors_the_due_month_at_the_block_amount(tenant):
+    """A 300 quarterly premium due this month is a 300 floor, not 100. Next
+    month it is not due, so it must not pad every month's envelope."""
+    from apps.finance.models import Bill
+
+    with tenant_scope(tenant):
+        account = _account()
+        cover = _category("Insurance")
+        _salary(1_000_000)
+        _history(account, cover, [5_000, 5_000, 30_000])
+        Bill.objects.create(
+            name="Car insurance",
+            category=cover,
+            amount_minor=30_000,
+            currency="USD",
+            due_on=AS_OF + timedelta(days=10),
+            recurrence_frequency="monthly",
+            recurrence_interval=3,
+        )
+
+        this_month = smart.propose_budget(as_of=AS_OF)
+        later = smart.propose_budget(as_of=date(2026, 9, 4))
+
+    due = next(ln for ln in this_month.lines if ln.category_name == "Insurance")
+    assert due.floor_minor == 30_000
+    later_line = next(ln for ln in later.lines if ln.category_name == "Insurance")
+    assert later_line.floor_minor == 0
+
+
 def test_savings_goals_are_funded_before_discretionary_spending(tenant):
     """Income 500k. History spends 480k. Goals need 100k/mo. The proposal must
     trim history to ~400k rather than shrug at the goal — this ordering is the

@@ -6,7 +6,9 @@ import {
   cadenceByValue,
   cadenceFor,
   cadenceLabel,
+  isPeriodical,
   monthlyMinor,
+  recognizedMinor,
   recurringLabel,
   recurringTotals,
   sortByMonthlyCost,
@@ -37,11 +39,14 @@ describe("monthly/annual normalization", () => {
   it("keeps monthly as-is", () => {
     expect(monthlyMinor(rec({ frequency: "monthly", amount_minor: 1500 }))).toBe(1500);
     expect(annualMinor(rec({ frequency: "monthly", amount_minor: 1500 }))).toBe(18000);
+    expect(recognizedMinor(rec({ frequency: "monthly", amount_minor: 1500 }))).toBe(1500);
   });
 
-  it("spreads yearly across 12 months", () => {
-    expect(monthlyMinor(rec({ frequency: "yearly", amount_minor: 12000 }))).toBe(1000);
-    expect(annualMinor(rec({ frequency: "yearly", amount_minor: 12000 }))).toBe(12000);
+  it("does not smear a yearly block across twelve months", () => {
+    const yearly = rec({ frequency: "yearly", amount_minor: 12000 });
+    expect(isPeriodical(yearly)).toBe(true);
+    expect(recognizedMinor(yearly)).toBe(12000);
+    expect(annualMinor(yearly)).toBe(12000);
   });
 
   it("normalizes weekly and daily using a 365-day year", () => {
@@ -51,24 +56,43 @@ describe("monthly/annual normalization", () => {
     expect(monthlyMinor(rec({ frequency: "daily", amount_minor: 100 }))).toBe(3042);
   });
 
-  it("accounts for the interval", () => {
-    expect(monthlyMinor(rec({ frequency: "monthly", amount_minor: 3000, interval: 3 }))).toBe(1000);
+  it("accounts for the interval without smearing a quarterly block", () => {
+    const quarterly = rec({ frequency: "monthly", amount_minor: 3000, interval: 3 });
+    expect(isPeriodical(quarterly)).toBe(true);
+    expect(recognizedMinor(quarterly)).toBe(3000);
+    expect(annualMinor(quarterly)).toBe(12000);
   });
 });
 
 describe("recurringTotals", () => {
+  it("counts a yearly block only in the month it is due", () => {
+    const yearly = rec({
+      txn_type: "expense",
+      frequency: "yearly",
+      amount_minor: 12000,
+      next_run_on: "2026-02-01",
+    });
+    const monthly = rec({ txn_type: "expense", frequency: "monthly", amount_minor: 1500 });
+    const due = recurringTotals([yearly, monthly], new Date(2026, 1, 10));
+    expect(due.monthlyExpense).toBe(13500);
+    const other = recurringTotals([yearly, monthly], new Date(2026, 7, 13));
+    expect(other.monthlyExpense).toBe(1500);
+    expect(other.annualExpense).toBe(30000);
+  });
+
   it("separates recurring spend from income in the common currency", () => {
-    const t = recurringTotals([
-      rec({ txn_type: "expense", frequency: "monthly", amount_minor: 1500 }),
-      rec({ txn_type: "expense", frequency: "yearly", amount_minor: 12000 }),
-      rec({ txn_type: "income", frequency: "monthly", amount_minor: 300000 }),
-      rec({ txn_type: "expense", currency: "EUR", amount_minor: 9999 }),
-    ]);
+    const t = recurringTotals(
+      [
+        rec({ txn_type: "expense", frequency: "monthly", amount_minor: 1500 }),
+        rec({ txn_type: "income", frequency: "monthly", amount_minor: 300000 }),
+        rec({ txn_type: "expense", currency: "EUR", amount_minor: 9999 }),
+      ],
+      new Date(2026, 7, 13),
+    );
     expect(t.currency).toBe("USD");
-    expect(t.monthlyExpense).toBe(2500); // 1500 + 1000
-    expect(t.annualExpense).toBe(30000);
+    expect(t.monthlyExpense).toBe(1500);
     expect(t.monthlyIncome).toBe(300000);
-    expect(t.expenseCount).toBe(2);
+    expect(t.expenseCount).toBe(1);
   });
 });
 

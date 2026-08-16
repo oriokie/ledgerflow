@@ -179,7 +179,8 @@ function CashflowStack({
                   <Text size="sm">
                     {line.label}{" "}
                     <Text as="span" tone="secondary" size="sm">
-                      {formatAmount(line.monthly_minor, currency)} / mo
+                      {formatAmount(line.monthly_minor, currency)}
+                      {line.periodical ? "" : " / mo"}
                     </Text>
                     {line.current === false && line.starts_on ? (
                       <Text as="span" tone="tertiary" size="xs">
@@ -209,7 +210,8 @@ function CashflowStack({
                   <Text size="sm">
                     {line.label}{" "}
                     <Text as="span" tone="secondary" size="sm">
-                      {formatAmount(line.monthly_minor, currency)} / mo
+                      {formatAmount(line.monthly_minor, currency)}
+                      {line.periodical ? "" : " / mo"}
                     </Text>
                     {line.current === false && line.starts_on ? (
                       <Text as="span" tone="tertiary" size="xs">

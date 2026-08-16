@@ -3,12 +3,12 @@ import { useState } from "react";
 import type { Category, RecurringTransaction } from "../../api/types";
 import { formatDate } from "../../lib/money";
 import { ConfirmAction, IconButton, Money } from "../../ui";
-import { annualMinor, cadenceLabel, monthlyMinor, recurringLabel } from "./recurringMath";
+import { annualMinor, cadenceLabel, isPeriodical, recognizedMinor, recurringLabel } from "./recurringMath";
 
 /**
- * One recurring charge, shown by its normalized monthly cost (with the annual
- * figure beneath) so expensive subscriptions are obvious. Pause stops future
- * charges reversibly; cancel removes the schedule after a one-tap confirm.
+ * One recurring charge, shown by the amount that actually lands (the block
+ * for quarterly/yearly, a monthly rate for weekly/monthly) so the cash hit
+ * is not hidden behind an average.
  */
 export function SubscriptionRow({
   rec,
@@ -25,8 +25,9 @@ export function SubscriptionRow({
   onEdit?: (rec: RecurringTransaction) => void;
 }) {
   const label = recurringLabel(rec, categories);
-  const monthly = monthlyMinor(rec);
+  const amount = recognizedMinor(rec);
   const annual = annualMinor(rec);
+  const perMonth = !isPeriodical(rec);
   const isIncome = rec.txn_type === "income";
   const isTransfer = rec.txn_type === "transfer";
   const [busy, setBusy] = useState(false);
@@ -54,7 +55,8 @@ export function SubscriptionRow({
 
       <div className="lf-sub-cost">
         <div className="lf-sub-cost-main">
-          <Money amountMinor={monthly} currency={rec.currency} neutral />/mo
+          <Money amountMinor={amount} currency={rec.currency} neutral />
+          {perMonth ? "/mo" : ""}
         </div>
         <div className="lf-sub-cost-sub">
           <Money amountMinor={annual} currency={rec.currency} neutral />/yr

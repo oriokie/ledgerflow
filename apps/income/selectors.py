@@ -29,6 +29,7 @@ from datetime import date, timedelta
 from django.utils import timezone
 
 from apps.finance.models import Bill, BillStatus, RecurringTransaction, RecurringType
+from apps.finance.schedule import amount_in_month
 
 from .models import (
     PAYMENTS_PER_YEAR,
@@ -405,11 +406,13 @@ def _monthly_bills_minor(*, currency: str, as_of: date) -> int:
         status=BillStatus.UPCOMING,
     ).exclude(recurrence_frequency="")
     for bill in bills:
-        per_year = {"daily": 365, "weekly": 52, "monthly": 12, "yearly": 1}.get(bill.recurrence_frequency)
-        if per_year is None:
-            continue
-        interval = max(1, bill.recurrence_interval)
-        total += round(bill.amount_minor * (per_year / interval) / 12)
+        total += amount_in_month(
+            amount_minor=bill.amount_minor,
+            frequency=bill.recurrence_frequency,
+            interval=bill.recurrence_interval,
+            anchor=bill.due_on,
+            as_of=as_of,
+        )
     return total
 
 
@@ -431,11 +434,14 @@ def _monthly_recurring_expenses_minor(*, currency: str, as_of: date) -> int:
     for template in templates:
         if template.ends_on is not None and template.ends_on < as_of:
             continue
-        per_year = {"daily": 365, "weekly": 52, "monthly": 12, "yearly": 1}.get(template.frequency)
-        if per_year is None:
-            continue
-        interval = max(1, template.interval)
-        total += round(template.amount_minor * (per_year / interval) / 12)
+        total += amount_in_month(
+            amount_minor=template.amount_minor,
+            frequency=template.frequency,
+            interval=template.interval,
+            anchor=template.next_run_on,
+            as_of=as_of,
+            ends_on=template.ends_on,
+        )
     return total
 
 

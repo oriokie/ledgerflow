@@ -16,8 +16,10 @@ The arithmetic, in the order it is applied:
    Voided transactions are ignored. A category with no recurring commitment is
    kept only when it landed last month *and* at least once before — the signal
    it is highly likely next month, not a wedding gift.
-2. **Floors.** Recurring bills and active expense templates are converted to
-   monthly figures per category. Templates past their end date are skipped.
+2. **Floors.** Recurring bills and active expense templates that fall due
+   in the budget month are recognized at the full block amount. A quarterly
+   premium is $300 that month, not $100 every month — spreading it would
+   hide the cash hit. Templates past their end date are skipped.
    A line never proposes less than its floor — trimming a category below its
    own contractual commitments is not a budget, it is a plan to fail.
 3. **The envelope.** Expected monthly income, minus debt minimums, minus what
@@ -54,6 +56,7 @@ from apps.finance.models import (
     Transaction,
     TransactionStatus,
 )
+from apps.finance.schedule import amount_in_month
 from apps.goals.models import GoalStatus, SavingsGoal
 
 #: Trailing complete months of history consulted. Six catches quarterly
@@ -61,15 +64,6 @@ from apps.goals.models import GoalStatus, SavingsGoal
 #: discards as a one-off — those are exactly the non-recurring costs that
 #: are highly likely to land again next month.
 DEFAULT_MONTHS = 6
-
-_PER_YEAR = {"daily": 365, "weekly": 52, "monthly": 12, "yearly": 1}
-
-
-def _monthly_equivalent(amount_minor: int, frequency: str, interval: int) -> int:
-    per_year = _PER_YEAR.get(frequency)
-    if per_year is None:
-        return 0
-    return round(amount_minor * (per_year / max(1, interval)) / 12)
 
 
 def _round_major(minor: int) -> int:
@@ -83,8 +77,8 @@ class ProposedLine:
     category_id: str
     category_name: str
     limit_minor: int
-    #: The monthly-equivalent of recurring bills/templates in this category.
-    #: The untrimmable part of the line.
+    #: Recurring bills/templates due in the budget month, at the full block
+    #: amount. The untrimmable part of the line.
     floor_minor: int
     #: Median monthly history before any trim. 0 when the line exists only
     #: because a commitment vouches for it.
@@ -222,8 +216,12 @@ def propose_budget(*, as_of: date | None = None, months: int = DEFAULT_MONTHS) -
         if bill.category_id is None:
             continue
         key = str(bill.category_id)
-        floors[key] = floors.get(key, 0) + _monthly_equivalent(
-            bill.amount_minor, bill.recurrence_frequency, bill.recurrence_interval
+        floors[key] = floors.get(key, 0) + amount_in_month(
+            amount_minor=bill.amount_minor,
+            frequency=bill.recurrence_frequency,
+            interval=bill.recurrence_interval,
+            anchor=bill.due_on,
+            as_of=as_of,
         )
     for template in RecurringTransaction.objects.filter(
         is_active=True, currency=currency, txn_type=RecurringType.EXPENSE
@@ -233,8 +231,13 @@ def propose_budget(*, as_of: date | None = None, months: int = DEFAULT_MONTHS) -
         if template.category_id is None:
             continue
         key = str(template.category_id)
-        floors[key] = floors.get(key, 0) + _monthly_equivalent(
-            template.amount_minor, template.frequency, template.interval
+        floors[key] = floors.get(key, 0) + amount_in_month(
+            amount_minor=template.amount_minor,
+            frequency=template.frequency,
+            interval=template.interval,
+            anchor=template.next_run_on,
+            as_of=as_of,
+            ends_on=template.ends_on,
         )
     if floors:
         for category in Category.objects.filter(id__in=floors.keys()):

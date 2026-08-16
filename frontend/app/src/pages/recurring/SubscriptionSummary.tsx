@@ -2,7 +2,7 @@ import { Sparkles } from "lucide-react";
 import type { Category, RecurringTransaction } from "../../api/types";
 import { formatAmount } from "../../lib/money";
 import { Card, Money } from "../../ui";
-import { monthlyMinor, recurringLabel, recurringTotals, sortByMonthlyCost } from "./recurringMath";
+import { isPeriodical, recognizedMinor, recurringLabel, recurringTotals, sortByMonthlyCost } from "./recurringMath";
 
 /** Monthly and annual recurring spend at a glance. */
 export function SubscriptionSummary({ recurring }: { recurring: RecurringTransaction[] }) {
@@ -63,7 +63,7 @@ export function SubscriptionInsight({
         {totals.expenseCount} subscription{totals.expenseCount === 1 ? "" : "s"} costing about {formatAmount(totals.annualExpense, totals.currency)}/year
       </p>
       <p className="lf-insight-body">
-        Biggest: {top.map((r) => `${recurringLabel(r, categories)} (${formatAmount(monthlyMinor(r), r.currency)}/mo)`).join(" · ")}.
+        Biggest: {top.map((r) => `${recurringLabel(r, categories)} (${formatAmount(recognizedMinor(r), r.currency)}${isPeriodical(r) ? "" : "/mo"})`).join(" · ")}.
         Pausing or cancelling what you don't use is the fastest way to cut spending.
       </p>
     </div>
