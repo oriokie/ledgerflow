@@ -247,8 +247,7 @@ def account_statement(*, financial_account: FinancialAccount, start: datetime, e
                 expression=Sum("amount_minor"),
                 order_by=[F("occurred_at").asc(), F("id").asc()],
             )
-        )
-        .order_by("occurred_at", "id")
+        ).order_by("occurred_at", "id")
     )
 
     statement = []
