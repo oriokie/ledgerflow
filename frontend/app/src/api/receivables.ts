@@ -32,6 +32,7 @@ export interface Receivable {
 
   repayment_count: number;
   last_received_on: string | null;
+  source_account_id: string | null;
 }
 
 export interface RepaymentRow {
@@ -66,6 +67,7 @@ export interface ReceivablePayload {
   lent_on: string;
   due_on?: string | null;
   source_account_id?: string;
+  post_to_ledger?: boolean;
   notes?: string;
 }
 
@@ -92,7 +94,13 @@ export const receivablesApi = {
 
   recordRepayment: (
     id: string,
-    payload: { amount_minor: number; received_on: string; memo?: string },
+    payload: {
+      amount_minor: number;
+      received_on: string;
+      memo?: string;
+      deposit_account_id?: string;
+      post_to_ledger?: boolean;
+    },
   ) => api.post<Receivable>(`/receivables/${id}/repayments/`, payload),
 
   writeOff: (id: string) => api.post<Receivable>(`/receivables/${id}/write-off/`, {}),

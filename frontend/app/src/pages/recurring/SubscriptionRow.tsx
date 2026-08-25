@@ -1,6 +1,6 @@
 import { Check, Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { useState } from "react";
-import type { Category, RecurringTransaction } from "../../api/types";
+import type { Category, FinancialAccount, RecurringTransaction } from "../../api/types";
 import { formatDate } from "../../lib/money";
 import { Button, ConfirmAction, IconButton, Inline, Input, Money } from "../../ui";
 import { annualMinor, cadenceLabel, isPeriodical, recognizedMinor, recurringLabel } from "./recurringMath";
@@ -13,6 +13,7 @@ import { annualMinor, cadenceLabel, isPeriodical, recognizedMinor, recurringLabe
 export function SubscriptionRow({
   rec,
   categories,
+  accounts,
   onSetActive,
   onCancel,
   onConfirm,
@@ -20,6 +21,7 @@ export function SubscriptionRow({
 }: {
   rec: RecurringTransaction;
   categories: Category[] | undefined;
+  accounts: FinancialAccount[] | undefined;
   onSetActive: (recId: string, active: boolean) => Promise<unknown>;
   onCancel: (recId: string) => Promise<unknown>;
   /** Mark the next occurrence paid/received with an exact amount. */
@@ -33,6 +35,15 @@ export function SubscriptionRow({
   const perMonth = !isPeriodical(rec);
   const isIncome = rec.txn_type === "income";
   const isTransfer = rec.txn_type === "transfer";
+  const fromAccount = accounts?.find((a) => a.id === rec.financial_account_id);
+  const toAccount = accounts?.find((a) => a.id === rec.counter_account_id);
+  const accountLabel = isTransfer
+    ? fromAccount && toAccount
+      ? `${fromAccount.name} → ${toAccount.name}`
+      : fromAccount?.name ?? toAccount?.name
+    : isIncome
+      ? toAccount?.name ?? fromAccount?.name
+      : fromAccount?.name;
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [paidAmount, setPaidAmount] = useState(() => (rec.amount_minor / 100).toFixed(2));
@@ -68,6 +79,7 @@ export function SubscriptionRow({
         <div className="lf-sub-name">{label}</div>
         <div className="lf-sub-meta">
           {isIncome ? "Income · " : isTransfer ? "Transfer / savings · " : ""}
+          {accountLabel ? `${accountLabel} · ` : ""}
           {cadenceLabel(rec)} · next {formatDate(rec.next_run_on)}
           {rec.ends_on ? ` · ends ${formatDate(rec.ends_on)}` : ""}
           {!rec.is_active ? " · paused" : ""}

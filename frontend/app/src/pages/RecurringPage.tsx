@@ -4,6 +4,7 @@ import { financeExtendedApi } from "../api/finance";
 import type { RecurringTransaction } from "../api/types";
 import { ImportXlsxModal } from "../components/ImportXlsxModal";
 import {
+  useAccounts,
   useCategories,
   useCancelRecurring,
   useConfirmRecurring,
@@ -20,6 +21,7 @@ import { monthlyMinor } from "./recurring/recurringMath";
 export function RecurringPage({ embedded }: { embedded?: boolean } = {}) {
   const { data: recurring, isLoading } = useRecurring();
   const { data: categories } = useCategories();
+  const { data: accounts } = useAccounts();
   const setActive = useSetRecurringActive();
   const cancel = useCancelRecurring();
   const confirm = useConfirmRecurring();
@@ -99,6 +101,7 @@ export function RecurringPage({ embedded }: { embedded?: boolean } = {}) {
                 key={rec.id}
                 rec={rec}
                 categories={categories}
+                accounts={accounts}
                 onSetActive={onSetActive}
                 onCancel={onCancel}
                 onConfirm={onConfirm}

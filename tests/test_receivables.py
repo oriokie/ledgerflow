@@ -26,7 +26,15 @@ LENT_ON = date(2026, 1, 10)
 def _lend(counterparty="Wanjiru", amount=50_000, **kw):
     kw.setdefault("lent_on", LENT_ON)
     kw.setdefault("currency", "USD")
+    kw.setdefault("post_to_ledger", False)
     return services.create_receivable(counterparty=counterparty, principal_minor=amount, **kw)
+
+
+def _repay(receivable, amount, received_on, **kw):
+    kw.setdefault("post_to_ledger", False)
+    return services.record_repayment(
+        receivable=receivable, amount_minor=amount, received_on=received_on, **kw
+    )
 
 
 # --------------------------------------------------------------------- basics
@@ -63,7 +71,7 @@ def test_part_payments_reduce_what_is_outstanding_without_rewriting_the_original
     """
     with tenant_scope(uuid.uuid4()):
         r = _lend(amount=50_000)
-        services.record_repayment(receivable=r, amount_minor=20_000, received_on=date(2026, 2, 1))
+        _repay(receivable=r, amount=20_000, received_on=date(2026, 2, 1))
 
         r.refresh_from_db()
         assert r.principal_minor == 50_000, "the original claim is not rewritten"
@@ -76,8 +84,8 @@ def test_a_claim_settles_itself_when_the_last_payment_lands():
     sums beneath it is a status nobody can trust."""
     with tenant_scope(uuid.uuid4()):
         r = _lend(amount=50_000)
-        services.record_repayment(receivable=r, amount_minor=20_000, received_on=date(2026, 2, 1))
-        services.record_repayment(receivable=r, amount_minor=30_000, received_on=date(2026, 3, 1))
+        _repay(receivable=r, amount=20_000, received_on=date(2026, 2, 1))
+        _repay(receivable=r, amount=30_000, received_on=date(2026, 3, 1))
 
         r.refresh_from_db()
         assert r.status == ReceivableStatus.SETTLED
@@ -89,7 +97,7 @@ def test_an_overpayment_never_reads_as_the_household_owing_money_back():
     going negative, which would read as a debt in the other direction."""
     with tenant_scope(uuid.uuid4()):
         r = _lend(amount=50_000)
-        services.record_repayment(receivable=r, amount_minor=60_000, received_on=date(2026, 2, 1))
+        _repay(receivable=r, amount=60_000, received_on=date(2026, 2, 1))
         assert services.outstanding_minor(r) == 0
         r.refresh_from_db()
         assert r.status == ReceivableStatus.SETTLED
@@ -99,7 +107,7 @@ def test_money_cannot_come_back_before_it_went_out():
     with tenant_scope(uuid.uuid4()):
         r = _lend()
         with pytest.raises(services.ReceivableError):
-            services.record_repayment(receivable=r, amount_minor=1_000, received_on=date(2025, 12, 1))
+            _repay(receivable=r, amount=1_000, received_on=date(2025, 12, 1))
 
 
 # ----------------------------------------------------------------- write-offs
@@ -121,7 +129,7 @@ def test_a_written_off_debt_that_gets_paid_comes_back_to_life():
     with tenant_scope(uuid.uuid4()):
         r = _lend(amount=50_000)
         services.write_off(receivable=r)
-        services.record_repayment(receivable=r, amount_minor=20_000, received_on=date(2026, 6, 1))
+        _repay(receivable=r, amount=20_000, received_on=date(2026, 6, 1))
 
         r.refresh_from_db()
         assert r.status == ReceivableStatus.OUTSTANDING
@@ -131,7 +139,7 @@ def test_a_written_off_debt_that_gets_paid_comes_back_to_life():
 def test_there_is_nothing_to_write_off_on_a_settled_claim():
     with tenant_scope(uuid.uuid4()):
         r = _lend(amount=50_000)
-        services.record_repayment(receivable=r, amount_minor=50_000, received_on=date(2026, 2, 1))
+        _repay(receivable=r, amount=50_000, received_on=date(2026, 2, 1))
         with pytest.raises(services.ReceivableError):
             services.write_off(receivable=r)
 
@@ -169,7 +177,7 @@ def test_summary_separates_outstanding_overdue_and_written_off():
         _lend("Wanjiru", 50_000, due_on=date(2026, 2, 10))  # overdue by as_of
         _lend("Otieno", 30_000, due_on=date(2026, 12, 1))  # not yet due
         settled = _lend("Achieng", 10_000)
-        services.record_repayment(receivable=settled, amount_minor=10_000, received_on=date(2026, 2, 1))
+        _repay(receivable=settled, amount=10_000, received_on=date(2026, 2, 1))
         lost = _lend("Kamau", 5_000)
         services.write_off(receivable=lost)
 
@@ -209,7 +217,7 @@ def test_correcting_the_principal_downward_can_settle_a_claim():
     """Status follows the sums wherever they move, not only when money lands."""
     with tenant_scope(uuid.uuid4()):
         r = _lend(amount=50_000)
-        services.record_repayment(receivable=r, amount_minor=20_000, received_on=date(2026, 2, 1))
+        _repay(receivable=r, amount=20_000, received_on=date(2026, 2, 1))
         # It was 20,000 all along, not 50,000.
         services.update_receivable(receivable=r, principal_minor=20_000)
 
@@ -224,6 +232,33 @@ def test_the_currency_cannot_be_changed():
         r = _lend()
         with pytest.raises(services.ReceivableError):
             services.update_receivable(receivable=r, currency="KES")
+
+
+# -------------------------------------------------------------- ledger posts
+def test_lending_from_an_account_posts_the_outflow():
+    from apps.finance import services as finance_services
+    from apps.finance.models import AccountType, Transaction
+
+    with tenant_scope(uuid.uuid4()):
+        account = finance_services.create_financial_account(
+            name="Checking", account_type=AccountType.CHECKING, currency="USD"
+        )
+        r = _lend(amount=50_000, source_account=account, post_to_ledger=True)
+        assert Transaction.objects.filter(memo__icontains="Lent to Wanjiru").count() == 1
+        assert r.source_account_id == account.id
+
+
+def test_repayment_posts_to_the_source_account_by_default():
+    from apps.finance import services as finance_services
+    from apps.finance.models import AccountType, Transaction
+
+    with tenant_scope(uuid.uuid4()):
+        account = finance_services.create_financial_account(
+            name="Checking", account_type=AccountType.CHECKING, currency="USD"
+        )
+        r = _lend(amount=50_000, source_account=account, post_to_ledger=True)
+        _repay(receivable=r, amount=20_000, received_on=date(2026, 2, 1), post_to_ledger=True)
+        assert Transaction.objects.filter(memo__icontains="Repayment from Wanjiru").count() == 1
 
 
 # ------------------------------------------------------------------ isolation

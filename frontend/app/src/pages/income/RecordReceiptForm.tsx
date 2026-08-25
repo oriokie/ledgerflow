@@ -23,22 +23,21 @@ function describeApiError(err: ApiError): string {
 /**
  * Record a single payment against an income source.
  *
- * Posts to the ledger by default so the arrival appears on Transactions —
- * that is what members expect when they tap "Record a payment". The deposit
- * account is required for that posting; once chosen it is remembered on the
- * source for the next receipt.
+ * Posts to the ledger so the arrival appears on Transactions. Recording a
+ * payment creates a receipt and a transaction only — it does not change the
+ * income source's planned amount or other details.
  */
 export function RecordReceiptForm({
   sourceId,
   currency,
-  expectedNetMinor,
+  statedNetMinor,
   depositAccountId,
   onDone,
   onCancel,
 }: {
   sourceId: string;
   currency: string;
-  expectedNetMinor?: number;
+  statedNetMinor?: number;
   depositAccountId?: string | null;
   onDone: () => void;
   onCancel: () => void;
@@ -55,7 +54,7 @@ export function RecordReceiptForm({
 
   const [occurredOn, setOccurredOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [amount, setAmount] = useState(() =>
-    expectedNetMinor != null ? (expectedNetMinor / 100).toFixed(2) : "",
+    statedNetMinor != null ? (statedNetMinor / 100).toFixed(2) : "",
   );
   const [accountId, setAccountId] = useState(defaultAccount);
   const [memo, setMemo] = useState("");
