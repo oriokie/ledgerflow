@@ -33,7 +33,15 @@ function useReceivableMutation<TArgs>(fn: (args: TArgs) => Promise<unknown>) {
 }
 
 export function useCreateReceivable() {
-  return useReceivableMutation(receivablesApi.create);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: receivablesApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PREFIX] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+    },
+  });
 }
 
 export function useUpdateReceivable() {
@@ -48,10 +56,19 @@ export function useDeleteReceivable() {
 }
 
 export function useRecordRepayment() {
-  return useReceivableMutation(
-    ({ id, ...payload }: { id: string } & Parameters<typeof receivablesApi.recordRepayment>[1]) =>
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...payload
+    }: { id: string } & Parameters<typeof receivablesApi.recordRepayment>[1]) =>
       receivablesApi.recordRepayment(id, payload),
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PREFIX] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+    },
+  });
 }
 
 export function useWriteOffReceivable() {

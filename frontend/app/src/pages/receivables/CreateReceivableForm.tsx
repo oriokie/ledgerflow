@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ApiError } from "../../api/client";
 import type { ReceivableKind } from "../../api/receivables";
 import { useCreateReceivable } from "../../hooks/useReceivables";
+import { useAccounts } from "../../hooks/useFinance";
 import { useAuth } from "../../lib/AuthContext";
 import { CURRENCY_OPTIONS } from "../../lib/currencies";
 import { Banner, Button, Card, Grid, Inline, Input, Select, Stack, Text } from "../../ui";
@@ -27,6 +28,7 @@ export function CreateReceivableForm({
 }) {
   const { activeWorkspace } = useAuth();
   const create = useCreateReceivable();
+  const { data: accounts } = useAccounts();
 
   const [counterparty, setCounterparty] = useState("");
   const [kind, setKind] = useState<ReceivableKind>("personal");
@@ -35,7 +37,10 @@ export function CreateReceivableForm({
   const [amount, setAmount] = useState("");
   const [lentOn, setLentOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [dueOn, setDueOn] = useState("");
+  const [sourceAccountId, setSourceAccountId] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  const matchingAccounts = (accounts ?? []).filter((a) => a.currency === currency && !a.is_archived);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -63,6 +68,8 @@ export function CreateReceivableForm({
         principal_minor: principalMinor,
         lent_on: lentOn,
         due_on: dueOn || undefined,
+        source_account_id: sourceAccountId || undefined,
+        post_to_ledger: !!sourceAccountId,
       });
       onCreated();
     } catch (err) {
@@ -137,9 +144,21 @@ export function CreateReceivableForm({
             />
           </Grid>
 
+          <Select
+            label="Lent from"
+            optional
+            hint="When chosen, posts the outflow to Transactions."
+            value={sourceAccountId}
+            onChange={(e) => setSourceAccountId(e.target.value)}
+            options={[
+              { value: "", label: "Cash or already recorded elsewhere" },
+              ...matchingAccounts.map((a) => ({ value: a.id, label: a.name })),
+            ]}
+          />
+
           <Text size="xs" tone="tertiary">
-            This doesn't post anything to your ledger — the money already left your account when
-            you lent it. What this adds is the record of where it went and whether it comes back.
+            This tracks who owes you and how much is still outstanding. Pick an account if the
+            money left your bank and is not already on Transactions.
           </Text>
 
           <Inline gap={2}>

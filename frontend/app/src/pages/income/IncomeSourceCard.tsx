@@ -1,8 +1,9 @@
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { IncomeSource } from "../../api/income";
-import { Badge, Button, Card, ConfirmAction, Figure, FigureRow, Text } from "../../ui";
+import { Badge, Button, Card, ConfirmAction, Figure, FigureRow, IconButton, Text } from "../../ui";
 import { FREQUENCY_LABEL, KIND_LABEL, RELIABILITY_LABEL } from "./incomeCopy";
+import { EditIncomeSourceForm } from "./EditIncomeSourceForm";
 import { RecordReceiptForm } from "./RecordReceiptForm";
 
 /**
@@ -30,12 +31,25 @@ export function IncomeSourceCard({
   } = source;
 
   const [recording, setRecording] = useState(false);
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return (
+      <EditIncomeSourceForm
+        source={source}
+        onDone={() => setEditing(false)}
+        onCancel={() => setEditing(false)}
+      />
+    );
+  }
 
   return (
     <Card
       title={source.name}
       action={
-        <ConfirmAction
+        <>
+          <IconButton label={`Edit ${source.name}`} icon={<Pencil size={15} strokeWidth={1.8} />} onClick={() => setEditing(true)} />
+          <ConfirmAction
           label="Remove"
           icon={<Trash2 size={15} strokeWidth={2} />}
           /* Soft delete on the server: past receipts survive, so the history
@@ -44,6 +58,7 @@ export function IncomeSourceCard({
           cancelLabel="Keep"
           onConfirm={() => onDelete(source.id)}
         />
+        </>
       }
     >
       <div className="lf-inline lf-gap-2">
@@ -135,7 +150,7 @@ export function IncomeSourceCard({
         <RecordReceiptForm
           sourceId={source.id}
           currency={currency}
-          expectedNetMinor={expected_net_minor}
+          statedNetMinor={source.stated_net_minor}
           depositAccountId={source.deposit_account_id}
           onDone={() => setRecording(false)}
           onCancel={() => setRecording(false)}

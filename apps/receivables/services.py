@@ -1,23 +1,34 @@
 """Write operations on receivables.
 
-Nothing here posts to the ledger. Lending someone money already appears there
-as cash leaving an account; recording the claim as well would double-count it.
-This module remembers *where that money went and whether it came back* — see
-the note in `models.py`.
+When a source account is chosen, lending and repayments can post to the
+ledger so Transactions reflects money moving out and back. The receivable
+itself remains a separate claim record — it does not double-count net worth
+because the outflow is real cash leaving the account.
 """
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, time
 
 from django.db import transaction
 from django.db.models import Sum
+from django.utils import timezone
 
 from .models import Receivable, ReceivableKind, ReceivableStatus, Repayment
 
 
 class ReceivableError(ValueError):
     """A write that would produce a claim the product cannot defend."""
+
+
+def _lazy_category(*, name: str, kind: str, currency: str):
+    from apps.finance.quick_add import _lazy_category as lazy
+
+    return lazy(name=name, kind=kind, currency=currency)
+
+
+def _occurred_at(on: date) -> datetime:
+    return timezone.make_aware(datetime.combine(on, time.min))
 
 
 def outstanding_minor(receivable: Receivable) -> int:
@@ -46,16 +57,19 @@ def create_receivable(
     due_on: date | None = None,
     source_account=None,
     notes: str = "",
+    post_to_ledger: bool = True,
 ) -> Receivable:
-    """Record that someone owes you money."""
+    """Record that someone owes you money, optionally posting the outflow."""
     if principal_minor <= 0:
         raise ReceivableError("The amount owed must be greater than zero.")
     if due_on is not None and due_on < lent_on:
         raise ReceivableError("A repayment date cannot be before the money was lent.")
     if not counterparty.strip():
         raise ReceivableError("Say who owes it — a claim against nobody cannot be chased.")
+    if post_to_ledger and source_account is None:
+        raise ReceivableError("Choose which account the money left so it can appear on Transactions.")
 
-    return Receivable.objects.create(
+    receivable = Receivable.objects.create(
         counterparty=counterparty.strip(),
         kind=kind,
         description=description,
@@ -66,6 +80,34 @@ def create_receivable(
         source_account=source_account,
         notes=notes,
     )
+
+    if post_to_ledger and source_account is not None:
+        from apps.finance import services as finance_services
+        from apps.finance.models import CategoryKind, TransactionSource
+        from apps.finance.payees import get_or_create_payee
+
+        if source_account.currency != receivable.currency:
+            raise ReceivableError(
+                f"Account is in {source_account.currency}, but this receivable is in {receivable.currency}."
+            )
+        payee, _ = get_or_create_payee(name=receivable.counterparty)
+        category = _lazy_category(
+            name="Loans to others",
+            kind=CategoryKind.EXPENSE,
+            currency=receivable.currency,
+        )
+        finance_services.record_expense(
+            financial_account=source_account,
+            category=category,
+            amount_minor=principal_minor,
+            occurred_at=_occurred_at(lent_on),
+            memo=f"Lent to {receivable.counterparty}" + (f": {description}" if description else ""),
+            payee=payee,
+            source=TransactionSource.MANUAL,
+            idempotency_key=f"receivable-lend:{receivable.id}",
+        )
+
+    return receivable
 
 
 @transaction.atomic
@@ -120,25 +162,53 @@ def record_repayment(
     amount_minor: int,
     received_on: date,
     transaction_ref=None,
+    deposit_account=None,
+    post_to_ledger: bool = True,
     memo: str = "",
 ) -> Repayment:
-    """Record money received against a claim.
-
-    A repayment against a written-off receivable is allowed on purpose: debts
-    people had given up on do sometimes get paid, and refusing the entry would
-    leave the user unable to record money genuinely in their hand. It simply
-    revives the claim.
-    """
+    """Record money received against a claim, optionally posting the inflow."""
     if amount_minor <= 0:
         raise ReceivableError("A repayment must be greater than zero.")
     if received_on < receivable.lent_on:
         raise ReceivableError("Money cannot come back before it went out.")
 
+    posted = transaction_ref
+    account = deposit_account or receivable.source_account
+    if posted is None and post_to_ledger:
+        if account is None:
+            raise ReceivableError(
+                "Choose which account this repayment landed in so it can appear on Transactions."
+            )
+        if account.currency != receivable.currency:
+            raise ReceivableError(
+                f"Account is in {account.currency}, but this receivable is in {receivable.currency}."
+            )
+        from apps.finance import services as finance_services
+        from apps.finance.models import CategoryKind, TransactionSource
+        from apps.finance.payees import get_or_create_payee
+
+        payee, _ = get_or_create_payee(name=receivable.counterparty)
+        category = _lazy_category(
+            name="Loan repayment",
+            kind=CategoryKind.INCOME,
+            currency=receivable.currency,
+        )
+        posted = finance_services.record_income(
+            financial_account=account,
+            category=category,
+            amount_minor=amount_minor,
+            occurred_at=_occurred_at(received_on),
+            memo=memo or f"Repayment from {receivable.counterparty}",
+            payee=payee,
+            source=TransactionSource.MANUAL,
+            idempotency_key=f"receivable-repay:{receivable.id}:{received_on.isoformat()}:{amount_minor}",
+        )
+
     repayment = Repayment.objects.create(
         receivable=receivable,
         amount_minor=amount_minor,
         received_on=received_on,
-        transaction=transaction_ref,
+        transaction=posted,
         memo=memo,
     )
     _resettle(receivable)

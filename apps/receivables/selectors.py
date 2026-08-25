@@ -34,6 +34,7 @@ class ReceivableView:
     days_outstanding: int
     repayment_count: int
     last_received_on: date | None
+    source_account_id: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +87,7 @@ def receivable_views(*, as_of: date | None = None, include_closed: bool = True) 
                 days_outstanding=(as_of - r.lent_on).days,
                 repayment_count=len(repayments),
                 last_received_on=repayments[0].received_on if repayments else None,
+                source_account_id=str(r.source_account_id) if r.source_account_id else None,
             )
         )
     views.sort(key=lambda v: v.outstanding_minor, reverse=True)

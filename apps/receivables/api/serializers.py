@@ -16,6 +16,8 @@ class ReceivableCreateSerializer(serializers.Serializer):
     #: inventing one would manufacture an overdue warning nobody agreed to.
     due_on = serializers.DateField(required=False, allow_null=True)
     source_account_id = serializers.UUIDField(required=False, allow_null=True)
+    #: When true and a source account is chosen, posts the outflow to Transactions.
+    post_to_ledger = serializers.BooleanField(required=False, default=True)
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
 
 
@@ -33,6 +35,7 @@ class ReceivableUpdateSerializer(serializers.Serializer):
     principal_minor = serializers.IntegerField(min_value=1, required=False)
     lent_on = serializers.DateField(required=False)
     due_on = serializers.DateField(required=False, allow_null=True)
+    source_account_id = serializers.UUIDField(required=False, allow_null=True)
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
     def validate(self, attrs):
@@ -45,4 +48,6 @@ class RepaymentCreateSerializer(serializers.Serializer):
     amount_minor = serializers.IntegerField(min_value=1)
     received_on = serializers.DateField()
     transaction_id = serializers.UUIDField(required=False, allow_null=True)
+    deposit_account_id = serializers.UUIDField(required=False, allow_null=True)
+    post_to_ledger = serializers.BooleanField(required=False, default=True)
     memo = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")

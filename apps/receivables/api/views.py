@@ -30,7 +30,10 @@ def _get(receivable_id) -> Receivable | None:
 
 
 def _view_for(receivable_id) -> dict | None:
-    view = next((v for v in selectors.receivable_views() if v.receivable_id == str(receivable_id)), None)
+    view = next(
+        (v for v in selectors.receivable_views() if v.receivable_id == str(receivable_id)),
+        None,
+    )
     return _out(view) if view else None
 
 
@@ -56,7 +59,10 @@ class ReceivableListView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
         if v.get("source_account_id"):
             account = FinancialAccount.objects.filter(id=v["source_account_id"]).first()
             if account is None:
-                return Response({"detail": "source_account not found"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "source_account not found"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         try:
             receivable = services.create_receivable(
                 counterparty=v["counterparty"],
@@ -68,6 +74,7 @@ class ReceivableListView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
                 due_on=v.get("due_on"),
                 source_account=account,
                 notes=v.get("notes", ""),
+                post_to_ledger=v.get("post_to_ledger", True) and account is not None,
             )
         except services.ReceivableError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
@@ -103,8 +110,21 @@ class ReceivableDetailView(WriteRequiresMemberMixin, TenantScopedAPIView, APIVie
             return Response(status=status.HTTP_404_NOT_FOUND)
         s = ReceivableUpdateSerializer(data=request.data)
         s.is_valid(raise_exception=True)
+        fields = dict(s.validated_data)
+        if "source_account_id" in fields:
+            account_id = fields.pop("source_account_id")
+            if account_id is None:
+                fields["source_account"] = None
+            else:
+                account = FinancialAccount.objects.filter(id=account_id).first()
+                if account is None:
+                    return Response(
+                        {"detail": "source_account not found"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                fields["source_account"] = account
         try:
-            services.update_receivable(receivable=receivable, **s.validated_data)
+            services.update_receivable(receivable=receivable, **fields)
         except services.ReceivableError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         return Response(_view_for(receivable_id))
@@ -136,12 +156,23 @@ class RepaymentView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
         txn = None
         if v.get("transaction_id"):
             txn = Transaction.objects.filter(id=v["transaction_id"]).first()
+        account = None
+        if v.get("deposit_account_id"):
+            account = FinancialAccount.objects.filter(id=v["deposit_account_id"]).first()
+            if account is None:
+                return Response(
+                    {"detail": "deposit_account not found"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        can_post = account is not None or receivable.source_account_id is not None
         try:
             services.record_repayment(
                 receivable=receivable,
                 amount_minor=v["amount_minor"],
                 received_on=v["received_on"],
                 transaction_ref=txn,
+                deposit_account=account,
+                post_to_ledger=v.get("post_to_ledger", True) and txn is None and can_post,
                 memo=v.get("memo", ""),
             )
         except services.ReceivableError as exc:

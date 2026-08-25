@@ -271,10 +271,6 @@ def record_receipt(
             source=TransactionSource.MANUAL,
             idempotency_key=f"income-receipt:{source.id}:{occurred_on.isoformat()}:{net_minor}",
         )
-        # Remember the account so the next receipt does not ask again.
-        if source.deposit_account_id is None:
-            source.deposit_account = account
-            source.save(update_fields=["deposit_account", "updated_at"])
 
     return IncomeReceipt.objects.create(
         source=source,
