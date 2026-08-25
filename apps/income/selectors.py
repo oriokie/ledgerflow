@@ -239,9 +239,8 @@ def overdue_unrecorded_payday(source: IncomeSource, *, as_of: date) -> date | No
     window_start = max(window_start, source.starts_on)
     missed: date | None = None
     for payday in iter_income_paydays(source, start=window_start, end=as_of):
-        if not _receipt_covers_payday(source, payday):
-            if missed is None or payday < missed:
-                missed = payday
+        if not _receipt_covers_payday(source, payday) and (missed is None or payday < missed):
+            missed = payday
     return missed
 
 
