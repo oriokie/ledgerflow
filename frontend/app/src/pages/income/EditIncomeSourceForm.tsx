@@ -113,7 +113,7 @@ export function EditIncomeSourceForm({
           second_pay_day: secondPayDayValue,
           starts_on: startsOn,
           ends_on: endsOn.trim() ? endsOn : null,
-          deposit_account_id: depositAccountId || null,
+          deposit_account_id: depositAccountId || undefined,
         },
       });
       onDone();

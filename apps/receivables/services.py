@@ -40,7 +40,10 @@ def outstanding_minor(receivable: Receivable) -> int:
     record entirely.
     """
     repaid = (
-        Repayment.objects.filter(receivable=receivable).aggregate(total=Sum("amount_minor"))["total"] or 0
+        Repayment.objects.filter(receivable=receivable).aggregate(
+            total=Sum("amount_minor")
+        )["total"]
+        or 0
     )
     return max(0, receivable.principal_minor - repaid)
 
@@ -65,9 +68,13 @@ def create_receivable(
     if due_on is not None and due_on < lent_on:
         raise ReceivableError("A repayment date cannot be before the money was lent.")
     if not counterparty.strip():
-        raise ReceivableError("Say who owes it — a claim against nobody cannot be chased.")
+        raise ReceivableError(
+            "Say who owes it — a claim against nobody cannot be chased."
+        )
     if post_to_ledger and source_account is None:
-        raise ReceivableError("Choose which account the money left so it can appear on Transactions.")
+        raise ReceivableError(
+            "Choose which account the money left so it can appear on Transactions."
+        )
 
     receivable = Receivable.objects.create(
         counterparty=counterparty.strip(),
@@ -92,14 +99,17 @@ def create_receivable(
             )
         payee, _ = get_or_create_payee(name=receivable.counterparty)
         category = _lazy_category(
-            name="Loans to others", kind=CategoryKind.EXPENSE, currency=receivable.currency
+            name="Loans to others",
+            kind=CategoryKind.EXPENSE,
+            currency=receivable.currency,
         )
         finance_services.record_expense(
             financial_account=source_account,
             category=category,
             amount_minor=principal_minor,
             occurred_at=_occurred_at(lent_on),
-            memo=f"Lent to {receivable.counterparty}" + (f": {description}" if description else ""),
+            memo=f"Lent to {receivable.counterparty}"
+            + (f": {description}" if description else ""),
             payee=payee,
             source=TransactionSource.MANUAL,
             idempotency_key=f"receivable-lend:{receivable.id}",
@@ -129,7 +139,9 @@ def update_receivable(*, receivable: Receivable, **changes) -> Receivable:
     }
     unknown = set(changes) - allowed
     if unknown:
-        raise ReceivableError(f"Cannot change {', '.join(sorted(unknown))} on an existing receivable.")
+        raise ReceivableError(
+            f"Cannot change {', '.join(sorted(unknown))} on an existing receivable."
+        )
 
     for field, value in changes.items():
         setattr(receivable, field, value)
@@ -139,7 +151,9 @@ def update_receivable(*, receivable: Receivable, **changes) -> Receivable:
     if receivable.due_on is not None and receivable.due_on < receivable.lent_on:
         raise ReceivableError("A repayment date cannot be before the money was lent.")
     if not receivable.counterparty.strip():
-        raise ReceivableError("Say who owes it — a claim against nobody cannot be chased.")
+        raise ReceivableError(
+            "Say who owes it — a claim against nobody cannot be chased."
+        )
 
     receivable.save()
     _resettle(receivable)
@@ -186,7 +200,11 @@ def record_repayment(
         from apps.finance.payees import get_or_create_payee
 
         payee, _ = get_or_create_payee(name=receivable.counterparty)
-        category = _lazy_category(name="Loan repayment", kind=CategoryKind.INCOME, currency=receivable.currency)
+        category = _lazy_category(
+            name="Loan repayment",
+            kind=CategoryKind.INCOME,
+            currency=receivable.currency,
+        )
         posted = finance_services.record_income(
             financial_account=account,
             category=category,
@@ -218,7 +236,9 @@ def write_off(*, receivable: Receivable) -> Receivable:
     that person again.
     """
     if outstanding_minor(receivable) <= 0:
-        raise ReceivableError("Nothing is outstanding on this — there is nothing to write off.")
+        raise ReceivableError(
+            "Nothing is outstanding on this — there is nothing to write off."
+        )
     receivable.status = ReceivableStatus.WRITTEN_OFF
     receivable.save(update_fields=["status", "updated_at"])
     return receivable
