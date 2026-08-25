@@ -3,7 +3,13 @@ import { useState } from "react";
 import { financeExtendedApi } from "../api/finance";
 import type { RecurringTransaction } from "../api/types";
 import { ImportXlsxModal } from "../components/ImportXlsxModal";
-import { useCategories, useCancelRecurring, useRecurring, useSetRecurringActive } from "../hooks/useFinance";
+import {
+  useCategories,
+  useCancelRecurring,
+  useConfirmRecurring,
+  useRecurring,
+  useSetRecurringActive,
+} from "../hooks/useFinance";
 import { Button, Card, EmptyState, IconButton, PageHeader, SkeletonCard, useToast } from "../ui";
 import { RecurringModal, SubscriptionInsight, SubscriptionRow, SubscriptionSummary } from "./recurring";
 import { monthlyMinor } from "./recurring/recurringMath";
@@ -16,6 +22,7 @@ export function RecurringPage({ embedded }: { embedded?: boolean } = {}) {
   const { data: categories } = useCategories();
   const setActive = useSetRecurringActive();
   const cancel = useCancelRecurring();
+  const confirm = useConfirmRecurring();
   const toast = useToast();
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<RecurringTransaction | null>(null);
@@ -36,6 +43,10 @@ export function RecurringPage({ embedded }: { embedded?: boolean } = {}) {
   const onCancel = async (recId: string) => {
     await cancel.mutateAsync(recId);
     toast("Cancelled — no further charges from this schedule");
+  };
+  const onConfirm = async (recId: string, amountMinor: number) => {
+    const result = await confirm.mutateAsync({ recId, amount_minor: amountMinor });
+    toast(`Recorded — next due ${result.recurring.next_run_on}`);
   };
 
   return (
@@ -90,6 +101,7 @@ export function RecurringPage({ embedded }: { embedded?: boolean } = {}) {
                 categories={categories}
                 onSetActive={onSetActive}
                 onCancel={onCancel}
+                onConfirm={onConfirm}
                 onEdit={setEditing}
               />
             ))}

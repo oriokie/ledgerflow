@@ -41,6 +41,7 @@ vi.mock("../hooks/useFinance", () => ({
   }),
   useSetRecurringActive: () => ({ mutateAsync: vi.fn() }),
   useCancelRecurring: () => ({ mutateAsync: vi.fn() }),
+  useConfirmRecurring: () => ({ mutateAsync: vi.fn() }),
   useAccounts: () => ({
     data: [
       { id: "checking", name: "Checking", currency: "USD" },

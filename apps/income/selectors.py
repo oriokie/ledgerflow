@@ -52,6 +52,15 @@ MIN_RECEIPTS_FOR_OBSERVED = 3
 #: the average of the one they have now.
 OBSERVED_WINDOW_DAYS = 365
 
+#: How far back a missed payday still warrants a dashboard nudge. Longer than
+#: this and the alert becomes noise about history the member already moved on
+#: from; shorter and a late payslip is never noticed.
+MISSED_PAYDAY_LOOKBACK_DAYS = 14
+
+#: A receipt within this many days of the scheduled payday still counts as
+#: covering it — real deposits often land a day early or a few days late.
+RECEIPT_COVER_SLACK_DAYS = 3
+
 
 def monthly_equivalent_minor(amount_minor: int, frequency: str) -> int | None:
     """One payment at a cadence -> what it averages per month.
@@ -111,6 +120,16 @@ class SourceView:
     #: First payday on or after `starts_on`. Periodical projections count from
     #: this date, not from the day the source was recorded.
     anchor: date
+
+    #: Where arrivals land, when known — used to post receipts to the ledger.
+    deposit_account_id: str | None
+    pay_day: int | None
+    second_pay_day: int | None
+    #: Next expected payday on or after `as_of`. ``None`` for ad-hoc.
+    next_expected_on: date | None
+    #: Most recent payday in the lookback window that has no covering receipt.
+    #: The dashboard uses this to nudge a member who forgot to record pay.
+    overdue_expected_on: date | None
 
     @property
     def is_speculative(self) -> bool:
@@ -181,6 +200,48 @@ def _observed(source: IncomeSource, *, as_of: date) -> tuple[int | None, int | N
         return None, None, len(values), last_on
 
     return round(statistics.fmean(values)), round(statistics.stdev(values)), len(values), last_on
+
+
+def next_expected_payday(source: IncomeSource, *, as_of: date) -> date | None:
+    """First payday on or after ``as_of``, or ``None`` for ad-hoc / ended sources."""
+    if not source.is_active:
+        return None
+    if source.ends_on is not None and source.ends_on < as_of:
+        return None
+    horizon = as_of + timedelta(days=400)
+    for payday in iter_income_paydays(source, start=as_of, end=horizon):
+        return payday
+    return None
+
+
+def _receipt_covers_payday(source: IncomeSource, payday: date) -> bool:
+    """True when a receipt exists close enough to ``payday`` to count as that pay."""
+    slack = timedelta(days=RECEIPT_COVER_SLACK_DAYS)
+    return IncomeReceipt.objects.filter(
+        source=source,
+        occurred_on__gte=payday - slack,
+        occurred_on__lte=payday + slack,
+    ).exists()
+
+
+def overdue_unrecorded_payday(source: IncomeSource, *, as_of: date) -> date | None:
+    """Oldest payday in the lookback window with no covering receipt.
+
+    Returns ``None`` when every recent payday has a receipt, the source is
+    ad-hoc, or nothing was due yet. The dashboard uses this to surface
+    "salary was due and nobody recorded it" without inventing income.
+    """
+    if not source.is_active or source.frequency == IncomeFrequency.AD_HOC:
+        return None
+    if source.starts_on > as_of:
+        return None
+    window_start = as_of - timedelta(days=MISSED_PAYDAY_LOOKBACK_DAYS)
+    window_start = max(window_start, source.starts_on)
+    missed: date | None = None
+    for payday in iter_income_paydays(source, start=window_start, end=as_of):
+        if not _receipt_covers_payday(source, payday) and (missed is None or payday < missed):
+            missed = payday
+    return missed
 
 
 def occurrence_anchor(source: IncomeSource) -> date:
@@ -316,6 +377,11 @@ def source_views(*, as_of: date | None = None, currency: str | None = None) -> l
                 monthly_net_minor=monthly_equivalent_minor(expected, source.frequency),
                 deductions_minor=deductions_for(source),
                 anchor=occurrence_anchor(source),
+                deposit_account_id=str(source.deposit_account_id) if source.deposit_account_id else None,
+                pay_day=source.pay_day,
+                second_pay_day=source.second_pay_day,
+                next_expected_on=next_expected_payday(source, as_of=as_of),
+                overdue_expected_on=overdue_unrecorded_payday(source, as_of=as_of),
             )
         )
     return views

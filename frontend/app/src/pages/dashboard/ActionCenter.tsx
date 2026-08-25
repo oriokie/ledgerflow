@@ -11,7 +11,7 @@ export function ActionCenter({ items }: { items: AttentionItem[] }) {
         </header>
         <div className="lf-cmd-quiet lf-cmd-quiet--compact">
           <Illustration name="success" size="spot" />
-          <p>Nothing urgent. Bills, budgets, and cash-flow risks will surface here when they do.</p>
+          <p>Nothing urgent. Bills, missed income, and cash-flow risks will surface here when they do.</p>
         </div>
       </section>
     );

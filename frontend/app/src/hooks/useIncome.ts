@@ -104,12 +104,20 @@ export function useRemoveDeduction() {
 
 export function useRecordReceipt() {
   const invalidate = useInvalidateIncome();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
       sourceId,
       ...payload
     }: Parameters<typeof incomeApi.recordReceipt>[1] & { sourceId: string }) =>
       incomeApi.recordReceipt(sourceId, payload),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate();
+      // Receipts now post to the ledger — keep the activity feed in sync.
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["cashflow"] });
+      queryClient.invalidateQueries({ queryKey: ["net-worth"] });
+    },
   });
 }

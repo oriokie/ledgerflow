@@ -135,6 +135,8 @@ export function IncomeSourceCard({
         <RecordReceiptForm
           sourceId={source.id}
           currency={currency}
+          expectedNetMinor={expected_net_minor}
+          depositAccountId={source.deposit_account_id}
           onDone={() => setRecording(false)}
           onCancel={() => setRecording(false)}
         />

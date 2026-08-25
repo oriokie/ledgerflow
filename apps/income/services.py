@@ -8,7 +8,7 @@ should read "net cannot exceed gross", not an IntegrityError.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, time
 
 from django.db import transaction
 
@@ -182,6 +182,33 @@ def add_deduction(
     )
 
 
+#: Category names used when a receipt posts to the ledger. Keeps salary,
+#: freelance, and rent income recognisable on the transactions page instead of
+#: collapsing everything into a generic placeholder.
+_KIND_CATEGORY_NAME = {
+    "employment": "Salary",
+    "self_employment": "Freelance",
+    "business": "Business income",
+    "rental": "Rental income",
+    "pension": "Pension",
+    "benefits": "Benefits",
+    "investment": "Investment income",
+    "other": "Other income",
+}
+
+
+def _income_category_for(source: IncomeSource):
+    """Resolve (or lazily create) the income category for a posted receipt."""
+    from apps.finance.models import Category, CategoryKind
+    from apps.finance.quick_add import _lazy_category
+
+    name = _KIND_CATEGORY_NAME.get(source.kind, "Other income")
+    existing = Category.objects.filter(kind=CategoryKind.INCOME, name=name).first()
+    if existing is not None:
+        return existing
+    return _lazy_category(name=name, kind=CategoryKind.INCOME, currency=source.currency)
+
+
 @transaction.atomic
 def record_receipt(
     *,
@@ -190,16 +217,27 @@ def record_receipt(
     net_minor: int,
     gross_minor: int | None = None,
     transaction_ref=None,
+    deposit_account=None,
+    post_to_ledger: bool = True,
     memo: str = "",
 ) -> IncomeReceipt:
-    """Record money that actually arrived.
+    """Record money that actually arrived, and optionally post it to the ledger.
 
-    Deliberately does not post to the ledger. A receipt is a *record about* an
-    arrival, and the arrival itself is a transaction the user records normally
-    — the same separation the goals module keeps between a contribution and the
-    transfer that funded it. Posting here would double-count every paycheque
-    against the account it landed in.
+    Recording a payment on the income page is how members expect money to show
+    up under Transactions. When ``post_to_ledger`` is true (the default) and no
+    existing ``transaction_ref`` is supplied, this posts a real income
+    transaction against the deposit account and links it on the receipt.
+
+    Pass an existing ``transaction_ref`` to attach a receipt to a transaction
+    that already landed (import, recurring materialization, or a manual entry)
+    without double-posting. Set ``post_to_ledger=False`` to keep the old
+    observe-only behaviour when the caller only wants variance tracking.
     """
+    from django.utils import timezone as dj_tz
+
+    from apps.finance import services as finance_services
+    from apps.finance.models import TransactionSource
+
     if net_minor <= 0:
         raise IncomeError("Received amount must be greater than zero.")
     if gross_minor is not None:
@@ -207,12 +245,43 @@ def record_receipt(
             raise IncomeError("Gross amount must be greater than zero.")
         if net_minor > gross_minor:
             raise IncomeError("Net cannot exceed gross.")
+
+    posted = transaction_ref
+    if posted is None and post_to_ledger:
+        account = deposit_account or source.deposit_account
+        if account is None:
+            raise IncomeError("Choose which account this payment landed in so it can appear on Transactions.")
+        if account.currency != source.currency:
+            raise IncomeError(
+                f"Deposit account is in {account.currency}, but this income is in {source.currency}."
+            )
+        occurred_at = dj_tz.make_aware(datetime.combine(occurred_on, time.min))
+        payee = None
+        if source.payer.strip():
+            from apps.finance.payees import get_or_create_payee
+
+            payee, _ = get_or_create_payee(name=source.payer.strip())
+        posted = finance_services.record_income(
+            financial_account=account,
+            category=_income_category_for(source),
+            amount_minor=net_minor,
+            occurred_at=occurred_at,
+            memo=memo or f"Income: {source.name}",
+            payee=payee,
+            source=TransactionSource.MANUAL,
+            idempotency_key=f"income-receipt:{source.id}:{occurred_on.isoformat()}:{net_minor}",
+        )
+        # Remember the account so the next receipt does not ask again.
+        if source.deposit_account_id is None:
+            source.deposit_account = account
+            source.save(update_fields=["deposit_account", "updated_at"])
+
     return IncomeReceipt.objects.create(
         source=source,
         occurred_on=occurred_on,
         net_minor=net_minor,
         gross_minor=gross_minor,
-        transaction=transaction_ref,
+        transaction=posted,
         memo=memo,
     )
 

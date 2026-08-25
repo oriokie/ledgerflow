@@ -55,6 +55,7 @@ from .serializers import (
     PayeeCreateSerializer,
     PayeeSerializer,
     ReconcileSerializer,
+    RecurringConfirmSerializer,
     RecurringCreateSerializer,
     RecurringSerializer,
     RecurringUpdateSerializer,
@@ -762,7 +763,9 @@ class RecurringView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
     serializer_class = RecurringSerializer
 
     def get(self, request):
-        recs = RecurringTransaction.objects.filter(is_active=True).order_by("next_run_on")
+        # Include paused schedules so members can resume them; cancelled ones
+        # are soft-deleted and stay out of the default manager.
+        recs = RecurringTransaction.objects.all().order_by("-is_active", "next_run_on")
         return Response(RecurringSerializer(recs, many=True).data)
 
     def post(self, request):
@@ -846,6 +849,43 @@ class RecurringDetailView(TenantScopedAPIView, APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         recurring_service.cancel_recurring(rec=rec)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class RecurringConfirmView(TenantScopedAPIView, APIView):
+    """Mark the next occurrence paid/received: posts the transaction, advances
+    ``next_run_on``, and accepts an exact amount when it differs from the plan."""
+
+    permission_classes = [IsTenantMember]
+    required_role = Role.MEMBER
+    serializer_class = RecurringConfirmSerializer
+
+    def post(self, request, rec_id):
+        rec = RecurringTransaction.objects.filter(id=rec_id).first()
+        if rec is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        s = RecurringConfirmSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        v = s.validated_data
+        try:
+            rec, txn = recurring_service.confirm_occurrence(
+                rec=rec,
+                amount_minor=v.get("amount_minor"),
+                occurred_on=v.get("occurred_on"),
+            )
+        except services.FinanceError as exc:
+            return _finance_error(exc)
+        txn_id = None
+        if isinstance(txn, tuple):
+            # Transfers return (out, in); surface the outbound leg.
+            txn_id = txn[0].id if txn else None
+        elif txn is not None:
+            txn_id = txn.id
+        return Response(
+            {
+                "recurring": RecurringSerializer(rec).data,
+                "transaction_id": txn_id,
+            }
+        )
 
 
 # ------------------------------------------------------------------ calculations

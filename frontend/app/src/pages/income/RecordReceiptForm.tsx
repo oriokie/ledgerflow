@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { ApiError } from "../../api/client";
+import { useAccounts } from "../../hooks/useFinance";
 import { useRecordReceipt } from "../../hooks/useIncome";
-import { Banner, Button, Inline, Input, Stack, useToast } from "../../ui";
+import { Banner, Button, Inline, Input, Select, Stack, useToast } from "../../ui";
 
 const FIELD_LABEL: Record<string, string> = {
   occurred_on: "Date",
   net_minor: "Amount received",
   gross_minor: "Amount earned",
+  deposit_account_id: "Account",
   memo: "Note",
 };
 
@@ -21,35 +23,41 @@ function describeApiError(err: ApiError): string {
 /**
  * Record a single payment against an income source.
  *
- * This is the other half of the card's headline claim. "Expected" only ever
- * becomes a measured figure — `expected_is_observed`, the averaged amount,
- * the variance — once receipts exist to derive it from; until then it is
- * either what the user typed or, for an irregular source, a guess. This form
- * is the only way a receipt gets created, so it is what turns the card from
- * a promise into a record.
- *
- * Three fields, matching what `record_receipt` actually asks for: the
- * amount, when it arrived, and an optional note. Gross is deliberately
- * omitted here — the create form already treats it as a rarely-known,
- * optional figure, and a receipt is even more likely to be logged from a
- * bank line that only shows the net.
+ * Posts to the ledger by default so the arrival appears on Transactions —
+ * that is what members expect when they tap "Record a payment". The deposit
+ * account is required for that posting; once chosen it is remembered on the
+ * source for the next receipt.
  */
 export function RecordReceiptForm({
   sourceId,
   currency,
+  expectedNetMinor,
+  depositAccountId,
   onDone,
   onCancel,
 }: {
   sourceId: string;
   currency: string;
+  expectedNetMinor?: number;
+  depositAccountId?: string | null;
   onDone: () => void;
   onCancel: () => void;
 }) {
   const recordReceipt = useRecordReceipt();
+  const { data: accounts } = useAccounts();
   const toast = useToast();
 
+  const matchingAccounts = (accounts ?? []).filter((a) => a.currency === currency && !a.is_archived);
+  const defaultAccount =
+    (depositAccountId && matchingAccounts.find((a) => a.id === depositAccountId)?.id) ||
+    matchingAccounts[0]?.id ||
+    "";
+
   const [occurredOn, setOccurredOn] = useState(() => new Date().toISOString().slice(0, 10));
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(() =>
+    expectedNetMinor != null ? (expectedNetMinor / 100).toFixed(2) : "",
+  );
+  const [accountId, setAccountId] = useState(defaultAccount);
   const [memo, setMemo] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -61,15 +69,20 @@ export function RecordReceiptForm({
       setError("Enter what you were actually paid.");
       return;
     }
+    if (!accountId) {
+      setError("Choose which account this payment landed in.");
+      return;
+    }
     const netMinor = Math.round(parsed * 100);
     try {
       await recordReceipt.mutateAsync({
         sourceId,
         occurred_on: occurredOn,
         net_minor: netMinor,
+        deposit_account_id: accountId,
         memo: memo.trim() || undefined,
       });
-      toast("Payment recorded", { tone: "success" });
+      toast("Payment recorded on Transactions", { tone: "success" });
       onDone();
     } catch (err) {
       setError(err instanceof ApiError ? describeApiError(err) : "Couldn't record that payment.");
@@ -99,6 +112,17 @@ export function RecordReceiptForm({
             required
           />
         </Inline>
+        <Select
+          label="Deposited to"
+          hint="Creates the matching income on your Transactions page."
+          value={accountId}
+          onChange={(e) => setAccountId(e.target.value)}
+          options={[
+            { value: "", label: "Select account…" },
+            ...matchingAccounts.map((a) => ({ value: a.id, label: a.name })),
+          ]}
+          required
+        />
         <Input
           label="Note"
           optional

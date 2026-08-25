@@ -262,6 +262,82 @@ def run_due_template(rec: RecurringTransaction, *, today: date | None = None) ->
     return posted
 
 
+@transaction.atomic
+def confirm_occurrence(
+    *,
+    rec: RecurringTransaction,
+    amount_minor: int | None = None,
+    occurred_on: date | None = None,
+) -> tuple[RecurringTransaction, object]:
+    """Mark the next occurrence paid/received and advance the schedule.
+
+    Posts one real transaction (income, expense, or transfer) for the template's
+    current ``next_run_on``, using ``amount_minor`` when the actual amount
+    differs from the plan. Advancing ``next_run_on`` is what stops Celery from
+    double-posting the same date, and what makes "next due" move forward in the
+    UI after a member taps Mark paid.
+    """
+    rec = RecurringTransaction.objects.select_for_update().get(pk=rec.pk)
+    if not rec.is_active:
+        raise RecurringError("Paused schedules cannot be marked paid — resume them first.")
+
+    scheduled_on = occurred_on or rec.next_run_on
+    if rec.ends_on is not None and scheduled_on > rec.ends_on:
+        raise RecurringError("This schedule has already ended.")
+    if rec.max_occurrences is not None and rec.occurrences_created >= rec.max_occurrences:
+        raise RecurringError("This schedule has no remaining occurrences.")
+
+    pay_amount = amount_minor if amount_minor is not None else rec.amount_minor
+    if pay_amount <= 0:
+        raise RecurringError("Amount must be positive.")
+
+    # Post with the confirmed amount without permanently rewriting the plan.
+    original_amount = rec.amount_minor
+    rec.amount_minor = pay_amount
+    try:
+        txn = _post_one(rec, scheduled_on)
+    finally:
+        rec.amount_minor = original_amount
+
+    rec.occurrences_created += 1
+    rec.last_run_at = timezone.now()
+    # Walk from the scheduled date that was just confirmed so the next due
+    # date stays aligned even when the member confirmed early or late.
+    if scheduled_on == rec.next_run_on:
+        rec.next_run_on = nth_occurrence(
+            starts_on=rec.starts_on,
+            frequency=rec.frequency,
+            interval=rec.interval,
+            n=rec.occurrences_created,
+        )
+    else:
+        # Confirmed a different date: advance past the template's stored next
+        # run so Celery cannot re-post the outstanding slot.
+        rec.next_run_on = nth_occurrence(
+            starts_on=rec.starts_on,
+            frequency=rec.frequency,
+            interval=rec.interval,
+            n=rec.occurrences_created,
+        )
+
+    if rec.max_occurrences is not None and rec.occurrences_created >= rec.max_occurrences:
+        rec.is_active = False
+    if rec.ends_on is not None and rec.next_run_on > rec.ends_on:
+        rec.is_active = False
+
+    rec.save(
+        update_fields=[
+            "amount_minor",
+            "occurrences_created",
+            "last_run_at",
+            "next_run_on",
+            "is_active",
+            "updated_at",
+        ]
+    )
+    return rec, txn
+
+
 def materialize_due(*, today: date | None = None) -> int:
     """Run every active, due template in the CURRENT tenant context. Returns
     total occurrences posted. (Tenant scoping is enforced by RLS; the beat

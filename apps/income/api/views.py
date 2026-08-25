@@ -51,6 +51,11 @@ def _source_out(view: selectors.SourceView) -> dict:
         "deductions_minor": view.deductions_minor,
         "variance_pct": view.variance_pct,
         "is_speculative": view.is_speculative,
+        "deposit_account_id": view.deposit_account_id,
+        "pay_day": view.pay_day,
+        "second_pay_day": view.second_pay_day,
+        "next_expected_on": view.next_expected_on,
+        "overdue_expected_on": view.overdue_expected_on,
     }
 
 
@@ -138,8 +143,20 @@ class IncomeSourceDetailView(WriteRequiresMemberMixin, TenantScopedAPIView, APIV
             return Response(status=status.HTTP_404_NOT_FOUND)
         s = IncomeSourceUpdateSerializer(data=request.data, partial=True)
         s.is_valid(raise_exception=True)
+        fields = dict(s.validated_data)
+        if "deposit_account_id" in fields:
+            account_id = fields.pop("deposit_account_id")
+            if account_id is None:
+                fields["deposit_account"] = None
+            else:
+                account = FinancialAccount.objects.filter(id=account_id).first()
+                if account is None:
+                    return Response(
+                        {"detail": "deposit_account not found"}, status=status.HTTP_400_BAD_REQUEST
+                    )
+                fields["deposit_account"] = account
         try:
-            source = services.update_source(source=source, **s.validated_data)
+            source = services.update_source(source=source, **fields)
         except services.IncomeError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         view = next(v for v in selectors.source_views() if v.source_id == str(source.id))
@@ -217,6 +234,11 @@ class ReceiptView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
             txn = Transaction.objects.filter(id=v["transaction_id"]).first()
             if txn is None:
                 return Response({"detail": "transaction not found"}, status=status.HTTP_400_BAD_REQUEST)
+        account = None
+        if v.get("deposit_account_id"):
+            account = FinancialAccount.objects.filter(id=v["deposit_account_id"]).first()
+            if account is None:
+                return Response({"detail": "deposit_account not found"}, status=status.HTTP_400_BAD_REQUEST)
         try:
             receipt = services.record_receipt(
                 source=source,
@@ -224,6 +246,8 @@ class ReceiptView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
                 net_minor=v["net_minor"],
                 gross_minor=v.get("gross_minor"),
                 transaction_ref=txn,
+                deposit_account=account,
+                post_to_ledger=v.get("post_to_ledger", True) and txn is None,
                 memo=v.get("memo", ""),
             )
         except services.IncomeError as exc:
@@ -235,6 +259,7 @@ class ReceiptView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
                 "net_minor": receipt.net_minor,
                 "gross_minor": receipt.gross_minor,
                 "memo": receipt.memo,
+                "transaction_id": str(receipt.transaction_id) if receipt.transaction_id else None,
             },
             status=status.HTTP_201_CREATED,
         )

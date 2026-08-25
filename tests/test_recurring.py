@@ -302,3 +302,32 @@ def test_dispatcher_enqueues_one_task_per_active_tenant(monkeypatch):
     dispatched = finance_tasks.dispatch_recurring_transactions()
     assert dispatched == len(enqueued)
     assert dispatched >= 2  # at least the two we created
+
+
+def test_confirm_occurrence_posts_and_advances_next_run(tenant_id):
+    from django.utils import timezone
+
+    with tenant_scope(tenant_id):
+        checking, _savings, rent, salary = _seed()
+        # Fund the account so the settling expense clears sufficiency checks.
+        services.record_income(
+            financial_account=checking,
+            category=salary,
+            amount_minor=500_000,
+            occurred_at=timezone.now(),
+        )
+        rec = recurring.create_recurring_transaction(
+            txn_type=RecurringType.EXPENSE,
+            financial_account=checking,
+            category=rent,
+            amount_minor=150_000,
+            currency="USD",
+            frequency="monthly",
+            starts_on=date(2026, 3, 1),
+        )
+
+        updated, txn = recurring.confirm_occurrence(rec=rec, amount_minor=148_500)
+        assert abs(txn.amount_minor) == 148_500
+        assert updated.next_run_on == date(2026, 4, 1)
+        assert updated.occurrences_created == 1
+        assert updated.amount_minor == 150_000  # plan amount unchanged

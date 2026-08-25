@@ -111,7 +111,7 @@ def test_deduction_and_receipt_round_trip(tenant_context):
 
     receipt = client.post(
         f"{BASE}/sources/{source['id']}/receipts/",
-        {"occurred_on": str(TODAY), "net_minor": 245_000},
+        {"occurred_on": str(TODAY), "net_minor": 245_000, "post_to_ledger": False},
         format="json",
     )
     assert receipt.status_code == 201
@@ -242,7 +242,11 @@ def test_receipts_move_the_expected_figure_for_variable_income(tenant_context):
     for n, amount in enumerate((200_000, 220_000, 240_000), start=1):
         client.post(
             f"{BASE}/sources/{source['id']}/receipts/",
-            {"occurred_on": str(date.today() - timedelta(days=30 * n)), "net_minor": amount},
+            {
+                "occurred_on": str(date.today() - timedelta(days=30 * n)),
+                "net_minor": amount,
+                "post_to_ledger": False,
+            },
             format="json",
         )
 
@@ -250,3 +254,52 @@ def test_receipts_move_the_expected_figure_for_variable_income(tenant_context):
     assert refreshed["expected_is_observed"] is True
     assert refreshed["expected_net_minor"] == 220_000
     assert refreshed["variance_pct"] == pytest.approx(9.1, abs=0.1)
+
+
+def test_recording_a_receipt_posts_to_transactions(tenant_context):
+    """Income recorded on /income must appear on the Transactions page."""
+    from apps.finance import services as finance_services
+    from apps.finance.models import AccountType, Transaction
+    from tests.utils import tenant_scope
+
+    membership, client = tenant_context
+    with tenant_scope(membership.tenant_id):
+        account = finance_services.create_financial_account(
+            name="Checking", account_type=AccountType.CHECKING, currency="USD"
+        )
+
+    source = client.post(
+        f"{BASE}/sources/",
+        _payload(deposit_account_id=str(account.id), pay_day=15),
+        format="json",
+    ).data
+    assert source["deposit_account_id"] == str(account.id)
+
+    receipt = client.post(
+        f"{BASE}/sources/{source['id']}/receipts/",
+        {
+            "occurred_on": str(TODAY),
+            "net_minor": 300_000,
+            "deposit_account_id": str(account.id),
+        },
+        format="json",
+    )
+    assert receipt.status_code == 201, receipt.data
+    assert receipt.data["transaction_id"]
+
+    with tenant_scope(membership.tenant_id):
+        txn = Transaction.objects.get(id=receipt.data["transaction_id"])
+        assert txn.amount_minor == 300_000
+        assert txn.financial_account_id == account.id
+
+
+def test_receipt_without_account_explains_what_to_fix(tenant_context):
+    _membership, client = tenant_context
+    source = client.post(f"{BASE}/sources/", _payload(), format="json").data
+    response = client.post(
+        f"{BASE}/sources/{source['id']}/receipts/",
+        {"occurred_on": str(TODAY), "net_minor": 300_000},
+        format="json",
+    )
+    assert response.status_code == 422
+    assert "account" in response.data["detail"].lower()

@@ -340,6 +340,16 @@ export const financeExtendedApi = {
 
   cancelRecurring: (recId: string) => api.delete<void>(`/finance/recurring/${recId}/`),
 
+  /** Mark the next occurrence paid/received; posts the txn and advances next_run_on. */
+  confirmRecurring: (
+    recId: string,
+    payload: { amount_minor?: number; occurred_on?: string } = {},
+  ) =>
+    api.post<{ recurring: RecurringTransaction; transaction_id: string | null }>(
+      `/finance/recurring/${recId}/confirm/`,
+      payload,
+    ),
+
   listTags: () => api.get<Tag[]>("/finance/tags/"),
   createTag: (payload: { name: string; color?: string }) => api.post<Tag>("/finance/tags/", payload),
   setTransactionTags: (txnId: string, tag_ids: string[]) =>

@@ -45,6 +45,7 @@ class IncomeSourceUpdateSerializer(serializers.Serializer):
     starts_on = serializers.DateField(required=False)
     ends_on = serializers.DateField(required=False, allow_null=True)
     is_active = serializers.BooleanField(required=False)
+    deposit_account_id = serializers.UUIDField(required=False, allow_null=True)
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True)
 
 
@@ -71,4 +72,10 @@ class ReceiptCreateSerializer(serializers.Serializer):
     net_minor = serializers.IntegerField(min_value=1)
     gross_minor = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     transaction_id = serializers.UUIDField(required=False, allow_null=True)
+    #: Where the money landed. Required when posting to the ledger and the
+    #: source has no deposit account yet.
+    deposit_account_id = serializers.UUIDField(required=False, allow_null=True)
+    #: Default true: recording a payment creates the matching ledger income
+    #: so it appears on Transactions. Set false only to observe without posting.
+    post_to_ledger = serializers.BooleanField(required=False, default=True)
     memo = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")

@@ -612,18 +612,20 @@ def test_recurring_pause_and_cancel(tenant_context):
     ).data
     rec_id = rec["id"]
 
-    # Pause: still exists but inactive (drops out of the active list).
+    # Pause: stays on the list (so it can be resumed) but is marked inactive.
     paused = client.patch(f"/api/v1/finance/recurring/{rec_id}/", {"is_active": False}, format="json")
     assert paused.status_code == 200
     assert paused.data["is_active"] is False
-    assert all(r["id"] != rec_id for r in client.get("/api/v1/finance/recurring/").data)
+    listed = client.get("/api/v1/finance/recurring/").data
+    paused_row = next(r for r in listed if r["id"] == rec_id)
+    assert paused_row["is_active"] is False
 
     # Resume.
     resumed = client.patch(f"/api/v1/finance/recurring/{rec_id}/", {"is_active": True}, format="json")
     assert resumed.status_code == 200
-    assert any(r["id"] == rec_id for r in client.get("/api/v1/finance/recurring/").data)
+    assert any(r["id"] == rec_id and r["is_active"] for r in client.get("/api/v1/finance/recurring/").data)
 
-    # Cancel: gone for good.
+    # Cancel: soft-deleted, gone from the list for good.
     cancelled = client.delete(f"/api/v1/finance/recurring/{rec_id}/")
     assert cancelled.status_code == 204
     assert all(r["id"] != rec_id for r in client.get("/api/v1/finance/recurring/").data)

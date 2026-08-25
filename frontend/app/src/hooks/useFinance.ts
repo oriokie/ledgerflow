@@ -446,6 +446,25 @@ export function useCancelRecurring() {
   });
 }
 
+export function useConfirmRecurring() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      recId,
+      amount_minor,
+      occurred_on,
+    }: {
+      recId: string;
+      amount_minor?: number;
+      occurred_on?: string;
+    }) => financeExtendedApi.confirmRecurring(recId, { amount_minor, occurred_on }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recurring"] });
+      invalidateMoneyViews(queryClient);
+    },
+  });
+}
+
 export function useImportBillsXlsx() {
   const queryClient = useQueryClient();
   return useMutation({
