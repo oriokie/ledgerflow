@@ -28,6 +28,11 @@ function source(overrides: Partial<IncomeSource> = {}): IncomeSource {
     deductions_minor: 100_000,
     variance_pct: null,
     is_speculative: false,
+    deposit_account_id: null,
+    pay_day: 25,
+    second_pay_day: null,
+    next_expected_on: "2026-06-25",
+    overdue_expected_on: null,
     ...overrides,
   };
 }

@@ -135,7 +135,10 @@ def test_variable_income_uses_the_observed_mean_over_the_stated_amount():
         )
         for n, amount in enumerate((200_000, 220_000, 240_000), start=1):
             services.record_receipt(
-                source=source, occurred_on=TODAY - timedelta(days=30 * n), net_minor=amount
+                source=source,
+                occurred_on=TODAY - timedelta(days=30 * n),
+                net_minor=amount,
+                post_to_ledger=False,
             )
         view = selectors.source_views(as_of=TODAY)[0]
         assert view.expected_is_observed
@@ -155,7 +158,10 @@ def test_a_fixed_salary_is_not_restated_by_a_one_off_bonus():
         source = _source(net_minor=300_000, reliability=Reliability.FIXED)
         for n, amount in enumerate((300_000, 300_000, 900_000), start=1):
             services.record_receipt(
-                source=source, occurred_on=TODAY - timedelta(days=30 * n), net_minor=amount
+                source=source,
+                occurred_on=TODAY - timedelta(days=30 * n),
+                net_minor=amount,
+                post_to_ledger=False,
             )
         view = selectors.source_views(as_of=TODAY)[0]
         assert view.expected_net_minor == 300_000
@@ -170,7 +176,10 @@ def test_two_receipts_are_not_enough_to_restate_expectation():
         source = _source(kind=IncomeKind.BUSINESS, net_minor=100_000, reliability=Reliability.VARIABLE)
         for n in (1, 2):
             services.record_receipt(
-                source=source, occurred_on=TODAY - timedelta(days=30 * n), net_minor=500_000
+                source=source,
+                occurred_on=TODAY - timedelta(days=30 * n),
+                net_minor=500_000,
+                post_to_ledger=False,
             )
         view = selectors.source_views(as_of=TODAY)[0]
         assert view.observed_mean_minor is None

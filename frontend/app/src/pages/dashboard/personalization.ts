@@ -8,15 +8,19 @@ import type {
   NetWorthByCurrency,
   NetWorthHistoryPoint,
   Recommendation,
+  RecurringTransaction,
   SavingsGoal,
   SpendingTrendPoint,
 } from "../../api/types";
+import type { IncomeSource } from "../../api/income";
 import { formatAmount } from "../../lib/money";
 import { percentChange, savingsRate } from "./metrics";
 
 export type AttentionKind =
   | "overdue_bill"
   | "bill_soon"
+  | "missed_income"
+  | "recurring_due"
   | "budget_over"
   | "cashflow_risk"
   | "goal_off_track"
@@ -211,10 +215,14 @@ export function buildAttentionItems(input: {
   debtAlerts?: { severity: string; title: string; body: string; account_id: string | null }[];
   insights?: Insight[];
   recommendations?: Recommendation[];
+  incomeSources?: IncomeSource[];
+  recurring?: RecurringTransaction[];
   currency: string;
 }): AttentionItem[] {
   const items: AttentionItem[] = [];
   const currency = input.currency;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   for (const b of input.bills ?? []) {
     if (b.status === "overdue") {
@@ -244,6 +252,50 @@ export function buildAttentionItems(input: {
         });
       }
     }
+  }
+
+  for (const source of input.incomeSources ?? []) {
+    if (!source.overdue_expected_on || !source.is_current) continue;
+    const due = new Date(source.overdue_expected_on + "T00:00:00");
+    const daysLate = Math.max(0, Math.round((today.getTime() - due.getTime()) / 86_400_000));
+    const when =
+      daysLate === 0
+        ? "due today"
+        : daysLate === 1
+          ? "was due yesterday"
+          : `was due ${daysLate} days ago`;
+    items.push({
+      id: `income-miss-${source.id}`,
+      kind: "missed_income",
+      urgency: 88 + Math.min(10, daysLate),
+      title: `${source.name} ${when}`,
+      body: `Expected ${formatAmount(source.expected_net_minor, source.currency)} — record it if it arrived.`,
+      href: "/income",
+      cta: "Record income",
+    });
+  }
+
+  for (const rec of input.recurring ?? []) {
+    if (!rec.is_active) continue;
+    const due = new Date(rec.next_run_on + "T00:00:00");
+    const days = Math.round((due.getTime() - today.getTime()) / 86_400_000);
+    if (days > 2) continue;
+    const isIncome = rec.txn_type === "income";
+    const label = rec.memo?.trim() || (isIncome ? "Recurring income" : "Recurring payment");
+    items.push({
+      id: `rec-due-${rec.id}`,
+      kind: "recurring_due",
+      urgency: days < 0 ? 92 : 78 - days,
+      title:
+        days < 0
+          ? `${label} overdue`
+          : days === 0
+            ? `${label} due today`
+            : `${label} due in ${days}d`,
+      body: formatAmount(rec.amount_minor, rec.currency || currency),
+      href: "/plan?tab=recurring",
+      cta: isIncome ? "Mark received" : "Mark paid",
+    });
   }
 
   for (const line of input.budgetStatus?.lines ?? []) {

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useIncomeSources, useIncomeSummary } from "../../hooks/useIncome";
 import {
   useAccounts,
   useBills,
@@ -8,6 +9,7 @@ import {
   useCategoryBreakdown,
   useNetWorth,
   useNetWorthBase,
+  useRecurring,
   useReviewCount,
   useTransactions,
 } from "../../hooks/useFinance";
@@ -26,7 +28,6 @@ import { usePortfolio } from "../../hooks/useInvestments";
 import { useMembers } from "../../hooks/useTenancy";
 import { useAiEnabled } from "../../hooks/useEntitlements";
 import { useAuth } from "../../lib/AuthContext";
-import { useIncomeSummary } from "../../hooks/useIncome";
 import {
   adaptiveSectionPriority,
   buildAttentionItems,
@@ -71,6 +72,8 @@ export function useDashboardModel() {
   const { data: debtSummaryRaw } = useDebtSummary();
   const debtSummary = debtSummaryRaw ?? undefined;
   const { data: incomeSummary } = useIncomeSummary();
+  const { data: incomeSources } = useIncomeSources();
+  const { data: recurring } = useRecurring();
 
   const primaryCurrency =
     netWorth?.[0]?.currency ??
@@ -140,6 +143,8 @@ export function useDashboardModel() {
         debtAlerts: debtSummary?.alerts,
         insights: topInsights,
         recommendations,
+        incomeSources,
+        recurring,
         currency: primaryCurrency,
       }),
     [
@@ -151,6 +156,8 @@ export function useDashboardModel() {
       debtSummary,
       topInsights,
       recommendations,
+      incomeSources,
+      recurring,
       primaryCurrency,
     ],
   );

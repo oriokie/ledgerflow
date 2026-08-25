@@ -70,6 +70,14 @@ export interface IncomeSource {
    * the client re-derive it, so certainty always travels with the number.
    */
   is_speculative: boolean;
+
+  deposit_account_id: string | null;
+  pay_day: number | null;
+  second_pay_day: number | null;
+  /** Next expected payday on or after today. */
+  next_expected_on: string | null;
+  /** Recent payday with no covering receipt — dashboard nudge target. */
+  overdue_expected_on: string | null;
 }
 
 export interface IncomeDeduction {
@@ -87,6 +95,7 @@ export interface IncomeReceipt {
   net_minor: number;
   gross_minor: number | null;
   memo: string;
+  transaction_id?: string | null;
 }
 
 export interface IncomeSourceDetail extends IncomeSource {
@@ -169,6 +178,13 @@ export const incomeApi = {
 
   recordReceipt: (
     sourceId: string,
-    payload: { occurred_on: string; net_minor: number; gross_minor?: number; memo?: string },
+    payload: {
+      occurred_on: string;
+      net_minor: number;
+      gross_minor?: number;
+      memo?: string;
+      deposit_account_id?: string;
+      post_to_ledger?: boolean;
+    },
   ) => api.post<IncomeReceipt>(`/income/sources/${sourceId}/receipts/`, payload),
 };

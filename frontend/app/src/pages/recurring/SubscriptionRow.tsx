@@ -1,8 +1,8 @@
-import { Pause, Pencil, Play, Trash2 } from "lucide-react";
+import { Check, Pause, Pencil, Play, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { Category, RecurringTransaction } from "../../api/types";
 import { formatDate } from "../../lib/money";
-import { ConfirmAction, IconButton, Money } from "../../ui";
+import { Button, ConfirmAction, IconButton, Inline, Input, Money } from "../../ui";
 import { annualMinor, cadenceLabel, isPeriodical, recognizedMinor, recurringLabel } from "./recurringMath";
 
 /**
@@ -15,12 +15,15 @@ export function SubscriptionRow({
   categories,
   onSetActive,
   onCancel,
+  onConfirm,
   onEdit,
 }: {
   rec: RecurringTransaction;
   categories: Category[] | undefined;
   onSetActive: (recId: string, active: boolean) => Promise<unknown>;
   onCancel: (recId: string) => Promise<unknown>;
+  /** Mark the next occurrence paid/received with an exact amount. */
+  onConfirm?: (recId: string, amountMinor: number) => Promise<unknown>;
   /** Absent where the row is read-only (the dashboard strip, digests). */
   onEdit?: (rec: RecurringTransaction) => void;
 }) {
@@ -31,11 +34,29 @@ export function SubscriptionRow({
   const isIncome = rec.txn_type === "income";
   const isTransfer = rec.txn_type === "transfer";
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [paidAmount, setPaidAmount] = useState(() => (rec.amount_minor / 100).toFixed(2));
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
     try {
       await fn();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmLabel = isIncome ? "Mark received" : isTransfer ? "Mark done" : "Mark paid";
+
+  const submitConfirm = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!onConfirm) return;
+    const parsed = Number.parseFloat(paidAmount);
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    setBusy(true);
+    try {
+      await onConfirm(rec.id, Math.round(parsed * 100));
+      setConfirming(false);
     } finally {
       setBusy(false);
     }
@@ -51,6 +72,28 @@ export function SubscriptionRow({
           {rec.ends_on ? ` · ends ${formatDate(rec.ends_on)}` : ""}
           {!rec.is_active ? " · paused" : ""}
         </div>
+        {confirming && onConfirm && (
+          <form onSubmit={submitConfirm} style={{ marginTop: "var(--lf-space-2)" }}>
+            <Inline gap={2} wrap align="end">
+              <Input
+                label={`Amount (${rec.currency})`}
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={paidAmount}
+                onChange={(e) => setPaidAmount(e.target.value)}
+                required
+                autoFocus
+              />
+              <Button type="submit" variant="secondary" size="sm" disabled={busy} loading={busy}>
+                {confirmLabel}
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(false)}>
+                Cancel
+              </Button>
+            </Inline>
+          </form>
+        )}
       </div>
 
       <div className="lf-sub-cost">
@@ -64,6 +107,17 @@ export function SubscriptionRow({
       </div>
 
       <span className="lf-sub-actions">
+        {onConfirm && rec.is_active && !confirming && (
+          <IconButton
+            label={`${confirmLabel} ${label}`}
+            icon={<Check size={15} strokeWidth={1.8} />}
+            onClick={() => {
+              setPaidAmount((rec.amount_minor / 100).toFixed(2));
+              setConfirming(true);
+            }}
+            disabled={busy}
+          />
+        )}
         {onEdit && (
           <IconButton
             label={`Edit ${label}`}

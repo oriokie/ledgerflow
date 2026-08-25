@@ -301,6 +301,13 @@ class RecurringUpdateSerializer(serializers.Serializer):
         return attrs
 
 
+class RecurringConfirmSerializer(serializers.Serializer):
+    """Mark the next occurrence paid/received with an optional actual amount."""
+
+    amount_minor = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    occurred_on = serializers.DateField(required=False, allow_null=True)
+
+
 # ------------------------------------------------------------------ calculations
 class StatementQuerySerializer(serializers.Serializer):
     start = serializers.DateTimeField()

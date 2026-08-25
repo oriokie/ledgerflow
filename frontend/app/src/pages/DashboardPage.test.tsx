@@ -13,6 +13,7 @@ vi.mock("../hooks/useFinance", () => ({
   useBills: vi.fn(() => ({ data: undefined })),
   useTransactions: vi.fn(() => ({ data: undefined, isLoading: false })),
   useReviewCount: () => ({ data: { count: 0 } }),
+  useRecurring: () => ({ data: undefined }),
 }));
 vi.mock("../hooks/useBudgeting", () => ({
   useBudgets: () => ({ data: undefined }),
@@ -22,7 +23,10 @@ vi.mock("../hooks/useGoals", () => ({
   useGoals: () => ({ data: undefined }),
   useGoalForecasts: () => ({ data: undefined }),
 }));
-vi.mock("../hooks/useIncome", () => ({ useIncomeSummary: () => ({ data: undefined }) }));
+vi.mock("../hooks/useIncome", () => ({
+  useIncomeSummary: () => ({ data: undefined }),
+  useIncomeSources: () => ({ data: undefined }),
+}));
 vi.mock("../hooks/useTenancy", () => ({ useMembers: () => ({ data: undefined }) }));
 vi.mock("../hooks/useCoach", () => ({ useInsights: () => ({ data: [] }) }));
 vi.mock("../hooks/useInvestments", () => ({ usePortfolio: () => ({ data: undefined }) }));

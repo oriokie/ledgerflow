@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ApiError } from "../../api/client";
 import type { IncomeFrequency, IncomeKind, Reliability } from "../../api/income";
+import { useAccounts } from "../../hooks/useFinance";
 import { useCreateIncomeSource } from "../../hooks/useIncome";
 import { useAuth } from "../../lib/AuthContext";
 import { CURRENCY_OPTIONS } from "../../lib/currencies";
@@ -62,6 +63,7 @@ export function CreateIncomeSourceForm({
 }) {
   const { activeWorkspace } = useAuth();
   const create = useCreateIncomeSource();
+  const { data: accounts } = useAccounts();
 
   const [name, setName] = useState("");
   const [payer, setPayer] = useState("");
@@ -74,12 +76,14 @@ export function CreateIncomeSourceForm({
   const [secondPayDay, setSecondPayDay] = useState("");
   const [startsOn, setStartsOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [endsOn, setEndsOn] = useState("");
+  const [depositAccountId, setDepositAccountId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const baseCurrency = activeWorkspace?.tenant.base_currency ?? "USD";
   const [currency, setCurrency] = useState(baseCurrency);
   const needsPayDay = DAY_OF_MONTH_CADENCES.includes(frequency);
   const needsSecondPayDay = frequency === "semi_monthly";
+  const matchingAccounts = (accounts ?? []).filter((a) => a.currency === currency && !a.is_archived);
 
   const toMinor = (value: string): number | undefined => {
     const parsed = Number.parseFloat(value);
@@ -146,6 +150,7 @@ export function CreateIncomeSourceForm({
         second_pay_day: secondPayDayValue,
         starts_on: startsOn,
         ends_on: endsOn.trim() ? endsOn : undefined,
+        deposit_account_id: depositAccountId || undefined,
       });
       onCreated();
     } catch (err) {
@@ -281,10 +286,21 @@ export function CreateIncomeSourceForm({
             onChange={(e) => setEndsOn(e.target.value)}
           />
 
+          <Select
+            label="Usually deposits to"
+            optional
+            hint="Used when you record a payment, so it appears on Transactions."
+            value={depositAccountId}
+            onChange={(e) => setDepositAccountId(e.target.value)}
+            options={[
+              { value: "", label: "Choose later" },
+              ...matchingAccounts.map((a) => ({ value: a.id, label: a.name })),
+            ]}
+          />
+
           <Text size="xs" tone="tertiary">
-            Adding income here does not post anything to your ledger — it describes what you
-            expect, so the cash-flow projection and the committed-income figure have something
-            honest to work from.
+            Adding a source describes what you expect. When you record a payment, it posts to
+            Transactions against the deposit account.
           </Text>
 
           <Inline gap={2}>
