@@ -31,11 +31,7 @@ def _get(receivable_id) -> Receivable | None:
 
 def _view_for(receivable_id) -> dict | None:
     view = next(
-        (
-            v
-            for v in selectors.receivable_views()
-            if v.receivable_id == str(receivable_id)
-        ),
+        (v for v in selectors.receivable_views() if v.receivable_id == str(receivable_id)),
         None,
     )
     return _out(view) if view else None
@@ -50,12 +46,8 @@ class ReceivableListView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
 
     @extend_schema(operation_id="receivables_list")
     def get(self, request):
-        include_closed = (
-            request.query_params.get("include_closed", "true").lower() != "false"
-        )
-        return Response(
-            [_out(v) for v in selectors.receivable_views(include_closed=include_closed)]
-        )
+        include_closed = request.query_params.get("include_closed", "true").lower() != "false"
+        return Response([_out(v) for v in selectors.receivable_views(include_closed=include_closed)])
 
     @extend_schema(operation_id="receivables_create")
     def post(self, request):
@@ -85,9 +77,7 @@ class ReceivableListView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView)
                 post_to_ledger=v.get("post_to_ledger", True) and account is not None,
             )
         except services.ReceivableError as exc:
-            return Response(
-                {"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
-            )
+            return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         return Response(_view_for(receivable.id), status=status.HTTP_201_CREATED)
 
@@ -136,9 +126,7 @@ class ReceivableDetailView(WriteRequiresMemberMixin, TenantScopedAPIView, APIVie
         try:
             services.update_receivable(receivable=receivable, **fields)
         except services.ReceivableError as exc:
-            return Response(
-                {"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
-            )
+            return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         return Response(_view_for(receivable_id))
 
     @extend_schema(operation_id="receivable_delete")
@@ -170,9 +158,7 @@ class RepaymentView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
             txn = Transaction.objects.filter(id=v["transaction_id"]).first()
         account = None
         if v.get("deposit_account_id"):
-            account = FinancialAccount.objects.filter(
-                id=v["deposit_account_id"]
-            ).first()
+            account = FinancialAccount.objects.filter(id=v["deposit_account_id"]).first()
             if account is None:
                 return Response(
                     {"detail": "deposit_account not found"},
@@ -186,15 +172,11 @@ class RepaymentView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
                 received_on=v["received_on"],
                 transaction_ref=txn,
                 deposit_account=account,
-                post_to_ledger=v.get("post_to_ledger", True)
-                and txn is None
-                and can_post,
+                post_to_ledger=v.get("post_to_ledger", True) and txn is None and can_post,
                 memo=v.get("memo", ""),
             )
         except services.ReceivableError as exc:
-            return Response(
-                {"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
-            )
+            return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         return Response(_view_for(receivable_id), status=status.HTTP_201_CREATED)
 
 
@@ -212,9 +194,7 @@ class WriteOffView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
         try:
             services.write_off(receivable=receivable)
         except services.ReceivableError as exc:
-            return Response(
-                {"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY
-            )
+            return Response({"detail": str(exc)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         return Response(_view_for(receivable_id))
 
 

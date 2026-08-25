@@ -27,7 +27,15 @@ function rec(over: Partial<RecurringTransaction> = {}): RecurringTransaction {
 function setup(over: Partial<{ onSetActive: ReturnType<typeof vi.fn>; onCancel: ReturnType<typeof vi.fn> }> = {}, recOver = {}) {
   const onSetActive = over.onSetActive ?? vi.fn().mockResolvedValue(undefined);
   const onCancel = over.onCancel ?? vi.fn().mockResolvedValue(undefined);
-  render(<SubscriptionRow rec={rec(recOver)} categories={[]} onSetActive={onSetActive} onCancel={onCancel} />);
+  render(
+    <SubscriptionRow
+      rec={rec(recOver)}
+      categories={[]}
+      accounts={[]}
+      onSetActive={onSetActive}
+      onCancel={onCancel}
+    />,
+  );
   return { onSetActive, onCancel };
 }
 
