@@ -250,9 +250,7 @@ def record_receipt(
     if posted is None and post_to_ledger:
         account = deposit_account or source.deposit_account
         if account is None:
-            raise IncomeError(
-                "Choose which account this payment landed in so it can appear on Transactions."
-            )
+            raise IncomeError("Choose which account this payment landed in so it can appear on Transactions.")
         if account.currency != source.currency:
             raise IncomeError(
                 f"Deposit account is in {account.currency}, but this income is in {source.currency}."
