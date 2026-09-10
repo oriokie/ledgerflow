@@ -1,4 +1,6 @@
 import {
+  addDays,
+  differenceInCalendarDays,
   endOfDay,
   endOfMonth,
   startOfMonth,
@@ -29,7 +31,44 @@ export function periodRange(period: PeriodKey, now: Date = new Date()): PeriodRa
       return { start: startOfYear(now).toISOString(), end: endOfDay(now).toISOString(), label: "Year to date" };
     case "this-month":
     default:
-      return { start: startOfMonth(now).toISOString(), end: endOfMonth(now).toISOString(), label: "This month" };
+      return {
+        start: startOfMonth(now).toISOString(),
+        end: endOfDay(now).toISOString(),
+        label: "This month so far",
+      };
+  }
+}
+
+/**
+ * The comparable prior window for a dashboard period.
+ *
+ * This month is compared to the same number of days last month, not to last
+ * month in full — a 10-day June against a 31-day May would always look like a
+ * collapse. Last-30-days compares to the 30 days immediately before. Full
+ * calendar periods (last month, year to date) have no honest sibling here.
+ */
+export function comparisonRange(period: PeriodKey, now: Date = new Date()): PeriodRange | null {
+  switch (period) {
+    case "this-month": {
+      const daysElapsed = differenceInCalendarDays(now, startOfMonth(now)) + 1;
+      const ref = subMonths(now, 1);
+      const start = startOfMonth(ref);
+      const lastMonthLength = differenceInCalendarDays(endOfMonth(ref), start) + 1;
+      const n = Math.min(daysElapsed, lastMonthLength);
+      return {
+        start: start.toISOString(),
+        end: endOfDay(addDays(start, n - 1)).toISOString(),
+        label: `Same ${n} days last month`,
+      };
+    }
+    case "last-30d":
+      return {
+        start: startOfDayIso(subDays(now, 59)),
+        end: endOfDay(subDays(now, 30)).toISOString(),
+        label: "Previous 30 days",
+      };
+    default:
+      return null;
   }
 }
 

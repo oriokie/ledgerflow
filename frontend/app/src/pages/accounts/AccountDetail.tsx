@@ -1,5 +1,5 @@
 import { endOfMonth, format, startOfMonth } from "date-fns";
-import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Pencil } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Pencil, Scale } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ApiError } from "../../api/client";
@@ -8,6 +8,7 @@ import { useAccountStatement, useArchiveAccount, useDeleteAccount, useUnarchiveA
 import { formatDate } from "../../lib/money";
 import { Badge, Banner, Button, Card, ConfirmAction, Figure, FigureRow, IconButton, Money, Select, Skeleton, Text } from "../../ui";
 import { AccountTypeIcon } from "./AccountTypeIcon";
+import { ReconcilePanel } from "./ReconcilePanel";
 import { accountTypeLabel, statementSummary } from "./summary";
 
 const RECENT_LIMIT = 8;
@@ -52,6 +53,7 @@ export function AccountDetail({
   const unarchiveAccount = useUnarchiveAccount();
   const deleteAccount = useDeleteAccount();
   const [actionError, setActionError] = useState<string | null>(null);
+  const [reconciling, setReconciling] = useState(false);
 
   const deactivate = async () => {
     setActionError(null);
@@ -183,6 +185,15 @@ export function AccountDetail({
         <Button variant="secondary" size="sm" icon={<FileText size={15} strokeWidth={1.8} />} onClick={onOpenStatement}>
           Full statement
         </Button>
+        <Button
+          variant={reconciling ? "primary" : "secondary"}
+          size="sm"
+          icon={<Scale size={15} strokeWidth={1.8} />}
+          onClick={() => setReconciling((open) => !open)}
+          aria-expanded={reconciling}
+        >
+          {reconciling ? "Close reconcile" : "Reconcile statement"}
+        </Button>
         <Button variant="ghost" size="sm" icon={<Pencil size={15} strokeWidth={1.8} />} onClick={onEdit}>
           Edit
         </Button>
@@ -219,6 +230,12 @@ export function AccountDetail({
         )}
       </div>
       {actionError && <Banner tone="danger">{actionError}</Banner>}
+
+      {reconciling && (
+        <div style={{ marginTop: "var(--lf-space-6)" }}>
+          <ReconcilePanel account={account} />
+        </div>
+      )}
 
       {/* Recent transactions */}
       <div style={{ marginTop: "var(--lf-space-6)" }}>

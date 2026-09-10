@@ -459,7 +459,7 @@
   border-radius: var(--lf-radius-md);
   background: var(--lf-bg-surface);
   color: var(--lf-text-primary);
-  box-shadow: inset 0 1px 1px rgba(21, 25, 40, 0.02);
+  box-shadow: inset 0 1px 1px color-mix(in srgb, var(--lf-ink-900) 4%, transparent);
   transition:
     border-color var(--lf-duration-fast) var(--lf-ease-out),
     box-shadow var(--lf-duration-fast) var(--lf-ease-out),
@@ -1149,7 +1149,7 @@
 .lf-modal::backdrop {
   /* A touch more ink plus a blur: the dialog reads as the only live surface,
      which is what makes a confirmation feel consequential. */
-  background: rgba(21, 25, 40, 0.5);
+  background: color-mix(in srgb, var(--lf-ink-900) 52%, transparent);
   -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
 }

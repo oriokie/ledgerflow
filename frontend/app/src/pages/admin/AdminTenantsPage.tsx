@@ -2,11 +2,13 @@ import { ArrowLeft, Inbox } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import type { TenantRow } from "../../api/platform";
+import type { ImpersonationGrant, TenantRow } from "../../api/platform";
 import { ApiError } from "../../api/client";
 import { AdminPageHeader } from "../../components/admin/AdminPageHeader";
 import { ReasonDialog } from "../../components/admin/AdminShell";
 import {
+  useEndImpersonation,
+  useImpersonations,
   useInvoices,
   useCapability,
   usePlatformMe,
@@ -26,6 +28,7 @@ import {
   Heading,
   Input,
   LoadingBlock,
+  Modal,
   Select,
   Stack,
   Table,
@@ -33,7 +36,8 @@ import {
   useToast,
 } from "../../ui";
 import type { SortDirection } from "../../ui";
-import { bytes, day, humanize, money, tone } from "./format";
+import { AdminPagination } from "./AdminPagination";
+import { bytes, day, humanize, money, moment, tone } from "./format";
 
 export function AdminTenantsPage() {
   const [query, setQuery] = useState("");
@@ -213,29 +217,13 @@ export function AdminTenantsPage() {
             sort={sort}
             onSort={handleSort}
           />
-          <div className="lf-admin-pagination">
-            <Text size="sm" tone="secondary">
-              {data.count} workspace{data.count === 1 ? "" : "s"}
-            </Text>
-            <div className="lf-inline lf-gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={!data.previous}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={!data.next}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          <AdminPagination
+            page={page}
+            onPageChange={setPage}
+            hasPrevious={Boolean(data.previous)}
+            hasNext={Boolean(data.next)}
+            label={`${data.count} workspace${data.count === 1 ? "" : "s"}`}
+          />
         </>
       )}
     </Stack>
@@ -249,6 +237,7 @@ type PendingAction =
   | { kind: "reset-billing" }
   | { kind: "extend-trial" }
   | { kind: "cancel-subscription" }
+  | { kind: "resume-subscription" }
   | { kind: "change-plan" }
   | { kind: "complimentary" }
   | { kind: "credit" }
@@ -262,6 +251,7 @@ const ACTION_COPY: Record<string, { title: string; confirm: string; destructive?
   "reset-billing": { title: "Reset billing state", confirm: "Reset" },
   "extend-trial": { title: "Extend trial", confirm: "Extend" },
   "cancel-subscription": { title: "Cancel subscription", confirm: "Cancel subscription", destructive: true },
+  "resume-subscription": { title: "Resume subscription", confirm: "Resume" },
   "change-plan": { title: "Change plan", confirm: "Change plan" },
   complimentary: { title: "Grant complimentary subscription", confirm: "Grant" },
   credit: { title: "Issue account credit", confirm: "Issue credit" },
@@ -280,6 +270,8 @@ export function AdminTenantDetailPage() {
   const { data: plans } = usePlatformPlans();
   const action = useTenantAction(tenantId);
   const impersonate = useStartImpersonation(tenantId);
+  const { data: sessions } = useImpersonations({ active: "true" });
+  const endSession = useEndImpersonation();
   const toast = useToast();
 
   const [pending, setPending] = useState<PendingAction>(null);
@@ -288,6 +280,9 @@ export function AdminTenantDetailPage() {
   const [months, setMonths] = useState("1");
   const [amount, setAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [reveal, setReveal] = useState<ImpersonationGrant | null>(null);
+  const [ending, setEnding] = useState<ImpersonationGrant | null>(null);
+  const [endError, setEndError] = useState<string | null>(null);
 
   if (isLoading) return <LoadingBlock label="Loading workspace…" />;
   if (!tenant) return <EmptyState icon={Inbox} title="Not found" body="No such workspace." />;
@@ -303,12 +298,12 @@ export function AdminTenantDetailPage() {
     try {
       if (pending.kind === "impersonate") {
         const grant = await impersonate.mutateAsync({ reason, read_only: true });
-        // The grant token is returned once and deliberately not persisted
-        // anywhere it could be recovered from.
-        toast(
-          `Session started — read-only, expires ${new Date(grant.expires_at).toLocaleTimeString()}`,
-          { tone: "success" },
-        );
+        // The raw token is returned once and is never stored. The toast used
+        // to claim a session had started while discarding the only credential
+        // that could actually open it.
+        close();
+        setReveal(grant);
+        return;
       } else {
         const body: Record<string, unknown> = { reason };
         if (pending.kind === "extend-trial") body.days = Number(days);
@@ -322,7 +317,7 @@ export function AdminTenantDetailPage() {
           body.currency = tenant.currency;
         }
         await action.mutateAsync({ action: pending.kind, body });
-        toast(`${"Done"} — ${"The action was recorded in the audit log."}`, { tone: "success" });
+        toast("The action was recorded in the audit log.", { tone: "success" });
       }
       close();
     } catch (err) {
@@ -332,6 +327,10 @@ export function AdminTenantDetailPage() {
 
   const copy = pending ? ACTION_COPY[pending.kind] : null;
   const sub = tenant.subscription;
+  const liveSessions = (sessions?.results ?? []).filter(
+    (grant) => grant.tenant_id === tenantId && grant.status === "active",
+  );
+  const subscriptionPendingCancel = Boolean(sub?.cancel_at_period_end || sub?.status === "canceled");
 
   return (
     <Stack gap={4}>
@@ -471,6 +470,30 @@ export function AdminTenantDetailPage() {
         </Card>
       )}
 
+      {can("tenant.impersonate") && liveSessions.length > 0 && (
+        <Card title="Open support sessions" ruledHeader>
+          <Text size="sm" tone="secondary">
+            Live grants against this workspace. Ending one takes effect on the next request.
+          </Text>
+          <ul className="lf-admin-session-list">
+            {liveSessions.map((grant) => (
+              <li key={grant.id}>
+                <div>
+                  <strong>{grant.read_only ? "Read-only" : "Read-write"}</strong>
+                  <Text size="xs" tone="tertiary">
+                    {grant.staff_email} · expires {moment(grant.expires_at)} · {grant.request_count}{" "}
+                    request{grant.request_count === 1 ? "" : "s"}
+                  </Text>
+                </div>
+                <Button size="sm" variant="secondary" onClick={() => setEnding(grant)}>
+                  End session
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       <Card title="Actions" ruledHeader>
         <Text size="sm" tone="secondary">
           Every action here is recorded against this account with your name and the reason you give.
@@ -518,14 +541,19 @@ export function AdminTenantDetailPage() {
               These change what the customer can do or pay. Each asks for a reason.
             </Text>
             <div className="lf-admin-actions">
-              {can("subscription.write") && (
-                <Button
-                  variant="secondary"
-                  onClick={() => setPending({ kind: "cancel-subscription" })}
-                >
-                  Cancel subscription
-                </Button>
-              )}
+              {can("subscription.write") &&
+                (subscriptionPendingCancel ? (
+                  <Button variant="secondary" onClick={() => setPending({ kind: "resume-subscription" })}>
+                    Resume subscription
+                  </Button>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    onClick={() => setPending({ kind: "cancel-subscription" })}
+                  >
+                    Cancel subscription
+                  </Button>
+                ))}
               {can("tenant.suspend") &&
                 (tenant.is_active ? (
                   <Button variant="danger" onClick={() => setPending({ kind: "suspend" })}>
@@ -605,6 +633,83 @@ export function AdminTenantDetailPage() {
           )}
         </ReasonDialog>
       )}
+
+      {reveal && (
+        <ImpersonationTokenDialog grant={reveal} onClose={() => setReveal(null)} />
+      )}
+
+      {ending && (
+        <ReasonDialog
+          open
+          title="End support session"
+          confirmLabel="End session"
+          destructive
+          pending={endSession.isPending}
+          error={endError}
+          onClose={() => {
+            setEnding(null);
+            setEndError(null);
+          }}
+          onConfirm={async (reason) => {
+            setEndError(null);
+            try {
+              await endSession.mutateAsync({ id: ending.id, reason });
+              toast("Session ended", { tone: "success" });
+              setEnding(null);
+            } catch (err) {
+              setEndError(err instanceof ApiError ? err.detail : "Couldn't end the session.");
+            }
+          }}
+          description="The grant stops working on the next request. This is recorded in the audit log."
+        />
+      )}
     </Stack>
+  );
+}
+
+function ImpersonationTokenDialog({
+  grant,
+  onClose,
+}: {
+  grant: ImpersonationGrant;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const token = grant.token ?? "";
+
+  const copyToken = async () => {
+    try {
+      await navigator.clipboard.writeText(token);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Session token — copy it now"
+      description="This is shown once and is never stored. Without it the grant you just created cannot be used."
+      footer={
+        <Button variant="primary" onClick={onClose}>
+          I've copied it
+        </Button>
+      }
+    >
+      <Stack gap={3}>
+        <Text size="sm" tone="secondary">
+          Read-only, expires {new Date(grant.expires_at).toLocaleString()}. Every request made with
+          this token is counted and audited.
+        </Text>
+        <div className="lf-admin-token">
+          <code>{token}</code>
+          <Button size="sm" variant="secondary" onClick={() => void copyToken()}>
+            {copied ? "Copied" : "Copy"}
+          </Button>
+        </div>
+      </Stack>
+    </Modal>
   );
 }

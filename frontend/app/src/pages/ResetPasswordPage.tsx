@@ -5,9 +5,9 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { authApi } from "../api/auth";
 import { ApiError } from "../api/client";
-import { AuthLayout } from "../components/auth/AuthLayout";
+import { AuthLayout, AuthPageHeader } from "../components/auth/AuthLayout";
 import { PasswordStrengthMeter } from "../components/auth/PasswordStrengthMeter";
-import { Banner, Button, Heading, PasswordInput, Stack, Text } from "../ui";
+import { Banner, Button, PasswordInput, Stack } from "../ui";
 
 const schema = z.object({
   new_password: z.string().min(12, "Password must be at least 12 characters."),
@@ -29,11 +29,12 @@ export function ResetPasswordPage() {
 
   if (!token) {
     return (
-      <AuthLayout footer={<Link to="/login">Back to sign in</Link>} illustration="recover">
+      <AuthLayout scene="recover" footer={<Link to="/login">Back to sign in</Link>} illustration="recover">
         <Stack gap={4}>
-          <Heading level={1}>Link expired or invalid</Heading>
-          <Text tone="secondary">This reset link is missing or malformed. Request a new one to continue.</Text>
-          <Link className="lf-btn lf-btn--primary" to="/forgot-password">
+          <AuthPageHeader eyebrow="Link expired" title="Link expired or invalid">
+            This reset link is missing or malformed. Request a new one to continue.
+          </AuthPageHeader>
+          <Link className="lf-btn lf-btn--primary lf-btn--block" to="/forgot-password">
             Request a new link
           </Link>
         </Stack>
@@ -54,10 +55,10 @@ export function ResetPasswordPage() {
   });
 
   return (
-    <AuthLayout footer={<Link to="/login">Back to sign in</Link>} illustration="recover">
+    <AuthLayout scene="recover" footer={<Link to="/login">Back to sign in</Link>} illustration="recover">
       <form onSubmit={onSubmit} noValidate>
         <Stack gap={4}>
-          <Heading level={1}>Choose a new password</Heading>
+          <AuthPageHeader eyebrow="Choose carefully" title="Set a new password" />
           <div>
             <PasswordInput
               label="New password"

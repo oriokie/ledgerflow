@@ -541,7 +541,8 @@ interface CohortRow {
 }
 
 export function AdminAnalyticsPage() {
-  const [currency] = useState("USD");
+  const [currency, setCurrency] = useState("USD");
+  const { data: dash } = useDashboard(currency);
   const series = useAnalytics<SeriesPoint[]>("revenue_series", { months: 12, currency });
   const cohorts = useAnalytics<CohortRow[]>("cohorts", { months: 6 });
   const forecast = useAnalytics<{ month_offset: number; projected_mrr_minor: number; basis: string }[]>(
@@ -555,6 +556,20 @@ export function AdminAnalyticsPage() {
       <AdminPageHeader
         title="Analytics"
         description="Longer arcs than the dashboard: a year of net revenue, signup cohorts, and where MRR goes if nothing changes."
+        actions={
+          <select
+            className="lf-select"
+            value={currency}
+            aria-label="Reporting currency"
+            onChange={(event) => setCurrency(event.target.value)}
+          >
+            {(dash?.by_currency.length ? dash.by_currency.map((b) => b.key) : ["USD"]).map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </select>
+        }
       />
 
       <Card title="Net revenue, last 12 months" ruledHeader>

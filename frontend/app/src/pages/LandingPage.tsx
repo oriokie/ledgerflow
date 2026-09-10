@@ -139,7 +139,7 @@ function Hero() {
                 <Check size={13} strokeWidth={2.5} aria-hidden="true" />
               </span>
               <span>
-                <strong>Books balanced</strong>
+                <strong>Books open</strong>
                 <small>Every entry has its other side</small>
               </span>
             </div>

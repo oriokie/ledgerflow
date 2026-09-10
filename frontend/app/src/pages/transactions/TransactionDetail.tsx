@@ -13,9 +13,15 @@ import {
   useUpdateTransaction,
   useVoidTransaction,
 } from "../../hooks/useFinance";
+import { useCreateAutomationRule } from "../../hooks/useIntelligence";
 import { majorToMinor } from "../../lib/money";
-import { Badge, Banner, Button, Chip, ConfirmAction, Divider, Grid, Inline, Input, Modal, Money, Select, Stack, Text } from "../../ui";
+import { Badge, Banner, Button, Checkbox, Chip, ConfirmAction, Divider, Grid, Inline, Input, Modal, Money, Select, Stack, Text } from "../../ui";
 import { ReceiptManager } from "./ReceiptManager";
+
+/** Same normalisation the payee service uses, so a rule matches later imports. */
+function normalizePayeeName(name: string): string {
+  return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
 
 export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose: () => void }) {
   const { data: categories } = useCategories();
@@ -28,6 +34,7 @@ export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose:
   const setTags = useSetTransactionTags();
   const reclassifyTransfer = useReclassifyTransfer();
   const createPayee = useCreatePayee();
+  const createRule = useCreateAutomationRule();
 
   const [memo, setMemo] = useState(txn.memo);
   const [categoryId, setCategoryId] = useState(txn.category_id ?? "");
@@ -42,12 +49,14 @@ export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose:
   ]);
   const [allocatingTransfer, setAllocatingTransfer] = useState(false);
   const [counterAccountId, setCounterAccountId] = useState("");
+  const [alwaysCategorize, setAlwaysCategorize] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isTransfer = !!txn.transfer_group;
   const isExpense = txn.amount_minor < 0 && !isTransfer;
   const expenseCategories = categories?.filter((c) => c.kind === "expense") ?? [];
   const usableCategories = categories?.filter((c) => c.kind === (txn.amount_minor < 0 ? "expense" : "income")) ?? [];
+  const selectedPayee = payees?.find((p) => p.id === payeeId);
 
   const save = async () => {
     setError(null);
@@ -56,6 +65,25 @@ export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose:
         txnId: txn.id,
         payload: { memo, category_id: categoryId || null, payee_id: payeeId || null },
       });
+      if (alwaysCategorize && categoryId && selectedPayee) {
+        try {
+          await createRule.mutateAsync({
+            name: `Always: ${selectedPayee.name}`,
+            conditions: {
+              all: [{ field: "payee_normalized", op: "eq", value: normalizePayeeName(selectedPayee.name) }],
+            },
+            actions: [{ type: "set_category", category_id: categoryId }],
+            stop_processing: true,
+          });
+        } catch (err) {
+          setError(
+            err instanceof ApiError
+              ? `Saved, but couldn't create the rule: ${err.detail}`
+              : "Saved, but couldn't create the always-categorise rule.",
+          );
+          return;
+        }
+      }
       onClose();
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Couldn't save changes.");
@@ -176,7 +204,14 @@ export function TransactionDetail({ txn, onClose }: { txn: Transaction; onClose:
             </div>
             <Input label="Memo" value={memo} onChange={(e) => setMemo(e.target.value)} />
           </Grid>
-          <Button variant="primary" onClick={save} loading={updateTxn.isPending}>
+          {categoryId && selectedPayee && (
+            <Checkbox
+              checked={alwaysCategorize}
+              onChange={(event) => setAlwaysCategorize(event.target.checked)}
+              label={`Always categorise ${selectedPayee.name} this way`}
+            />
+          )}
+          <Button variant="primary" onClick={save} loading={updateTxn.isPending || createRule.isPending}>
             Save changes
           </Button>
         </>

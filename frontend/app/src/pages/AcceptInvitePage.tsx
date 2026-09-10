@@ -5,8 +5,8 @@ import { membersApi } from "../api/tenancy";
 import type { InvitationPreview } from "../api/types";
 import { useAuth } from "../lib/AuthContext";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
-import { AuthLayout } from "../components/auth/AuthLayout";
-import { Banner, Button, Heading, Input, LoadingBlock, Stack, Text } from "../ui";
+import { AuthLayout, AuthPageHeader } from "../components/auth/AuthLayout";
+import { Banner, Button, Input, LoadingBlock, Stack } from "../ui";
 
 /** Landing page for invitation links (/invite?token=…). Requires login first —
  * ProtectedRoute handles the redirect and brings the person back here. */
@@ -73,14 +73,11 @@ export function AcceptInvitePage() {
   };
 
   return (
-    <AuthLayout illustration="verify">
+    <AuthLayout scene="invite">
       <Stack gap={4}>
-        <div>
-          <Heading level={1}>Join a workspace</Heading>
-          <Text tone="secondary" size="sm" style={{ marginTop: "var(--lf-space-2)" }}>
-            Paste the invitation token from your email (or follow the link that brought you here).
-          </Text>
-        </div>
+        <AuthPageHeader eyebrow="Invitation" title="Join a workspace">
+          Paste the invitation token from your email, or follow the link that brought you here.
+        </AuthPageHeader>
         <Input label="Invitation token" value={token} onChange={(e) => setToken(e.target.value)} />
 
         {previewLoading && <LoadingBlock label="Looking up your invitation…" />}

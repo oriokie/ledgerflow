@@ -1,15 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { CategoryBreakdownRow } from "../../api/types";
-import { formatDelta, greeting, percentChange, periodRange, rankedCategories, savingsRate } from "./metrics";
+import {
+  comparisonRange,
+  formatDelta,
+  greeting,
+  percentChange,
+  periodRange,
+  rankedCategories,
+  savingsRate,
+} from "./metrics";
 
 const NOW = new Date("2024-06-15T10:00:00.000Z");
 
 describe("periodRange", () => {
-  it("resolves this-month to the calendar month", () => {
+  it("resolves this-month to month-to-date, not the full calendar month", () => {
     const r = periodRange("this-month", NOW);
     expect(r.start.slice(0, 10)).toBe("2024-06-01");
-    expect(r.end.slice(0, 10)).toBe("2024-06-30");
-    expect(r.label).toBe("This month");
+    expect(r.end.slice(0, 10)).toBe("2024-06-15");
+    expect(r.label).toBe("This month so far");
   });
 
   it("resolves last-month", () => {
@@ -29,6 +37,34 @@ describe("periodRange", () => {
     const r = periodRange("ytd", NOW);
     expect(r.start.slice(0, 10)).toBe("2024-01-01");
     expect(r.label).toBe("Year to date");
+  });
+});
+
+describe("comparisonRange", () => {
+  it("compares this month to the same number of days last month", () => {
+    const r = comparisonRange("this-month", NOW);
+    expect(r).not.toBeNull();
+    expect(r!.start.slice(0, 10)).toBe("2024-05-01");
+    expect(r!.end.slice(0, 10)).toBe("2024-05-15");
+    expect(r!.label).toBe("Same 15 days last month");
+  });
+
+  it("does not invent a 31st of February", () => {
+    const r = comparisonRange("this-month", new Date("2024-03-31T10:00:00.000Z"));
+    expect(r!.start.slice(0, 10)).toBe("2024-02-01");
+    expect(r!.end.slice(0, 10)).toBe("2024-02-29");
+  });
+
+  it("compares the last 30 days to the 30 days before that", () => {
+    const r = comparisonRange("last-30d", NOW);
+    expect(r).not.toBeNull();
+    expect(r!.end.slice(0, 10)).toBe("2024-05-16");
+    expect(r!.label).toBe("Previous 30 days");
+  });
+
+  it("has no sibling window for a complete calendar month", () => {
+    expect(comparisonRange("last-month", NOW)).toBeNull();
+    expect(comparisonRange("ytd", NOW)).toBeNull();
   });
 });
 

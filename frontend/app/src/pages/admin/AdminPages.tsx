@@ -8,6 +8,7 @@ import type {
   AuditRow,
   Coupon,
   DunningCase,
+  DunningPolicy,
   Invoice,
   PaymentRow,
   PlatformStaff,
@@ -22,26 +23,33 @@ import {
   useCapability,
   useCoupons,
   useCreateCoupon,
+  useCreateDunningPolicy,
   useDeactivateCoupon,
   useDecideRefund,
   useDownloadInvoice,
   useDunningAction,
   useDunningCases,
+  useDunningPolicies,
   useHealth,
   useInvoices,
   usePayments,
   usePlatformMe,
   usePlatformNotifications,
   usePlatformStaff,
+  useReconcilePayment,
   useRefunds,
   useRevokeStaff,
   useSendInvoice,
+  useUpdateCoupon,
+  useUpdateStaff,
+  useVoidInvoice,
 } from "../../hooks/usePlatform";
 import {
   Badge,
   Banner,
   Button,
   Card,
+  Checkbox,
   ConfirmAction,
   EmptyState,
   Figure,
@@ -55,19 +63,35 @@ import {
   Table,
   Tabs,
   Text,
+  Textarea,
   useToast,
 } from "../../ui";
 import { AdminPagination } from "./AdminPagination";
 import { day, humanize, moment, money, tone } from "./format";
 
+const STAFF_ROLE_OPTIONS = [
+  { value: "platform_owner", label: "Platform Owner" },
+  { value: "platform_administrator", label: "Platform Administrator" },
+  { value: "billing_administrator", label: "Billing Administrator" },
+  { value: "finance", label: "Finance" },
+  { value: "customer_success", label: "Customer Success" },
+  { value: "technical_support", label: "Technical Support" },
+  { value: "read_only_auditor", label: "Read Only Auditor" },
+];
+
 // ==================================================================== billing
 export function AdminBillingPage() {
   const [tab, setTab] = useState("payments");
+  const { data: payments } = usePayments({ page: 1 });
+  const { data: refunds } = useRefunds({ page: 1 });
+  const count = tab === "payments" ? payments?.count : refunds?.count;
+  const noun = tab === "payments" ? "payment" : "refund";
   return (
     <Stack gap={4}>
       <AdminPageHeader
         title="Billing"
         description="Every charge and refund on the platform. Refunds are dual-control: one person requests, a different person releases the money."
+        meta={count != null ? `${count} ${noun}${count === 1 ? "" : "s"}` : undefined}
       />
       <Tabs
         label="Billing sections"
@@ -84,9 +108,16 @@ export function AdminBillingPage() {
 }
 
 function PaymentsPanel() {
+  const { data: staff } = usePlatformMe();
+  const can = useCapability(staff);
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
   const { data, isLoading } = usePayments({ status, page });
+  const reconcile = useReconcilePayment();
+  const toast = useToast();
+  const [matching, setMatching] = useState<PaymentRow | null>(null);
+  const [invoiceId, setInvoiceId] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const columns = [
     {
@@ -112,6 +143,16 @@ function PaymentsPanel() {
       key: "created",
       header: "When",
       render: (row: PaymentRow) => moment(row.created_at),
+    },
+    {
+      key: "actions",
+      header: "",
+      render: (row: PaymentRow) =>
+        can("payment.reconcile") ? (
+          <Button size="sm" variant="ghost" onClick={() => setMatching(row)}>
+            Match
+          </Button>
+        ) : null,
     },
   ];
 
@@ -151,6 +192,43 @@ function PaymentsPanel() {
         <Card>
           <EmptyState icon={Inbox} title="No payments" body="Nothing matches this filter." />
         </Card>
+      )}
+      {matching && (
+        <ReasonDialog
+          open
+          title="Match payment to an invoice"
+          confirmLabel="Match"
+          pending={reconcile.isPending}
+          error={error}
+          onClose={() => {
+            setMatching(null);
+            setInvoiceId("");
+            setError(null);
+          }}
+          onConfirm={async (reason) => {
+            setError(null);
+            try {
+              await reconcile.mutateAsync({
+                payment_id: matching.id,
+                invoice_id: invoiceId.trim(),
+                reason,
+              });
+              toast("Payment matched", { tone: "success" });
+              setMatching(null);
+              setInvoiceId("");
+            } catch (err) {
+              setError(err instanceof ApiError ? err.detail : "Could not match this payment.");
+            }
+          }}
+          description="Records that this payment settled the named invoice. Use this when money arrived outside the usual charge path."
+        >
+          <Input
+            label="Invoice id"
+            value={invoiceId}
+            onChange={(event) => setInvoiceId(event.target.value)}
+            hint="The invoice UUID this payment should settle."
+          />
+        </ReasonDialog>
       )}
     </Stack>
   );
@@ -276,7 +354,10 @@ export function AdminInvoicesPage() {
   const can = useCapability(staff);
   const download = useDownloadInvoice();
   const send = useSendInvoice();
+  const voidInvoice = useVoidInvoice();
   const toast = useToast();
+  const [voiding, setVoiding] = useState<Invoice | null>(null);
+  const [voidError, setVoidError] = useState<string | null>(null);
 
   const columns = [
     { key: "number", header: "Invoice", render: (row: Invoice) => row.number },
@@ -363,6 +444,14 @@ export function AdminInvoicesPage() {
               Email
             </Button>
           )}
+          {can("invoice.write") &&
+            row.status !== "paid" &&
+            row.status !== "cancelled" &&
+            row.status !== "refunded" && (
+              <Button size="sm" variant="ghost" onClick={() => setVoiding(row)}>
+                Void
+              </Button>
+            )}
         </div>
       ),
     },
@@ -412,12 +501,38 @@ export function AdminInvoicesPage() {
           <EmptyState icon={Inbox} title="No invoices" body="Nothing matches this filter." />
         </Card>
       )}
+      {voiding && (
+        <ReasonDialog
+          open
+          title={`Void ${voiding.number}`}
+          confirmLabel="Void invoice"
+          destructive
+          pending={voidInvoice.isPending}
+          error={voidError}
+          onClose={() => {
+            setVoiding(null);
+            setVoidError(null);
+          }}
+          onConfirm={async (reason) => {
+            setVoidError(null);
+            try {
+              await voidInvoice.mutateAsync({ id: voiding.id, reason });
+              toast(`${voiding.number} voided`, { tone: "success" });
+              setVoiding(null);
+            } catch (err) {
+              setVoidError(err instanceof ApiError ? err.detail : "Could not void this invoice.");
+            }
+          }}
+          description="Cancels an unpaid invoice and returns any credit it consumed. A paid invoice cannot be voided — refund it instead."
+        />
+      )}
     </Stack>
   );
 }
 
 // ==================================================================== dunning
 export function AdminDunningPage() {
+  const [tab, setTab] = useState<"cases" | "policies">("cases");
   const [status, setStatus] = useState("open");
   const [page, setPage] = useState(1);
   const { data, isLoading } = useDunningCases({ status, page });
@@ -515,9 +630,26 @@ export function AdminDunningPage() {
       <AdminPageHeader
         title="Payment recovery"
         description="Accounts whose payment failed, on their way to suspension unless the money arrives. Marking a case recovered records that it was settled outside the retry schedule."
-        meta={data ? `${data.count} case${data.count === 1 ? "" : "s"}` : undefined}
+        meta={
+          tab === "cases" && data
+            ? `${data.count} case${data.count === 1 ? "" : "s"}`
+            : undefined
+        }
+      />
+      <Tabs
+        label="Recovery sections"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { value: "cases", label: "Cases" },
+          { value: "policies", label: "Policies" },
+        ]}
       />
 
+      {tab === "policies" ? (
+        <DunningPoliciesPanel />
+      ) : (
+        <>
       {complete && loaded.length > 0 && (
         <Card prominence="quiet">
           <FigureRow>
@@ -592,6 +724,184 @@ export function AdminDunningPage() {
           }
         />
       )}
+        </>
+      )}
+    </Stack>
+  );
+}
+
+function parseDayList(value: string): number[] {
+  return value
+    .split(/[,\s]+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => Number(part))
+    .filter((n) => Number.isFinite(n) && n >= 0);
+}
+
+function DunningPoliciesPanel() {
+  const { data: staff } = usePlatformMe();
+  const can = useCapability(staff);
+  const { data, isLoading } = useDunningPolicies();
+  const create = useCreateDunningPolicy();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    retry_offsets_days: "1, 3, 7, 14",
+    reminder_offsets_days: "3, 10",
+    grace_period_days: "14",
+    suspend_after_days: "21",
+    abandon_after_days: "45",
+    send_email: true,
+    send_sms: false,
+    is_default: false,
+  });
+
+  const submit = async () => {
+    setError(null);
+    try {
+      await create.mutateAsync({
+        name: form.name,
+        description: form.description,
+        retry_offsets_days: parseDayList(form.retry_offsets_days),
+        reminder_offsets_days: parseDayList(form.reminder_offsets_days),
+        grace_period_days: Number(form.grace_period_days),
+        suspend_after_days: Number(form.suspend_after_days),
+        abandon_after_days: Number(form.abandon_after_days),
+        send_email: form.send_email,
+        send_sms: form.send_sms,
+        is_default: form.is_default,
+        is_active: true,
+      });
+      toast("Policy created", { tone: "success" });
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Could not create that policy.");
+    }
+  };
+
+  const columns = [
+    { key: "name", header: "Name", render: (row: DunningPolicy) => row.name },
+    {
+      key: "grace",
+      header: "Grace",
+      render: (row: DunningPolicy) => `${row.grace_period_days}d`,
+    },
+    {
+      key: "suspend",
+      header: "Suspend",
+      render: (row: DunningPolicy) => `${row.suspend_after_days}d`,
+    },
+    {
+      key: "abandon",
+      header: "Abandon",
+      hideMobile: true,
+      render: (row: DunningPolicy) => `${row.abandon_after_days}d`,
+    },
+    {
+      key: "retries",
+      header: "Retries",
+      hideMobile: true,
+      render: (row: DunningPolicy) => row.retry_offsets_days.join(", ") || "—",
+    },
+    {
+      key: "flags",
+      header: "",
+      render: (row: DunningPolicy) => (
+        <div className="lf-inline lf-gap-2">
+          {row.is_default && <Badge tone="success">Default</Badge>}
+          {!row.is_active && <Badge tone="neutral">Inactive</Badge>}
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <Stack gap={3}>
+      {can("dunning.manage") && (
+        <div className="lf-admin-toolbar">
+          <Button onClick={() => setOpen(true)}>New policy</Button>
+        </div>
+      )}
+      {isLoading && !data ? (
+        <LoadingBlock />
+      ) : data?.length ? (
+        <Table columns={columns} rows={data} rowKey={(row) => row.id} responsive stickyHeader />
+      ) : (
+        <Card>
+          <EmptyState
+            icon={Inbox}
+            title="No policies"
+            body="A default retry schedule is used until you create one here."
+          />
+        </Card>
+      )}
+      <Modal open={open} onClose={() => setOpen(false)} title="New recovery policy">
+        <Stack gap={3}>
+          <Input label="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Input
+            label="Description"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+          <Input
+            label="Retry on day"
+            value={form.retry_offsets_days}
+            hint="Days after the failed charge, comma-separated."
+            onChange={(e) => setForm({ ...form, retry_offsets_days: e.target.value })}
+          />
+          <Input
+            label="Remind on day"
+            value={form.reminder_offsets_days}
+            onChange={(e) => setForm({ ...form, reminder_offsets_days: e.target.value })}
+          />
+          <Input
+            label="Grace period (days)"
+            type="number"
+            value={form.grace_period_days}
+            onChange={(e) => setForm({ ...form, grace_period_days: e.target.value })}
+          />
+          <Input
+            label="Suspend after (days)"
+            type="number"
+            value={form.suspend_after_days}
+            onChange={(e) => setForm({ ...form, suspend_after_days: e.target.value })}
+          />
+          <Input
+            label="Abandon after (days)"
+            type="number"
+            value={form.abandon_after_days}
+            onChange={(e) => setForm({ ...form, abandon_after_days: e.target.value })}
+          />
+          <Checkbox
+            label="Send email"
+            checked={form.send_email}
+            onChange={(e) => setForm({ ...form, send_email: e.target.checked })}
+          />
+          <Checkbox
+            label="Send SMS"
+            checked={form.send_sms}
+            onChange={(e) => setForm({ ...form, send_sms: e.target.checked })}
+          />
+          <Checkbox
+            label="Make this the default"
+            checked={form.is_default}
+            onChange={(e) => setForm({ ...form, is_default: e.target.checked })}
+          />
+          {error && <Banner tone="danger">{error}</Banner>}
+          <div className="lf-admin-dialog-actions">
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={submit} disabled={create.isPending || !form.name}>
+              Create
+            </Button>
+          </div>
+        </Stack>
+      </Modal>
     </Stack>
   );
 }
@@ -603,10 +913,13 @@ export function AdminCouponsPage() {
   const [page, setPage] = useState(1);
   const { data, isLoading } = useCoupons({ page });
   const create = useCreateCoupon();
+  const update = useUpdateCoupon();
   const deactivate = useDeactivateCoupon();
   const toast = useToast();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<Coupon | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
   const [form, setForm] = useState({
     code: "",
     name: "",
@@ -614,6 +927,13 @@ export function AdminCouponsPage() {
     value: "20",
     currency: "",
     duration: "once",
+  });
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+    max_redemptions: "",
+    expires_at: "",
+    is_active: true,
   });
 
   const submit = async () => {
@@ -666,14 +986,35 @@ export function AdminCouponsPage() {
       key: "actions",
       header: "",
       render: (row: Coupon) =>
-        row.is_active && can("coupon.write") ? (
-          <ConfirmAction
-            label="End"
-            confirmLabel="End"
-            cancelLabel="Keep"
-            disabled={deactivate.isPending}
-            onConfirm={() => deactivate.mutate(row.id)}
-          />
+        can("coupon.write") ? (
+          <div className="lf-inline lf-gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setEditing(row);
+                setEditError(null);
+                setEditForm({
+                  name: row.name,
+                  description: row.description,
+                  max_redemptions: row.max_redemptions == null ? "" : String(row.max_redemptions),
+                  expires_at: row.expires_at ? row.expires_at.slice(0, 10) : "",
+                  is_active: row.is_active,
+                });
+              }}
+            >
+              Edit
+            </Button>
+            {row.is_active && (
+              <ConfirmAction
+                label="End"
+                confirmLabel="End"
+                cancelLabel="Keep"
+                disabled={deactivate.isPending}
+                onConfirm={() => deactivate.mutate(row.id)}
+              />
+            )}
+          </div>
         ) : null,
     },
   ];
@@ -780,6 +1121,72 @@ export function AdminCouponsPage() {
             </Button>
             <Button onClick={submit} disabled={create.isPending || !form.code || !form.name}>
               Create
+            </Button>
+          </div>
+        </Stack>
+      </Modal>
+
+      <Modal open={Boolean(editing)} onClose={() => setEditing(null)} title={editing ? `Edit ${editing.code}` : "Edit promotion"}>
+        <Stack gap={3}>
+          <Input
+            label="Name"
+            value={editForm.name}
+            onChange={(event) => setEditForm({ ...editForm, name: event.target.value })}
+          />
+          <Textarea
+            label="Description"
+            value={editForm.description}
+            onChange={(event) => setEditForm({ ...editForm, description: event.target.value })}
+          />
+          <Input
+            label="Max redemptions"
+            type="number"
+            value={editForm.max_redemptions}
+            hint="Leave blank for no cap."
+            onChange={(event) => setEditForm({ ...editForm, max_redemptions: event.target.value })}
+          />
+          <Input
+            label="Expires"
+            type="date"
+            value={editForm.expires_at}
+            onChange={(event) => setEditForm({ ...editForm, expires_at: event.target.value })}
+          />
+          <Checkbox
+            label="Active"
+            checked={editForm.is_active}
+            onChange={(event) => setEditForm({ ...editForm, is_active: event.target.checked })}
+          />
+          {editError && <Banner tone="danger">{editError}</Banner>}
+          <div className="lf-admin-dialog-actions">
+            <Button variant="ghost" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!editing) return;
+                setEditError(null);
+                try {
+                  await update.mutateAsync({
+                    id: editing.id,
+                    body: {
+                      name: editForm.name,
+                      description: editForm.description,
+                      is_active: editForm.is_active,
+                      max_redemptions: editForm.max_redemptions
+                        ? Number(editForm.max_redemptions)
+                        : null,
+                      expires_at: editForm.expires_at ? `${editForm.expires_at}T23:59:59Z` : null,
+                    },
+                  });
+                  toast("Promotion updated");
+                  setEditing(null);
+                } catch (err) {
+                  setEditError(err instanceof ApiError ? err.detail : "Could not update this promotion.");
+                }
+              }}
+              disabled={update.isPending || !editForm.name}
+            >
+              Save
             </Button>
           </div>
         </Stack>
@@ -1067,18 +1474,24 @@ export function AdminStaffPage() {
   const [page, setPage] = useState(1);
   const { data, isLoading } = usePlatformStaff({ page });
   const appoint = useAppointStaff();
+  const update = useUpdateStaff();
   const revoke = useRevokeStaff();
   const toast = useToast();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<PlatformStaff | null>(null);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("read_only_auditor");
+  const [editRole, setEditRole] = useState("read_only_auditor");
+  const [requireMfa, setRequireMfa] = useState(true);
+  const [editReason, setEditReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const submit = async () => {
     setError(null);
     try {
       await appoint.mutateAsync({ email, role });
-      toast(`${"Appointed"} — ${"The grant was recorded in the audit log."}`, { tone: "success" });
+      toast("Appointed — the grant was recorded in the audit log.", { tone: "success" });
       setOpen(false);
       setEmail("");
     } catch (err) {
@@ -1124,13 +1537,28 @@ export function AdminStaffPage() {
       header: "",
       render: (row: PlatformStaff) =>
         row.is_active && can("staff.manage") && row.id !== me?.id ? (
-          <ConfirmAction
-            label="Revoke"
-            confirmLabel="Revoke"
-            cancelLabel="Keep"
-            disabled={revoke.isPending}
-            onConfirm={() => revoke.mutate(row.id)}
-          />
+          <div className="lf-inline lf-gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setEditing(row);
+                setEditRole(row.role);
+                setRequireMfa(row.require_mfa);
+                setEditReason("");
+                setEditError(null);
+              }}
+            >
+              Edit
+            </Button>
+            <ConfirmAction
+              label="Revoke"
+              confirmLabel="Revoke"
+              cancelLabel="Keep"
+              disabled={revoke.isPending}
+              onConfirm={() => revoke.mutate(row.id)}
+            />
+          </div>
         ) : null,
     },
   ];
@@ -1175,15 +1603,7 @@ export function AdminStaffPage() {
           <Select
             label="Role"
             value={role}
-            options={[
-              { value: "platform_owner", label: "Platform Owner" },
-              { value: "platform_administrator", label: "Platform Administrator" },
-              { value: "billing_administrator", label: "Billing Administrator" },
-              { value: "finance", label: "Finance" },
-              { value: "customer_success", label: "Customer Success" },
-              { value: "technical_support", label: "Technical Support" },
-              { value: "read_only_auditor", label: "Read Only Auditor" },
-            ]}
+            options={STAFF_ROLE_OPTIONS}
             onChange={(event) => setRole(event.target.value)}
           />
           {error && <Banner tone="danger">{error}</Banner>}
@@ -1193,6 +1613,53 @@ export function AdminStaffPage() {
             </Button>
             <Button onClick={submit} disabled={appoint.isPending || !email}>
               Appoint
+            </Button>
+          </div>
+        </Stack>
+      </Modal>
+
+      <Modal open={Boolean(editing)} onClose={() => setEditing(null)} title={editing ? `Edit ${editing.email}` : "Edit access"}>
+        <Stack gap={3}>
+          <Select
+            label="Role"
+            value={editRole}
+            options={STAFF_ROLE_OPTIONS}
+            onChange={(event) => setEditRole(event.target.value)}
+          />
+          <Checkbox
+            label="Require two-factor authentication"
+            checked={requireMfa}
+            onChange={(event) => setRequireMfa(event.target.checked)}
+          />
+          <Textarea
+            label="Reason"
+            hint="Recorded in the audit log. At least 5 characters."
+            value={editReason}
+            onChange={(event) => setEditReason(event.target.value)}
+          />
+          {editError && <Banner tone="danger">{editError}</Banner>}
+          <div className="lf-admin-dialog-actions">
+            <Button variant="ghost" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!editing) return;
+                setEditError(null);
+                try {
+                  await update.mutateAsync({
+                    id: editing.id,
+                    body: { role: editRole, require_mfa: requireMfa, reason: editReason },
+                  });
+                  toast("Access updated", { tone: "success" });
+                  setEditing(null);
+                } catch (err) {
+                  setEditError(err instanceof ApiError ? err.detail : "Could not update this grant.");
+                }
+              }}
+              disabled={update.isPending || editReason.trim().length < 5}
+            >
+              Save
             </Button>
           </div>
         </Stack>

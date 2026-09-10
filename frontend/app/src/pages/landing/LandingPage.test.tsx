@@ -83,4 +83,14 @@ describe("landing page", () => {
     expect(preview).not.toBeNull();
     expect(preview?.textContent?.trim()).toBe("");
   });
+
+  it("renders the intelligence band as its own well", () => {
+    usePlans.mockReturnValue({ data: [] });
+    const { container } = renderPage();
+    const band = container.querySelector(".lf-landing-band");
+    expect(band).not.toBeNull();
+    expect(
+      screen.getByRole("heading", { name: /never states a number it made up/i }),
+    ).toBeInTheDocument();
+  });
 });

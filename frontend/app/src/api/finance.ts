@@ -389,6 +389,18 @@ export const financeExtendedApi = {
   },
   billsImportTemplate: () => getBlob("/finance/bills/import/"),
   recurringImportTemplate: () => getBlob("/finance/recurring/import/"),
+
+  /** Where an account stands against a statement. Pass a statement balance
+   *  to get the difference the user is driving to zero. */
+  reconciliation: (accountId: string, statementBalanceMinor?: number) =>
+    api.get<ReconciliationSummary>(
+      `/finance/accounts/${accountId}/reconciliation/${qs({
+        statement_balance_minor: statementBalanceMinor,
+      })}`,
+    ),
+
+  reconcileTransactions: (payload: { transaction_ids: string[]; reconciled: boolean }) =>
+    api.post<{ updated: number }>("/finance/transactions/reconcile/", payload),
 };
 
 /** Fetch a CSV endpoint with the auth header a plain `<a href>` can't carry,
@@ -421,6 +433,32 @@ export interface AttachmentInfo {
   checksum: string;
   /** API path to fetch the stored file — present only once uploaded. */
   download_url: string | null;
+}
+
+/** Statement check for one account. `difference_minor` is the number to drive
+ *  to zero; the client must not re-subtract it. */
+export interface ReconciliationUncleared {
+  id: string;
+  occurred_at: string;
+  amount_minor: number;
+  currency: string;
+  memo: string;
+  category: string | null;
+}
+
+export interface ReconciliationSummary {
+  account_id: string;
+  currency: string;
+  reconciled_minor: number;
+  uncleared_minor: number;
+  ledger_balance_minor: number;
+  statement_balance_minor: number | null;
+  difference_minor: number | null;
+  reconciled_count: number;
+  uncleared_count: number;
+  last_reconciled_at: string | null;
+  is_balanced: boolean;
+  uncleared: ReconciliationUncleared[];
 }
 
 export interface BulkActionResult {

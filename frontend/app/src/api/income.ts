@@ -130,6 +130,25 @@ export interface IncomeSummary {
   committed: CommittedIncome | null;
 }
 
+export interface IncomeStressSnapshot {
+  monthly_income_minor: number;
+  monthly_fixed_minor: number;
+  committed_minor: number;
+  free_minor: number;
+  committed_pct: number | null;
+  shortfall_minor: number;
+}
+
+export interface IncomeSourceStress {
+  source_id: string;
+  source_name: string;
+  dropped_monthly_minor: number;
+  currency: string;
+  sentence: string;
+  before: IncomeStressSnapshot;
+  after: IncomeStressSnapshot;
+}
+
 export interface IncomeSourcePayload {
   name: string;
   kind?: IncomeKind;
@@ -159,6 +178,13 @@ export const incomeApi = {
    * `null`, and callers must render the absence rather than substituting 0.
    */
   summary: () => api.get<IncomeSummary | null>("/income/summary/"),
+
+  /**
+   * Counterfactual committed income if this stream stopped. 204 when there is
+   * no income position to stress; 422 when the source has no monthly equivalent.
+   */
+  stress: (sourceId: string) =>
+    api.get<IncomeSourceStress | null>(`/income/sources/${sourceId}/stress/`),
 
   createSource: (payload: IncomeSourcePayload) =>
     api.post<IncomeSource>("/income/sources/", payload),

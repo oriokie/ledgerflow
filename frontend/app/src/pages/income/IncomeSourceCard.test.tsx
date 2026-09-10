@@ -1,5 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../../hooks/useIncome", () => ({
+  useIncomeStress: () => ({ data: undefined, isLoading: false }),
+}));
+
 import type { IncomeSource } from "../../api/income";
 import { IncomeSourceCard } from "./IncomeSourceCard";
 
@@ -96,5 +101,17 @@ describe("IncomeSourceCard", () => {
     render(<IncomeSourceCard source={source()} onDelete={noop} />);
     expect(screen.queryByText(/You entered/)).not.toBeInTheDocument();
     expect(screen.queryByText("Provisional")).not.toBeInTheDocument();
+  });
+
+  it("offers a stop scenario only when the source has a monthly equivalent", () => {
+    const { rerender } = render(<IncomeSourceCard source={source()} onDelete={noop} />);
+    expect(screen.getByRole("button", { name: /if this stops/i })).toBeInTheDocument();
+    rerender(
+      <IncomeSourceCard
+        source={source({ frequency: "ad_hoc", monthly_net_minor: null })}
+        onDelete={noop}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /if this stops/i })).not.toBeInTheDocument();
   });
 });

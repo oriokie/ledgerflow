@@ -6,6 +6,7 @@ from .views import (
     DeductionDetailView,
     DeductionView,
     IncomeSourceDetailView,
+    IncomeSourceStressView,
     IncomeSourceView,
     IncomeSummaryView,
     ReceiptView,
@@ -26,4 +27,9 @@ urlpatterns = [
         name="income-deduction-detail",
     ),
     path("sources/<uuid:source_id>/receipts/", ReceiptView.as_view(), name="income-receipts"),
+    path(
+        "sources/<uuid:source_id>/stress/",
+        IncomeSourceStressView.as_view(),
+        name="income-source-stress",
+    ),
 ]

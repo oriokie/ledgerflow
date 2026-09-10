@@ -236,3 +236,38 @@
     display: revert;
   }
 }
+
+.lf-recon {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+  padding-top: var(--lf-space-4);
+  border-top: 1px solid var(--lf-border-subtle);
+}
+
+.lf-recon-statement {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--lf-space-2);
+}
+
+.lf-recon-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lf-recon-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-2) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+}
+
+.lf-recon-row:last-child {
+  border-bottom: 0;
+}

@@ -4,8 +4,8 @@ import { useForm } from "react-hook-form";
 import { Link } from "react-router-dom";
 import { z } from "zod";
 import { authApi } from "../api/auth";
-import { AuthLayout } from "../components/auth/AuthLayout";
-import { Banner, Button, Heading, Input, Stack, Text } from "../ui";
+import { AuthLayout, AuthPageHeader } from "../components/auth/AuthLayout";
+import { Banner, Button, Input, Stack } from "../ui";
 
 const schema = z.object({ email: z.string().email("Enter a valid email address.") });
 type FormValues = z.infer<typeof schema>;
@@ -28,12 +28,11 @@ export function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <AuthLayout illustration="recover" footer={<Link to="/login">Back to sign in</Link>}>
+      <AuthLayout scene="recover" illustration="recover" footer={<Link to="/login">Back to sign in</Link>}>
         <Stack gap={4}>
-          <Heading level={1}>Check your email</Heading>
-          <Text tone="secondary">
-            If that address is registered, we've sent a link to reset your password. It expires in an hour.
-          </Text>
+          <AuthPageHeader eyebrow="Reset sent" title="Check your email">
+            If that address is registered, we&apos;ve sent a link to reset your password. It expires in an hour.
+          </AuthPageHeader>
           {devToken && (
             <Banner tone="info">
               Development shortcut:{" "}
@@ -42,21 +41,10 @@ export function ForgotPasswordPage() {
           )}
           <button
             type="button"
-            className="lf-link"
+            className="lf-auth-retry"
             onClick={() => {
               setSent(false);
               setDevToken(null);
-            }}
-            style={{
-              background: "none",
-              border: "none",
-              padding: 0,
-              alignSelf: "flex-start",
-              font: "inherit",
-              color: "var(--lf-text-link)",
-              textDecoration: "underline",
-              textUnderlineOffset: "2px",
-              cursor: "pointer",
             }}
           >
             Wrong address? Try again
@@ -67,11 +55,12 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <AuthLayout illustration="recover" footer={<Link to="/login">Back to sign in</Link>}>
+    <AuthLayout scene="recover" illustration="recover" footer={<Link to="/login">Back to sign in</Link>}>
       <form onSubmit={onSubmit} noValidate>
         <Stack gap={4}>
-          <Heading level={1}>Reset your password</Heading>
-          <Text tone="secondary">Enter your account email and we'll send you a link to set a new password.</Text>
+          <AuthPageHeader eyebrow="Account recovery" title="Reset your password">
+            Enter your account email and we&apos;ll send a link to set a new password.
+          </AuthPageHeader>
           <Input
             label="Email"
             type="email"

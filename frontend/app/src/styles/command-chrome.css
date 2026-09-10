@@ -658,6 +658,39 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lf-action-primary) 12%, transparent);
 }
 
+.lf-settings-section,
+.lf-settings-linkcard {
+  border-radius: var(--lf-radius-lg);
+  border-color: var(--lf-border-card);
+}
+
+.lf-acct-item {
+  border-radius: 14px;
+}
+
+.lf-sub-row,
+.lf-bill-row,
+.lf-worth,
+.lf-goal-head {
+  border-radius: 14px;
+}
+
+.lf-filter-panel {
+  border-radius: var(--lf-radius-lg);
+  border: 1px solid var(--lf-border-card);
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--lf-bg-surface) 94%, var(--lf-meridian-100)) 0%,
+      var(--lf-bg-surface) 50%
+    );
+}
+
+.lf-group-title {
+  font-family: var(--lf-font-display);
+  letter-spacing: var(--lf-tracking-wide);
+}
+
 /* ------------------------------------------------ high contrast safety --- */
 
 @media (prefers-contrast: more) {
@@ -696,5 +729,8 @@
   }
   .lf-tabs {
     background: var(--lf-bg-sunken);
+  }
+  .lf-filter-panel {
+    background: var(--lf-bg-surface);
   }
 }

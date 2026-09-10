@@ -34,12 +34,13 @@ import {
   buildChangeInsights,
   contextualStatement,
 } from "./personalization";
-import { greeting, periodRange, type PeriodKey } from "./metrics";
+import { comparisonRange, greeting, periodRange, type PeriodKey } from "./metrics";
 
 export function useDashboardModel() {
   const { user, activeWorkspace } = useAuth();
   const [period, setPeriod] = useState<PeriodKey>("this-month");
   const range = useMemo(() => periodRange(period), [period]);
+  const compare = useMemo(() => comparisonRange(period), [period]);
   const hello = useMemo(() => greeting(), []);
 
   const { data: accounts, isLoading: accountsLoading } = useAccounts();
@@ -47,6 +48,11 @@ export function useDashboardModel() {
   const { data: netWorth, isLoading: netWorthLoading } = useNetWorth();
   const { data: netWorthBase } = useNetWorthBase();
   const { data: cashFlow, isLoading: cashFlowLoading } = useCashFlow(range.start, range.end);
+  const { data: priorCashFlow } = useCashFlow(
+    compare?.start ?? "",
+    compare?.end ?? "",
+    Boolean(compare),
+  );
   const { data: breakdown } = useCategoryBreakdown(range.start, range.end, "expense");
   const { data: netWorthHistory } = useNetWorthHistory(6);
   const { data: spendingTrend } = useSpendingTrend(6);
@@ -82,6 +88,8 @@ export function useDashboardModel() {
     "KES";
   const primaryNetWorth = netWorth?.find((n) => n.currency === primaryCurrency) ?? netWorth?.[0];
   const primaryCashFlow = cashFlow?.find((c) => c.currency === primaryCurrency) ?? cashFlow?.[0];
+  const priorPrimaryCashFlow =
+    priorCashFlow?.find((c) => c.currency === primaryCurrency) ?? priorCashFlow?.[0];
 
   const hasAccount = (accounts?.length ?? 0) > 0;
   const hasTransaction = (recentTx?.results.length ?? 0) > 0;
@@ -89,6 +97,8 @@ export function useDashboardModel() {
     hasCurrency: !!activeWorkspace?.tenant.base_currency_chosen_at,
     hasAccount,
     hasTransaction,
+    hasIncome: (incomeSources?.length ?? 0) > 0,
+    hasBill: (bills ?? []).some((b) => b.status !== "cancelled"),
     hasBudget: (budgets?.length ?? 0) > 0,
     hasGoal: (goals?.length ?? 0) > 0,
     hasTeammate: (members?.length ?? 0) > 1,
@@ -199,6 +209,7 @@ export function useDashboardModel() {
     period,
     setPeriod,
     range,
+    compare,
     hello,
     statement,
     accounts,
@@ -206,6 +217,7 @@ export function useDashboardModel() {
     primaryCurrency,
     primaryNetWorth,
     primaryCashFlow,
+    priorPrimaryCashFlow,
     netWorthBase,
     netWorthHistory,
     spendingTrend,

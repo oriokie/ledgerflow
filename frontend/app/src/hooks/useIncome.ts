@@ -3,7 +3,7 @@ import { incomeApi, type IncomeSourcePayload } from "../api/income";
 import { useAuth } from "../lib/AuthContext";
 
 /** Every income query, so a mutation can invalidate the lot in one call. */
-const ROOTS = ["income-sources", "income-summary", "income-source"] as const;
+const ROOTS = ["income-sources", "income-summary", "income-source", "income-stress"] as const;
 
 function useInvalidateIncome() {
   const queryClient = useQueryClient();
@@ -48,6 +48,15 @@ export function useIncomeSummary() {
     queryKey: ["income-summary", activeWorkspace?.tenant.id],
     queryFn: () => incomeApi.summary(),
     enabled: !!activeWorkspace,
+  });
+}
+
+export function useIncomeStress(sourceId: string | undefined, enabled: boolean) {
+  const { activeWorkspace } = useAuth();
+  return useQuery({
+    queryKey: ["income-stress", activeWorkspace?.tenant.id, sourceId],
+    queryFn: () => incomeApi.stress(sourceId!),
+    enabled: !!activeWorkspace && !!sourceId && enabled,
   });
 }
 

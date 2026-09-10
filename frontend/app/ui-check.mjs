@@ -130,7 +130,7 @@ try {
   // ---------- Mobile: login + tab bar ----------
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await mobile.goto(`${BASE}/login`);
-  await mobile.waitForSelector(".lf-auth-mobile-brand");
+  await mobile.waitForSelector(".lf-auth-brand-slot");
   ok("mobile login: panel hidden, brand shown", !(await mobile.isVisible(".lf-auth-panel")));
   await mobile.screenshot({ path: `${SHOTS}/11-login-mobile.png` });
 

@@ -6,10 +6,10 @@ import { z } from "zod";
 import { ApiError } from "../api/client";
 import { tenancyApi } from "../api/tenancy";
 import { useAuth } from "../lib/AuthContext";
-import { AuthLayout } from "../components/auth/AuthLayout";
+import { AuthLayout, AuthPageHeader } from "../components/auth/AuthLayout";
 import { CURRENCY_OPTIONS } from "../lib/currencies";
 import { COUNTRY_OPTIONS, CURRENCY_BY_COUNTRY } from "../lib/countries";
-import { Banner, Button, Grid, Heading, Inline, Input, Select, Stack, Text } from "../ui";
+import { Banner, Button, Grid, Input, Select, Stack, Text } from "../ui";
 
 /** Below this count the list is a glance; a search box would be clutter for
  * the common case of 1-3 workspaces. Past it (an advisor with several
@@ -87,10 +87,12 @@ export function WorkspacePickerPage() {
   });
 
   return (
-    <AuthLayout maxWidth={440} illustration="welcome">
+    <AuthLayout scene="welcome" maxWidth={440}>
       {workspaces.length > 0 && !creating ? (
-        <Stack gap={2}>
-          <Heading level={1}>Choose a workspace</Heading>
+        <Stack gap={3}>
+          <AuthPageHeader eyebrow="Workspaces" title="Choose a workspace">
+            Each workspace is its own set of books.
+          </AuthPageHeader>
           {workspaces.length > FILTER_THRESHOLD && (
             <Input
               leading={<Search size={16} strokeWidth={1.8} aria-hidden="true" />}
@@ -105,14 +107,18 @@ export function WorkspacePickerPage() {
             <button
               key={ws.tenant.id}
               type="button"
-              className="lf-workspace-menu-item"
-              style={{ padding: 12, border: "1px solid var(--lf-border-subtle)", borderRadius: 10 }}
+              className="lf-auth-workspace"
               onClick={() => switchWorkspace(ws.tenant.id)}
             >
-              {ws.tenant.name}
-              <Text tone="secondary" size="sm" as="span" style={{ display: "block" }}>
-                {ws.tenant.base_currency} &middot; {ws.role}
-              </Text>
+              <span className="lf-auth-workspace-mark" aria-hidden="true">
+                {ws.tenant.name.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="lf-auth-workspace-copy">
+                <span className="lf-auth-workspace-name">{ws.tenant.name}</span>
+                <span className="lf-auth-workspace-meta">
+                  {ws.tenant.base_currency} · {ws.role}
+                </span>
+              </span>
             </button>
           ))}
           {filteredWorkspaces.length === 0 && (
@@ -127,15 +133,13 @@ export function WorkspacePickerPage() {
       ) : (
         <form onSubmit={onSubmit} noValidate>
           <Stack gap={4}>
-            <div>
-              <Heading level={1}>
-                {workspaces.length === 0 ? "Create your first workspace" : "New workspace"}
-              </Heading>
-              <Text tone="secondary" size="sm" style={{ marginTop: "var(--lf-space-2)" }}>
-                A workspace holds one set of accounts, budgets, and goals — use separate ones for personal
-                finances vs. a shared household.
-              </Text>
-            </div>
+            <AuthPageHeader
+              eyebrow={workspaces.length === 0 ? "First ledger" : "Another set of books"}
+              title={workspaces.length === 0 ? "Create your first workspace" : "New workspace"}
+            >
+              A workspace holds one set of accounts, budgets, and goals — use separate ones for
+              personal finances vs. a shared household.
+            </AuthPageHeader>
 
             <Input
               label="Workspace name"
@@ -177,7 +181,7 @@ export function WorkspacePickerPage() {
 
             {serverError && <Banner tone="danger">{serverError}</Banner>}
 
-            <Inline gap={2}>
+            <div className="lf-auth-workspace-actions">
               <Button type="submit" variant="primary" loading={isSubmitting}>
                 Create workspace
               </Button>
@@ -186,7 +190,7 @@ export function WorkspacePickerPage() {
                   Cancel
                 </Button>
               )}
-            </Inline>
+            </div>
           </Stack>
         </form>
       )}

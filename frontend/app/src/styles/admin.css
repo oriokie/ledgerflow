@@ -168,7 +168,7 @@
 }
 
 .lf-admin-identity {
-  border-top: 1px solid rgb(255 255 255 / 14%);
+  border-top: 1px solid color-mix(in srgb, var(--lf-text-inverse) 14%, transparent);
   padding-top: var(--lf-space-3);
   display: flex;
   flex-direction: column;
@@ -496,6 +496,28 @@
   justify-content: flex-end;
   gap: var(--lf-space-2);
   margin-top: var(--lf-space-4);
+}
+
+.lf-admin-user-name {
+  margin: 0;
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-lg);
+  font-weight: var(--lf-weight-medium);
+}
+
+.lf-admin-user-workspaces {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--lf-space-2);
+}
+
+.lf-admin-user-workspaces li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  align-items: baseline;
 }
 
 .lf-admin-member-list,
@@ -900,4 +922,36 @@
   .lf-admin-tenant-link {
     min-height: var(--lf-touch-target);
   }
+}
+
+.lf-admin-token {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-3);
+  border: 1px solid var(--lf-border-default);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-app);
+}
+
+.lf-admin-token code {
+  flex: 1;
+  font-size: var(--lf-text-sm);
+  word-break: break-all;
+}
+
+.lf-admin-session-list {
+  list-style: none;
+  margin: var(--lf-space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lf-space-3);
+}
+
+.lf-admin-session-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
 }

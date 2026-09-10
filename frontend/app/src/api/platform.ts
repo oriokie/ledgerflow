@@ -47,6 +47,25 @@ export interface PlatformStaff {
   created_at: string;
 }
 
+export interface UserAccountStatus {
+  user_id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  is_verified: boolean;
+  mfa_enabled: boolean;
+  last_login_at: string | null;
+  created_at: string;
+  blockers: string[];
+  workspaces: {
+    tenant_id: string;
+    name: string;
+    role: string;
+    workspace_active: boolean;
+  }[];
+  recent_logins: { at: string; method: string; succeeded: boolean; ip: string | null }[];
+}
+
 export interface CapabilityCatalog {
   capabilities: { capability: string; module: string; roles: string[] }[];
   roles: { value: PlatformRole; label: string }[];
@@ -245,6 +264,21 @@ export interface DunningCase {
   next_attempt_at: string | null;
 }
 
+export interface DunningPolicy {
+  id: string;
+  name: string;
+  description: string;
+  retry_offsets_days: number[];
+  reminder_offsets_days: number[];
+  grace_period_days: number;
+  suspend_after_days: number;
+  abandon_after_days: number;
+  send_email: boolean;
+  send_sms: boolean;
+  is_default: boolean;
+  is_active: boolean;
+}
+
 export interface PlanFeatureRef {
   key: string;
   label: string;
@@ -437,6 +471,10 @@ export const platformApi = {
   // Identity
   me: () => api.get<PlatformStaff>(`${BASE}/me/`, NO_TENANT),
   capabilities: () => api.get<CapabilityCatalog>(`${BASE}/capabilities/`, NO_TENANT),
+  lookupUser: (email: string) =>
+    api.get<UserAccountStatus>(`${BASE}/users/lookup/${qs({ email })}`, NO_TENANT),
+  userAction: (userId: string, action: string, reason: string) =>
+    api.post<UserAccountStatus>(`${BASE}/users/${userId}/${action}/`, { reason }, NO_TENANT),
 
   // Dashboard & analytics
   dashboard: (currency = "USD") =>
@@ -515,9 +553,9 @@ export const platformApi = {
     api.get<Page<DunningCase>>(`${BASE}/dunning/cases/${qs(params)}`, NO_TENANT),
   dunningAction: (caseId: string, action: "recover" | "cancel", reason: string) =>
     api.post<DunningCase>(`${BASE}/dunning/cases/${caseId}/${action}/`, { reason }, NO_TENANT),
-  dunningPolicies: () => api.get<Record<string, unknown>[]>(`${BASE}/dunning/policies/`, NO_TENANT),
+  dunningPolicies: () => api.get<DunningPolicy[]>(`${BASE}/dunning/policies/`, NO_TENANT),
   createDunningPolicy: (body: Record<string, unknown>) =>
-    api.post<Record<string, unknown>>(`${BASE}/dunning/policies/`, body, NO_TENANT),
+    api.post<DunningPolicy>(`${BASE}/dunning/policies/`, body, NO_TENANT),
 
   // Governance
   staff: (params: Record<string, unknown> = {}) =>

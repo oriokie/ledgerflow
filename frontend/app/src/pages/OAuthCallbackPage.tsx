@@ -3,8 +3,8 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { oauthApi, type OAuthProvider } from "../api/auth";
 import { ApiError } from "../api/client";
 import { useAuth } from "../lib/AuthContext";
-import { AuthLayout } from "../components/auth/AuthLayout";
-import { Banner, Button, Heading, LoadingBlock, Stack, Text } from "../ui";
+import { AuthLayout, AuthPageHeader } from "../components/auth/AuthLayout";
+import { Banner, Button, LoadingBlock, Stack } from "../ui";
 
 /**
  * Where the OAuth provider redirects back to (matches OAUTH_REDIRECT_URI's path).
@@ -69,9 +69,11 @@ export function OAuthCallbackPage() {
 
   if (error) {
     return (
-      <AuthLayout footer={<Link to="/login">Back to login</Link>}>
+      <AuthLayout scene="oauth" footer={<Link to="/login">Back to login</Link>}>
         <Stack gap={4}>
-          <Heading level={1}>Sign-in failed</Heading>
+          <AuthPageHeader eyebrow="Sign-in" title="Sign-in didn’t finish">
+            You can go back and try again.
+          </AuthPageHeader>
           <Banner tone="danger">{error}</Banner>
           <Button variant="primary" block onClick={() => navigate("/login", { replace: true })}>
             Back to login
@@ -82,10 +84,11 @@ export function OAuthCallbackPage() {
   }
 
   return (
-    <AuthLayout>
+    <AuthLayout scene="oauth">
       <Stack gap={4} align="center">
-        <Heading level={1}>Signing you in…</Heading>
-        <Text tone="secondary" size="sm">Completing sign-in with your provider.</Text>
+        <AuthPageHeader title="Signing you in…">
+          Completing sign-in with your provider.
+        </AuthPageHeader>
         <LoadingBlock label="Verifying…" />
       </Stack>
     </AuthLayout>

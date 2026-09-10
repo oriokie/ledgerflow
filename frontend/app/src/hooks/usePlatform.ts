@@ -38,6 +38,7 @@ const KEYS = {
   refunds: (params: unknown) => ["platform", "refunds", params] as const,
   coupons: (params: unknown) => ["platform", "coupons", params] as const,
   dunning: (params: unknown) => ["platform", "dunning", params] as const,
+  dunningPolicies: ["platform", "dunning-policies"] as const,
   staff: ["platform", "staff"] as const,
   audit: (params: unknown) => ["platform", "audit", params] as const,
   health: ["platform", "health"] as const,
@@ -225,6 +226,15 @@ export function usePayments(params: Record<string, unknown> = {}) {
   });
 }
 
+export function useReconcilePayment() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { payment_id: string; invoice_id: string; reason: string }) =>
+      platformApi.reconcilePayment(body),
+    onSuccess: () => invalidateAll(client),
+  });
+}
+
 export function useRefunds(params: Record<string, unknown> = {}) {
   return useQuery({
     queryKey: KEYS.refunds(params),
@@ -315,6 +325,15 @@ export function useDeactivateCoupon() {
   });
 }
 
+export function useUpdateCoupon() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
+      platformApi.updateCoupon(id, body),
+    onSuccess: () => invalidateAll(client),
+  });
+}
+
 // -------------------------------------------------------------------- dunning
 export function useDunningCases(params: Record<string, unknown> = {}) {
   return useQuery({
@@ -340,6 +359,21 @@ export function useDunningAction() {
   });
 }
 
+export function useDunningPolicies() {
+  return useQuery({
+    queryKey: KEYS.dunningPolicies,
+    queryFn: () => platformApi.dunningPolicies(),
+  });
+}
+
+export function useCreateDunningPolicy() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Record<string, unknown>) => platformApi.createDunningPolicy(body),
+    onSuccess: () => invalidateAll(client),
+  });
+}
+
 // ----------------------------------------------------------------- governance
 export function usePlatformStaff(params: Record<string, unknown> = {}) {
   return useQuery({
@@ -361,6 +395,15 @@ export function useRevokeStaff() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => platformApi.revokeStaff(id),
+    onSuccess: () => invalidateAll(client),
+  });
+}
+
+export function useUpdateStaff() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
+      platformApi.updateStaff(id, body),
     onSuccess: () => invalidateAll(client),
   });
 }
@@ -443,5 +486,34 @@ export function useDeleteSavedView() {
   return useMutation({
     mutationFn: (id: string) => platformApi.deleteSavedView(id),
     onSuccess: () => client.invalidateQueries({ queryKey: ["platform", "saved-views"] }),
+  });
+}
+
+export type UserRecoveryAction =
+  | "reactivate"
+  | "deactivate"
+  | "send-password-reset"
+  | "reset-mfa"
+  | "verify-email";
+
+export function useLookupUser() {
+  return useMutation({
+    mutationFn: (email: string) => platformApi.lookupUser(email),
+  });
+}
+
+export function useUserRecoveryAction() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      userId,
+      action,
+      reason,
+    }: {
+      userId: string;
+      action: UserRecoveryAction;
+      reason: string;
+    }) => platformApi.userAction(userId, action, reason),
+    onSuccess: () => invalidateAll(client),
   });
 }

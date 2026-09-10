@@ -17,6 +17,7 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
+from django.utils import timezone
 
 from apps.budgeting import smart
 from apps.finance import services as finance_services
@@ -69,10 +70,10 @@ def _salary(net_minor=500_000):
     )
 
 
-def _history(account, category, amounts_by_month: list[int]):
+def _history(account, category, amounts_by_month: list[int], as_of: date = AS_OF):
     """One spend per trailing complete month, oldest first."""
     for i, amount in enumerate(reversed(amounts_by_month)):
-        month_anchor = smart._months_back(AS_OF.replace(day=1), i + 1)
+        month_anchor = smart._months_back(as_of.replace(day=1), i + 1)
         _spend(account, category, amount, month_anchor.replace(day=15))
 
 
@@ -346,7 +347,7 @@ def test_api_returns_a_proposal(tenant_context):
         account = _account()
         groceries = _category("Groceries")
         _salary()
-        _history(account, groceries, [50_000, 50_000, 50_000])
+        _history(account, groceries, [50_000, 50_000, 50_000], as_of=timezone.localdate())
 
     resp = client.get("/api/v1/budgeting/budgets/suggest/")
     assert resp.status_code == 200, resp.data
@@ -360,7 +361,7 @@ def test_api_apply_creates_the_budget(tenant_context):
         account = _account()
         groceries = _category("Groceries")
         _salary()
-        _history(account, groceries, [50_000, 50_000, 50_000])
+        _history(account, groceries, [50_000, 50_000, 50_000], as_of=timezone.localdate())
 
     resp = client.post("/api/v1/budgeting/budgets/suggest/", {}, format="json")
     assert resp.status_code == 201, resp.data

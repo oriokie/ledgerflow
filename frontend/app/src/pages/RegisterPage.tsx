@@ -6,10 +6,10 @@ import { z } from "zod";
 import { authApi } from "../api/auth";
 import { ApiError } from "../api/client";
 import { useAuth } from "../lib/AuthContext";
-import { AuthDivider, AuthLayout } from "../components/auth/AuthLayout";
+import { AuthDivider, AuthLayout, AuthPageHeader } from "../components/auth/AuthLayout";
 import { PasswordStrengthMeter } from "../components/auth/PasswordStrengthMeter";
 import { SocialAuthButtons } from "../components/auth/SocialAuthButtons";
-import { Banner, Button, Grid, Heading, Input, PasswordInput, Stack } from "../ui";
+import { Banner, Button, Grid, Input, PasswordInput, Stack } from "../ui";
 
 const schema = z.object({
   first_name: z.string().min(1, "First name is required."),
@@ -70,10 +70,12 @@ export function RegisterPage() {
   });
 
   return (
-    <AuthLayout footer={<>Already have an account? <Link to="/login">Log in</Link></>}>
+    <AuthLayout scene="register" footer={<>Already have an account? <Link to="/login">Log in</Link></>}>
       <form onSubmit={onSubmit} noValidate>
         <Stack gap={4}>
-          <Heading level={1}>Create your account</Heading>
+          <AuthPageHeader eyebrow="Get started" title="Create your account">
+            Your own books, ready in a minute. Seven days free.
+          </AuthPageHeader>
 
           <Grid cols={2} gap={4}>
             <Input

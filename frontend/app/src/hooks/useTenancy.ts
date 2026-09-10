@@ -33,7 +33,10 @@ export function useChangeMemberRole() {
   return useMutation({
     mutationFn: ({ membershipId, role }: { membershipId: string; role: string }) =>
       membersApi.changeRole(membershipId, role),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["members"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+      queryClient.invalidateQueries({ queryKey: ["workspace-activity"] });
+    },
   });
 }
 
@@ -41,7 +44,10 @@ export function useRemoveMember() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: membersApi.remove,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["members"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+      queryClient.invalidateQueries({ queryKey: ["workspace-activity"] });
+    },
   });
 }
 
@@ -50,5 +56,14 @@ export function useRevokeInvitation() {
   return useMutation({
     mutationFn: membersApi.revokeInvitation,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["invitations"] }),
+  });
+}
+
+export function useWorkspaceActivity(enabled: boolean) {
+  const { activeWorkspace } = useAuth();
+  return useQuery({
+    queryKey: ["workspace-activity", activeWorkspace?.tenant.id],
+    queryFn: () => membersApi.activity(),
+    enabled: !!activeWorkspace && enabled,
   });
 }
