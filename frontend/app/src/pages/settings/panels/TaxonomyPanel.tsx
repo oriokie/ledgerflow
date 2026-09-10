@@ -10,12 +10,13 @@ import {
   useTags,
 } from "../../../hooks/useFinance";
 import { useAuth } from "../../../lib/AuthContext";
+import { workspaceCurrency } from "../../../lib/currencies";
 import { Banner, Button, Chip, Inline, Input, Select } from "../../../ui";
 import { SettingsRow, SettingsSection } from "../components";
 
 export function TaxonomyPanel() {
   const { activeWorkspace } = useAuth();
-  const baseCurrency = activeWorkspace?.tenant.base_currency ?? "USD";
+  const baseCurrency = workspaceCurrency(activeWorkspace?.tenant);
   const { data: categories } = useCategories();
   const { data: payees } = usePayees();
   const { data: tags } = useTags();

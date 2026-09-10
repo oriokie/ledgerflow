@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import { tenancyApi } from "../../api/tenancy";
 import { useAuth } from "../../lib/AuthContext";
-import { CURRENCY_OPTIONS } from "../../lib/currencies";
+import { CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
 import { Illustration } from "../../ui/illustration";
 import { buildSteps, type OnboardingState } from "./onboarding";
 
@@ -20,7 +20,7 @@ function CurrencyStep({ onSaved }: { onSaved?: () => void }) {
   const { activeWorkspace } = useAuth();
   const tenant = activeWorkspace?.tenant;
   const isOwner = activeWorkspace?.role === "owner";
-  const [code, setCode] = useState(tenant?.base_currency ?? "USD");
+  const [code, setCode] = useState(workspaceCurrency(tenant));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

@@ -8,6 +8,8 @@ import {
   useRemoveBudgetLine,
   useUpdateBudgetLine,
 } from "../hooks/useBudgeting";
+import { useAuth } from "../lib/AuthContext";
+import { workspaceCurrency } from "../lib/currencies";
 import { Button, Card, EmptyState, Inline, PageHeader, SkeletonCard, Tabs, Text, useToast } from "../ui";
 import {
   AddLineForm,
@@ -24,6 +26,7 @@ import { useOpenOnParam } from "../hooks/useOpenOnParam";
  * `/insights`). The hub owns the <h1>, so the page must not render its own
  * PageHeader — two page titles on one route is a broken heading outline. */
 export function BudgetsPage({ embedded }: { embedded?: boolean } = {}) {
+  const { activeWorkspace } = useAuth();
   const { data: budgets, isLoading } = useBudgets();
   const { data: categories } = useCategories();
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | undefined>(undefined);
@@ -40,7 +43,7 @@ export function BudgetsPage({ embedded }: { embedded?: boolean } = {}) {
   const removeLine = useRemoveBudgetLine();
   const deleteBudget = useDeleteBudget();
 
-  const currency = activeBudget?.currency ?? "USD";
+  const currency = activeBudget?.currency ?? workspaceCurrency(activeWorkspace?.tenant);
   const lines = status?.lines ?? [];
   const sortedLines = sortLinesByRisk(lines);
   const pace = status ? periodProgress(status) : null;

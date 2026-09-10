@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ApiError } from "../../api/client";
 import type { DebtView, RefinanceResult } from "../../api/types";
 import { useSimulateRefinance } from "../../hooks/useDebt";
+import { FALLBACK_CURRENCY } from "../../lib/currencies";
 import { formatAmountSigned, majorToMinor, minorToMajor } from "../../lib/money";
 import { Banner, Button, Grid, Input, Modal, Money, Stack, Text } from "../../ui";
 
@@ -58,7 +59,7 @@ export function RefinanceModal({ debt, onClose }: { debt: DebtView | null; onClo
       ? {
           new_apr: "",
           new_payment: debt.minimum_payment_minor
-            ? String(minorToMajor(debt.minimum_payment_minor))
+            ? String(minorToMajor(debt.minimum_payment_minor, debt.currency))
             : "",
           closing_costs: "",
           capitalise: true,
@@ -80,9 +81,9 @@ export function RefinanceModal({ debt, onClose }: { debt: DebtView | null; onClo
         accountId: debt.account_id,
         payload: {
           new_apr: values.new_apr,
-          new_minimum_payment_minor: majorToMinor(Number(values.new_payment)),
+          new_minimum_payment_minor: majorToMinor(Number(values.new_payment), debt.currency),
           closing_costs_minor: values.closing_costs
-            ? majorToMinor(Number(values.closing_costs))
+            ? majorToMinor(Number(values.closing_costs), debt.currency)
             : 0,
           capitalise_costs: values.capitalise ?? true,
         },
@@ -93,7 +94,7 @@ export function RefinanceModal({ debt, onClose }: { debt: DebtView | null; onClo
     }
   });
 
-  const currency = debt?.currency ?? "USD";
+  const currency = debt?.currency ?? FALLBACK_CURRENCY;
 
   return (
     <Modal

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { ApiError } from "../../api/client";
 import { useCreateDebt } from "../../hooks/useDebt";
 import { useAuth } from "../../lib/AuthContext";
-import { CURRENCY_OPTIONS } from "../../lib/currencies";
+import { CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
 import { majorToMinor } from "../../lib/money";
 import { Banner, Button, Grid, Input, Modal, Select, Stack, Text } from "../../ui";
 
@@ -72,7 +72,7 @@ export function CreateDebtModal({ open, onClose }: { open: boolean; onClose: () 
     resolver: zodResolver(schema),
     defaultValues: {
       debt_kind: "credit_card",
-      currency: activeWorkspace?.tenant.base_currency ?? "USD",
+      currency: workspaceCurrency(activeWorkspace?.tenant),
     },
   });
 
@@ -86,11 +86,11 @@ export function CreateDebtModal({ open, onClose }: { open: boolean; onClose: () 
       await createDebt.mutateAsync({
         name: values.name,
         currency: values.currency.toUpperCase(),
-        balance_minor: majorToMinor(Number(values.balance)),
+        balance_minor: majorToMinor(Number(values.balance), values.currency),
         debt_kind: values.debt_kind,
         lender: values.lender || undefined,
         apr: values.apr ? values.apr : undefined,
-        minimum_payment_minor: values.minimum ? majorToMinor(Number(values.minimum)) : undefined,
+        minimum_payment_minor: values.minimum ? majorToMinor(Number(values.minimum), values.currency) : undefined,
         payment_day: values.payment_day ? Number(values.payment_day) : undefined,
       });
       reset();

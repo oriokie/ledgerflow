@@ -38,8 +38,11 @@ export function summarizeByCurrency(accounts: FinancialAccount[] | undefined): C
 }
 
 /** The currency the workspace uses most, for headline framing. */
-export function primaryCurrency(accounts: FinancialAccount[] | undefined): string {
-  return summarizeByCurrency(accounts)[0]?.currency ?? accounts?.[0]?.currency ?? "USD";
+export function primaryCurrency(
+  accounts: FinancialAccount[] | undefined,
+  fallback: string = "USD",
+): string {
+  return summarizeByCurrency(accounts)[0]?.currency ?? accounts?.[0]?.currency ?? fallback;
 }
 
 export interface GroupedAccounts {

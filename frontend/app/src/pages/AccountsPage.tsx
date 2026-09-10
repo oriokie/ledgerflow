@@ -39,7 +39,7 @@ import type { Column } from "../ui";
 import { AccountDetail, AccountList, EditAccountModal, StatementModal, WalletsSection } from "./accounts";
 import { AccountTypeIcon } from "./accounts/AccountTypeIcon";
 import { useOpenOnParam } from "../hooks/useOpenOnParam";
-import { CURRENCY_OPTIONS } from "../lib/currencies";
+import { CURRENCY_OPTIONS, workspaceCurrency } from "../lib/currencies";
 import { majorToMinor } from "../lib/money";
 import { useAuth } from "../lib/AuthContext";
 import { groupAccounts, primaryCurrency, summarizeByCurrency } from "./accounts/summary";
@@ -117,7 +117,7 @@ function SummaryBar({ accounts }: { accounts: FinancialAccount[] }) {
 
 export function AccountsPage() {
   const { activeWorkspace } = useAuth();
-  const baseCurrency = activeWorkspace?.tenant.base_currency ?? "USD";
+  const baseCurrency = workspaceCurrency(activeWorkspace?.tenant);
   const [showDeactivated, setShowDeactivated] = useState(false);
   const { data: accounts, isLoading } = useAccounts(showDeactivated);
   const { data: wallets } = useWallets();
@@ -158,7 +158,7 @@ export function AccountsPage() {
     const g = groupAccounts(accounts);
     return [...g.assets, ...g.liabilities];
   }, [accounts]);
-  const cur = primaryCurrency(accounts);
+  const cur = primaryCurrency(accounts, baseCurrency);
 
   const selectedId = searchParams.get("account");
 
@@ -188,7 +188,7 @@ export function AccountsPage() {
         // Posted by the server as a real double-entry opening journal entry
         // against Opening Balance Equity — never stored as a bare column.
         ...(values.opening_balance
-          ? { opening_balance_minor: majorToMinor(Number(values.opening_balance)) }
+          ? { opening_balance_minor: majorToMinor(Number(values.opening_balance), values.currency) }
           : {}),
       });
       accountForm.reset({
@@ -388,7 +388,7 @@ export function AccountsPage() {
                 </span>
               </div>
               <Money
-                amountMinor={watchedOpening ? majorToMinor(Number(watchedOpening) || 0) : 0}
+                amountMinor={watchedOpening ? majorToMinor(Number(watchedOpening) || 0, watchedCurrency) : 0}
                 currency={(watchedCurrency || baseCurrency).toUpperCase()}
                 neutral
               />

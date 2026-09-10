@@ -28,6 +28,7 @@ import { usePortfolio } from "../../hooks/useInvestments";
 import { useMembers } from "../../hooks/useTenancy";
 import { useAiEnabled } from "../../hooks/useEntitlements";
 import { useAuth } from "../../lib/AuthContext";
+import { pickPreferredCurrency, workspaceCurrency } from "../../lib/currencies";
 import {
   adaptiveSectionPriority,
   buildAttentionItems,
@@ -81,11 +82,10 @@ export function useDashboardModel() {
   const { data: incomeSources } = useIncomeSources();
   const { data: recurring } = useRecurring();
 
-  const primaryCurrency =
-    netWorth?.[0]?.currency ??
-    accounts?.[0]?.currency ??
-    activeWorkspace?.tenant.base_currency ??
-    "KES";
+  const primaryCurrency = pickPreferredCurrency(workspaceCurrency(activeWorkspace?.tenant), [
+    ...(netWorth?.map((n) => n.currency) ?? []),
+    ...(accounts?.map((a) => a.currency) ?? []),
+  ]);
   const primaryNetWorth = netWorth?.find((n) => n.currency === primaryCurrency) ?? netWorth?.[0];
   const primaryCashFlow = cashFlow?.find((c) => c.currency === primaryCurrency) ?? cashFlow?.[0];
   const priorPrimaryCashFlow =

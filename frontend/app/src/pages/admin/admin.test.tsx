@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PlatformStaff } from "../../api/platform";
-import { bytes, money, percent } from "./format";
+import { bytes, initials, money, percent } from "./format";
 
 /**
  * Capability gating is the behaviour under test.
@@ -49,6 +49,7 @@ const tenantDetail = {
   timezone: "Africa/Nairobi",
   locale: "en-KE",
   currency: "KES",
+  billing_currency: "KES",
   billing_email: "owner@example.com",
   created_at: "2026-01-01T00:00:00Z",
   subscription: {
@@ -113,6 +114,7 @@ const invoiceRow = {
   line_items: [],
 };
 const invoicesState: { value: (typeof invoiceRow)[] } = { value: [] };
+const tenantsState: { value: unknown[] } = { value: [] };
 const downloadMutate = vi.fn().mockResolvedValue(undefined);
 const sendMutate = vi.fn().mockResolvedValue({ queued: true, to: "amina@example.test" });
 
@@ -148,7 +150,10 @@ vi.mock("../../hooks/usePlatform", async () => {
       isError: staffState.isError,
     }),
     useTenant: () => ({ data: tenantDetail, isLoading: false }),
-    useTenants: () => ({ data: { count: 0, next: null, previous: null, results: [] }, isLoading: false }),
+    useTenants: () => ({
+      data: { count: tenantsState.value.length, next: null, previous: null, results: tenantsState.value },
+      isLoading: false,
+    }),
     usePlatformPlans: () => ({ data: [] }),
     useTenantAction: () => ({ mutateAsync: tenantActionMutate, isPending: false }),
     useStartImpersonation: () => ({ mutateAsync: impersonateMutate, isPending: false }),
@@ -169,7 +174,7 @@ vi.mock("../../hooks/usePlatform", async () => {
 });
 
 import { AdminGuard, AdminShell, ReasonDialog } from "../../components/admin/AdminShell";
-import { AdminTenantDetailPage } from "./AdminTenantsPage";
+import { AdminTenantsPage, AdminTenantDetailPage } from "./AdminTenantsPage";
 
 function renderAt(ui: React.ReactNode, path = "/admin/tenants/t1") {
   return render(<MemoryRouter initialEntries={[path]}>{ui}</MemoryRouter>);
@@ -186,12 +191,14 @@ beforeEach(() => {
   downloadMutate.mockClear();
   sendMutate.mockClear();
   invoicesState.value = [];
+  tenantsState.value = [];
 });
 
 // ================================================================ formatters
 describe("formatters", () => {
   it("renders minor units as currency", () => {
-    expect(money(123_456, "USD")).toContain("1,235");
+    expect(money(123_456, "USD")).toContain("1,234");
+    expect(money(123_456, "USD")).toContain(".56");
   });
 
   it("distinguishes an absent value from zero", () => {
@@ -205,6 +212,11 @@ describe("formatters", () => {
   it("formats byte counts compactly", () => {
     expect(bytes(0)).toBe("0 B");
     expect(bytes(5_242_880)).toBe("5.0 MB");
+  });
+
+  it("initials a workspace name", () => {
+    expect(initials("The Otieno Household")).toBe("TH");
+    expect(initials("Acme")).toBe("AC");
   });
 });
 
@@ -392,10 +404,65 @@ describe("tenant detail", () => {
     renderAt(<AdminTenantDetailPage />);
 
     // Counts and bytes cross the RLS boundary; balances and transactions do not.
-    expect(screen.getByText("812")).toBeInTheDocument();
-    expect(screen.getByText("5.0 MB")).toBeInTheDocument();
+    expect(screen.getAllByText("812").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("5.0 MB").length).toBeGreaterThan(0);
     expect(screen.queryByText(/net worth/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/balance/i)).not.toBeInTheDocument();
+  });
+
+  it("names books and billing currencies separately when they differ", () => {
+    const previousBilling = tenantDetail.billing_currency;
+    const previousSubCurrency = tenantDetail.subscription.currency;
+    tenantDetail.billing_currency = "USD";
+    tenantDetail.subscription.currency = "USD";
+    try {
+      staffState.value = makeStaff("read_only_auditor", ["tenant.read"]);
+      renderAt(<AdminTenantDetailPage />);
+      expect(screen.getByText(/books are kept in kes/i)).toBeInTheDocument();
+      expect(screen.getByText(/billed in usd/i)).toBeInTheDocument();
+    } finally {
+      tenantDetail.billing_currency = previousBilling;
+      tenantDetail.subscription.currency = previousSubCurrency;
+    }
+  });
+});
+
+describe("tenant directory", () => {
+  it("formats MRR in the billing currency, not the workspace books", () => {
+    staffState.value = makeStaff("platform_owner", ["tenant.read"]);
+    tenantsState.value = [
+      {
+        id: "t1",
+        name: "The Otieno Household",
+        type: "household",
+        is_active: true,
+        country: "KE",
+        timezone: "Africa/Nairobi",
+        currency: "KES",
+        billing_currency: "USD",
+        locale: "en-KE",
+        billing_email: "owner@example.com",
+        owner_email: "owner@example.com",
+        owner_name: "Amina",
+        member_count: 1,
+        plan_name: "Plus",
+        plan_id: "p1",
+        subscription_status: "active",
+        trial_ends_at: null,
+        current_period_end: null,
+        mrr_minor: 900,
+        created_at: "2026-01-01T00:00:00Z",
+        last_activity: "2026-07-01T00:00:00Z",
+        last_payment_at: null,
+        storage_bytes: 0,
+        transaction_count: 0,
+      },
+    ];
+    renderAt(<AdminTenantsPage />, "/admin/tenants");
+    expect(screen.getByRole("link", { name: "The Otieno Household" })).toBeInTheDocument();
+    expect(screen.getByText("KES")).toBeInTheDocument();
+    expect(screen.getByText(/billed USD/i)).toBeInTheDocument();
+    expect(screen.getByText("$9.00")).toBeInTheDocument();
   });
 });
 

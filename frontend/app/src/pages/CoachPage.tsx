@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { BriefingPeriod } from "../api/types";
 import { useBriefing, useDecideInsight, useGenerateInsights, useInsights } from "../hooks/useCoach";
 import { useAuth } from "../lib/AuthContext";
+import { workspaceCurrency } from "../lib/currencies";
 import { Banner, Button, Card, EmptyState, PageHeader, SegmentedControl, SkeletonCard, Text } from "../ui";
 import { BriefingCard, InsightCard } from "./coach";
 
@@ -29,7 +30,7 @@ export function CoachPage({ embedded }: { embedded?: boolean } = {}) {
   const [filter, setFilter] = useState<"live" | "bookmarked" | "dismissed">("live");
 
   const { activeWorkspace } = useAuth();
-  const currency = activeWorkspace?.tenant.base_currency ?? "USD";
+  const currency = workspaceCurrency(activeWorkspace?.tenant);
 
   const { data: briefing, isLoading: briefingLoading } = useBriefing(period);
   const { data: insights, isLoading } = useInsights(filter === "live" ? undefined : filter);

@@ -47,6 +47,9 @@ vi.mock("../hooks/useBudgeting", () => ({
 vi.mock("../hooks/useFinance", () => ({
   useCategories: () => ({ data: [{ id: "c1", name: "Groceries", kind: "expense", path: "Groceries", depth: 0, parent_id: null }] }),
 }));
+vi.mock("../lib/AuthContext", () => ({
+  useAuth: () => ({ activeWorkspace: { tenant: { id: "t1", base_currency: "USD" } } }),
+}));
 
 import { BudgetsPage } from "./BudgetsPage";
 

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ApiError } from "../api/client";
 import type { Category } from "../api/types";
 import { useAuth } from "../lib/AuthContext";
+import { workspaceCurrency } from "../lib/currencies";
 import {
   useCategories,
   useCreateCategory,
@@ -74,7 +75,7 @@ export function CategoriesPage() {
       const payload = {
         name,
         kind,
-        currency: activeWorkspace?.tenant.base_currency ?? "KES",
+        currency: workspaceCurrency(activeWorkspace?.tenant),
         ...(parentId ? { parent_id: parentId } : {}),
       };
       await createCategory.mutateAsync(payload);

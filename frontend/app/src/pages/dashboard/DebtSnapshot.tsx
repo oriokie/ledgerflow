@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { DebtSummary, DebtView } from "../../api/types";
 import { formatAmount } from "../../lib/money";
+import { FALLBACK_CURRENCY } from "../../lib/currencies";
 import { Meter, Text } from "../../ui";
 
 export function DebtSnapshot({
@@ -13,7 +14,7 @@ export function DebtSnapshot({
   const count = summary?.debt_count ?? debts?.length ?? 0;
   if (count === 0) return null;
 
-  const currency = summary?.currency ?? debts?.[0]?.currency ?? "USD";
+  const currency = summary?.currency ?? debts?.[0]?.currency ?? FALLBACK_CURRENCY;
   const withProgress = (debts ?? [])
     .filter((d) => d.percent_repaid != null && d.balance_minor > 0)
     .slice(0, 3);

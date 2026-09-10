@@ -5,6 +5,7 @@ import { z } from "zod";
 import { debtApi } from "../../api/debt";
 import { ApiError } from "../../api/client";
 import type { ConsolidationResult, DebtView } from "../../api/types";
+import { FALLBACK_CURRENCY } from "../../lib/currencies";
 import { formatAmountSigned, majorToMinor } from "../../lib/money";
 import { Banner, Button, Checkbox, Grid, Input, Modal, Money, Stack, Text } from "../../ui";
 
@@ -53,7 +54,7 @@ export function ConsolidationModal({
   // Only debts with terms can be modelled; offering the rest would produce a
   // comparison against figures we don't have.
   const eligible = debts.filter((d) => d.has_terms && d.minimum_payment_minor > 0);
-  const currency = eligible[0]?.currency ?? "USD";
+  const currency = eligible[0]?.currency ?? FALLBACK_CURRENCY;
 
   const toggle = (id: string) => {
     setSelected((current) => {
@@ -78,8 +79,8 @@ export function ConsolidationModal({
       const outcome = await debtApi.simulateConsolidation({
         account_ids: [...selected],
         new_apr: values.new_apr,
-        new_minimum_payment_minor: majorToMinor(Number(values.new_payment)),
-        fees_minor: values.fees ? majorToMinor(Number(values.fees)) : 0,
+        new_minimum_payment_minor: majorToMinor(Number(values.new_payment), currency),
+        fees_minor: values.fees ? majorToMinor(Number(values.fees), currency) : 0,
       });
       setResult(outcome);
     } catch (err) {

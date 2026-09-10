@@ -4,7 +4,8 @@ import type { ReceivableKind } from "../../api/receivables";
 import { useCreateReceivable } from "../../hooks/useReceivables";
 import { useAccounts } from "../../hooks/useFinance";
 import { useAuth } from "../../lib/AuthContext";
-import { CURRENCY_OPTIONS } from "../../lib/currencies";
+import { CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
+import { majorToMinor } from "../../lib/money";
 import { Banner, Button, Card, Grid, Inline, Input, Select, Stack, Text } from "../../ui";
 import { KIND_LABEL } from "./receivablesCopy";
 
@@ -33,7 +34,7 @@ export function CreateReceivableForm({
   const [counterparty, setCounterparty] = useState("");
   const [kind, setKind] = useState<ReceivableKind>("personal");
   const [description, setDescription] = useState("");
-  const [currency, setCurrency] = useState(activeWorkspace?.tenant.base_currency ?? "USD");
+  const [currency, setCurrency] = useState(workspaceCurrency(activeWorkspace?.tenant));
   const [amount, setAmount] = useState("");
   const [lentOn, setLentOn] = useState(() => new Date().toISOString().slice(0, 10));
   const [dueOn, setDueOn] = useState("");
@@ -46,7 +47,7 @@ export function CreateReceivableForm({
     event.preventDefault();
     setError(null);
     const parsed = Number.parseFloat(amount);
-    const principalMinor = Number.isFinite(parsed) ? Math.round(parsed * 100) : 0;
+    const principalMinor = Number.isFinite(parsed) ? majorToMinor(parsed, currency) : 0;
     if (principalMinor <= 0) {
       setError("Enter how much they owe you.");
       return;

@@ -1,26 +1,32 @@
 /**
- * Every amount in the API is an integer in the currency's minor unit
- * (cents), never a float — this is the one conversion boundary in the app.
- * `formatAmountParts` splits into whole/cents so components can render the
- * signature `<span class="lf-amount-cents">` treatment from the design
- * system (large integer part, small decimal).
+ * Every amount in the API is an integer in the currency's ISO minor unit
+ * (cents for USD, yen for JPY, fils for KWD), never a float — this is the
+ * one conversion boundary in the app. `formatAmountParts` splits into
+ * whole/fraction so components can render the signature
+ * `<span class="lf-amount-cents">` treatment from the design system.
  */
 
-export function minorToMajor(amountMinor: number): number {
-  return amountMinor / 100;
+import { currencyDigits, currencyScale } from "./currencies";
+
+export function minorToMajor(amountMinor: number, currency?: string): number {
+  return amountMinor / currencyScale(currency);
 }
 
-export function majorToMinor(amountMajor: number): number {
-  return Math.round(amountMajor * 100);
+export function majorToMinor(amountMajor: number, currency?: string): number {
+  return Math.round(amountMajor * currencyScale(currency));
 }
 
 export function formatAmountParts(amountMinor: number, currency: string): { whole: string; cents: string } {
-  const major = Math.abs(minorToMajor(amountMinor));
+  const digits = currencyDigits(currency);
+  const major = Math.abs(minorToMajor(amountMinor, currency));
   const formatted = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
     currencyDisplay: "narrowSymbol",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   }).format(major);
+  if (digits === 0) return { whole: formatted, cents: "" };
   const dot = formatted.lastIndexOf(".");
   if (dot === -1) return { whole: formatted, cents: "" };
   return { whole: formatted.slice(0, dot), cents: formatted.slice(dot) };

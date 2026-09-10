@@ -68,13 +68,14 @@ export interface RecurringTotals {
 export function recurringTotals(
   list: RecurringTransaction[] | undefined,
   asOf: Date = new Date(),
+  fallback = "USD",
 ): RecurringTotals {
   const items = list ?? [];
   const counts = new Map<string, number>();
   for (const r of items) {
     if (r.txn_type !== "transfer") counts.set(r.currency, (counts.get(r.currency) ?? 0) + 1);
   }
-  const currency = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "USD";
+  const currency = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? fallback;
 
   let monthlyExpense = 0;
   let annualExpense = 0;

@@ -6,7 +6,7 @@ import { ApiError } from "../../../api/client";
 import { useAuth } from "../../../lib/AuthContext";
 import { Badge, Banner, Button, Input, Select, Switch, Text, useToast } from "../../../ui";
 import { COUNTRY_OPTIONS } from "../../../lib/countries";
-import { CURRENCY_OPTIONS } from "../../../lib/currencies";
+import { CURRENCY_OPTIONS, workspaceCurrency } from "../../../lib/currencies";
 import { DangerZone, SettingsAdvanced, SettingsRow, SettingsSection } from "../components";
 
 export function WorkspacePanel() {
@@ -18,7 +18,7 @@ export function WorkspacePanel() {
   const [confirmName, setConfirmName] = useState("");
   const [closing, setClosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const baseCurrency = tenant?.base_currency ?? "USD";
+  const baseCurrency = workspaceCurrency(tenant);
   const [savingCurrency, setSavingCurrency] = useState(false);
   const [savedCurrency, setSavedCurrency] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);

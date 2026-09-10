@@ -4,7 +4,8 @@ import type { IncomeFrequency, IncomeKind, Reliability } from "../../api/income"
 import { useAccounts } from "../../hooks/useFinance";
 import { useCreateIncomeSource } from "../../hooks/useIncome";
 import { useAuth } from "../../lib/AuthContext";
-import { CURRENCY_OPTIONS } from "../../lib/currencies";
+import { amountInputStep, CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
+import { majorToMinor } from "../../lib/money";
 import { Banner, Button, Card, Inline, Input, Select, Stack, Text } from "../../ui";
 import {
   DAY_OF_MONTH_CADENCES,
@@ -79,7 +80,7 @@ export function CreateIncomeSourceForm({
   const [depositAccountId, setDepositAccountId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const baseCurrency = activeWorkspace?.tenant.base_currency ?? "USD";
+  const baseCurrency = workspaceCurrency(activeWorkspace?.tenant);
   const [currency, setCurrency] = useState(baseCurrency);
   const needsPayDay = DAY_OF_MONTH_CADENCES.includes(frequency);
   const needsSecondPayDay = frequency === "semi_monthly";
@@ -87,7 +88,7 @@ export function CreateIncomeSourceForm({
 
   const toMinor = (value: string): number | undefined => {
     const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) ? Math.round(parsed * 100) : undefined;
+    return Number.isFinite(parsed) ? majorToMinor(parsed, currency) : undefined;
   };
 
   /**
@@ -204,7 +205,7 @@ export function CreateIncomeSourceForm({
             label={`Amount received (${currency})`}
             hint="What lands in your account, per payment"
             type="number"
-            step="0.01"
+            step={amountInputStep(currency)}
             min="0.01"
             value={net}
             onChange={(e) => setNet(e.target.value)}
@@ -216,7 +217,7 @@ export function CreateIncomeSourceForm({
             hint="Before tax and deductions. Leave blank if you don't know it."
             optional
             type="number"
-            step="0.01"
+            step={amountInputStep(currency)}
             min="0.01"
             value={gross}
             onChange={(e) => setGross(e.target.value)}

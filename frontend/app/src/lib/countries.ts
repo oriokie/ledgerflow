@@ -41,3 +41,8 @@ export const CURRENCY_BY_COUNTRY: Record<string, string> = {
   SG: "SGD",
   BR: "BRL",
 };
+
+export function countryName(code: string | null | undefined): string {
+  if (!code) return "";
+  return COUNTRY_OPTIONS.find((c) => c.value === code)?.label ?? code;
+}

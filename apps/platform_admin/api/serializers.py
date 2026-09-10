@@ -91,6 +91,7 @@ class TenantRowSerializer(serializers.Serializer):
     country = serializers.CharField(allow_blank=True)
     timezone = serializers.CharField()
     currency = serializers.CharField()
+    billing_currency = serializers.CharField(allow_blank=True)
     locale = serializers.CharField()
     billing_email = serializers.CharField(allow_blank=True)
     owner_email = serializers.CharField(allow_blank=True)

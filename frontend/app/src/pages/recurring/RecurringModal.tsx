@@ -11,7 +11,7 @@ import {
   useUpdateRecurring,
 } from "../../hooks/useFinance";
 import { useAuth } from "../../lib/AuthContext";
-import { CURRENCY_OPTIONS } from "../../lib/currencies";
+import { CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
 import { majorToMinor, minorToMajor } from "../../lib/money";
 import { Banner, Button, Grid, Input, Modal, SegmentedControl, Select, Stack, Text } from "../../ui";
 import { CADENCE_OPTIONS, cadenceByValue, cadenceFor } from "./recurringMath";
@@ -79,7 +79,7 @@ export function RecurringModal({
   const [serverError, setServerError] = useState<string | null>(null);
   const isEdit = !!editing;
 
-  const baseCurrency = activeWorkspace?.tenant.base_currency ?? "USD";
+  const baseCurrency = workspaceCurrency(activeWorkspace?.tenant);
 
   const {
     register,
@@ -116,7 +116,7 @@ export function RecurringModal({
         financial_account_id: editing.financial_account_id ?? "",
         counter_account_id: editing.counter_account_id ?? "",
         category_id: editing.category_id ?? "",
-        amount: String(minorToMajor(editing.amount_minor)),
+        amount: String(minorToMajor(editing.amount_minor, editing.currency)),
         currency: editing.currency,
         cadence: cadenceFor(editing)?.value ?? "monthly",
         starts_on: editing.starts_on,
@@ -162,7 +162,7 @@ export function RecurringModal({
           recId: editing.id,
           category_id: isTransfer ? undefined : values.category_id,
           counter_account_id: isTransfer ? values.counter_account_id : undefined,
-          amount_minor: majorToMinor(Number(values.amount)),
+          amount_minor: majorToMinor(Number(values.amount), values.currency),
           frequency: cadence.frequency,
           interval: cadence.interval,
           next_run_on: values.next_run_on || undefined,
@@ -175,7 +175,7 @@ export function RecurringModal({
           financial_account_id: values.financial_account_id,
           counter_account_id: isTransfer ? values.counter_account_id : undefined,
           category_id: isTransfer ? undefined : values.category_id,
-          amount_minor: majorToMinor(Number(values.amount)),
+          amount_minor: majorToMinor(Number(values.amount), values.currency),
           currency: values.currency.toUpperCase(),
           frequency: cadence.frequency,
           interval: cadence.interval,

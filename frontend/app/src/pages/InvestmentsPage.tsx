@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useAccounts } from "../hooks/useFinance";
 import { useHoldings, usePortfolio, usePortfolioHistory, useSecurities } from "../hooks/useInvestments";
 import { useAuth } from "../lib/AuthContext";
+import { workspaceCurrency } from "../lib/currencies";
 import { Button, Card, EmptyState, Grid, Inline, PageHeader, SkeletonCard } from "../ui";
 import {
   AllocationChart,
@@ -39,7 +40,7 @@ export function InvestmentsPage() {
   const [showPrice, setShowPrice] = useState(false);
   const [showIncome, setShowIncome] = useState(false);
 
-  const currency = portfolio?.currency ?? activeWorkspace?.tenant.base_currency ?? "USD";
+  const currency = portfolio?.currency ?? workspaceCurrency(activeWorkspace?.tenant);
   const hasSecurities = (securities?.length ?? 0) > 0;
 
   return (

@@ -80,6 +80,8 @@ export interface TenantRow {
   country: string;
   timezone: string;
   currency: string;
+  /** Plan/invoice currency. Empty when there is no subscription. */
+  billing_currency: string;
   locale: string;
   billing_email: string;
   owner_email: string;
@@ -108,6 +110,9 @@ export interface TenantDetail {
   timezone: string;
   locale: string;
   currency: string;
+  /** Plan/invoice currency. Empty when there is no subscription. Distinct
+   * from `currency`, which is the workspace's books. */
+  billing_currency: string;
   billing_email: string;
   created_at: string;
   subscription: SubscriptionDetail | null;
