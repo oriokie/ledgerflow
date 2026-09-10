@@ -21,6 +21,8 @@ const EMPTY: OnboardingState = {
   hasCurrency: false,
   hasAccount: false,
   hasTransaction: false,
+  hasIncome: false,
+  hasBill: false,
   hasBudget: false,
   hasGoal: false,
   hasTeammate: false,
@@ -32,6 +34,8 @@ function upTo(id: string): Partial<OnboardingState> {
     ["currency", "hasCurrency"],
     ["account", "hasAccount"],
     ["transaction", "hasTransaction"],
+    ["income", "hasIncome"],
+    ["bills", "hasBill"],
     ["budget", "hasBudget"],
     ["goal", "hasGoal"],
     ["invite", "hasTeammate"],
@@ -55,11 +59,15 @@ function renderStarted(state: Partial<OnboardingState>, onDismiss?: () => void) 
 describe("buildSteps", () => {
   it("covers the setup milestones in order, currency first", () => {
     // Currency leads because every later step creates something denominated in
-    // it, and changing it afterwards is the expensive correction.
+    // it, and changing it afterwards is the expensive correction. Income and
+    // bills sit before a budget: a limit without a payday or a rent date is
+    // guesswork, and cash-flow stays empty until both exist.
     expect(buildSteps(EMPTY).map((s) => s.id)).toEqual([
       "currency",
       "account",
       "transaction",
+      "income",
+      "bills",
       "budget",
       "goal",
       "invite",
@@ -112,11 +120,22 @@ describe("GettingStarted", () => {
       "href",
       "/transactions?add=1",
     );
-    expect(screen.getByRole("link", { name: /import from your bank/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /import a statement/i })).toHaveAttribute(
       "href",
       "/transactions?import=1",
     );
     expect(screen.queryByRole("link", { name: /add account/i })).not.toBeInTheDocument();
+  });
+
+  it("asks for income before a budget, because cash-flow is empty without it", () => {
+    renderStarted(upTo("income"));
+    expect(screen.getByRole("link", { name: /add income/i })).toHaveAttribute("href", "/income?add=1");
+    expect(screen.queryByRole("link", { name: /create budget/i })).not.toBeInTheDocument();
+  });
+
+  it("asks for a bill before a budget", () => {
+    renderStarted(upTo("bills"));
+    expect(screen.getByRole("link", { name: /add a bill/i })).toHaveAttribute("href", "/bills?add=1");
   });
 
   it("keeps guiding past the first steps instead of disappearing", () => {
@@ -126,10 +145,10 @@ describe("GettingStarted", () => {
 
   it("reports progress in words as well as a bar", () => {
     renderStarted(upTo("budget"));
-    expect(screen.getByText("3 of 6 done")).toBeInTheDocument();
+    expect(screen.getByText("5 of 8 done")).toBeInTheDocument();
     const bar = screen.getByRole("progressbar", { name: /setup progress/i });
-    expect(bar).toHaveAttribute("aria-valuenow", "3");
-    expect(bar).toHaveAttribute("aria-valuemax", "6");
+    expect(bar).toHaveAttribute("aria-valuenow", "5");
+    expect(bar).toHaveAttribute("aria-valuemax", "8");
   });
 
   it("acknowledges completion rather than showing a dead checklist", () => {
@@ -137,12 +156,14 @@ describe("GettingStarted", () => {
       hasCurrency: true,
       hasAccount: true,
       hasTransaction: true,
+      hasIncome: true,
+      hasBill: true,
       hasBudget: true,
       hasGoal: true,
       hasTeammate: true,
     });
     expect(screen.getByText(/you're all set/i)).toBeInTheDocument();
-    expect(screen.getByText("6 of 6 done")).toBeInTheDocument();
+    expect(screen.getByText("8 of 8 done")).toBeInTheDocument();
   });
 
   it("can be dismissed, because guidance you can't remove is nagging", async () => {

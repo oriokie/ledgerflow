@@ -9,8 +9,8 @@ from apps.common.api_base import TenantScopedAPIView, WriteRequiresMemberMixin
 from apps.finance.models import FinancialAccount, Transaction
 from apps.tenancy.permissions import IsTenantMember
 
-from .. import selectors, services
-from ..models import IncomeDeduction, IncomeReceipt, IncomeSource
+from .. import selectors, services, stress
+from ..models import IncomeDeduction, IncomeReceipt, IncomeSource, Reliability
 from .serializers import (
     DeductionCreateSerializer,
     IncomeSourceCreateSerializer,
@@ -309,5 +309,72 @@ class IncomeSummaryView(TenantScopedAPIView, APIView):
                         "recurring_expenses_minor": committed.recurring_expenses_minor,
                     }
                 ),
+            }
+        )
+
+
+def _stress_snapshot_out(snap: stress.StressSnapshot) -> dict:
+    return {
+        "monthly_income_minor": snap.monthly_income_minor,
+        "monthly_fixed_minor": snap.monthly_fixed_minor,
+        "committed_minor": snap.committed_minor,
+        "free_minor": snap.free_minor,
+        "committed_pct": snap.committed_pct,
+        "shortfall_minor": snap.shortfall_minor,
+    }
+
+
+class IncomeSourceStressView(TenantScopedAPIView, APIView):
+    """Counterfactual: committed income if this stream stopped.
+
+    Returns 204 when there is no income position to stress (the household has
+    not told us what it earns). Returns 422 when the source has no monthly
+    equivalent — inventing one for an ad-hoc stream would be a guess dressed
+    as a plan.
+    """
+
+    permission_classes = [IsTenantMember]
+    serializer_class = None
+
+    @extend_schema(operation_id="income_source_stress")
+    def get(self, request, source_id):
+        view = selectors.source_view(source_id)
+        if view is None:
+            return Response({"detail": "Income source not found."}, status=status.HTTP_404_NOT_FOUND)
+        if view.monthly_net_minor is None:
+            return Response(
+                {
+                    "detail": (
+                        "This source has no monthly equivalent, so a stop "
+                        "scenario would be guessing."
+                    )
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        summary = selectors.income_summary(currency=view.currency)
+        committed = selectors.committed_income(currency=view.currency)
+        if summary is None or committed is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        scenario = stress.if_source_stops(
+            source_id=view.source_id,
+            source_name=view.name,
+            dropped_monthly_minor=view.monthly_net_minor,
+            currency=view.currency,
+            monthly_income_minor=summary.monthly_net_minor,
+            monthly_fixed_minor=summary.monthly_fixed_minor,
+            committed_minor=committed.committed_minor,
+            source_is_fixed=view.reliability == Reliability.FIXED,
+        )
+        return Response(
+            {
+                "source_id": scenario.source_id,
+                "source_name": scenario.source_name,
+                "dropped_monthly_minor": scenario.dropped_monthly_minor,
+                "currency": scenario.currency,
+                "sentence": scenario.sentence,
+                "before": _stress_snapshot_out(scenario.before),
+                "after": _stress_snapshot_out(scenario.after),
             }
         )

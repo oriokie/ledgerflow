@@ -5,10 +5,10 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { ApiError } from "../api/client";
 import { useAuth } from "../lib/AuthContext";
-import { AuthDivider, AuthLayout } from "../components/auth/AuthLayout";
+import { AuthDivider, AuthLayout, AuthPageHeader } from "../components/auth/AuthLayout";
 import { PasskeyButton } from "../components/auth/PasskeyButton";
 import { SocialAuthButtons } from "../components/auth/SocialAuthButtons";
-import { Banner, Button, Heading, Input, PasswordInput, Stack, Text } from "../ui";
+import { Banner, Button, Input, PasswordInput, Stack, Text } from "../ui";
 
 const credentialsSchema = z.object({
   email: z.string().email("Enter a valid email address."),
@@ -80,12 +80,9 @@ export function LoginPage() {
       <AuthLayout>
         <form onSubmit={onSubmitMfa} noValidate>
           <Stack gap={4}>
-            <div>
-              <Heading level={1}>Verify it&rsquo;s you</Heading>
-              <Text tone="secondary" size="sm" style={{ marginTop: "var(--lf-space-2)" }}>
-                Enter the 6-digit code from your authenticator app, or a backup code.
-              </Text>
-            </div>
+            <AuthPageHeader eyebrow="One more step" title="Verify it’s you">
+              Enter the 6-digit code from your authenticator app, or a backup code.
+            </AuthPageHeader>
 
             <Input
               label="Verification code"
@@ -125,14 +122,9 @@ export function LoginPage() {
     <AuthLayout footer={<>New to LedgerFlow? <Link to="/register">Create an account</Link></>}>
       <form onSubmit={onSubmitCredentials} noValidate>
         <Stack gap={4}>
-          <div>
-            <Heading level={1} className="lf-auth-title">
-              Welcome back
-            </Heading>
-            <Text size="sm" tone="secondary" style={{ marginTop: "var(--lf-space-3)" }}>
-              Sign in to see what changed and what comes next.
-            </Text>
-          </div>
+          <AuthPageHeader eyebrow="Sign in" title="Welcome back">
+            Open the books. See what changed, and what comes next.
+          </AuthPageHeader>
 
           {(location.state as { resetDone?: boolean } | null)?.resetDone && (
             <Banner tone="success">Your password has been reset. Sign in with your new password.</Banner>
@@ -158,12 +150,8 @@ export function LoginPage() {
             You&rsquo;ll stay signed in on this device for 14 days.
           </Text>
 
-          <div style={{ marginTop: "calc(-1 * var(--lf-space-2))", textAlign: "right" }}>
-            <Link
-              to="/forgot-password"
-              className="lf-auth-forgot"
-              style={{ fontSize: "var(--lf-text-sm)" }}
-            >
+          <div className="lf-auth-forgot-row">
+            <Link to="/forgot-password" className="lf-auth-forgot">
               Forgot password?
             </Link>
           </div>

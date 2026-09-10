@@ -119,9 +119,16 @@ const sendMutate = vi.fn().mockResolvedValue({ queued: true, to: "amina@example.
 const tenantActionMutate = vi.fn().mockResolvedValue(tenantDetail);
 const impersonateMutate = vi.fn().mockResolvedValue({
   id: "g1",
+  tenant_id: "t1",
   expires_at: "2026-07-26T12:30:00Z",
   token: "raw-token-shown-once",
+  read_only: true,
+  status: "active",
+  staff_email: "ops@example.com",
+  request_count: 0,
 });
+const endImpersonateMutate = vi.fn().mockResolvedValue({ status: "ended" });
+const impersonationsState: { value: unknown[] } = { value: [] };
 
 // The rail now carries a sign-out, so the shell needs an auth context. The
 // suite is about navigation and capability filtering, not about sessions.
@@ -145,6 +152,11 @@ vi.mock("../../hooks/usePlatform", async () => {
     usePlatformPlans: () => ({ data: [] }),
     useTenantAction: () => ({ mutateAsync: tenantActionMutate, isPending: false }),
     useStartImpersonation: () => ({ mutateAsync: impersonateMutate, isPending: false }),
+    useImpersonations: () => ({
+      data: { count: impersonationsState.value.length, next: null, previous: null, results: impersonationsState.value },
+      isLoading: false,
+    }),
+    useEndImpersonation: () => ({ mutateAsync: endImpersonateMutate, isPending: false }),
     usePlatformNotifications: () => ({ data: { count: 0, results: [] } }),
     useInvoices: () => ({
       data: { count: invoicesState.value.length, next: null, previous: null, results: invoicesState.value },
@@ -152,6 +164,7 @@ vi.mock("../../hooks/usePlatform", async () => {
     }),
     useDownloadInvoice: () => ({ mutateAsync: downloadMutate, mutate: downloadMutate, isPending: false }),
     useSendInvoice: () => ({ mutateAsync: sendMutate, isPending: false }),
+    useVoidInvoice: () => ({ mutateAsync: vi.fn(), isPending: false }),
   };
 });
 
@@ -168,6 +181,8 @@ beforeEach(() => {
   staffState.isError = false;
   tenantActionMutate.mockClear();
   impersonateMutate.mockClear();
+  endImpersonateMutate.mockClear();
+  impersonationsState.value = [];
   downloadMutate.mockClear();
   sendMutate.mockClear();
   invoicesState.value = [];
@@ -238,6 +253,13 @@ describe("navigation", () => {
     // Finance has no staff.read, so the Access tab would only ever 403.
     expect(screen.queryByRole("link", { name: /access/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /customers/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^users$/i })).not.toBeInTheDocument();
+  });
+
+  it("shows user lookup when the operator can read customers", () => {
+    staffState.value = makeStaff("customer_success", ["tenant.read"]);
+    renderAt(<AdminShell />, "/admin");
+    expect(screen.getByRole("link", { name: /^users$/i })).toHaveAttribute("href", "/admin/users");
   });
 });
 
@@ -361,6 +383,8 @@ describe("tenant detail", () => {
         read_only: true,
       }),
     );
+    expect(await screen.findByText("raw-token-shown-once")).toBeInTheDocument();
+    expect(screen.getByText(/shown once/i)).toBeInTheDocument();
   });
 
   it("shows usage magnitudes but no financial content", () => {
@@ -407,6 +431,26 @@ describe("invoice actions", () => {
     renderAt(<AdminInvoicesPage />, "/admin/invoices");
 
     expect(screen.queryByRole("button", { name: "Email" })).not.toBeInTheDocument();
+  });
+
+  it("offers voiding an unpaid invoice with invoice.write", async () => {
+    const { AdminInvoicesPage } = await import("./AdminPages");
+    staffState.value = makeStaff("finance", ["billing.read", "invoice.write"]);
+    invoicesState.value = [invoiceRow];
+
+    renderAt(<AdminInvoicesPage />, "/admin/invoices");
+
+    expect(screen.getByRole("button", { name: "Void" })).toBeInTheDocument();
+  });
+
+  it("does not offer to void a paid invoice", async () => {
+    const { AdminInvoicesPage } = await import("./AdminPages");
+    staffState.value = makeStaff("finance", ["billing.read", "invoice.write"]);
+    invoicesState.value = [{ ...invoiceRow, status: "paid" }];
+
+    renderAt(<AdminInvoicesPage />, "/admin/invoices");
+
+    expect(screen.queryByRole("button", { name: "Void" })).not.toBeInTheDocument();
   });
 
   it("downloads through the authenticated client, not a bare link", async () => {

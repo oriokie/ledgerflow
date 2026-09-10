@@ -18,8 +18,8 @@ vi.mock("./cashflow", () => ({
 
 import { CashflowPage } from "./CashflowPage";
 
-// The page links to /bills and /recurring from its empty state, so it needs a
-// router in scope — rendering it bare only worked while it had no links.
+// The page links to /bills, /income and /automation from its empty state, so
+// it needs a router in scope — rendering it bare only worked while it had no links.
 const render = (ui: React.ReactElement) => rtlRender(<MemoryRouter>{ui}</MemoryRouter>);
 
 /** A day that moves the balance — i.e. one worth drawing a calendar for. */
@@ -146,6 +146,10 @@ describe("CashflowPage", () => {
     // And the hollow "stays above zero" verdict goes with the grid: it is true
     // of a flat line by construction, so it carries no information.
     expect(screen.queryByText(/stays above zero/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /detect from history/i })).toHaveAttribute(
+      "href",
+      "/automation",
+    );
   });
 
   it("keeps the grid when a flat total hides real movement", () => {

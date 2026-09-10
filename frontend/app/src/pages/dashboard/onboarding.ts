@@ -10,6 +10,8 @@ export interface OnboardingState {
   hasCurrency: boolean;
   hasAccount: boolean;
   hasTransaction: boolean;
+  hasIncome: boolean;
+  hasBill: boolean;
   hasBudget: boolean;
   hasGoal: boolean;
   hasTeammate: boolean;
@@ -32,11 +34,13 @@ export interface OnboardingStep {
 }
 
 /**
- * The five setup milestones, in the order a person actually needs them.
+ * Setup milestones, in the order a person actually needs them.
  *
- * Every action deep-links into its create surface (`?add=1`) rather than the
- * destination page: dropping someone on Budgets and leaving them to find the
- * button is the friction this checklist exists to remove.
+ * Income and bills sit before budgets because a budget without a payday or a
+ * rent date is a wish list; cash-flow is empty until both exist. Every
+ * navigating action deep-links into its create surface (`?add=1`) rather than
+ * the destination page: dropping someone on Budgets and leaving them to find
+ * the button is the friction this checklist exists to remove.
  */
 export function buildSteps(state: OnboardingState): OnboardingStep[] {
   return [
@@ -63,7 +67,21 @@ export function buildSteps(state: OnboardingState): OnboardingStep[] {
       body: "Add a transaction by hand, or import a CSV to backfill months at once.",
       done: state.hasTransaction,
       cta: { label: "Add transaction", to: "/transactions?add=1" },
-      secondary: { label: "or import from your bank", to: "/transactions?import=1" },
+      secondary: { label: "or import a statement", to: "/transactions?import=1" },
+    },
+    {
+      id: "income",
+      title: "Tell us what you earn",
+      body: "Salary, freelance, rent you collect — once this is in, the calendar can say when money actually lands.",
+      done: state.hasIncome,
+      cta: { label: "Add income", to: "/income?add=1" },
+    },
+    {
+      id: "bills",
+      title: "Add a bill you pay",
+      body: "Rent, power, the subscription you always forget. These are what turn a flat balance into a real projection.",
+      done: state.hasBill,
+      cta: { label: "Add a bill", to: "/bills?add=1" },
     },
     {
       id: "budget",

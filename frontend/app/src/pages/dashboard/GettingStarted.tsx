@@ -90,7 +90,7 @@ function CurrencyStep({ onSaved }: { onSaved?: () => void }) {
  * about budgets, goals and sharing. Those features were never suggested again,
  * so the product stopped teaching itself right when it should have started.
  *
- * Now: five steps, a visible progress indicator, and only the current step
+ * Now: eight steps, a visible progress indicator, and only the current step
  * exposes an action so there is always exactly one obvious next move. It's
  * dismissible, because a checklist you can't get rid of stops being guidance
  * and becomes nagging.

@@ -16,16 +16,54 @@
   display: grid;
   /* The form column is the narrower of the two and comes first in both the
      DOM and the visual order, so keyboard order and reading order agree. */
-  grid-template-columns: minmax(0, 0.92fr) minmax(520px, 1.08fr);
-  background:
-    radial-gradient(circle at 12% 10%, color-mix(in srgb, var(--lf-auth-accent) 8%, transparent), transparent 28rem),
-    var(--lf-auth-page);
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  background: var(--lf-auth-page);
   color: var(--lf-auth-ink);
   font-family: var(--lf-font-body);
 }
 
+.lf-auth-shell[data-scene="register"],
+.lf-auth-shell[data-scene="welcome"] {
+  --lf-auth-panel: color-mix(in srgb, var(--lf-market-auth-panel) 82%, var(--lf-jade-100));
+}
+
+.lf-auth-shell[data-scene="recover"] {
+  --lf-auth-panel: color-mix(in srgb, var(--lf-market-auth-panel) 78%, var(--lf-ochre-100));
+}
+
+.lf-auth-shell[data-scene="invite"] {
+  --lf-auth-panel: color-mix(in srgb, var(--lf-market-auth-panel) 80%, var(--lf-horizon-100));
+}
+
+.lf-auth-shell[data-scene="signin"],
+.lf-auth-shell[data-scene="oauth"] {
+  --lf-auth-panel: color-mix(in srgb, var(--lf-jade-100) 58%, var(--lf-meridian-100));
+}
+
+.lf-auth-shell[data-scene="signed-out"] {
+  --lf-auth-panel: color-mix(in srgb, var(--lf-market-auth-panel) 86%, var(--lf-paper-100));
+}
+
 :root[data-theme="dark"] .lf-auth-shell {
   --lf-auth-line: color-mix(in srgb, var(--lf-auth-ink) 14%, transparent);
+}
+
+:root[data-theme="dark"] .lf-auth-shell[data-scene="signin"],
+:root[data-theme="dark"] .lf-auth-shell[data-scene="oauth"] {
+  --lf-auth-panel: color-mix(in srgb, var(--lf-market-auth-panel) 62%, var(--lf-jade-700));
+}
+
+:root[data-theme="dark"] .lf-auth-shell[data-scene="register"],
+:root[data-theme="dark"] .lf-auth-shell[data-scene="welcome"] {
+  --lf-auth-panel: color-mix(in srgb, var(--lf-market-auth-panel) 88%, var(--lf-jade-700));
+}
+
+:root[data-theme="dark"] .lf-auth-shell[data-scene="recover"] {
+  --lf-auth-panel: color-mix(in srgb, var(--lf-market-auth-panel) 88%, var(--lf-ochre-700));
+}
+
+:root[data-theme="dark"] .lf-auth-shell[data-scene="invite"] {
+  --lf-auth-panel: color-mix(in srgb, var(--lf-market-auth-panel) 88%, var(--lf-horizon-700));
 }
 
 /* ---------------------------------------------------------- brand panel --- */
@@ -34,33 +72,16 @@
   position: relative;
   overflow: hidden;
   display: flex;
-  margin: var(--lf-space-4);
-  border: 1px solid var(--lf-auth-line);
+  margin: var(--lf-space-3);
+  border: 0;
   border-radius: 32px;
   background:
-    radial-gradient(circle at 80% 12%, color-mix(in srgb, var(--lf-auth-accent) 22%, transparent), transparent 38%),
-    linear-gradient(145deg, color-mix(in srgb, var(--lf-auth-panel) 88%, white), var(--lf-auth-panel));
-}
-
-.lf-auth-panel::after {
-  content: "";
-  position: absolute;
-  width: 26rem;
-  aspect-ratio: 1;
-  right: -11rem;
-  bottom: -13rem;
-  border: 1px solid color-mix(in srgb, var(--lf-auth-ink) 10%, transparent);
-  border-radius: 50%;
-  box-shadow:
-    0 0 0 4rem color-mix(in srgb, var(--lf-auth-ink) 2%, transparent),
-    0 0 0 8rem color-mix(in srgb, var(--lf-auth-ink) 2%, transparent);
+    radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--lf-auth-card) 28%, transparent), transparent 36%),
+    var(--lf-auth-panel);
 }
 
 .lf-auth-panel-brand {
-  position: absolute;
-  z-index: 2;
-  top: var(--lf-space-6);
-  left: var(--lf-space-6);
+  display: none;
 }
 
 .lf-auth-stage {
@@ -68,49 +89,131 @@
   width: min(100%, 34rem);
   padding: var(--lf-space-5);
   border: 1px solid color-mix(in srgb, var(--lf-auth-ink) 9%, transparent);
-  border-radius: 28px;
-  background: color-mix(in srgb, var(--lf-auth-card) 78%, transparent);
-  box-shadow: 0 28px 70px color-mix(in srgb, var(--lf-auth-ink) 10%, transparent);
-  transform: rotate(-1deg);
+  border-radius: 30px;
+  background: color-mix(in srgb, var(--lf-auth-card) 82%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--lf-auth-card) 70%, transparent) inset,
+    0 32px 72px color-mix(in srgb, var(--lf-auth-ink) 12%, transparent);
+}
+
+.lf-auth-stage--product {
+  width: min(100%, 40rem);
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.lf-auth-stage--product .lf-auth-float {
+  display: none;
 }
 
 .lf-auth-illus {
   width: 100%;
+  display: grid;
+  place-items: center;
 }
 
 .lf-auth-illus .lf-illus {
-  max-width: none;
+  max-width: 280px;
 }
 
-.lf-auth-illus .lf-illus--doodle {
+.lf-auth-shell .lf-auth-illus .lf-illus--doodle {
+  max-width: 320px;
   --lf-text-primary: var(--lf-auth-ink);
   --lf-text-tertiary: var(--lf-auth-muted);
   --lf-action-primary: var(--lf-auth-accent);
 }
 
+.lf-auth-shot {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 22px;
+  background: var(--lf-auth-card);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--lf-auth-card) 55%, transparent) inset,
+    0 28px 64px color-mix(in srgb, var(--lf-auth-ink) 22%, transparent);
+  transform: rotate(-3.5deg) translateY(6px);
+}
+
+.lf-auth-shot--dimmed {
+  opacity: 0.72;
+  filter: grayscale(0.25);
+}
+
+.lf-auth-shot-chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--lf-auth-ink) 6%, var(--lf-auth-card));
+}
+
+.lf-auth-shot-chrome span {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--lf-radius-full);
+  background: color-mix(in srgb, var(--lf-auth-ink) 28%, transparent);
+}
+
+.lf-auth-shot-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.lf-auth-shot-img--dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .lf-auth-shot-img--light {
+    display: none;
+  }
+  .lf-auth-shot-img--dark {
+    display: block;
+  }
+}
+
+:root[data-theme="light"] .lf-auth-shot-img--light {
+  display: block;
+}
+:root[data-theme="light"] .lf-auth-shot-img--dark {
+  display: none;
+}
+:root[data-theme="dark"] .lf-auth-shot-img--light {
+  display: none;
+}
+:root[data-theme="dark"] .lf-auth-shot-img--dark {
+  display: block;
+}
+
 .lf-auth-float {
   position: absolute;
   z-index: 2;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border: 1px solid var(--lf-auth-line);
   border-radius: var(--lf-radius-full);
-  background: var(--lf-auth-card);
-  box-shadow: 0 12px 30px color-mix(in srgb, var(--lf-auth-ink) 10%, transparent);
+  background: color-mix(in srgb, var(--lf-auth-card) 94%, transparent);
+  box-shadow: 0 14px 32px color-mix(in srgb, var(--lf-auth-ink) 10%, transparent);
   color: var(--lf-auth-muted);
   font-family: var(--lf-font-body);
   font-size: var(--lf-text-xs);
   font-weight: var(--lf-weight-medium);
+  letter-spacing: 0.01em;
   white-space: nowrap;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .lf-auth-float--top {
-  top: 18%;
-  right: -6%;
+  top: 12%;
+  right: 6%;
 }
 
 .lf-auth-float--bottom {
-  bottom: 13%;
-  left: -5%;
+  bottom: 10%;
+  left: 6%;
 }
 
 .lf-auth-panel-inner {
@@ -120,7 +223,7 @@
   align-items: center;
   justify-content: center;
   gap: clamp(var(--lf-space-6), 4vh, var(--lf-space-10));
-  padding: clamp(72px, 8vw, 104px) clamp(40px, 6vw, 88px) clamp(40px, 5vw, 72px);
+  padding: clamp(48px, 6vw, 80px) clamp(36px, 5vw, 72px) clamp(36px, 5vw, 64px);
   width: 100%;
   z-index: 1;
 }
@@ -143,7 +246,7 @@
 .lf-auth-panel-title {
   color: var(--lf-auth-ink);
   font-family: var(--lf-font-display);
-  font-size: clamp(1.65rem, 2.5vw, 2.3rem);
+  font-size: clamp(1.7rem, 2.6vw, 2.45rem);
   font-weight: var(--lf-weight-medium);
   line-height: 1.12;
   letter-spacing: var(--lf-tracking-tight);
@@ -155,7 +258,7 @@
   color: var(--lf-auth-muted);
   font-family: var(--lf-font-body);
   font-size: var(--lf-text-sm);
-  line-height: 1.65;
+  line-height: 1.7;
 }
 
 /* ---------------------------------------------------------------- quote --- */
@@ -191,8 +294,6 @@
   color: var(--lf-text-tertiary);
 }
 
-/* Position dots for the rotation. The active one stretches rather than merely
-   changing colour, so which is current survives being read without colour. */
 .lf-quote-dots {
   display: flex;
   justify-content: center;
@@ -218,7 +319,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--lf-space-8) clamp(var(--lf-space-6), 6vw, 88px);
+  padding: var(--lf-space-8) clamp(var(--lf-space-6), 6vw, 96px);
 }
 
 .lf-auth-card {
@@ -226,9 +327,6 @@
   max-width: 430px;
 }
 
-/* No card chrome on the form side. The reference sets the form directly on the
-   page and lets the panel opposite carry the surface, which is what stops the
-   screen reading as two competing boxes. */
 .lf-auth-form-card {
   padding: 0;
   background: none;
@@ -236,23 +334,46 @@
   box-shadow: none;
 }
 
-/* ---- the reference's shape language, scoped to the auth screens ----------
-   Pill fields and a pill primary. Scoped rather than applied to the design
-   system's own controls: this is the shape of the *sign-in* screen, and
-   rounding every input in the product to match it would be a far larger claim
-   than the one being made here. */
+.lf-auth-heading {
+  display: grid;
+  gap: var(--lf-space-3);
+}
+
+.lf-auth-kicker {
+  margin: 0;
+  color: var(--lf-auth-accent);
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wider);
+  text-transform: uppercase;
+}
+
+.lf-auth-lead {
+  max-width: 36ch;
+  line-height: 1.6;
+}
+
+.lf-auth-form-card .lf-text-secondary,
+.lf-auth-lead {
+  color: var(--lf-auth-muted);
+}
 
 .lf-auth-form-card .lf-input,
 .lf-auth-form-card .lf-select {
   min-height: 54px;
   padding-inline: var(--lf-space-4);
   border-color: var(--lf-auth-line);
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--lf-auth-card);
+  box-shadow: inset 0 1px 1px color-mix(in srgb, var(--lf-auth-ink) 4%, transparent);
 }
 
-/* The reveal toggle rides inside the pill, so it needs to clear the larger
-   inset the pill introduces. */
+.lf-auth-form-card .lf-input:hover:not(:disabled):not([aria-invalid="true"]),
+.lf-auth-form-card .lf-select:hover:not(:disabled):not([aria-invalid="true"]) {
+  border-color: color-mix(in srgb, var(--lf-auth-ink) 22%, transparent);
+}
+
 .lf-auth-form-card .lf-password-toggle {
   right: var(--lf-space-4);
 }
@@ -263,18 +384,122 @@
   border-radius: 14px;
   background: var(--lf-auth-accent);
   font-size: var(--lf-text-base);
+  box-shadow: none;
 }
 
-/* The headline. Large and tight, the way the reference leads. */
+.lf-auth-form-card .lf-social-btn {
+  border-color: var(--lf-auth-line);
+  background: var(--lf-auth-card);
+}
+
+.lf-auth-form-card .lf-social-row .lf-social-btn {
+  width: 48px;
+  height: 48px;
+}
+
 .lf-auth-title {
   color: var(--lf-auth-ink);
-  font-size: clamp(2.1rem, 3.4vw, 3rem);
-  line-height: 1.08;
+  font-size: clamp(2.15rem, 3.6vw, 3.1rem);
+  line-height: 1.06;
   letter-spacing: var(--lf-tracking-tight);
   font-weight: var(--lf-weight-medium);
 }
 
-/* The floating figure card, overlapping the illustration's lower edge. */
+.lf-auth-footer {
+  margin-top: var(--lf-space-5);
+  text-align: center;
+}
+
+.lf-auth-forgot-row {
+  margin-top: calc(-1 * var(--lf-space-2));
+  text-align: right;
+}
+
+.lf-auth-retry {
+  align-self: flex-start;
+  min-height: var(--lf-touch-target);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--lf-text-link);
+  font: inherit;
+  font-size: var(--lf-text-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.lf-auth-retry:hover {
+  color: var(--lf-auth-ink);
+}
+
+.lf-auth-workspace {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--lf-space-3) var(--lf-space-4);
+  border: 1px solid var(--lf-auth-line);
+  border-radius: 16px;
+  background: var(--lf-auth-card);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color var(--lf-duration-fast) var(--lf-ease-out),
+    box-shadow var(--lf-duration-fast) var(--lf-ease-out),
+    transform var(--lf-duration-fast) var(--lf-ease-out);
+}
+
+.lf-auth-workspace:hover {
+  border-color: color-mix(in srgb, var(--lf-auth-accent) 35%, var(--lf-auth-line));
+  box-shadow: var(--lf-shadow-sm);
+  transform: translateY(-1px);
+}
+
+.lf-auth-workspace:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+}
+
+.lf-auth-workspace-mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--lf-auth-accent) 16%, transparent);
+  color: var(--lf-auth-accent);
+  font-family: var(--lf-font-display);
+  font-size: var(--lf-text-sm);
+  font-weight: var(--lf-weight-semibold);
+}
+
+.lf-auth-workspace-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lf-auth-workspace-name {
+  font-weight: var(--lf-weight-semibold);
+}
+
+.lf-auth-workspace-meta {
+  color: var(--lf-auth-muted);
+  font-size: var(--lf-text-sm);
+  text-transform: capitalize;
+}
+
+.lf-auth-workspace-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-2);
+}
+
 .lf-auth-specimen {
   position: absolute;
   left: 50%;
@@ -291,24 +516,31 @@
   white-space: nowrap;
 }
 
-/* brand */
 .lf-auth-brand {
   display: inline-flex;
   align-items: center;
   gap: var(--lf-space-2);
+  font-family: var(--lf-font-display);
   font-weight: var(--lf-weight-semibold);
   letter-spacing: -0.01em;
 }
+
 .lf-auth-brand-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--lf-verdant-600);
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--lf-auth-accent) 86%, var(--lf-auth-card)),
+    var(--lf-auth-accent)
+  );
   color: var(--lf-paper-000);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--lf-auth-card) 28%, transparent);
 }
+
 .lf-auth-brand--inverted {
   color: var(--lf-market-brand-inverted);
 }
@@ -317,48 +549,58 @@
   color: var(--lf-market-brand-mark);
 }
 
-.lf-auth-mobile-brand {
-  display: none;
-  margin-bottom: var(--lf-space-5);
+.lf-auth-brand-slot {
+  margin-bottom: var(--lf-space-8);
 }
 
 /* --------------------------------------------------------------- mobile --- */
 
-@media (max-width: 899px) {
+@media (max-width: 1024px) {
   .lf-auth-shell {
     grid-template-columns: 1fr;
   }
   .lf-auth-panel {
     display: none;
   }
-  .lf-auth-mobile-brand {
-    display: flex;
-    justify-content: center;
-  }
   .lf-auth-main {
-    padding: var(--lf-space-6) var(--lf-space-4);
-    padding-bottom: calc(var(--lf-space-6) + env(safe-area-inset-bottom, 0px));
+    padding: var(--lf-space-8) var(--lf-space-4);
+    padding-bottom: calc(var(--lf-space-8) + env(safe-area-inset-bottom, 0px));
+  }
+  .lf-auth-form-card {
+    padding: var(--lf-space-6);
+    border: 1px solid var(--lf-auth-line);
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--lf-auth-card) 92%, transparent);
+    box-shadow:
+      0 1px 0 color-mix(in srgb, var(--lf-auth-card) 80%, transparent) inset,
+      0 18px 48px color-mix(in srgb, var(--lf-auth-ink) 7%, transparent);
   }
 }
 
 /* ------------------------------------------------------------ logged out --- */
 
 .lf-loggedout-icon {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   border-radius: var(--lf-radius-full);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--lf-verdant-600) 12%, transparent);
-  color: var(--lf-verdant-600);
-  margin-bottom: var(--lf-space-3);
+  background: color-mix(in srgb, var(--lf-auth-accent) 12%, transparent);
+  color: var(--lf-auth-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lf-auth-accent) 16%, transparent);
 }
 
 .lf-loggedout-actions {
   display: grid;
   gap: var(--lf-space-2);
   margin-top: var(--lf-space-2);
+}
+
+.lf-loggedout-actions .lf-btn {
+  display: inline-flex;
+  width: 100%;
+  justify-content: center;
 }
 
 /* Tap targets on the auth screens.
@@ -376,16 +618,44 @@
   display: inline-block;
   min-height: 24px;
   padding-block: var(--lf-space-1);
-  /* Keeps the underline snug to the text despite the taller box. */
   text-underline-offset: 2px;
 }
 
-/* The one standalone link on the sign-in form — right-aligned, on its own line,
-   and reached one-handed on a phone. Inline links inside a sentence keep their
-   natural height: forcing a 44px box around three words mid-sentence would
-   break the sentence, and they clear the 24px AA floor as they are. */
+.lf-auth-shell a.lf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--lf-space-2) var(--lf-space-5);
+}
+
 .lf-auth-forgot {
   display: inline-flex;
   align-items: center;
   min-height: var(--lf-touch-target);
+  font-size: var(--lf-text-sm);
+}
+
+@media (prefers-contrast: more) {
+  .lf-auth-shell,
+  .lf-auth-panel,
+  .lf-auth-stage,
+  .lf-auth-form-card {
+    background: var(--lf-auth-page);
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .lf-auth-form-card .lf-btn--primary {
+    background: var(--lf-auth-accent);
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-auth-workspace,
+  .lf-auth-stage,
+  .lf-auth-shot {
+    transform: none;
+    transition: none;
+  }
 }

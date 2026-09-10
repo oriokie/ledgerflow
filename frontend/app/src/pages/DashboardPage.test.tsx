@@ -106,7 +106,7 @@ describe("DashboardPage", () => {
     });
     renderDash();
     expect(screen.getByText(/let's get you set up/i)).toBeInTheDocument();
-    expect(screen.getByText("2 of 6 done")).toBeInTheDocument();
+    expect(screen.getByText("2 of 8 done")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: /time period/i })).toBeInTheDocument();
   });
 

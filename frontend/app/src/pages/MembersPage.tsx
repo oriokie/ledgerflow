@@ -9,9 +9,10 @@ import {
   useMembers,
   useRemoveMember,
   useRevokeInvitation,
+  useWorkspaceActivity,
 } from "../hooks/useTenancy";
 import { useAuth } from "../lib/AuthContext";
-import { formatDateLong } from "../lib/money";
+import { formatDateLong, formatRelativeTime } from "../lib/money";
 import {
   Badge,
   Banner,
@@ -54,6 +55,8 @@ export function MembersPage() {
 
   const myRole = activeWorkspace?.role ?? "viewer";
   const canManage = myRole === "owner" || myRole === "admin";
+  const canReadActivity = myRole !== "viewer";
+  const { data: activity } = useWorkspaceActivity(canReadActivity);
 
   const onInvite = async () => {
     setError(null);
@@ -215,6 +218,37 @@ export function MembersPage() {
           <div style={{ marginTop: "var(--lf-space-3)" }}>
             <Table columns={inviteColumns} rows={invitations} rowKey={(inv) => inv.id} caption="Pending invitations" />
           </div>
+        </section>
+      )}
+
+      {canReadActivity && (
+        <section className="lf-activity">
+          <Heading level={2}>Recent activity</Heading>
+          <Text tone="tertiary" size="sm">
+            Who changed membership, closed the workspace, or voided a transaction.
+          </Text>
+          {activity?.results.length ? (
+            <ol className="lf-activity-list">
+              {activity.results.map((row) => (
+                <li key={row.id}>
+                  <div>
+                    <span className="lf-cell-primary">{row.label}</span>
+                    <span className="lf-cell-meta">
+                      {row.actor_name}
+                      {row.target_type ? ` · ${row.target_type.split(".").pop()}` : ""}
+                    </span>
+                  </div>
+                  <time dateTime={row.created_at} title={formatDateLong(row.created_at)}>
+                    {formatRelativeTime(row.created_at)}
+                  </time>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <Text tone="tertiary" size="sm">
+              Nothing recorded yet. Role changes, removals, and voids will appear here.
+            </Text>
+          )}
         </section>
       )}
 

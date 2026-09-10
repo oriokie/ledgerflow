@@ -44,9 +44,11 @@ export function DashboardPage() {
       <>
         <CashFlowPanel
           cashFlow={model.primaryCashFlow}
+          priorCashFlow={model.priorPrimaryCashFlow}
           trend={model.spendingTrend}
           currency={model.primaryCurrency}
           periodLabel={model.range.label}
+          compareLabel={model.compare?.label}
         />
         <CommittedIncomeStrip />
       </>

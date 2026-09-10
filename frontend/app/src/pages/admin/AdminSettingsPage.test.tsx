@@ -162,6 +162,7 @@ describe("closed-set settings", () => {
     expect(screen.getByRole("radio", { name: "Clay" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Doodle" })).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: /illustration style/i })).not.toBeInTheDocument();
+    expect(screen.getByText("Appearance")).toBeInTheDocument();
   });
 
   it("saves the moment a style is picked, with no separate confirm", async () => {

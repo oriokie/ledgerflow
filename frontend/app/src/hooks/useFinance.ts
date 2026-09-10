@@ -230,12 +230,12 @@ export function useNetWorth() {
   });
 }
 
-export function useCashFlow(start: string, end: string) {
+export function useCashFlow(start: string, end: string, enabled = true) {
   const { activeWorkspace } = useAuth();
   return useQuery({
     queryKey: ["cash-flow", activeWorkspace?.tenant.id, start, end],
     queryFn: () => financeApi.cashFlow(start, end),
-    enabled: !!activeWorkspace,
+    enabled: !!activeWorkspace && enabled && !!start && !!end,
   });
 }
 
@@ -634,5 +634,27 @@ export function useCashflowCalendar(params: { start?: string; days?: number; cur
     queryFn: () => financeApi.cashflowCalendar(params),
     enabled: !!activeWorkspace,
     staleTime: 30_000,
+  });
+}
+
+export function useAccountReconciliation(accountId: string | null, statementBalanceMinor?: number) {
+  const { activeWorkspace } = useAuth();
+  return useQuery({
+    queryKey: ["reconciliation", activeWorkspace?.tenant.id, accountId, statementBalanceMinor],
+    queryFn: () => financeExtendedApi.reconciliation(accountId!, statementBalanceMinor),
+    enabled: !!activeWorkspace && !!accountId,
+  });
+}
+
+export function useReconcileTransactions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: financeExtendedApi.reconcileTransactions,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reconciliation"] });
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["statement"] });
+    },
   });
 }

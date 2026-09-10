@@ -21,6 +21,7 @@ import { ReasonDialog } from "../../components/admin/AdminShell";
 import { Illustration, ILLUSTRATION_STYLES } from "../../ui/illustration";
 
 const GROUP_LABELS: Record<string, string> = {
+  appearance: "Appearance",
   invoicing: "Invoicing",
   payments: "Payments",
   email: "Outbound email",
@@ -42,6 +43,8 @@ const GROUP_ORDER = Object.keys(GROUP_LABELS);
 const REASON_REQUIRED_GROUPS = new Set(["payments", "email", "ai", "oauth"]);
 
 const GROUP_NOTES: Record<string, string> = {
+  appearance:
+    "How the product looks to every customer, including the signed-out landing page. Changing the illustration style is immediate.",
   invoicing:
     "Printed on every invoice you issue. Changing these affects documents issued from now on — already-issued invoices keep the details they were created with.",
   payments:

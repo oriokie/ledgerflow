@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Layers,
+  UserSearch,
   Users,
 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
@@ -77,6 +78,12 @@ const NAV_GROUPS: { label: string; items: NavEntry[] }[] = [
     items: [{ to: "/admin/health", label: "System", icon: Activity, capability: "health.read" }],
   },
   {
+    label: "Support",
+    items: [
+      { to: "/admin/users", label: "Users", icon: UserSearch, capability: "tenant.read" },
+    ],
+  },
+  {
     label: "Governance",
     items: [
       { to: "/admin/audit", label: "Audit", icon: ScrollText, capability: "audit.read" },
@@ -88,7 +95,15 @@ const NAV_GROUPS: { label: string; items: NavEntry[] }[] = [
 
 /** Flattened — the command palette and capability filtering work on one list. */
 const NAV: NavEntry[] = NAV_GROUPS.flatMap((g) => g.items);
-;
+
+/**
+ * Advertise the shortcut the operator's keyboard actually has. Showing ⌘K to a
+ * Windows user is a small lie that makes the hint useless. Resolved once at
+ * module load — the platform does not change mid-session.
+ */
+const IS_APPLE =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+const shortcutLabel = IS_APPLE ? "⌘K" : "Ctrl K";
 
 /**
  * Gate for the whole `/admin` tree.
@@ -234,7 +249,7 @@ export function AdminShell() {
               aria-label="Open command palette"
             >
               <span>Jump to…</span>
-              <kbd>⌘K</kbd>
+              <kbd>{shortcutLabel}</kbd>
             </button>
             <a className="lf-admin-exit" href="/">
               Back to LedgerFlow

@@ -255,7 +255,7 @@
 .lf-theme-toggle button[aria-pressed="true"] {
   background: var(--lf-bg-surface);
   color: var(--lf-text-primary);
-  box-shadow: var(--lf-shadow-sm, 0 1px 2px rgba(21, 25, 40, 0.08));
+  box-shadow: var(--lf-shadow-sm);
 }
 
 /* ---------- notification center panel ---------- */
@@ -344,7 +344,7 @@
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgba(21, 25, 40, 0.45);
+  background: color-mix(in srgb, var(--lf-ink-900) 48%, transparent);
   animation: lf-fade-in var(--lf-duration-fast) var(--lf-ease-out);
 }
 @keyframes lf-fade-in {

@@ -15,24 +15,31 @@ import { minorToMajor } from "../../lib/money";
 import { Figure, FigureRow, Meter, Text } from "../../ui";
 import { ChartTooltip } from "./chart";
 import { AXIS_TICK, axisLineProps, compactNumber, gridProps } from "./chartTheme";
-import { savingsRate } from "./metrics";
+import { formatDelta, percentChange, savingsRate } from "./metrics";
 
 export function CashFlowPanel({
   cashFlow,
+  priorCashFlow,
   trend,
   currency,
   periodLabel,
+  compareLabel,
 }: {
   cashFlow: CashFlowByCurrency | undefined;
+  priorCashFlow?: CashFlowByCurrency;
   trend: SpendingTrendPoint[] | undefined;
   currency: string;
   periodLabel: string;
+  compareLabel?: string;
 }) {
   const animate = !usePrefersReducedMotion();
   const income = cashFlow?.income_minor ?? 0;
   const expense = cashFlow?.expense_minor ?? 0;
   const net = cashFlow?.net_minor ?? 0;
   const rate = savingsRate(income, expense);
+  const incomeDelta = percentChange(income, priorCashFlow?.income_minor);
+  const spendDelta = percentChange(expense, priorCashFlow?.expense_minor);
+  const netDelta = percentChange(net, priorCashFlow?.net_minor);
 
   const chartData = (trend ?? []).map((p) => ({
     label: p.period_start,
@@ -46,7 +53,10 @@ export function CashFlowPanel({
       <header className="lf-cmd-panel-head">
         <div>
           <h2 id="lf-cf-title">Cash flow</h2>
-          <p className="lf-cmd-panel-sub">{periodLabel}</p>
+          <p className="lf-cmd-panel-sub">
+            {periodLabel}
+            {compareLabel ? ` · vs. ${compareLabel.toLowerCase()}` : ""}
+          </p>
         </div>
         <Link className="lf-section-link" to="/plan?tab=cashflow">
           Full calendar
@@ -54,13 +64,27 @@ export function CashFlowPanel({
       </header>
 
       <FigureRow>
-        <Figure label="Income" amountMinor={income} currency={currency} neutral tone="positive" />
-        <Figure label="Spending" amountMinor={expense} currency={currency} neutral />
+        <Figure
+          label="Income"
+          amountMinor={income}
+          currency={currency}
+          neutral
+          tone="positive"
+          delta={incomeDelta != null ? formatDelta(incomeDelta) : undefined}
+        />
+        <Figure
+          label="Spending"
+          amountMinor={expense}
+          currency={currency}
+          neutral
+          delta={spendDelta != null ? formatDelta(spendDelta) : undefined}
+        />
         <Figure
           label="Net"
           amountMinor={net}
           currency={currency}
           tone={net < 0 ? "critical" : "default"}
+          delta={netDelta != null ? formatDelta(netDelta) : undefined}
         />
       </FigureRow>
 

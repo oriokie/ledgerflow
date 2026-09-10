@@ -387,6 +387,12 @@ def source_views(*, as_of: date | None = None, currency: str | None = None) -> l
     return views
 
 
+def source_view(source_id, *, as_of: date | None = None) -> SourceView | None:
+    """One source by id, or ``None`` when it is not an active source here."""
+    wanted = str(source_id)
+    return next((view for view in source_views(as_of=as_of) if view.source_id == wanted), None)
+
+
 def _dominant_income_currency() -> str | None:
     """The currency most of the money arrives in.
 

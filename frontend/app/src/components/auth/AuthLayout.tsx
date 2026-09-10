@@ -1,6 +1,74 @@
 import type { ReactNode } from "react";
-import { AuthHeroArt, type AuthScene } from "./AuthHeroArt";
+import { Heading, Text } from "../../ui";
 import { Illustration, type IllustrationName } from "../../ui/illustration";
+import { AuthProductShot } from "./AuthProductShot";
+
+export type AuthScene =
+  | "signin"
+  | "register"
+  | "recover"
+  | "welcome"
+  | "invite"
+  | "signed-out"
+  | "oauth";
+
+const PANEL: Record<
+  AuthScene,
+  {
+    eyebrow: string;
+    title: string;
+    body: string;
+    floats: [string, string];
+    illustration?: IllustrationName;
+  }
+> = {
+  signin: {
+    eyebrow: "The books, open",
+    title: "See what’s settled. See what’s next.",
+    body: "One calm place for balances, plans, and the reasoning behind every figure — known on the left, projected on the right.",
+    floats: ["Known vs projected", "Always exportable"],
+  },
+  register: {
+    eyebrow: "Seven days, no card",
+    title: "Open the books. Keep them.",
+    body: "Start with a clear picture of what you have, what you owe, and what comes next.",
+    floats: ["Trial, not a trap", "Export anytime"],
+  },
+  recover: {
+    eyebrow: "A quiet reset",
+    title: "We'll get you back in.",
+    body: "A short-lived link, then a new password. Nothing in your books changes.",
+    floats: ["Encrypted in transit", "You stay in control"],
+    illustration: "recover",
+  },
+  welcome: {
+    eyebrow: "Your workspace",
+    title: "Name the set of books.",
+    body: "A workspace is one ledger — personal, a household, or a client you advise.",
+    floats: ["Switch anytime", "Roles stay explicit"],
+    illustration: "welcome",
+  },
+  invite: {
+    eyebrow: "A shared ledger",
+    title: "You've been asked to join.",
+    body: "See the workspace first. Accept when the role and the people look right.",
+    floats: ["Clear roles", "You choose when"],
+    illustration: "verify",
+  },
+  "signed-out": {
+    eyebrow: "Nothing moved",
+    title: "Your books stay private.",
+    body: "The session is closed. The ledger is exactly as you left it.",
+    floats: ["Session closed", "Nothing moved"],
+  },
+  oauth: {
+    eyebrow: "Almost there",
+    title: "Finishing the handshake.",
+    body: "Completing sign-in with your provider. This only takes a moment.",
+    floats: ["Secure redirect", "No password stored"],
+    illustration: "secure",
+  },
+};
 
 /** The LedgerFlow mark used across the auth surface. */
 export function AuthBrand({ inverted = false }: { inverted?: boolean }) {
@@ -23,20 +91,42 @@ interface AuthLayoutProps {
   footer?: ReactNode;
   /** Widen the card for content-heavy screens like the workspace picker. */
   maxWidth?: number;
-  /** Changes the narrative artwork without changing the form layout. */
+  /** Changes the narrative artwork and panel copy without changing the form layout. */
   scene?: AuthScene;
   /** Motif for flows that already opt into a named illustration (recover, verify, welcome). */
   illustration?: IllustrationName;
 }
 
+interface AuthPageHeaderProps {
+  eyebrow?: string;
+  title: ReactNode;
+  children?: ReactNode;
+}
+
+/** Shared editorial heading for every auth form: kicker, display title, lead. */
+export function AuthPageHeader({ eyebrow, title, children }: AuthPageHeaderProps) {
+  return (
+    <div className="lf-auth-heading">
+      {eyebrow ? <p className="lf-auth-kicker">{eyebrow}</p> : null}
+      <Heading level={1} className="lf-auth-title">
+        {title}
+      </Heading>
+      {children ? (
+        <Text size="sm" tone="secondary" className="lf-auth-lead">
+          {children}
+        </Text>
+      ) : null}
+    </div>
+  );
+}
+
 /**
- * The auth shell: the form on the left, a soft tinted showcase panel on the
- * right with people-first doodle artwork.
+ * Split auth shell: the form first in the DOM (and on the left), a product
+ * panel on the right. Sign-in / register / signed-out show the Overview
+ * capture; recover / invite / welcome keep a named illustration.
  *
- * The panel disappears below 900px, leaving a focused single-column form with
- * the brand row up top. Every auth screen (login, register, reset, invite,
- * workspace picker, logged-out) renders through this, so the treatment is
- * identical everywhere.
+ * The panel is decorative (`aria-hidden`). Below the laptop breakpoint it
+ * disappears and the form stands alone with the brand.
  */
 export function AuthLayout({
   children,
@@ -45,62 +135,44 @@ export function AuthLayout({
   scene = "signin",
   illustration,
 }: AuthLayoutProps) {
-  const resolvedIllustration = illustration ?? (scene === "signin" ? "secure" : undefined);
-  const panelCopy =
-    scene === "signed-out"
-      ? {
-          eyebrow: "Until next time",
-          title: "Your books stay private.",
-          body: "Signed out cleanly. Come back whenever you need the next clear look.",
-        }
-      : {
-          eyebrow: "Clarity, every day",
-          title: "Your money makes more sense here.",
-          body: "One calm place for balances, plans, goals, and the reasoning behind every number.",
-        };
+  const copy = PANEL[scene];
+  const resolvedIllustration = illustration ?? copy.illustration;
+  const productShot = !resolvedIllustration;
 
   return (
-    <div className="lf-auth-shell">
+    <div className="lf-auth-shell" data-scene={scene}>
       <main className="lf-auth-main">
         <div className="lf-auth-card" style={maxWidth ? { maxWidth } : undefined}>
-          <div className="lf-auth-mobile-brand">
+          <div className="lf-auth-brand-slot">
             <AuthBrand />
           </div>
           <div className="lf-auth-form-card">{children}</div>
           {footer && (
-            <p
-              className="lf-text-secondary lf-text-sm"
-              style={{ marginTop: "var(--lf-space-5)", textAlign: "center" }}
-            >
+            <p className="lf-auth-footer lf-text-secondary lf-text-sm">
               {footer}
             </p>
           )}
         </div>
       </main>
 
-      {/* The showcase. Entirely decorative, so `aria-hidden` — a screen reader
-          reaching the login form should meet the form, not a tour of it. */}
       <aside className="lf-auth-panel" aria-hidden="true">
-        <div className="lf-auth-panel-brand">
-          <AuthBrand />
-        </div>
         <div className="lf-auth-panel-inner">
-          <div className="lf-auth-stage">
-            <div className="lf-auth-illus">
+          <div className={`lf-auth-stage${productShot ? " lf-auth-stage--product" : ""}`}>
+            <div className="lf-auth-illus" data-style={productShot ? "product" : "doodle"}>
               {resolvedIllustration ? (
                 <Illustration name={resolvedIllustration} size="panel" style="doodle" />
               ) : (
-                <AuthHeroArt scene={scene} />
+                <AuthProductShot dimmed={scene === "signed-out"} />
               )}
             </div>
-            <span className="lf-auth-float lf-auth-float--top">Private by design</span>
-            <span className="lf-auth-float lf-auth-float--bottom">Always exportable</span>
+            <span className="lf-auth-float lf-auth-float--top">{copy.floats[0]}</span>
+            <span className="lf-auth-float lf-auth-float--bottom">{copy.floats[1]}</span>
           </div>
 
           <div className="lf-auth-panel-copy">
-            <p className="lf-auth-panel-eyebrow">{panelCopy.eyebrow}</p>
-            <p className="lf-auth-panel-title">{panelCopy.title}</p>
-            <p className="lf-auth-panel-body">{panelCopy.body}</p>
+            <p className="lf-auth-panel-eyebrow">{copy.eyebrow}</p>
+            <p className="lf-auth-panel-title">{copy.title}</p>
+            <p className="lf-auth-panel-body">{copy.body}</p>
           </div>
         </div>
       </aside>

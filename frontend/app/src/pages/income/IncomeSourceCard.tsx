@@ -5,6 +5,7 @@ import { Badge, Button, Card, ConfirmAction, Figure, FigureRow, IconButton, Text
 import { FREQUENCY_LABEL, KIND_LABEL, RELIABILITY_LABEL } from "./incomeCopy";
 import { EditIncomeSourceForm } from "./EditIncomeSourceForm";
 import { RecordReceiptForm } from "./RecordReceiptForm";
+import { IncomeWhatIf } from "./IncomeWhatIf";
 
 /**
  * One income source.
@@ -165,6 +166,8 @@ export function IncomeSourceCard({
           Record a payment
         </Button>
       )}
+
+      <IncomeWhatIf source={source} />
     </Card>
   );
 }

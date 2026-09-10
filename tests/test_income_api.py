@@ -303,3 +303,43 @@ def test_receipt_without_account_explains_what_to_fix(tenant_context):
     )
     assert response.status_code == 422
     assert "account" in response.data["detail"].lower()
+
+
+def test_stress_recomputes_committed_income_if_a_stream_stops(tenant_context):
+    """The question the income model exists to answer: what if this one stops?"""
+    _membership, client = tenant_context
+    salary = client.post(f"{BASE}/sources/", _payload(name="Salary", net_minor=400_000), format="json").data
+    side = client.post(
+        f"{BASE}/sources/",
+        _payload(name="Side gig", kind="self_employment", net_minor=100_000),
+        format="json",
+    ).data
+
+    response = client.get(f"{BASE}/sources/{side['id']}/stress/")
+    assert response.status_code == 200, response.data
+    assert response.data["source_id"] == side["id"]
+    assert response.data["dropped_monthly_minor"] == 100_000
+    assert response.data["before"]["monthly_income_minor"] == 500_000
+    assert response.data["after"]["monthly_income_minor"] == 400_000
+    assert response.data["after"]["shortfall_minor"] == 0
+    # Salary itself must still be findable as a scenario.
+    salary_stress = client.get(f"{BASE}/sources/{salary['id']}/stress/")
+    assert salary_stress.status_code == 200
+    assert salary_stress.data["after"]["monthly_income_minor"] == 100_000
+
+
+def test_stress_refuses_an_ad_hoc_stream(tenant_context):
+    """No honest monthly equivalent, so no invented counterfactual."""
+    _membership, client = tenant_context
+    source = client.post(f"{BASE}/sources/", _payload(frequency="ad_hoc"), format="json").data
+    response = client.get(f"{BASE}/sources/{source['id']}/stress/")
+    assert response.status_code == 422
+    assert "monthly equivalent" in response.data["detail"]
+
+
+def test_stress_is_404_for_an_unknown_source(tenant_context):
+    from uuid import uuid4
+
+    _membership, client = tenant_context
+    response = client.get(f"{BASE}/sources/{uuid4()}/stress/")
+    assert response.status_code == 404

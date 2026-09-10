@@ -114,6 +114,9 @@ const AdminAuditPage = lazy(() =>
 const AdminStaffPage = lazy(() =>
   import("./pages/admin/AdminPages").then((m) => ({ default: m.AdminStaffPage })),
 );
+const AdminUsersPage = lazy(() =>
+  import("./pages/admin/AdminUsersPage").then((m) => ({ default: m.AdminUsersPage })),
+);
 const AdminSettingsPage = lazy(() =>
   import("./pages/admin/AdminSettingsPage").then((m) => ({ default: m.AdminSettingsPage })),
 );
@@ -246,6 +249,7 @@ export default function App() {
           <Route path="health" element={<AdminHealthPage />} />
           <Route path="audit" element={<AdminAuditPage />} />
           <Route path="staff" element={<AdminStaffPage />} />
+          <Route path="users" element={<AdminUsersPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
 

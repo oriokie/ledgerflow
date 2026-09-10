@@ -168,7 +168,7 @@ export function WorkspacePanel() {
         </SettingsRow>
         <SettingsRow
           title="Stop me overdrawing an account"
-          description="Refuses a payment you enter by hand that an account can't cover. Imports, bank syncs and recurring charges are always recorded — they're reporting what already happened. Credit cards and loans are never affected."
+          description="Refuses a payment you enter by hand that an account can't cover. CSV imports, M-Pesa statements and recurring charges are always recorded — they're reporting what already happened. Credit cards and loans are never affected."
         >
           {isOwner ? (
             <Switch

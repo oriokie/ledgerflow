@@ -37,3 +37,26 @@ describe("AuthDivider", () => {
     expect(screen.getByRole("separator")).toHaveTextContent("or");
   });
 });
+
+describe("auth showcase copy", () => {
+  it("varies the decorative panel by scene", () => {
+    const { container, rerender } = render(<AuthLayout scene="register">x</AuthLayout>);
+    expect(container.querySelector(".lf-auth-shell")).toHaveAttribute("data-scene", "register");
+    expect(container.querySelector(".lf-auth-panel-title")).toHaveTextContent(/open the books/i);
+
+    rerender(<AuthLayout scene="signed-out">x</AuthLayout>);
+    expect(container.querySelector(".lf-auth-shell")).toHaveAttribute("data-scene", "signed-out");
+    expect(container.querySelector(".lf-auth-panel-title")).toHaveTextContent(/stay private/i);
+  });
+
+  it("shows the dashboard capture on sign-in and signed-out", () => {
+    const { container, rerender } = render(<AuthLayout scene="signin">x</AuthLayout>);
+    expect(container.querySelector(".lf-auth-shot-img--light")).toHaveAttribute(
+      "src",
+      "/preview-dashboard-light.webp",
+    );
+
+    rerender(<AuthLayout scene="signed-out">x</AuthLayout>);
+    expect(container.querySelector(".lf-auth-shot")).toHaveClass("lf-auth-shot--dimmed");
+  });
+});

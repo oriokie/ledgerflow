@@ -66,4 +66,31 @@ export const membersApi = {
    * works whether or not the caller is signed in. */
   previewInvitation: (token: string) =>
     api.get<InvitationPreview>(`/tenancy/invitations/${encodeURIComponent(token)}/`, { skipTenant: true }),
+
+  /**
+   * Household activity trail. Member+ (viewers 403). Cursor-paginated;
+   * there is no count because the table is append-only and unbounded.
+   */
+  activity: (cursor?: string) => {
+    const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+    return api.get<CursorPage<WorkspaceActivity>>(`/tenancy/workspaces/activity/${qs}`);
+  },
 };
+
+export interface WorkspaceActivity {
+  id: string;
+  action: string;
+  label: string;
+  actor_id: string | null;
+  actor_name: string;
+  target_type: string;
+  target_id: string | null;
+  changes: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface CursorPage<T> {
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}

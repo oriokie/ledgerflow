@@ -37,8 +37,9 @@
 }
 
 .lf-landing-band .lf-illus--doodle {
-  --lf-text-primary: var(--lf-landing-soft);
-  --lf-text-tertiary: color-mix(in srgb, var(--lf-landing-soft) 55%, transparent);
+  --lf-text-primary: var(--lf-paper-000);
+  --lf-text-tertiary: color-mix(in srgb, var(--lf-paper-000) 55%, transparent);
+  --lf-action-primary: var(--lf-market-brand-mark);
 }
 
 .lf-landing .lf-btn--primary {
@@ -590,32 +591,43 @@
 }
 
 /* ---------- inverse band ---------- */
-/* One section runs on the inverse surface so the page has a temperature
-   change. The custom properties are scoped rather than colours hardcoded, so
-   everything inside — including the illustration, which draws entirely from
-   tokens — recolours itself, and dark mode needs no second set of rules. */
+/* A dark well with light type, in both themes.
+ *
+ * Marketing `ink` / `soft` swap meaning with the page theme. Using them as
+ * this band's background and copy made dark mode a cream stripe: the heading
+ * inherited dark type, but the lede and points still used `--lf-landing-muted`
+ * (light-on-light), and the editorial dark illustration sat on paper. */
 .lf-landing-band {
-  background: var(--lf-landing-ink);
-  --lf-text-primary: var(--lf-landing-soft);
-  --lf-text-secondary: color-mix(in srgb, var(--lf-landing-soft) 78%, transparent);
-  --lf-text-tertiary: color-mix(in srgb, var(--lf-landing-soft) 60%, transparent);
-  --lf-bg-surface: color-mix(in srgb, var(--lf-landing-ink) 86%, var(--lf-landing-soft));
-  --lf-border-subtle: color-mix(in srgb, var(--lf-landing-soft) 14%, transparent);
-  color: var(--lf-text-primary);
+  --lf-band-fg: var(--lf-paper-000);
+  --lf-band-muted: color-mix(in srgb, var(--lf-paper-000) 74%, transparent);
+  background: var(--lf-ink-900);
+  color: var(--lf-band-fg);
+  --lf-text-primary: var(--lf-band-fg);
+  --lf-text-secondary: var(--lf-band-muted);
+  --lf-text-tertiary: color-mix(in srgb, var(--lf-paper-000) 60%, transparent);
+  --lf-bg-surface: color-mix(in srgb, var(--lf-ink-900) 86%, var(--lf-paper-000));
+  --lf-border-subtle: color-mix(in srgb, var(--lf-paper-000) 14%, transparent);
 }
 
 :root[data-theme="dark"] .lf-landing-band {
-  background: color-mix(in srgb, var(--lf-landing-ink) 92%, var(--lf-bg-sunken));
+  background: color-mix(in srgb, var(--lf-bg-sunken) 78%, var(--lf-jade-700));
 }
 
-/* The checks read as achieved facts; on the inverse surface the light-theme
-   success green has no contrast, so they take the inverse ink instead. */
+.lf-landing-band .lf-landing-head h2 {
+  color: var(--lf-band-fg);
+}
+
+.lf-landing-band .lf-landing-lede,
+.lf-landing-band .lf-landing-points li {
+  color: var(--lf-band-muted);
+}
+
 .lf-landing-band .lf-landing-points svg {
-  color: var(--lf-landing-accent);
+  color: var(--lf-market-brand-mark);
 }
 
 .lf-landing-band .lf-landing-eyebrow {
-  color: color-mix(in srgb, var(--lf-landing-soft) 70%, transparent);
+  color: var(--lf-market-brand-mark);
 }
 
 /* ---------- features ---------- */
@@ -811,10 +823,16 @@
   display: flex;
   flex-direction: column;
   gap: var(--lf-space-3);
-  padding: var(--lf-space-5);
+  padding: var(--lf-space-6);
   border: 1px solid var(--lf-landing-line);
-  border-radius: var(--lf-radius-lg);
-  background: var(--lf-landing-card);
+  border-radius: 24px;
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--lf-landing-card) 94%, var(--lf-landing-wash)),
+      var(--lf-landing-card)
+    );
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--lf-landing-ink) 5%, transparent);
 }
 
 .lf-price-card[data-featured] {
@@ -938,8 +956,9 @@
 
 .lf-faq details {
   border: 1px solid var(--lf-landing-line);
-  border-radius: var(--lf-radius-md);
-  background: var(--lf-landing-card);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--lf-landing-card) 94%, transparent);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--lf-landing-ink) 4%, transparent);
 }
 
 .lf-faq summary {
@@ -982,16 +1001,18 @@
   display: grid;
   justify-items: center;
   gap: var(--lf-space-3);
-  padding: var(--lf-space-10) var(--lf-space-5);
+  padding: clamp(var(--lf-space-10), 8vw, 96px) var(--lf-space-6);
   text-align: center;
-  border-radius: var(--lf-radius-xl);
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--lf-landing-accent) 12%, var(--lf-landing-card)),
-    var(--lf-landing-card)
-  );
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--lf-landing-accent) 18%, transparent), transparent 52%),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--lf-landing-accent) 12%, var(--lf-landing-card)),
+      var(--lf-landing-card)
+    );
   border: 1px solid var(--lf-landing-line);
-  box-shadow: 0 20px 50px color-mix(in srgb, var(--lf-landing-ink) 6%, transparent);
+  box-shadow: 0 28px 70px color-mix(in srgb, var(--lf-landing-ink) 8%, transparent);
 }
 
 .lf-landing-cta h2 {
@@ -1156,7 +1177,13 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: var(--lf-bg-app);
+  background:
+    radial-gradient(
+      circle at 12% 8%,
+      color-mix(in srgb, var(--lf-market-accent) 10%, transparent),
+      transparent 28rem
+    ),
+    var(--lf-market-soft);
 }
 
 .lf-status-header {
@@ -1176,6 +1203,10 @@
   gap: var(--lf-space-3);
   padding: var(--lf-space-6) var(--lf-space-4) var(--lf-space-12);
   text-align: center;
+}
+
+.lf-status-body .lf-illus-frame {
+  margin-bottom: var(--lf-space-2);
 }
 
 /* Small and quiet: the status number is for the support conversation, not for

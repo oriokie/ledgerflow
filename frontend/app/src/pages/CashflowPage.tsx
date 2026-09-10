@@ -233,7 +233,7 @@ export function CashflowPage({ embedded }: { embedded?: boolean } = {}) {
                       <Link className="lf-btn lf-btn--secondary lf-btn--sm" to="/income">
                         Add income
                       </Link>
-                      <Link className="lf-btn lf-btn--secondary lf-btn--sm" to="/recurring">
+                      <Link className="lf-btn lf-btn--secondary lf-btn--sm" to="/automation">
                         Detect from history
                       </Link>
                     </Inline>
