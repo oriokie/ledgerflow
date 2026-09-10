@@ -344,10 +344,7 @@ class IncomeSourceStressView(TenantScopedAPIView, APIView):
         if view.monthly_net_minor is None:
             return Response(
                 {
-                    "detail": (
-                        "This source has no monthly equivalent, so a stop "
-                        "scenario would be guessing."
-                    )
+                    "detail": "This source has no monthly equivalent, so a stop scenario would be guessing.",
                 },
                 status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
