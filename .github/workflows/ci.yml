@@ -250,8 +250,9 @@ jobs:
           cache-to: type=gha,mode=max
 
   # Promotion, not a build: it moves the `:released` tag onto images that have
-  # already passed everything. The server follows that tag and nothing else, so
-  # this job is the only thing that can change what production runs.
+  # already passed everything, tags them `:batch-N`, and cuts a GitHub Release
+  # for that batch. The server follows `:released` and nothing else, so this
+  # job is the only thing that can change what production runs.
   #
   # `environment: production` is where the approval gate lives — add yourself as
   # a required reviewer under Settings -> Environments -> production and every
@@ -263,8 +264,23 @@ jobs:
     needs: [build, route-audit]
     environment: production
     permissions:
+      contents: write
       packages: write
     steps:
+      - uses: actions/checkout@v4
+      - name: Next batch number
+        id: batch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "APP_VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+          last="$(
+            gh release list --limit 1000 --json tagName --jq '.[].tagName' \
+              | sed -n 's/^batch-\([0-9][0-9]*\)$/\1/p' \
+              | sort -n \
+              | tail -1
+          )"
+          echo "number=$(( ${last:-0} + 1 ))" >> "$GITHUB_OUTPUT"
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -276,5 +292,14 @@ jobs:
           for name in app frontend; do
             docker buildx imagetools create \
               --tag "ghcr.io/${{ github.repository }}/$name:released" \
+              --tag "ghcr.io/${{ github.repository }}/$name:batch-${{ steps.batch.outputs.number }}" \
               "ghcr.io/${{ github.repository }}/$name:${{ github.sha }}"
           done
+      - name: Cut the batch GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "batch-${{ steps.batch.outputs.number }}" \
+            --target "${{ github.sha }}" \
+            --title "Batch ${{ steps.batch.outputs.number }} · v${APP_VERSION}" \
+            --generate-notes
