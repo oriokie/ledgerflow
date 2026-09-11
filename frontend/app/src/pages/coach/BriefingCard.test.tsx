@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import type { Briefing } from "../../api/types";
 import { BriefingCard } from "./BriefingCard";
@@ -19,6 +20,15 @@ const BRIEFING: Briefing = {
     critical_count: 1,
     warning_count: 2,
     opportunity_count: 1,
+    safe_to_spend_minor: 12_400,
+    next_payday_on: "2026-06-25",
+    next_actions: [
+      {
+        title: "Balance projected to go negative on 20 Jun",
+        kind: "cashflow_risk",
+        action: { action: "open_cashflow_calendar" },
+      },
+    ],
   },
   provider: "TemplateNarrator",
   insights: [],
@@ -26,12 +36,14 @@ const BRIEFING: Briefing = {
 
 function renderCard(overrides: Partial<Briefing> | null = {}, props = {}) {
   return render(
-    <BriefingCard
-      briefing={overrides === null ? undefined : { ...BRIEFING, ...overrides }}
-      period="daily"
-      onPeriodChange={vi.fn()}
-      {...props}
-    />,
+    <MemoryRouter>
+      <BriefingCard
+        briefing={overrides === null ? undefined : { ...BRIEFING, ...overrides }}
+        period="daily"
+        onPeriodChange={vi.fn()}
+        {...props}
+      />
+    </MemoryRouter>,
   );
 }
 
@@ -82,5 +94,15 @@ describe("BriefingCard", () => {
   it("explains the absence rather than rendering blank", () => {
     renderCard(null);
     expect(screen.getByText(/no briefing yet/i)).toBeInTheDocument();
+  });
+
+  it("shows how much is free to spend, payday, and what to do next", () => {
+    renderCard();
+    expect(screen.getByText("Free to spend")).toBeInTheDocument();
+    expect(screen.getByText("Next payday")).toBeInTheDocument();
+    expect(screen.getByText("Jun 25")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /go negative on 20 jun/i }),
+    ).toHaveAttribute("href", "/cashflow");
   });
 });

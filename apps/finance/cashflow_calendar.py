@@ -15,8 +15,9 @@ reads four sources of known future movement:
   * ``RecurringTransaction`` — templates that auto-post on a schedule. Covers
     subscriptions, loan payments, standing transfers, and income that was
     captured as a posting template rather than an income source.
-  * ``Bill`` — money owed and not yet paid, including future occurrences of a
-    recurring bill that hasn't been paid forward yet.
+    * ``Bill`` — money owed and not yet paid, including future occurrences of a
+    recurring bill that hasn't been paid forward yet. A bill linked to a
+    ``RecurringTransaction`` is skipped so rent is not counted twice.
   * current liquid balances — the starting point the projection runs from.
 
 **What it does NOT read is the point of `everyday_spending`.** Those three
@@ -50,8 +51,6 @@ from datetime import date, timedelta
 from django.utils import timezone
 
 from .models import (
-    Bill,
-    BillStatus,
     FinancialAccount,
     RecurringTransaction,
     RecurringType,
@@ -561,11 +560,11 @@ def _bill_events(*, currency: str, start: date, end: date, today: date) -> list[
     balance.
     """
     events: list[CashflowEvent] = []
-    bills = Bill.objects.filter(
-        currency=currency,
-        status__in=[BillStatus.UPCOMING, BillStatus.OVERDUE],
-        due_on__lte=end,
-    ).select_related("payee", "category", "autopay_account")
+    from .commitments import unlinked_bills
+
+    bills = unlinked_bills().filter(currency=currency, due_on__lte=end).select_related(
+        "payee", "category", "autopay_account"
+    )
 
     for bill in bills:
         overdue = bill.due_on < today
@@ -634,6 +633,10 @@ def cashflow_calendar(
     start = start or today
     horizon = max(1, min(days, MAX_HORIZON_DAYS))
     end = start + timedelta(days=horizon - 1)
+
+    from .commitments import link_matching_commitments
+
+    link_matching_commitments()
 
     currency = currency or _dominant_liquid_currency()
     if currency is None:

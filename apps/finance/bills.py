@@ -35,10 +35,11 @@ def create_bill(
     recurrence_interval: int = 1,
     autopay_account=None,
     notes: str = "",
+    recurring_transaction=None,
 ) -> Bill:
     if amount_minor <= 0:
         raise BillError("Bill amount must be positive.")
-    return Bill.objects.create(
+    bill = Bill.objects.create(
         name=name,
         amount_minor=amount_minor,
         currency=currency.upper(),
@@ -49,7 +50,14 @@ def create_bill(
         recurrence_interval=recurrence_interval or 1,
         autopay_account=autopay_account,
         notes=notes,
+        recurring_transaction=recurring_transaction,
     )
+    if bill.recurring_transaction_id is None:
+        from .commitments import link_matching_commitments
+
+        link_matching_commitments()
+        bill.refresh_from_db()
+    return bill
 
 
 @transaction.atomic
@@ -95,8 +103,16 @@ def mark_bill_paid(
 
 
 def _spawn_next(paid_bill: Bill) -> Bill:
-    """Create the next occurrence of a recurring bill from the one just paid."""
+    """Create the next occurrence of a recurring bill from the one just paid.
+
+    The template link is a OneToOne, so it has to *move* onto the successor —
+    a paid row and the next due row cannot both claim the same schedule.
+    """
     next_due = add_period(paid_bill.due_on, paid_bill.recurrence_frequency, paid_bill.recurrence_interval)
+    template = paid_bill.recurring_transaction
+    if template is not None:
+        paid_bill.recurring_transaction = None
+        paid_bill.save(update_fields=["recurring_transaction", "updated_at"])
     return Bill.objects.create(
         name=paid_bill.name,
         amount_minor=paid_bill.amount_minor,
@@ -108,6 +124,7 @@ def _spawn_next(paid_bill: Bill) -> Bill:
         recurrence_interval=paid_bill.recurrence_interval,
         autopay_account=paid_bill.autopay_account,
         notes=paid_bill.notes,
+        recurring_transaction=template,
     )
 
 

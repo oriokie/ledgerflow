@@ -1,6 +1,9 @@
 import { Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
 import type { Briefing } from "../../api/types";
+import { formatAmount } from "../../lib/money";
 import { SegmentedControl, Text } from "../../ui";
+import { actionRoute } from "./insightMeta";
 import { providerLabel } from "./providerLabel";
 
 const PERIODS = [
@@ -12,6 +15,37 @@ const PERIODS = [
 function metricNumber(metrics: Record<string, unknown>, key: string): number | null {
   const value = metrics?.[key];
   return typeof value === "number" ? value : null;
+}
+
+function metricString(metrics: Record<string, unknown>, key: string): string | null {
+  const value = metrics?.[key];
+  return typeof value === "string" && value ? value : null;
+}
+
+function formatPayday(iso: string): string {
+  const [year, month, day] = iso.slice(0, 10).split("-").map(Number);
+  if (!year || !month || !day) return iso;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(
+    new Date(year, month - 1, day),
+  );
+}
+
+function nextActions(metrics: Record<string, unknown>): { title: string; to: string | null; label: string | null }[] {
+  const value = metrics?.next_actions;
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as { title?: unknown; action?: unknown };
+      if (typeof row.title !== "string" || !row.title) return null;
+      const route =
+        row.action && typeof row.action === "object"
+          ? actionRoute(row.action as Record<string, unknown>)
+          : null;
+      return { title: row.title, to: route?.to ?? null, label: route?.label ?? null };
+    })
+    .filter((row): row is { title: string; to: string | null; label: string | null } => row !== null)
+    .slice(0, 3);
 }
 
 /**
@@ -37,6 +71,10 @@ export function BriefingCard({
   const warnings = briefing ? metricNumber(briefing.metrics, "warning_count") : null;
   const opportunities = briefing ? metricNumber(briefing.metrics, "opportunity_count") : null;
   const savingsRate = briefing ? metricNumber(briefing.metrics, "savings_rate") : null;
+  const currency = briefing ? metricString(briefing.metrics, "currency") ?? "USD" : "USD";
+  const safeToSpend = briefing ? metricNumber(briefing.metrics, "safe_to_spend_minor") : null;
+  const nextPayday = briefing ? metricString(briefing.metrics, "next_payday_on") : null;
+  const plan = briefing ? nextActions(briefing.metrics) : [];
 
   return (
     <section className="lf-briefing" aria-labelledby="briefing-title">
@@ -83,6 +121,18 @@ export function BriefingCard({
                 <dd>{opportunities}</dd>
               </div>
             )}
+            {safeToSpend !== null && (
+              <div>
+                <dt>Free to spend</dt>
+                <dd>{formatAmount(safeToSpend, currency)}</dd>
+              </div>
+            )}
+            {nextPayday && (
+              <div>
+                <dt>Next payday</dt>
+                <dd>{formatPayday(nextPayday)}</dd>
+              </div>
+            )}
             {savingsRate !== null && (
               <div>
                 <dt>Kept from income</dt>
@@ -90,6 +140,20 @@ export function BriefingCard({
               </div>
             )}
           </dl>
+
+          {plan.length > 0 && (
+            <ol className="lf-briefing-plan">
+              {plan.map((step, index) => (
+                <li key={`${step.title}-${index}`}>
+                  {step.to ? (
+                    <Link to={step.to}>{step.title}</Link>
+                  ) : (
+                    <span>{step.title}</span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
 
           <Text as="span" tone="tertiary" size="xs">
             {providerLabel(briefing.provider)}

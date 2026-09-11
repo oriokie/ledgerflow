@@ -520,6 +520,17 @@ class Bill(SoftDeletableModel):
         related_name="autopay_bills",
     )
     notes = models.CharField(max_length=500, blank=True, default="")
+    #: When this bill is the due-date reminder for a template that already
+    #: auto-posts, the calendar, projections and committed-income ratio skip
+    #: the bill and keep the template. Same identity as
+    #: ``IncomeSource.recurring_transaction``. One live bill per template.
+    recurring_transaction = models.OneToOneField(
+        "finance.RecurringTransaction",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="bill",
+    )
 
     class Meta:
         constraints = [

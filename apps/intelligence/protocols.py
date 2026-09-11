@@ -291,6 +291,15 @@ class CoachContext:
     health: dict = field(default_factory=dict)
     #: `None` when it couldn't be measured — distinct from a measured zero.
     savings_rate: float | None = None
+    #: Projected trough floored at zero. `None` when there is no calendar.
+    safe_to_spend_minor: int | None = None
+    #: Soonest payday across active income sources.
+    next_payday_on: date | None = None
+    #: Share of income already spoken for (0..1). `None` without income.
+    committed_ratio: float | None = None
+    committed_minor: int = 0
+    #: {"bill_id", "name", "amount_minor", "currency", "due_on", "days_until_due"}
+    upcoming_bills: tuple[dict, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

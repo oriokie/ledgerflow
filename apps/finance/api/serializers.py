@@ -331,6 +331,7 @@ class BillCreateSerializer(serializers.Serializer):
     recurrence_interval = serializers.IntegerField(required=False, min_value=1, default=1)
     autopay_account_id = serializers.UUIDField(required=False, allow_null=True)
     notes = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
+    recurring_transaction_id = serializers.UUIDField(required=False, allow_null=True)
 
 
 class BillPaySerializer(serializers.Serializer):

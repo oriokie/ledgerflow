@@ -150,19 +150,17 @@ def build_health_inputs(*, as_of: date | None = None) -> HealthInputs:
         round(max(0.0, (income - expense) / income), 3) if income > 0 and spending_measured else None
     )
 
-    # assets vs liabilities from the materialized balances in ONE aggregate
-    # query (was a per-account loop — an N+1 on the dashboard's hot path).
-    assets = 0
-    liabilities = 0
-    for nw in net_worth():
-        assets += nw.assets_minor
-        liabilities += nw.liabilities_minor
-    if assets <= 0 and liabilities <= 0:
+    sheet = _market_sheet()
+    if sheet is None:
         debt_to_asset = None  # nothing on either side; no balance sheet to read
-    elif assets <= 0:
-        debt_to_asset = 1.0  # owes money against no assets — genuinely the worst case
     else:
-        debt_to_asset = round(liabilities / assets, 3)
+        assets, liabilities = sheet
+        if assets <= 0 and liabilities <= 0:
+            debt_to_asset = None
+        elif assets <= 0:
+            debt_to_asset = 1.0  # owes money against no assets — genuinely the worst case
+        else:
+            debt_to_asset = round(liabilities / assets, 3)
 
     # Emergency runway: months of *typical* spend covered by cash that can
     # actually be reached. Two corrections to what this used to be — it counted
@@ -196,23 +194,94 @@ def build_health_inputs(*, as_of: date | None = None) -> HealthInputs:
     )
 
 
+def _fx_to(amount_minor: int, from_currency: str, to_currency: str) -> int | None:
+    """Convert minor units, or ``None`` when no rate is on file.
+
+    A missing rate is skipped rather than treated as 1:1. Adding shillings to
+    dollars would be a worse health score than omitting the shilling side.
+    """
+    if from_currency.upper() == to_currency.upper():
+        return amount_minor
+    from apps.fx.services import convert
+
+    return convert(amount_minor=amount_minor, from_currency=from_currency, to_currency=to_currency)
+
+
+def _health_base_currency() -> str | None:
+    """Currency the health overlay speaks. Dominant liquid cash, else the first
+    balance-sheet currency — never a silent mix."""
+    return _dominant_liquid_currency() or next((n.currency for n in net_worth()), None)
+
+
+def _market_overlay_minor(currency: str) -> int:
+    """Unrealized investment gain plus valued personal assets, at cost-basis
+    overlay. Never posted into the ledger."""
+    from apps.assets.selectors import total_value_minor
+    from apps.investments.selectors import unrealized_gain_for_net_worth
+
+    return unrealized_gain_for_net_worth(currency=currency) + total_value_minor(currency=currency)
+
+
+def _market_sheet() -> tuple[int, int] | None:
+    """Assets and liabilities in the health base currency.
+
+    Book balances are converted at stored FX rates. Market value of holdings
+    and personal assets is added to the asset side so a household that owns a
+    house or a growing ISA is not scored as poorer than its cash. Currencies
+    without a rate are omitted, not guessed.
+    """
+    target = _health_base_currency()
+    if target is None:
+        return None
+    assets = 0
+    liabilities = 0
+    counted = False
+    for nw in net_worth():
+        converted_assets = _fx_to(nw.assets_minor, nw.currency, target)
+        converted_liabilities = _fx_to(nw.liabilities_minor, nw.currency, target)
+        if converted_assets is None or converted_liabilities is None:
+            continue
+        overlay = _fx_to(_market_overlay_minor(nw.currency), nw.currency, target)
+        if overlay is not None:
+            converted_assets += overlay
+        assets += converted_assets
+        liabilities += converted_liabilities
+        counted = True
+    if not counted:
+        return None
+    return assets, liabilities
+
+
 def _liquid_assets_minor() -> int:
-    """Cash reachable this week, across currencies.
+    """Cash reachable this week, in the health base currency.
 
     An emergency fund is money you can spend on Tuesday. A pension, a house and
     an index fund are assets but they are not a runway, and counting them was
     what let a household with nothing set aside score full marks here.
 
-    Sums across currencies without FX, consistent with the other ratio inputs
-    (see `cash_flow`'s note) — the FX layer is the documented seam.
+    Each currency is converted at a stored rate; a currency with no rate is
+    skipped rather than added 1:1.
     """
     from apps.finance.selectors import _LIQUID_TYPES
 
-    total = AccountBalance.objects.filter(
-        account__financial_account__is_active=True,
-        account__financial_account__account_type__in=_LIQUID_TYPES,
-    ).aggregate(total=models.Sum("balance_minor"))["total"]
-    return total or 0
+    target = _health_base_currency()
+    rows = (
+        AccountBalance.objects.filter(
+            account__financial_account__is_active=True,
+            account__financial_account__account_type__in=_LIQUID_TYPES,
+        )
+        .values("currency")
+        .annotate(total=models.Sum("balance_minor"))
+    )
+    if target is None:
+        return sum(row["total"] or 0 for row in rows)
+    total = 0
+    for row in rows:
+        converted = _fx_to(row["total"] or 0, row["currency"], target)
+        if converted is None:
+            continue
+        total += converted
+    return total
 
 
 def build_amount_observations(*, days: int = 120) -> list[AmountObservation]:

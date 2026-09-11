@@ -25,7 +25,7 @@ its offline fallback.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 
 from ..models import InsightKind, InsightSeverity
 from ..protocols import (
@@ -36,7 +36,7 @@ from ..protocols import (
     ProviderKind,
 )
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 #: Below this share of a budget line, an overspend isn't worth a notification.
 OVERSPEND_TOLERANCE = 1.0
@@ -56,6 +56,14 @@ LOW_SAVINGS_RATE = 0.1
 #: outgoings. Relative so it means the same at any income.
 SUBSCRIPTION_REVIEW_FRACTION = 0.5
 
+#: Share of income already spoken for before a choice is made. Above this the
+#: household has almost no room to absorb a late payday or a broken fridge.
+COMMITTED_RATIO_WARNING = 0.80
+
+#: Bills due within this many days earn a reminder. A week is long enough to
+#: move money, short enough that the card is still about this week.
+BILL_DUE_DAYS = 7
+
 
 def _money(minor: int, currency: str) -> str:
     """Plain-language amount. Whole units only — pennies in prose are noise."""
@@ -71,6 +79,17 @@ def _plural(count: int, singular: str, plural: str | None = None) -> str:
     these insights are trying to reassure.
     """
     return f"{count} {singular if abs(count) == 1 else (plural or singular + 's')}"
+
+
+def _as_date(value) -> date | None:
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    if isinstance(value, str):
+        try:
+            return date.fromisoformat(value[:10])
+        except ValueError:
+            return None
+    return None
 
 
 class RuleBasedCoach:
@@ -429,6 +448,145 @@ class RuleBasedCoach:
             )
         ]
 
+    def _safe_to_spend(self, ctx: CoachContext) -> list[InsightCandidate]:
+        """How much is actually free today, once bills already on the calendar
+        have a claim on it.
+
+        Silent when an overdraft is already dated — saying both "you can spend
+        this" and "you will go negative" in the same briefing is how a coach
+        loses the room.
+        """
+        if ctx.cashflow_risk.get("first_negative_on"):
+            return []
+        if ctx.safe_to_spend_minor is None:
+            return []
+        amount = ctx.safe_to_spend_minor
+        payday = _as_date(ctx.next_payday_on)
+        if amount <= 0:
+            title = "Nothing spare until the next inflow"
+            if payday:
+                body = (
+                    f"Scheduled bills use the cash you have. Next payday is {payday:%-d %b} — "
+                    "keep discretionary spending to essentials until then."
+                )
+            else:
+                body = (
+                    "Scheduled bills use the cash you have. Hold discretionary spending until "
+                    "the next inflow lands."
+                )
+        else:
+            title = f"About {_money(amount, ctx.currency)} is free to spend"
+            if payday:
+                body = (
+                    f"After scheduled bills, {_money(amount, ctx.currency)} is left before "
+                    f"payday on {payday:%-d %b}. Spending more than that pulls the projected "
+                    "trough below zero."
+                )
+            else:
+                body = (
+                    f"After scheduled bills, {_money(amount, ctx.currency)} is left without "
+                    "dipping below the projected low on your calendar."
+                )
+        rationale = (
+            "Safe-to-spend is the lowest projected liquid balance over the next 45 days, "
+            "floored at zero. Money spent today lowers every later day by the same amount, "
+            "so the trough — not today's balance — is the binding constraint."
+        )
+        return [
+            InsightCandidate(
+                kind=InsightKind.SAFE_TO_SPEND,
+                severity=InsightSeverity.INFO,
+                title=title,
+                body=body,
+                rationale=rationale,
+                dedupe_key=f"safe_to_spend:{ctx.as_of.isoformat()}",
+                evidence={
+                    "safe_to_spend_minor": amount,
+                    "next_payday_on": payday,
+                },
+                action={"action": "open_cashflow_calendar"},
+                provenance=self._provenance("cash-flow calendar trough"),
+            )
+        ]
+
+    def _committed_income(self, ctx: CoachContext) -> list[InsightCandidate]:
+        if ctx.committed_ratio is None or ctx.committed_ratio < COMMITTED_RATIO_WARNING:
+            return []
+        pct = ctx.committed_ratio * 100
+        return [
+            InsightCandidate(
+                kind=InsightKind.COMMITTED_INCOME,
+                severity=InsightSeverity.WARNING,
+                title=f"{pct:.0f}% of income is already spoken for",
+                body=(
+                    f"Bills, debt minimums and standing payments claim "
+                    f"{_money(ctx.committed_minor, ctx.currency)} of each month before you "
+                    "choose anything. That leaves little room for a late payday or an "
+                    "unplanned bill."
+                ),
+                rationale=(
+                    "Committed income is recurring bills (that are not already a posting "
+                    "template), debt minimums, and active expense schedules, divided by "
+                    "monthly income. When pay is mixed, the ratio against fixed income is "
+                    "used if it is higher — commitments do not shrink when a freelance "
+                    "invoice is late."
+                ),
+                dedupe_key=f"committed_income:{ctx.as_of.strftime('%Y-%m')}",
+                evidence={
+                    "committed_ratio": ctx.committed_ratio,
+                    "committed_minor": ctx.committed_minor,
+                },
+                action={"action": "open_income"},
+                provenance=self._provenance("committed-income ratio"),
+            )
+        ]
+
+    def _bill_due(self, ctx: CoachContext) -> list[InsightCandidate]:
+        soon = [b for b in ctx.upcoming_bills if b.get("days_until_due", 99) <= BILL_DUE_DAYS]
+        if not soon:
+            return []
+        soonest = min(soon, key=lambda b: b.get("days_until_due", 99))
+        days = int(soonest.get("days_until_due", 0))
+        name = soonest.get("name") or "A bill"
+        if days < 0:
+            when = f"{abs(days)} day{'s' if abs(days) != 1 else ''} overdue"
+        elif days == 0:
+            when = "due today"
+        elif days == 1:
+            when = "due tomorrow"
+        else:
+            when = f"due in {days} days"
+        extra = ""
+        if len(soon) > 1:
+            extra = f" {len(soon) - 1} more {'are' if len(soon) > 2 else 'is'} also due this week."
+        return [
+            InsightCandidate(
+                kind=InsightKind.BILL_DUE,
+                severity=InsightSeverity.WARNING,
+                title=f"{name} is {when}",
+                body=(
+                    f"{_money(soonest.get('amount_minor', 0), soonest.get('currency') or ctx.currency)} "
+                    f"for {name}.{extra} Paying it from the account that already holds the cash "
+                    "avoids an overdraft later in the week."
+                ),
+                rationale=(
+                    "Upcoming and overdue bills due within seven days, taken from the bills "
+                    "register. A linked recurring template is still reminded here — the due "
+                    "date is real even when the cash movement is already on the calendar."
+                ),
+                dedupe_key=f"bill_due:{soonest.get('bill_id')}:{ctx.as_of.isoformat()}",
+                evidence={
+                    "amount_minor": soonest.get("amount_minor"),
+                    "due_on": soonest.get("due_on"),
+                    "days_until_due": days,
+                    "count": len(soon),
+                },
+                action={"action": "open_bills", "bill_id": soonest.get("bill_id")},
+                expires_on=_as_date(soonest.get("due_on")),
+                provenance=self._provenance("bills due within seven days"),
+            )
+        ]
+
     # ----------------------------------------------------------- opportunities
     def _savings_opportunity(self, ctx: CoachContext) -> list[InsightCandidate]:
         # None means "not measured" — saying someone saves nothing when we
@@ -570,6 +728,8 @@ class RuleBasedCoach:
     def generate(self, context: CoachContext) -> list[InsightCandidate]:
         detectors = (
             self._cashflow_risk,
+            self._bill_due,
+            self._committed_income,
             self._debt_signals,
             self._overspending,
             self._overspending_pace,
@@ -583,6 +743,7 @@ class RuleBasedCoach:
             self._goals,
             self._budget_recommendations,
             self._health,
+            self._safe_to_spend,
         )
         out: list[InsightCandidate] = []
         for detect in detectors:
@@ -615,13 +776,14 @@ class TemplateNarrator:
         critical = [i for i in insights if i.severity == InsightSeverity.CRITICAL]
         warnings = [i for i in insights if i.severity == InsightSeverity.WARNING]
         opportunities = [i for i in insights if i.severity == InsightSeverity.OPPORTUNITY]
+        info = [i for i in insights if i.severity == InsightSeverity.INFO]
 
         # The headline is promoted from the insights, so whichever one it came
         # from must not be repeated in the body. It was: the headline, the
         # first clause of the summary, and the first insight card all carried
         # the same sentence verbatim, three times within one screen. The body's
         # job is what the headline did *not* already say.
-        lead = (critical or warnings or opportunities or [None])[0]
+        lead = (critical or warnings or opportunities or info or [None])[0]
         headline = lead.title if lead else f"Nothing needs your attention {label}"
 
         def clause(group: list, phrase: str) -> str | None:
@@ -653,12 +815,37 @@ class TemplateNarrator:
         if context.savings_rate is not None:
             parts.append(f"You're keeping about {context.savings_rate * 100:.0f}% of what comes in.")
 
+        payday = _as_date(context.next_payday_on)
+        if context.safe_to_spend_minor and not critical:
+            spend = _money(context.safe_to_spend_minor, currency)
+            if payday:
+                parts.append(f"About {spend} is free to spend before payday on {payday:%-d %b}.")
+            else:
+                parts.append(f"About {spend} is free to spend without breaking the calendar.")
+        elif payday and not critical:
+            parts.append(f"Next payday is {payday:%-d %b}.")
+
+        rank = {
+            InsightSeverity.CRITICAL: 0,
+            InsightSeverity.WARNING: 1,
+            InsightSeverity.OPPORTUNITY: 2,
+            InsightSeverity.INFO: 3,
+        }
+        next_actions = [
+            {"title": i.title, "kind": i.kind, "action": i.action or {}}
+            for i in sorted(insights, key=lambda i: rank.get(i.severity, 9))[:3]
+        ]
+
         return BriefingDraft(
             headline=headline,
             summary=" ".join(parts),
             metrics={
                 "currency": currency,
                 "savings_rate": context.savings_rate,
+                "safe_to_spend_minor": context.safe_to_spend_minor,
+                "next_payday_on": payday.isoformat() if payday else None,
+                "committed_ratio": context.committed_ratio,
+                "next_actions": next_actions,
                 "insight_count": len(insights),
                 "critical_count": len(critical),
                 "warning_count": len(warnings),

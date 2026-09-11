@@ -352,3 +352,29 @@ def test_the_current_partial_month_cannot_inflate_the_savings_rate():
 
     assert before == 0.25
     assert after == before, "an unfinished month must not move a rate"
+
+
+def test_health_converts_liquid_cash_instead_of_adding_currencies():
+    """A dollar and a shilling are not 101 cents. The overlay uses stored FX."""
+    from apps.fx.services import convert
+    from apps.intelligence.selectors import _liquid_assets_minor
+
+    with tenant_scope(uuid.uuid4()):
+        finance_services.create_financial_account(
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=100_00,
+        )
+        finance_services.create_financial_account(
+            name="M-Pesa",
+            account_type=AccountType.CASH,
+            currency="KES",
+            opening_balance_minor=12_900_00,
+        )
+        naive = 100_00 + 12_900_00
+        liquid = _liquid_assets_minor()
+        assert liquid != naive
+        kes_as_usd = convert(amount_minor=12_900_00, from_currency="KES", to_currency="USD")
+        usd_as_kes = convert(amount_minor=100_00, from_currency="USD", to_currency="KES")
+        assert liquid in {100_00 + kes_as_usd, 12_900_00 + usd_as_kes}

@@ -1402,6 +1402,7 @@ def _bill_out(bill) -> dict:
         "autopay_account_id": bill.autopay_account_id,
         "paid_at": bill.paid_at,
         "notes": bill.notes,
+        "recurring_transaction_id": bill.recurring_transaction_id,
     }
 
 
@@ -1431,6 +1432,11 @@ class BillView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
             if v.get("autopay_account_id")
             else None
         )
+        recurring = (
+            RecurringTransaction.objects.filter(id=v["recurring_transaction_id"]).first()
+            if v.get("recurring_transaction_id")
+            else None
+        )
         try:
             bill = bills_service.create_bill(
                 name=v["name"],
@@ -1443,6 +1449,7 @@ class BillView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
                 recurrence_interval=v.get("recurrence_interval", 1),
                 autopay_account=autopay,
                 notes=v.get("notes", ""),
+                recurring_transaction=recurring,
             )
         except bills_service.BillError as exc:
             return _finance_error(exc)
