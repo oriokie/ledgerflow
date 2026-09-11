@@ -64,8 +64,10 @@ systemctl enable --now ledgerflow-cd.timer
 bold ""
 ok "CD agent installed, checking every $INTERVAL."
 echo
-info "It deploys only what CI promoted to :released — which happens after the"
-info "whole pipeline passes and you approve the promotion on GitHub."
+info "It fast-forwards this checkout to origin/main, then deploys what CI"
+info "promoted to :released — after the whole pipeline passes and you approve"
+info "the promotion on GitHub. The git tree is compose/Caddy/this agent; the"
+info "application itself is the image."
 echo
 info "Watch it       journalctl -u ledgerflow-cd -f"
 info "Deploy now     systemctl start ledgerflow-cd"

@@ -163,11 +163,17 @@ def test_a_failed_pull_is_reported_not_swallowed():
     assert "docker login ghcr.io" in source, "the likeliest cause should name its own fix"
 
 
-def test_the_agent_pulls_services_that_exist():
-    """`docker compose pull app` names no service in this file — the app runs as
-    web/worker/beat — so the call always failed and fell through."""
+def test_the_agent_pulls_the_released_images_by_name():
+    """`docker compose pull` of a service that also has `build:` can skip the
+    registry and report success, which is how a moving `:released` tag looks
+    unchanged. Pulling the image reference itself always asks GHCR.
+
+    The old call named `app`, which is not a service in this file — the app
+    runs as web/worker/beat — so it always failed and fell through."""
     source = AGENT.read_text()
-    assert "dc pull --quiet web worker beat frontend" in source
+    assert 'docker pull --quiet "$APP_IMAGE"' in source
+    assert 'docker pull --quiet "$FRONTEND_IMAGE"' in source
+    assert "dc pull --quiet web worker beat frontend" not in source
 
 
 def test_no_unreachable_registry_guard_remains():
@@ -197,3 +203,39 @@ def test_the_frontend_bakes_the_version_into_the_bundle():
 
 def test_the_backend_keeps_its_release_for_error_reporting():
     assert "ENV APP_RELEASE" in Path("Dockerfile").read_text()
+
+
+def test_the_agent_fast_forwards_the_checkout():
+    """The images carry the application. Compose, Caddy and this agent live in
+    the git tree, and leaving it stale is why `git pull` after a deploy printed
+    hundreds of files the timer never fetched."""
+    source = AGENT.read_text()
+    assert "git fetch --prune origin main" in source
+    assert "git merge --ff-only" in source
+    assert "origin/main" in source
+    # A box that grew local commits must not be rewritten.
+    assert "--ff-only" in source
+    # Feature branches are not the release; only main moves.
+    assert '"$branch" != "main"' in source
+
+
+def test_the_agent_recreates_frontend_so_the_volume_swaps():
+    """The frontend container copies the SPA into a volume once at start and
+    then sleeps. `up -d` on an already-running container leaves Caddy serving
+    yesterday's bundle even after the image has moved."""
+    source = AGENT.read_text()
+    assert "force-recreate" in source
+    assert "frontend" in source
+
+
+def test_a_successful_promotion_cuts_a_batch_release():
+    """The number a person quotes for 'what shipped'. Sequential `batch-N`
+    GitHub Releases, tagged on the same commit that `:released` now points at.
+    Assigned at promotion, not at merge: a merge that fails route-audit must
+    not consume a batch number."""
+    source = WORKFLOW.read_text()
+    release = source[source.index("\n  release:") :]
+    assert "gh release create" in release
+    assert "batch-" in release
+    assert "contents: write" in release
+    assert "batch-${{ steps.batch.outputs.number }}" in release
