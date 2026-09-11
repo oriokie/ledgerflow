@@ -52,6 +52,7 @@ from .serializers import (
     FinancialAccountCreateSerializer,
     FinancialAccountSerializer,
     FinancialAccountUpdateSerializer,
+    MpesaSmsCaptureSerializer,
     PayeeCreateSerializer,
     PayeeSerializer,
     ReconcileSerializer,
@@ -2255,3 +2256,98 @@ class RecentMerchantsView(TenantScopedAPIView, APIView):
         from .. import quick_add as quick_add_service
 
         return Response(quick_add_service.recent_merchants())
+
+
+def _mpesa_sms_row(txn, charge=None) -> dict:
+    receipt = txn.metadata.get("mpesa_receipt") if isinstance(txn.metadata, dict) else ""
+    external = txn.external_id or ""
+    return {
+        "id": txn.id,
+        "receipt": receipt or "",
+        "occurred_at": txn.occurred_at,
+        "amount_minor": txn.amount_minor,
+        "charge_minor": charge.amount_minor if charge is not None else 0,
+        "charge_id": charge.id if charge is not None else None,
+        "counterparty": txn.payee.name if txn.payee else "",
+        "purpose": txn.memo,
+        "category_id": txn.category_id,
+        "category_name": txn.category.name if txn.category else None,
+        "is_inflow": txn.amount_minor > 0,
+        "account_id": txn.financial_account_id,
+        "account_name": txn.financial_account.name,
+        "currency": txn.currency,
+        # Statement identity starts `mpesa:` (not `mpesa-sms:`). Once the PDF
+        # importer has seen this receipt, the paste is already accounted for.
+        "already_on_statement": bool(external) and not external.startswith("mpesa-sms:"),
+    }
+
+
+class MpesaSmsView(WriteRequiresMemberMixin, TenantScopedAPIView, APIView):
+    """Paste an M-Pesa confirmation SMS; list recent pastes.
+
+    MEMBER — it writes money movements. The GET is the table on the same
+    screen, so a viewer can see what has been captured without posting.
+    """
+
+    permission_classes = [IsTenantMember]
+    serializer_class = MpesaSmsCaptureSerializer
+
+    @extend_schema(operation_id="finance_mpesa_sms_list")
+    def get(self, request):
+        from .. import mpesa_sms_service
+
+        rows = mpesa_sms_service.list_sms_captures()
+        allowed = _member_visible_ids()
+        if allowed is not None:
+            rows = [t for t in rows if t.financial_account_id in allowed]
+        charges = mpesa_sms_service.charges_for(
+            [str(t.metadata.get("mpesa_receipt")) for t in rows if t.metadata.get("mpesa_receipt")]
+        )
+        return Response([_mpesa_sms_row(t, charges.get(str(t.metadata.get("mpesa_receipt")))) for t in rows])
+
+    @extend_schema(operation_id="finance_mpesa_sms_capture", request=MpesaSmsCaptureSerializer)
+    def post(self, request):
+        from .. import mpesa_sms_service
+        from ..models import Category
+
+        s = MpesaSmsCaptureSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        v = s.validated_data
+
+        category = None
+        if v.get("category_id"):
+            category = Category.objects.filter(id=v["category_id"]).first()
+            if category is None:
+                return Response({"detail": "category not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            account = mpesa_sms_service.get_or_create_default_mpesa_account()
+        except mpesa_sms_service.MpesaSmsError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        if (blocked := _member_write_block(account.id)) is not None:
+            return blocked
+
+        try:
+            result = mpesa_sms_service.capture_mpesa_sms(
+                message=v["message"],
+                purpose=v.get("purpose") or "",
+                category=category,
+                financial_account=account,
+            )
+        except mpesa_sms_service.MpesaSmsParseError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except mpesa_sms_service.MpesaSmsError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except services.FinanceError as exc:
+            return _finance_error(exc)
+
+        parsed = result.parsed
+        return Response(
+            {
+                **_mpesa_sms_row(result.transaction, result.charge),
+                "already_recorded": result.already_recorded,
+                "kind": parsed.kind.value,
+                "balance_minor": parsed.balance_minor,
+            },
+            status=status.HTTP_200_OK if result.already_recorded else status.HTTP_201_CREATED,
+        )

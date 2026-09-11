@@ -52,6 +52,7 @@ const InsightsPage = lazy(() => import("./pages/InsightsPage").then((m) => ({ de
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage").then((m) => ({ default: m.AnalyticsPage })));
 const ReceiptScanPage = lazy(() => import("./pages/ReceiptScanPage").then((m) => ({ default: m.ReceiptScanPage })));
 const QuickAddPage = lazy(() => import("./pages/QuickAddPage").then((m) => ({ default: m.QuickAddPage })));
+const MpesaSmsPage = lazy(() => import("./pages/MpesaSmsPage").then((m) => ({ default: m.MpesaSmsPage })));
 // Phase 5 IA. Both hubs are always routable so the new structure can be
 // previewed without flipping the flag; only the *redirects* and the rail are
 // gated, because those are what change habitual behaviour.
@@ -222,6 +223,7 @@ export default function App() {
           <Route path="/household" element={<HouseholdPage />} />
           <Route path="/automation" element={<AutomationHubPage />} />
           <Route path="/quick-add" element={<QuickAddPage />} />
+          <Route path="/mpesa" element={<MpesaSmsPage />} />
           <Route path="/receipts/scan" element={<ReceiptScanPage />} />
           <Route path="/members" element={<MembersPage />} />
           <Route path="/settings/*" element={<SettingsPage />} />

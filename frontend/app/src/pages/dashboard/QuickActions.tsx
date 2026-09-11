@@ -1,7 +1,8 @@
-import { ArrowLeftRight, Camera, Plus, Target, Wallet } from "lucide-react";
+import { ArrowLeftRight, Camera, Plus, Smartphone, Target, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const ACTIONS = [
+  { to: "/mpesa", label: "M-Pesa SMS", icon: Smartphone },
   { to: "/quick-add", label: "Quick add", icon: Plus },
   { to: "/accounts", label: "Accounts", icon: Wallet },
   { to: "/goals", label: "Goals", icon: Target },

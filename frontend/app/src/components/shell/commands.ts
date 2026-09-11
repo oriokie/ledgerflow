@@ -88,6 +88,14 @@ export const QUICK_ACTIONS: Command[] = [
     keywords: "csv upload ofx statement bank file",
     group: "Actions",
   },
+  {
+    id: "action-mpesa-sms",
+    label: "Paste M-Pesa message",
+    hint: "Action",
+    to: "/mpesa?add=1",
+    keywords: "mpesa sms message receipt paste safaricom confirmation",
+    group: "Actions",
+  },
 ];
 
 const NAV_COMMANDS: Command[] = NAV_ITEMS.map((item) => ({

@@ -14,6 +14,7 @@ describe("command palette quick actions", () => {
         "action-create-goal",
         "action-add-bill",
         "action-import",
+        "action-mpesa-sms",
       ]),
     );
   });
@@ -29,6 +30,7 @@ describe("command palette quick actions", () => {
   it("matches synonyms users actually type, not just our vocabulary", () => {
     expect(filterCommands("csv").some((c) => c.id === "action-import")).toBe(true);
     expect(filterCommands("move").some((c) => c.id === "action-transfer")).toBe(true);
+    expect(filterCommands("mpesa").some((c) => c.id === "action-mpesa-sms")).toBe(true);
   });
 });
 

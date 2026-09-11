@@ -459,3 +459,48 @@
   border: 1px dashed var(--lf-border-default);
   border-radius: var(--lf-radius-md);
 }
+
+/* ---------- M-Pesa SMS paste ---------- */
+.lf-mpesa-sms-paste {
+  min-height: 8.5rem;
+  font-size: var(--lf-text-md);
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.lf-mpesa-sms-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--lf-space-3);
+  margin: 0;
+}
+
+@media (min-width: 640px) {
+  .lf-mpesa-sms-facts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.lf-mpesa-sms-fact {
+  margin: 0;
+  padding: var(--lf-space-3);
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+  min-width: 0;
+}
+
+.lf-mpesa-sms-fact dt {
+  margin: 0;
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: var(--lf-tracking-wide);
+  text-transform: uppercase;
+  color: var(--lf-text-tertiary);
+}
+
+.lf-mpesa-sms-fact dd {
+  margin: var(--lf-space-1) 0 0;
+  font-weight: var(--lf-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
