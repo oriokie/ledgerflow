@@ -101,8 +101,10 @@ describe("BriefingCard", () => {
     expect(screen.getByText("Free to spend")).toBeInTheDocument();
     expect(screen.getByText("Next payday")).toBeInTheDocument();
     expect(screen.getByText("Jun 25")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /go negative on 20 jun/i }),
-    ).toHaveAttribute("href", "/cashflow");
+    const next = screen.getByRole("link", { name: /go negative on 20 jun/i });
+    expect(next).toHaveAttribute("href", "/cashflow");
+    // Standalone next-step, not mid-sentence: the route audit measures this
+    // box on /coach and the insights hub, so it has to clear the 44px floor.
+    expect(next).toHaveClass("lf-briefing-plan-step");
   });
 });

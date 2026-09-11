@@ -118,8 +118,9 @@
 
 .lf-briefing-plan li {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--lf-space-2);
+  min-height: var(--lf-touch-target);
   font-size: var(--lf-text-sm);
   line-height: 1.4;
 }
@@ -140,10 +141,27 @@
   background: var(--lf-surface-muted, var(--lf-bg-muted));
 }
 
-.lf-briefing-plan a {
+/* Next-step links are standalone controls, not mid-sentence text. At sm size
+   an inline <a> is ~16px tall — under the 24px WCAG 2.5.8 floor the route
+   audit enforces, and well under `--lf-touch-target`. The plan is what a
+   reader taps after the briefing; it should not be the hardest control on
+   the card. `--lf-touch-target` rather than a 24px AA floor: these rows also
+   sit on mobile `/coach` and the flagged `/insights` hub, where a 24px
+   target would fail `target-project`. */
+.lf-briefing-plan-step {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--lf-touch-target);
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 0.15em;
+}
+
+.lf-briefing-plan-step:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--lf-radius-sm);
 }
 
 /* ---------- insight card ---------- */

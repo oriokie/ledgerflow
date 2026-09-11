@@ -146,7 +146,9 @@ export function BriefingCard({
               {plan.map((step, index) => (
                 <li key={`${step.title}-${index}`}>
                   {step.to ? (
-                    <Link to={step.to}>{step.title}</Link>
+                    <Link className="lf-briefing-plan-step" to={step.to}>
+                      {step.title}
+                    </Link>
                   ) : (
                     <span>{step.title}</span>
                   )}
