@@ -136,6 +136,7 @@ class BudgetStatusView(TenantScopedAPIView, APIView):
         as_of_raw = request.query_params.get("as_of")
         as_of = date.fromisoformat(as_of_raw) if as_of_raw else timezone.localdate()
         statuses = selectors.budget_status(budget, as_of=as_of)
+        assignment = selectors.budget_assignment(budget, as_of=as_of, lines=statuses)
         period_start, period_end = selectors.period_bounds(
             period=budget.period, starts_on=budget.starts_on, as_of=as_of
         )
@@ -145,6 +146,13 @@ class BudgetStatusView(TenantScopedAPIView, APIView):
                 "as_of": as_of.isoformat(),
                 "period_start": period_start.isoformat(),
                 "period_end": period_end.isoformat(),
+                "assignment": {
+                    "income_minor": assignment.income_minor,
+                    "income_known": assignment.income_known,
+                    "assigned_minor": assignment.assigned_minor,
+                    "unassigned_minor": assignment.unassigned_minor,
+                    "overspent_minor": assignment.overspent_minor,
+                },
                 "lines": [
                     {
                         "line_id": st.line_id,
@@ -157,6 +165,7 @@ class BudgetStatusView(TenantScopedAPIView, APIView):
                         "remaining_minor": st.remaining_minor,
                         "percent_used": st.percent_used,
                         "over_budget": st.over_budget,
+                        "rollover": st.rollover,
                     }
                     for st in statuses
                 ],

@@ -242,6 +242,12 @@ CELERY_BEAT_SCHEDULE = {
         # catches each goal on or after its chosen day.
         "schedule": crontab(hour=2, minute=0),
     },
+    "fx-refresh-rates": {
+        "task": "fx.refresh_rates",
+        # After European and East-African morning fixes have usually landed,
+        # before the household day in Nairobi is in full swing.
+        "schedule": crontab(hour=6, minute=15),
+    },
 }
 
 # --------------------------------------------------------------------------
@@ -565,6 +571,14 @@ LLM_MAX_OUTPUT_TOKENS = env.int("LLM_MAX_OUTPUT_TOKENS", default=1500)
 # and defaults to off. Local providers (ollama, lmstudio) are exempt: nothing
 # leaves the machine.
 LLM_SHARE_FINANCIAL_CONTEXT = env.bool("LLM_SHARE_FINANCIAL_CONTEXT", default=False)
+
+# Live FX quotes. The open ExchangeRate-API feed is the default (no key, USD
+# base, covers the seed catalog including KES). Override the URL to point at
+# another JSON feed with a `rates` map. Auto-refresh can also be flipped from
+# the platform console (`fx.auto_refresh`).
+FX_RATES_URL = env("FX_RATES_URL", default="https://open.er-api.com/v6/latest/USD")
+FX_RATES_TIMEOUT = env.int("FX_RATES_TIMEOUT", default=12)
+FX_AUTO_REFRESH = env.bool("FX_AUTO_REFRESH", default=True)
 
 # Which implementation backs each intelligence capability. Defaults are the
 # deterministic providers; point these at the LLM ones to switch:

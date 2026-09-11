@@ -77,6 +77,7 @@ def test_budget_status_actual_vs_limit(tenant_id):
         assert status.remaining_minor == 15000
         assert status.percent_used == 70.0
         assert status.over_budget is False
+        assert status.rollover is False
 
 
 def test_budget_subtree_spending_rolls_up_to_parent(tenant_id):
@@ -159,6 +160,77 @@ def test_rollover_carries_previous_period_unspent(tenant_id):
         assert status.effective_limit_minor == 70000  # 50000 + 20000
         assert status.actual_minor == 40000
         assert status.remaining_minor == 30000
+        assert status.rollover is True
+
+
+def test_period_income_scales_to_the_budget_window():
+    assert selectors.period_income_minor(monthly_net=520_000, period=BudgetPeriod.WEEKLY) == 120_000
+    assert selectors.period_income_minor(monthly_net=100_000, period=BudgetPeriod.QUARTERLY) == 300_000
+    assert selectors.period_income_minor(monthly_net=100_000, period=BudgetPeriod.YEARLY) == 1_200_000
+    assert selectors.period_income_minor(monthly_net=100_000, period=BudgetPeriod.MONTHLY) == 100_000
+
+
+def test_assignment_without_income_does_not_invent_zero(tenant_id):
+    with tenant_scope(tenant_id):
+        _checking, _food, budget, _line = _seed_budget()
+        assignment = selectors.budget_assignment(budget, as_of=date(2026, 1, 31))
+        assert assignment.income_known is False
+        assert assignment.unassigned_minor is None
+        assert assignment.assigned_minor == 50_000
+        assert assignment.income_minor == 0
+
+
+def test_assignment_is_income_minus_limits_not_spend(tenant_id):
+    from apps.income.models import IncomeSource
+
+    with tenant_scope(tenant_id):
+        checking, food, budget, _line = _seed_budget()
+        IncomeSource.objects.create(
+            name="Salary",
+            kind="employment",
+            currency="USD",
+            net_minor=500_000,
+            reliability="fixed",
+            frequency="monthly",
+            starts_on=date(2025, 1, 1),
+        )
+        finance_services.record_expense(
+            financial_account=checking,
+            category=food,
+            amount_minor=20_000,
+            occurred_at=datetime(2026, 1, 10, tzinfo=UTC),
+        )
+        assignment = selectors.budget_assignment(budget, as_of=date(2026, 1, 31))
+        assert assignment.income_known is True
+        assert assignment.income_minor == 500_000
+        assert assignment.assigned_minor == 50_000
+        assert assignment.unassigned_minor == 450_000
+        assert assignment.overspent_minor == 0
+
+
+def test_assignment_overspent_and_over_budgeted(tenant_id):
+    from apps.income.models import IncomeSource
+
+    with tenant_scope(tenant_id):
+        checking, food, budget, _line = _seed_budget()
+        IncomeSource.objects.create(
+            name="Salary",
+            kind="employment",
+            currency="USD",
+            net_minor=30_000,
+            reliability="fixed",
+            frequency="monthly",
+            starts_on=date(2025, 1, 1),
+        )
+        finance_services.record_expense(
+            financial_account=checking,
+            category=food,
+            amount_minor=60_000,
+            occurred_at=datetime(2026, 1, 10, tzinfo=UTC),
+        )
+        assignment = selectors.budget_assignment(budget, as_of=date(2026, 1, 31))
+        assert assignment.unassigned_minor == -20_000
+        assert assignment.overspent_minor == 10_000
 
 
 def test_budget_line_requires_expense_category(tenant_id):

@@ -38,6 +38,11 @@
   color: var(--lf-status-danger);
 }
 
+.lf-budget-assign {
+  display: block;
+  margin: var(--lf-space-3) 0 0;
+}
+
 /* ---------- line rows ---------- */
 .lf-budget-line {
   padding: var(--lf-space-4) 0;
@@ -98,6 +103,10 @@
   display: flex;
   gap: 2px;
   flex-shrink: 0;
+}
+
+.lf-budget-line-rollover {
+  margin-top: var(--lf-space-2);
 }
 
 /* inline limit editor */

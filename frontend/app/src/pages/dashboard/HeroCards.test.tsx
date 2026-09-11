@@ -45,4 +45,19 @@ describe("NetWorthCard consolidation", () => {
     );
     expect(screen.queryByText(/total across/i)).not.toBeInTheDocument();
   });
+
+  it("folds recorded property into the headline and links to it", () => {
+    consolidated.value = undefined;
+    render(
+      <MemoryRouter>
+        <NetWorthCard
+          netWorth={{ ...netWorth, asset_value_minor: 800_000_00 }}
+          history={undefined}
+          currency="USD"
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("link", { name: "property" })).toHaveAttribute("href", "/assets");
+    expect(screen.getByText(/in accounts/i)).toBeInTheDocument();
+  });
 });

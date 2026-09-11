@@ -1391,3 +1391,133 @@ class ExpiringTrialsView(PlatformAdminAPIView, APIView):
                 for r in rows
             ]
         )
+
+
+class CurrencyCatalogView(PlatformAdminAPIView, APIView):
+    """The ISO catalog every workspace reads, plus the latest USD quote."""
+
+    capability_map = {"GET": Cap.HEALTH_READ, "POST": Cap.FX_MANAGE}
+    serializer_class = s.CurrencyCreateSerializer
+
+    def get(self, request):
+        from apps.fx.catalog import list_for_admin
+
+        return Response(list_for_admin())
+
+    @extend_schema(request=s.CurrencyCreateSerializer)
+    def post(self, request):
+        from apps.fx.catalog import CatalogError, create_currency
+
+        payload = s.CurrencyCreateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = dict(payload.validated_data)
+        reason = data.pop("reason")
+        try:
+            row = create_currency(**data)
+        except CatalogError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        record(
+            action="fx.currency.created",
+            staff=self.staff,
+            module="fx",
+            target_type="fx.Currency",
+            changes={"code": [None, row["code"]], "name": [None, row["name"]]},
+            reason=reason,
+            request=request,
+        )
+        return Response(row, status=status.HTTP_201_CREATED)
+
+
+class CurrencyCatalogDetailView(PlatformAdminAPIView, APIView):
+    capability_map = {"GET": Cap.HEALTH_READ, "PATCH": Cap.FX_MANAGE}
+    serializer_class = s.CurrencyUpdateSerializer
+
+    def get(self, request, code):
+        from apps.fx.catalog import list_for_admin
+
+        needle = (code or "").upper()
+        row = next((r for r in list_for_admin() if r["code"] == needle), None)
+        if row is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(row)
+
+    @extend_schema(request=s.CurrencyUpdateSerializer)
+    def patch(self, request, code):
+        from apps.fx.catalog import CatalogError, update_currency
+
+        payload = s.CurrencyUpdateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = dict(payload.validated_data)
+        reason = data.pop("reason")
+        try:
+            row = update_currency(code, **data)
+        except CatalogError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        record(
+            action="fx.currency.updated",
+            staff=self.staff,
+            module="fx",
+            target_type="fx.Currency",
+            changes={"code": [None, row["code"]], **{field: [None, value] for field, value in data.items()}},
+            reason=reason,
+            request=request,
+        )
+        return Response(row)
+
+
+class CurrencyRateView(PlatformAdminAPIView, APIView):
+    required_capability = Cap.FX_MANAGE
+    serializer_class = s.CurrencyRateSerializer
+
+    @extend_schema(request=s.CurrencyRateSerializer)
+    def post(self, request, code):
+        from apps.fx.catalog import CatalogError, set_usd_rate
+
+        payload = s.CurrencyRateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        data = dict(payload.validated_data)
+        reason = data.pop("reason")
+        source = data.get("source") or "manual"
+        try:
+            row = set_usd_rate(code=code, rate=data["rate"], source=source)
+        except CatalogError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        record(
+            action="fx.rate.set",
+            staff=self.staff,
+            module="fx",
+            target_type="fx.Currency",
+            changes={"code": [None, row["code"]], "usd_rate": [None, row["usd_rate"]], "source": [None, source]},
+            reason=reason,
+            request=request,
+        )
+        return Response(row)
+
+
+class FxRefreshView(PlatformAdminAPIView, APIView):
+    required_capability = Cap.FX_MANAGE
+    serializer_class = s.FxRefreshSerializer
+
+    @extend_schema(request=s.FxRefreshSerializer)
+    def post(self, request):
+        from apps.fx.providers import RateProviderError
+        from apps.fx.services import refresh_rates
+
+        payload = s.FxRefreshSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        reason = payload.validated_data["reason"]
+        force = payload.validated_data.get("force", False)
+        try:
+            result = refresh_rates(force=force)
+        except RateProviderError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+        record(
+            action="fx.rates.refreshed",
+            staff=self.staff,
+            module="fx",
+            target_type="fx.ExchangeRate",
+            changes={"updated": [None, result["updated"]], "force": [None, force]},
+            reason=reason,
+            request=request,
+        )
+        return Response(result)

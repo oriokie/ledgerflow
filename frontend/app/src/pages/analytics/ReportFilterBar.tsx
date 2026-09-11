@@ -1,6 +1,7 @@
 import type { ReportFilters, ReportPeriod } from "../../api/types";
 import { useAuth } from "../../lib/AuthContext";
-import { CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
+import { useCurrencyOptions } from "../../hooks/useCurrencies";
+import { workspaceCurrency } from "../../lib/currencies";
 import { SegmentedControl, Select } from "../../ui";
 
 const PERIODS: { value: ReportPeriod; label: string }[] = [
@@ -30,6 +31,7 @@ export function ReportFilterBar({
   onChange: (next: ReportFilters) => void;
 }) {
   const { activeWorkspace } = useAuth();
+  const currencySelect = useCurrencyOptions();
   const currency = filters.currency || workspaceCurrency(activeWorkspace?.tenant);
 
   return (
@@ -42,7 +44,7 @@ export function ReportFilterBar({
       />
       <Select
         aria-label="Report currency"
-        options={CURRENCY_OPTIONS}
+        options={currencySelect}
         value={currency}
         onChange={(e) => onChange({ ...filters, currency: e.target.value })}
       />

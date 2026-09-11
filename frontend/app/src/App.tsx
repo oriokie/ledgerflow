@@ -45,6 +45,7 @@ const WorkspacePickerPage = lazy(() =>
   import("./pages/WorkspacePickerPage").then((m) => ({ default: m.WorkspacePickerPage })),
 );
 const AccountsPage = lazy(() => import("./pages/AccountsPage").then((m) => ({ default: m.AccountsPage })));
+const AssetsPage = lazy(() => import("./pages/AssetsPage").then((m) => ({ default: m.AssetsPage })));
 const CategoriesPage = lazy(() => import("./pages/CategoriesPage").then((m) => ({ default: m.CategoriesPage })));
 const RecurringPage = lazy(() => import("./pages/RecurringPage").then((m) => ({ default: m.RecurringPage })));
 const InsightsPage = lazy(() => import("./pages/InsightsPage").then((m) => ({ default: m.InsightsPage })));
@@ -104,6 +105,9 @@ const AdminCouponsPage = lazy(() =>
 );
 const AdminPlansPage = lazy(() =>
   import("./pages/admin/AdminPlansPage").then((m) => ({ default: m.AdminPlansPage })),
+);
+const AdminCurrenciesPage = lazy(() =>
+  import("./pages/admin/AdminCurrenciesPage").then((m) => ({ default: m.AdminCurrenciesPage })),
 );
 const AdminHealthPage = lazy(() =>
   import("./pages/admin/AdminPages").then((m) => ({ default: m.AdminHealthPage })),
@@ -191,6 +195,7 @@ export default function App() {
           <Route path="/debt" element={<DebtPage />} />
           <Route path="/receivables" element={<ReceivablesPage />} />
           <Route path="/accounts" element={<AccountsPage />} />
+          <Route path="/assets" element={<AssetsPage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/goals" element={<GoalsPage />} />
 
@@ -245,6 +250,7 @@ export default function App() {
           <Route path="dunning" element={<AdminDunningPage />} />
           <Route path="coupons" element={<AdminCouponsPage />} />
           <Route path="plans" element={<AdminPlansPage />} />
+          <Route path="currencies" element={<AdminCurrenciesPage />} />
           <Route path="analytics" element={<AdminAnalyticsPage />} />
           <Route path="health" element={<AdminHealthPage />} />
           <Route path="audit" element={<AdminAuditPage />} />

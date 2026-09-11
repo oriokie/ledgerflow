@@ -5,7 +5,8 @@ import { z } from "zod";
 import { ApiError } from "../../api/client";
 import { useCreateBudget } from "../../hooks/useBudgeting";
 import { useAuth } from "../../lib/AuthContext";
-import { CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
+import { useCurrencyOptions } from "../../hooks/useCurrencies";
+import { workspaceCurrency } from "../../lib/currencies";
 import { Banner, Button, Card, Grid, Inline, Input, Select, Stack } from "../../ui";
 
 const budgetSchema = z.object({
@@ -25,6 +26,7 @@ export function CreateBudgetForm({
 }) {
   const createBudget = useCreateBudget();
   const { activeWorkspace } = useAuth();
+  const currencySelect = useCurrencyOptions();
   const [error, setError] = useState<string | null>(null);
   const {
     register,
@@ -69,7 +71,7 @@ export function CreateBudgetForm({
           <Grid cols={2} gap={4}>
             <Select
               label="Currency"
-              options={CURRENCY_OPTIONS}
+              options={currencySelect}
               error={errors.currency?.message}
               {...register("currency")}
             />

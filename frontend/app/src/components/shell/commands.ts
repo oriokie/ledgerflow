@@ -41,6 +41,14 @@ export const QUICK_ACTIONS: Command[] = [
     group: "Actions",
   },
   {
+    id: "action-add-asset",
+    label: "Add property",
+    hint: "Action",
+    to: "/assets?add=1",
+    keywords: "house car land vehicle home asset own",
+    group: "Actions",
+  },
+  {
     id: "action-transfer",
     label: "Transfer money",
     hint: "Action",
@@ -122,7 +130,7 @@ const NAV_COMMANDS_V2: Command[] = [
     label: tab.label,
     hint: "In Insights",
     to: `/insights?tab=${tab.value}`,
-    keywords: `insights ${tab.value}${tab.value === "trends" ? " analytics" : ""}${tab.value === "coach" ? " coach" : ""}`,
+    keywords: `insights ${tab.value}${tab.value === "trends" ? " analytics" : ""}${tab.value === "coach" ? " coach" : ""}${tab.value === "review" ? " financial monthly sit-down" : ""}`,
     group: "Go to" as const,
   })),
 ];

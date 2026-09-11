@@ -288,6 +288,10 @@ def test_budget_status_via_api(tenant_context):
     assert st.data["lines"][0]["actual_minor"] == 20000
     assert st.data["lines"][0]["remaining_minor"] == 30000
     assert st.data["lines"][0]["percent_used"] == 40.0
+    assert st.data["lines"][0]["rollover"] is False
+    assert st.data["assignment"]["income_known"] is False
+    assert st.data["assignment"]["assigned_minor"] == 50000
+    assert st.data["assignment"]["unassigned_minor"] is None
 
 
 def test_recurring_creation_via_api(tenant_context):

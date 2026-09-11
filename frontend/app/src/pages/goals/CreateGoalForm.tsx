@@ -6,7 +6,8 @@ import { ApiError } from "../../api/client";
 import type { GoalKind, GoalPriority } from "../../api/types";
 import { useCreateGoal } from "../../hooks/useGoals";
 import { useAuth } from "../../lib/AuthContext";
-import { amountInputStep, CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
+import { useCurrencyOptions } from "../../hooks/useCurrencies";
+import { amountInputStep, workspaceCurrency } from "../../lib/currencies";
 import { majorToMinor } from "../../lib/money";
 import { Banner, Button, Card, Grid, Inline, Input, Select, Stack, Text } from "../../ui";
 import { GOAL_KIND_OPTIONS, GOAL_PRIORITY_LABELS } from "./kinds";
@@ -39,6 +40,7 @@ const PRIORITY_OPTIONS = (Object.keys(GOAL_PRIORITY_LABELS) as unknown as GoalPr
 export function CreateGoalForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
   const { activeWorkspace } = useAuth();
   const books = workspaceCurrency(activeWorkspace?.tenant);
+  const currencySelect = useCurrencyOptions();
   const createGoal = useCreateGoal();
   const [error, setError] = useState<string | null>(null);
   const {
@@ -115,7 +117,7 @@ export function CreateGoalForm({ onCreated, onCancel }: { onCreated: () => void;
             />
             <Select
               label="Currency"
-              options={CURRENCY_OPTIONS}
+              options={currencySelect}
               error={errors.currency?.message}
               {...register("currency")}
             />

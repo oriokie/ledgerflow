@@ -60,6 +60,41 @@ describe("buildAttentionItems", () => {
     });
     expect(items[0].kind).toBe("overdue_bill");
   });
+
+  it("sends unreviewed transactions to the activity filter, not financial review", () => {
+    const items = buildAttentionItems({
+      currency: "USD",
+      reviewCount: 3,
+    });
+    const item = items.find((i) => i.kind === "review");
+    expect(item?.href).toBe("/activity?review=1");
+    expect(item?.cta).toBe("Triage");
+  });
+
+  it("nudges a financial review only in the first three days of the month", () => {
+    const onTheFirst = buildAttentionItems({
+      currency: "USD",
+      hasSmartPlanning: true,
+      now: new Date(2026, 8, 1), // 1 Sep
+    });
+    const review = onTheFirst.find((i) => i.kind === "monthly_review");
+    expect(review?.href).toBe("/review?period=2026-08");
+    expect(review?.cta).toBe("Open review");
+    expect(review?.title).toMatch(/August 2026/i);
+
+    const midMonth = buildAttentionItems({
+      currency: "USD",
+      hasSmartPlanning: true,
+      now: new Date(2026, 8, 11),
+    });
+    expect(midMonth.some((i) => i.kind === "monthly_review")).toBe(false);
+
+    const withoutPlan = buildAttentionItems({
+      currency: "USD",
+      now: new Date(2026, 8, 1),
+    });
+    expect(withoutPlan.some((i) => i.kind === "monthly_review")).toBe(false);
+  });
 });
 
 describe("adaptiveSectionPriority", () => {

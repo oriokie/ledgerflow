@@ -25,6 +25,7 @@ export type AttentionKind =
   | "cashflow_risk"
   | "goal_off_track"
   | "review"
+  | "monthly_review"
   | "debt_alert"
   | "coach"
   | "recommendation";
@@ -218,10 +219,16 @@ export function buildAttentionItems(input: {
   incomeSources?: IncomeSource[];
   recurring?: RecurringTransaction[];
   currency: string;
+  /** Calendar day used for the start-of-month review nudge. Tests pass a
+   *  frozen date so the 1st–3rd of the month cannot inflate fixture counts. */
+  now?: Date;
+  /** The monthly sit-down is a smart-planning page. Default false so callers
+   *  that have not opted in (including unit tests) never grow a review item. */
+  hasSmartPlanning?: boolean;
 }): AttentionItem[] {
   const items: AttentionItem[] = [];
   const currency = input.currency;
-  const today = new Date();
+  const today = input.now ? new Date(input.now) : new Date();
   today.setHours(0, 0, 0, 0);
 
   for (const b of input.bills ?? []) {
@@ -361,9 +368,27 @@ export function buildAttentionItems(input: {
       urgency: 45,
       title: `${input.reviewCount} transaction${input.reviewCount === 1 ? "" : "s"} to review`,
       body: "Uncategorized or flagged activity waiting on you.",
-      href: "/review",
-      cta: "Review",
+      href: "/activity?review=1",
+      cta: "Triage",
     });
+  }
+
+  if (input.hasSmartPlanning) {
+    const day = today.getDate();
+    if (day >= 1 && day <= 3) {
+      const prev = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const period = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
+      const label = prev.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+      items.push({
+        id: "monthly-review",
+        kind: "monthly_review",
+        urgency: 42,
+        title: `${label} is ready to review`,
+        body: "Net worth, cash flow, and what to do next — from your ledger.",
+        href: `/review?period=${period}`,
+        cta: "Open review",
+      });
+    }
   }
 
   for (const alert of input.debtAlerts ?? []) {

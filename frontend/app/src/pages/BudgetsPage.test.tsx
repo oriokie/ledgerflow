@@ -20,6 +20,7 @@ const status: BudgetStatus = {
       remaining_minor: -12000,
       percent_used: 130,
       over_budget: true,
+      rollover: false,
     },
     {
       line_id: "l2",
@@ -32,6 +33,7 @@ const status: BudgetStatus = {
       remaining_minor: 12000,
       percent_used: 40,
       over_budget: false,
+      rollover: false,
     },
   ],
 };

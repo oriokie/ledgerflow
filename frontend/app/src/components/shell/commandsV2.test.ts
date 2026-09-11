@@ -18,6 +18,7 @@ describe("command palette under the new IA", () => {
     writeFlag("navV2", true);
     expect(filterCommands("analytics").map((c) => c.to)).toContain("/insights?tab=trends");
     expect(filterCommands("coach").map((c) => c.to)).toContain("/insights?tab=coach");
+    expect(filterCommands("review").map((c) => c.to)).toContain("/insights?tab=review");
     expect(filterCommands("recurring").map((c) => c.to)).toContain("/plan?tab=recurring");
   });
 

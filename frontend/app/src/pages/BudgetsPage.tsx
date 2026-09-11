@@ -61,6 +61,8 @@ export function BudgetsPage({ embedded }: { embedded?: boolean } = {}) {
 
   const onUpdateLimit = (lineId: string, limitMinor: number) =>
     updateLine.mutateAsync({ budgetId: activeBudgetId!, lineId, payload: { limit_minor: limitMinor } });
+  const onToggleRollover = (lineId: string, rollover: boolean) =>
+    updateLine.mutateAsync({ budgetId: activeBudgetId!, lineId, payload: { rollover } });
   const onRemove = (lineId: string) => removeLine.mutateAsync({ budgetId: activeBudgetId!, lineId });
 
   const doDeleteBudget = async () => {
@@ -182,6 +184,7 @@ export function BudgetsPage({ embedded }: { embedded?: boolean } = {}) {
                   pacePercent={pacePercent}
                   paceJudgeable={paceJudgeable}
                   onUpdateLimit={onUpdateLimit}
+                  onToggleRollover={onToggleRollover}
                   onRemove={onRemove}
                 />
               ))}

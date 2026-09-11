@@ -88,3 +88,17 @@ export function amountInputStep(code: string | null | undefined): string {
   if (digits <= 0) return "1";
   return (1 / 10 ** digits).toFixed(digits);
 }
+
+export function currencyOptions(list: readonly CurrencyMeta[] = CURRENCIES) {
+  return list.map((c) => ({
+    value: c.code,
+    label: `${c.code} — ${c.name}`,
+  }));
+}
+
+/** Merge operator-added codes into the lookup so formatting learns their digits. */
+export function hydrateCurrencyCatalog(list: readonly CurrencyMeta[]): void {
+  for (const item of list) {
+    BY_CODE.set(item.code.toUpperCase(), item);
+  }
+}

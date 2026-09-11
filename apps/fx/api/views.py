@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .. import services
-from ..currencies import CURRENCIES, is_supported
+from ..currencies import is_known, list_currencies
 
 
 class CurrencyListView(APIView):
@@ -16,19 +16,22 @@ class CurrencyListView(APIView):
 
     def get(self, request):
         return Response(
-            [{"code": c.code, "name": c.name, "symbol": c.symbol, "digits": c.digits} for c in CURRENCIES]
+            [
+                {"code": c.code, "name": c.name, "symbol": c.symbol, "digits": c.digits}
+                for c in list_currencies(active_only=True)
+            ]
         )
 
 
 class RatesView(APIView):
-    """Latest rate from `base` to every supported currency (best-effort)."""
+    """Latest rate from `base` to every active catalog currency (best-effort)."""
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         base = (request.query_params.get("base") or "USD").upper()
         rates: dict[str, float] = {}
-        for c in CURRENCIES:
+        for c in list_currencies(active_only=True):
             if c.code == base:
                 rates[c.code] = 1.0
                 continue
@@ -48,7 +51,7 @@ class ConvertView(APIView):
             amount = 0
         frm = (request.query_params.get("from") or "").upper()
         to = (request.query_params.get("to") or "").upper()
-        if not is_supported(frm) or not is_supported(to):
+        if not is_known(frm) or not is_known(to):
             return Response({"detail": "Unsupported currency."}, status=400)
         converted = services.convert(amount_minor=amount, from_currency=frm, to_currency=to)
         return Response({"amount_minor": amount, "from": frm, "to": to, "converted_minor": converted})

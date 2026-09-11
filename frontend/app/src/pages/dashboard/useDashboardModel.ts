@@ -26,7 +26,7 @@ import { useInsights } from "../../hooks/useCoach";
 import { useDebtSummary, useDebts } from "../../hooks/useDebt";
 import { usePortfolio } from "../../hooks/useInvestments";
 import { useMembers } from "../../hooks/useTenancy";
-import { useAiEnabled } from "../../hooks/useEntitlements";
+import { useAiEnabled, useFeatures } from "../../hooks/useEntitlements";
 import { useAuth } from "../../lib/AuthContext";
 import { pickPreferredCurrency, workspaceCurrency } from "../../lib/currencies";
 import {
@@ -58,6 +58,8 @@ export function useDashboardModel() {
   const { data: netWorthHistory } = useNetWorthHistory(6);
   const { data: spendingTrend } = useSpendingTrend(6);
   const { aiEnabled } = useAiEnabled();
+  const { has } = useFeatures();
+  const hasSmartPlanning = has("smart_planning");
   const { data: forecast } = useForecast(aiEnabled);
   const { data: health } = useHealthScore(aiEnabled);
   const { data: recommendations } = useRecommendations(aiEnabled);
@@ -156,6 +158,7 @@ export function useDashboardModel() {
         incomeSources,
         recurring,
         currency: primaryCurrency,
+        hasSmartPlanning,
       }),
     [
       bills,
@@ -169,6 +172,7 @@ export function useDashboardModel() {
       incomeSources,
       recurring,
       primaryCurrency,
+      hasSmartPlanning,
     ],
   );
 

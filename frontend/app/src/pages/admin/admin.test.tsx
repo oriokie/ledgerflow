@@ -273,6 +273,12 @@ describe("navigation", () => {
     renderAt(<AdminShell />, "/admin");
     expect(screen.getByRole("link", { name: /^users$/i })).toHaveAttribute("href", "/admin/users");
   });
+
+  it("shows the currency catalog when the operator can read operations", () => {
+    staffState.value = makeStaff("finance", ["health.read"]);
+    renderAt(<AdminShell />, "/admin");
+    expect(screen.getByRole("link", { name: /currencies/i })).toHaveAttribute("href", "/admin/currencies");
+  });
 });
 
 // ============================================================ reason dialog

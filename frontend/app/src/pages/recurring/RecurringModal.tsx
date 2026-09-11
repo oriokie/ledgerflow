@@ -11,7 +11,8 @@ import {
   useUpdateRecurring,
 } from "../../hooks/useFinance";
 import { useAuth } from "../../lib/AuthContext";
-import { CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
+import { useCurrencyOptions } from "../../hooks/useCurrencies";
+import { workspaceCurrency } from "../../lib/currencies";
 import { majorToMinor, minorToMajor } from "../../lib/money";
 import { Banner, Button, Grid, Input, Modal, SegmentedControl, Select, Stack, Text } from "../../ui";
 import { CADENCE_OPTIONS, cadenceByValue, cadenceFor } from "./recurringMath";
@@ -80,6 +81,7 @@ export function RecurringModal({
   const isEdit = !!editing;
 
   const baseCurrency = workspaceCurrency(activeWorkspace?.tenant);
+  const currencySelect = useCurrencyOptions();
 
   const {
     register,
@@ -316,7 +318,7 @@ export function RecurringModal({
 
           <Select
             label="Currency"
-            options={CURRENCY_OPTIONS}
+            options={currencySelect}
             disabled={isEdit}
             hint={isEdit ? "Locked — transactions already posted in it." : undefined}
             error={errors.currency?.message}

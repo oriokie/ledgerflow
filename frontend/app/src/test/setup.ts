@@ -4,7 +4,18 @@ import "fake-indexeddb/auto";
 
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
+
+// Product forms read the operator catalog through this hook. Tests don't
+// mount a QueryClient, so they get the seeded list the server also ships.
+vi.mock("../hooks/useCurrencies", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../hooks/useCurrencies")>();
+  const { currencyOptions, CURRENCIES } = await import("../lib/currencies");
+  return {
+    ...actual,
+    useCurrencyOptions: () => currencyOptions(CURRENCIES),
+  };
+});
 
 // React Testing Library doesn't auto-clean between tests under Vitest.
 afterEach(() => cleanup());

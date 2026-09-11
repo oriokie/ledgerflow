@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../api/client";
 import { useAuth } from "../lib/AuthContext";
 import { Badge, Banner, Card, Figure, FigureRow, Grid, Money, PageHeader, Select, Skeleton, Text } from "../ui";
@@ -86,11 +87,31 @@ function periodOptions(now = new Date()): { value: string; label: string }[] {
  * what to do next. Every figure arrives composed from the same selectors the
  * rest of the product uses — this page renders a document, it does not do
  * arithmetic.
+ *
+ * `embedded` renders this as a tab panel inside `/insights`. The hub owns the
+ * <h1>, so this page must not render its own PageHeader. The period lives in
+ * `?period=` so the monthly-summary email and the dashboard nudge can deep-link
+ * the same document on `/review` and `/insights?tab=review`.
  */
-export function ReviewPage() {
+export function ReviewPage({ embedded }: { embedded?: boolean } = {}) {
   const { activeWorkspace } = useAuth();
-  const options = useMemo(() => periodOptions(), []);
-  const [period, setPeriod] = useState(options[0]?.value ?? "");
+  const [params, setParams] = useSearchParams();
+  const requested = params.get("period") ?? "";
+  const options = useMemo(() => {
+    const base = periodOptions();
+    if (requested && !base.some((o) => o.value === requested)) {
+      return [{ value: requested, label: requested }, ...base];
+    }
+    return base;
+  }, [requested]);
+  const period = requested || options[0]?.value || "";
+
+  const setPeriod = (value: string) => {
+    const next = new URLSearchParams(params);
+    if (value) next.set("period", value);
+    else next.delete("period");
+    setParams(next, { replace: true });
+  };
 
   const { data, error, isLoading } = useQuery({
     queryKey: ["financial-review", activeWorkspace?.tenant.id, period],
@@ -100,22 +121,30 @@ export function ReviewPage() {
     retry: false,
   });
 
+  const periodSelect = (
+    <Select
+      aria-label="Review period"
+      value={period}
+      onChange={(e) => setPeriod(e.target.value)}
+      options={options}
+    />
+  );
+
   return (
     <>
-      <PageHeader
-        eyebrow="Meaning"
-        title={data?.period.label ?? "Financial review"}
-        description="Where you stand, what changed, and what to do next — the sit-down an advisor would run, from your own ledger."
-        illustration="insight"
-        actions={
-          <Select
-            aria-label="Review period"
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            options={options}
-          />
-        }
-      />
+      {embedded ? (
+        <div className="lf-page-header-actions" style={{ justifyContent: "flex-end", marginBottom: "var(--lf-space-4)" }}>
+          {periodSelect}
+        </div>
+      ) : (
+        <PageHeader
+          eyebrow="Meaning"
+          title={data?.period.label ?? "Financial review"}
+          description="Where you stand, what changed, and what to do next — the sit-down an advisor would run, from your own ledger."
+          illustration="insight"
+          actions={periodSelect}
+        />
+      )}
 
       {isLoading && <Skeleton width="50%" />}
 

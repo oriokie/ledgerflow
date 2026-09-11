@@ -25,6 +25,7 @@ function line(over: Partial<BudgetLineStatus> = {}): BudgetLineStatus {
     remaining_minor: limit - actual,
     percent_used: limit ? Math.round((actual / limit) * 1000) / 10 : 0,
     over_budget: actual > limit,
+    rollover: false,
     ...over,
   };
 }

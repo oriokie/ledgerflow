@@ -4,7 +4,8 @@ import type { IncomeFrequency, IncomeKind, Reliability } from "../../api/income"
 import { useAccounts } from "../../hooks/useFinance";
 import { useCreateIncomeSource } from "../../hooks/useIncome";
 import { useAuth } from "../../lib/AuthContext";
-import { amountInputStep, CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
+import { useCurrencyOptions } from "../../hooks/useCurrencies";
+import { amountInputStep, workspaceCurrency } from "../../lib/currencies";
 import { majorToMinor } from "../../lib/money";
 import { Banner, Button, Card, Inline, Input, Select, Stack, Text } from "../../ui";
 import {
@@ -63,6 +64,7 @@ export function CreateIncomeSourceForm({
   onCancel: () => void;
 }) {
   const { activeWorkspace } = useAuth();
+  const currencySelect = useCurrencyOptions();
   const create = useCreateIncomeSource();
   const { data: accounts } = useAccounts();
 
@@ -198,7 +200,7 @@ export function CreateIncomeSourceForm({
             hint="Defaults to your workspace currency. This can't be changed once the source is saved."
             value={currency}
             onChange={(e) => setCurrency(e.target.value)}
-            options={CURRENCY_OPTIONS}
+            options={currencySelect}
           />
 
           <Input

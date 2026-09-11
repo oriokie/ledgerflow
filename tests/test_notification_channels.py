@@ -228,6 +228,26 @@ def test_the_summary_leads_with_a_verdict():
     # The verdict is the only line most people read, so it comes first.
     assert text.index("put aside") < text.index("Money in")
     assert "unsubscribe" in text.lower() or "Turn them off" in text
+    assert "Open your financial review" in text
+    assert "/review" in text
+
+
+def test_the_summary_deep_links_the_month_it_covers():
+    from datetime import date
+
+    text = render_summary_text(
+        {
+            "month_label": "June 2026",
+            "income_minor": 500_000,
+            "spending_minor": 320_000,
+            "net_minor": 180_000,
+            "net_worth_minor": 2_400_000,
+            "period_start": date(2026, 6, 1),
+        },
+        currency="KES",
+        name="Amina",
+    )
+    assert "period=2026-06" in text
 
 
 def test_the_summary_names_a_shortfall_plainly():

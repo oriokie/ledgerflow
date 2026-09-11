@@ -4,7 +4,8 @@ import type { ReceivableKind } from "../../api/receivables";
 import { useCreateReceivable } from "../../hooks/useReceivables";
 import { useAccounts } from "../../hooks/useFinance";
 import { useAuth } from "../../lib/AuthContext";
-import { CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
+import { useCurrencyOptions } from "../../hooks/useCurrencies";
+import { workspaceCurrency } from "../../lib/currencies";
 import { majorToMinor } from "../../lib/money";
 import { Banner, Button, Card, Grid, Inline, Input, Select, Stack, Text } from "../../ui";
 import { KIND_LABEL } from "./receivablesCopy";
@@ -28,6 +29,7 @@ export function CreateReceivableForm({
   onCancel: () => void;
 }) {
   const { activeWorkspace } = useAuth();
+  const currencySelect = useCurrencyOptions();
   const create = useCreateReceivable();
   const { data: accounts } = useAccounts();
 
@@ -115,7 +117,7 @@ export function CreateReceivableForm({
               hint="This can't be changed once there are repayments against it."
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              options={CURRENCY_OPTIONS}
+              options={currencySelect}
             />
           </Grid>
 

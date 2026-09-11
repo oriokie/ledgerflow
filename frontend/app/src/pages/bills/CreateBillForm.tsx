@@ -5,7 +5,8 @@ import { z } from "zod";
 import { ApiError } from "../../api/client";
 import { useCategories, useCreateBill } from "../../hooks/useFinance";
 import { useAuth } from "../../lib/AuthContext";
-import { amountInputStep, CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
+import { useCurrencyOptions } from "../../hooks/useCurrencies";
+import { amountInputStep, workspaceCurrency } from "../../lib/currencies";
 import { majorToMinor } from "../../lib/money";
 import { Banner, Button, Card, Grid, Inline, Input, Select, Stack } from "../../ui";
 
@@ -24,6 +25,7 @@ type BillFormValues = z.infer<typeof billSchema>;
 export function CreateBillForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
   const { activeWorkspace } = useAuth();
   const books = workspaceCurrency(activeWorkspace?.tenant);
+  const currencySelect = useCurrencyOptions();
   const { data: categories } = useCategories();
   const createBill = useCreateBill();
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +75,7 @@ export function CreateBillForm({ onCreated, onCancel }: { onCreated: () => void;
             />
             <Select
               label="Currency"
-              options={CURRENCY_OPTIONS}
+              options={currencySelect}
               error={errors.currency?.message}
               {...register("currency")}
             />

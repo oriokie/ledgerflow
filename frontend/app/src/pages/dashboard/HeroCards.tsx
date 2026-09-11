@@ -66,15 +66,25 @@ export function NetWorthCard({
       <Figure
         label="Net worth"
         size="hero"
-        amountMinor={netWorth.net_minor}
+        amountMinor={netWorth.net_minor + (netWorth.asset_value_minor ?? 0)}
         currency={currency}
         neutral
         delta={<DeltaChip pct={delta} suffix="6 mo" />}
         hint={
-          <>
-            {formatAmountSigned(netWorth.assets_minor, currency)} assets &minus;{" "}
-            {formatAmountSigned(netWorth.liabilities_minor, currency)} liabilities
-          </>
+          (netWorth.asset_value_minor ?? 0) > 0 ? (
+            <>
+              {formatAmountSigned(netWorth.assets_minor, currency)} in accounts +{" "}
+              {formatAmountSigned(netWorth.asset_value_minor ?? 0, currency)}{" "}
+              <Link to="/assets">property</Link>
+              {" "}
+              &minus; {formatAmountSigned(netWorth.liabilities_minor, currency)} liabilities
+            </>
+          ) : (
+            <>
+              {formatAmountSigned(netWorth.assets_minor, currency)} assets &minus;{" "}
+              {formatAmountSigned(netWorth.liabilities_minor, currency)} liabilities
+            </>
+          )
         }
       />
 

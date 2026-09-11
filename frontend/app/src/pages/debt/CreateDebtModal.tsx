@@ -5,7 +5,8 @@ import { z } from "zod";
 import { ApiError } from "../../api/client";
 import { useCreateDebt } from "../../hooks/useDebt";
 import { useAuth } from "../../lib/AuthContext";
-import { CURRENCY_OPTIONS, workspaceCurrency } from "../../lib/currencies";
+import { useCurrencyOptions } from "../../hooks/useCurrencies";
+import { workspaceCurrency } from "../../lib/currencies";
 import { majorToMinor } from "../../lib/money";
 import { Banner, Button, Grid, Input, Modal, Select, Stack, Text } from "../../ui";
 
@@ -59,6 +60,7 @@ type DebtForm = z.infer<typeof schema>;
  */
 export function CreateDebtModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { activeWorkspace } = useAuth();
+  const currencySelect = useCurrencyOptions();
   const createDebt = useCreateDebt();
   const [error, setError] = useState<string | null>(null);
 
@@ -145,7 +147,7 @@ export function CreateDebtModal({ open, onClose }: { open: boolean; onClose: () 
             />
             <Select
               label="Currency"
-              options={CURRENCY_OPTIONS}
+              options={currencySelect}
               error={errors.currency?.message}
               {...register("currency")}
             />

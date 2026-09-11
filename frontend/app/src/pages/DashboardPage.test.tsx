@@ -52,6 +52,7 @@ vi.mock("../lib/AuthContext", () => ({
 }));
 vi.mock("../hooks/useEntitlements", () => ({
   useAiEnabled: () => ({ aiEnabled: true, isLoading: false }),
+  useFeatures: () => ({ has: () => true, lapsed: false, trialing: false, trialDaysLeft: null, isLoading: false }),
 }));
 vi.mock("../hooks/useDismissible", () => ({
   useDismissible: () => [false, vi.fn()],

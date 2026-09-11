@@ -470,6 +470,40 @@ class WriteSettingSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, default="", max_length=1000)
 
 
+class CurrencyCreateSerializer(ReasonMixin):
+    code = serializers.CharField(max_length=3, min_length=3)
+    name = serializers.CharField(max_length=64)
+    symbol = serializers.CharField(max_length=12, required=False, allow_blank=True, default="")
+    digits = serializers.IntegerField(min_value=0, max_value=4, required=False, default=2)
+    is_active = serializers.BooleanField(required=False, default=True)
+    sort_order = serializers.IntegerField(min_value=0, required=False, default=100)
+    usd_rate = serializers.DecimalField(max_digits=24, decimal_places=12, required=False)
+
+
+class CurrencyUpdateSerializer(ReasonMixin):
+    name = serializers.CharField(max_length=64, required=False)
+    symbol = serializers.CharField(max_length=12, required=False)
+    digits = serializers.IntegerField(min_value=0, max_value=4, required=False)
+    is_active = serializers.BooleanField(required=False)
+    sort_order = serializers.IntegerField(min_value=0, required=False)
+
+    def validate(self, attrs):
+        data = dict(attrs)
+        data.pop("reason", None)
+        if not data:
+            raise serializers.ValidationError("Nothing to change.")
+        return attrs
+
+
+class CurrencyRateSerializer(ReasonMixin):
+    rate = serializers.DecimalField(max_digits=24, decimal_places=12)
+    source = serializers.CharField(max_length=40, required=False, default="manual")
+
+
+class FxRefreshSerializer(ReasonMixin):
+    force = serializers.BooleanField(required=False, default=False)
+
+
 class SavedViewSerializer(serializers.Serializer):
     id = serializers.UUIDField(read_only=True)
     surface = serializers.CharField(max_length=40)

@@ -39,7 +39,8 @@ import type { Column } from "../ui";
 import { AccountDetail, AccountList, EditAccountModal, StatementModal, WalletsSection } from "./accounts";
 import { AccountTypeIcon } from "./accounts/AccountTypeIcon";
 import { useOpenOnParam } from "../hooks/useOpenOnParam";
-import { CURRENCY_OPTIONS, workspaceCurrency } from "../lib/currencies";
+import { useCurrencyOptions } from "../hooks/useCurrencies";
+import { workspaceCurrency } from "../lib/currencies";
 import { majorToMinor } from "../lib/money";
 import { useAuth } from "../lib/AuthContext";
 import { groupAccounts, primaryCurrency, summarizeByCurrency } from "./accounts/summary";
@@ -118,6 +119,7 @@ function SummaryBar({ accounts }: { accounts: FinancialAccount[] }) {
 export function AccountsPage() {
   const { activeWorkspace } = useAuth();
   const baseCurrency = workspaceCurrency(activeWorkspace?.tenant);
+  const currencySelect = useCurrencyOptions();
   const [showDeactivated, setShowDeactivated] = useState(false);
   const { data: accounts, isLoading } = useAccounts(showDeactivated);
   const { data: wallets } = useWallets();
@@ -415,7 +417,7 @@ export function AccountsPage() {
               <Select
                 label="Currency"
                 required
-                options={CURRENCY_OPTIONS}
+                options={currencySelect}
                 hint="Fixed once set. Reports filter to one currency rather than converting."
                 error={accountForm.formState.errors.currency?.message}
                 {...accountForm.register("currency")}
