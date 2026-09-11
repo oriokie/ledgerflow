@@ -108,7 +108,14 @@ export function AdminTenantsPage() {
       header: "Plan",
       render: (row: TenantRow) => (
         <Stack gap={1}>
-          <span>{row.plan_name || "—"}</span>
+          <span>
+            {row.plan_name || "—"}
+            {" · "}
+            <span className="lf-admin-code">{row.currency}</span>
+            {row.billing_currency && row.billing_currency !== row.currency
+              ? ` · billed ${row.billing_currency}`
+              : ""}
+          </span>
           {row.subscription_status ? (
             <Badge tone={tone(row.subscription_status)}>
               {row.subscription_status.replace(/_/g, " ")}
@@ -128,21 +135,6 @@ export function AdminTenantsPage() {
       align: "right" as const,
       render: (row: TenantRow) =>
         row.subscription_status ? money(row.mrr_minor, row.billing_currency || row.currency) : "—",
-    },
-    {
-      key: "currency",
-      header: "Books",
-      hideMobile: true,
-      render: (row: TenantRow) => (
-        <Stack gap={1}>
-          <span className="lf-admin-code">{row.currency}</span>
-          {row.billing_currency && row.billing_currency !== row.currency && (
-            <Text size="xs" tone="tertiary">
-              billed {row.billing_currency}
-            </Text>
-          )}
-        </Stack>
-      ),
     },
     {
       key: "members",
@@ -268,7 +260,6 @@ export function AdminTenantsPage() {
             rowKey={(row) => row.id}
             caption="Customer workspaces"
             responsive
-            stickyHeader
             sort={sort}
             onSort={handleSort}
           />
