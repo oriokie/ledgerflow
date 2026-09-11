@@ -1487,7 +1487,11 @@ class CurrencyRateView(PlatformAdminAPIView, APIView):
             staff=self.staff,
             module="fx",
             target_type="fx.Currency",
-            changes={"code": [None, row["code"]], "usd_rate": [None, row["usd_rate"]], "source": [None, source]},
+            changes={
+                "code": [None, row["code"]],
+                "usd_rate": [None, row["usd_rate"]],
+                "source": [None, source],
+            },
             reason=reason,
             request=request,
         )

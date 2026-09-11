@@ -30,9 +30,7 @@ class Currency(TimeStampedModel):
     class Meta:
         ordering = ["sort_order", "code"]
         constraints = [
-            models.CheckConstraint(
-                condition=models.Q(code__regex=r"^[A-Z]{3}$"), name="fx_currency_iso4217"
-            ),
+            models.CheckConstraint(condition=models.Q(code__regex=r"^[A-Z]{3}$"), name="fx_currency_iso4217"),
             models.CheckConstraint(condition=models.Q(digits__lte=4), name="fx_currency_digits_range"),
         ]
 
