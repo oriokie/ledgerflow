@@ -3,6 +3,8 @@ import { useMemo, useState } from "react";
 import { financeExtendedApi } from "../api/finance";
 import { ImportXlsxModal } from "../components/ImportXlsxModal";
 import { useAccounts, useBills, useCancelBill, usePayBill } from "../hooks/useFinance";
+import { useAuth } from "../lib/AuthContext";
+import { workspaceCurrency } from "../lib/currencies";
 import { Button, Card, EmptyState, IconButton, PageHeader, SkeletonCard, Text, useToast } from "../ui";
 import { BillGroup, BillsSummary, CreateBillForm } from "./bills";
 import { billBuckets, billTotals } from "./bills/billsMath";
@@ -12,6 +14,7 @@ import { useOpenOnParam } from "../hooks/useOpenOnParam";
  * `/insights`). The hub owns the <h1>, so the page must not render its own
  * PageHeader — two page titles on one route is a broken heading outline. */
 export function BillsPage({ embedded }: { embedded?: boolean } = {}) {
+  const { activeWorkspace } = useAuth();
   const { data: bills, isLoading } = useBills({ upcoming: 45 });
   const { data: accounts } = useAccounts();
   const payBill = usePayBill();
@@ -24,7 +27,7 @@ export function BillsPage({ embedded }: { embedded?: boolean } = {}) {
   const list = bills ?? [];
   const buckets = billBuckets(list, asOf);
   const totals = billTotals(list, asOf);
-  const currency = list[0]?.currency ?? "USD";
+  const currency = list[0]?.currency ?? workspaceCurrency(activeWorkspace?.tenant);
   const nothingDue = buckets.overdue.length + buckets.dueThisWeek.length + buckets.later.length === 0;
 
   const onPay = async (billId: string, accountId: string) => {

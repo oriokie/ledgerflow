@@ -150,6 +150,8 @@ export interface NetWorthByCurrency {
   net_minor: number;
   /** Market value less cost, across priced holdings. 0 when nothing is held. */
   unrealized_gain_minor?: number;
+  /** Houses, cars, land — overlay, not a ledger balance. */
+  asset_value_minor?: number;
   market_assets_minor?: number;
   market_net_minor?: number;
 }
@@ -258,6 +260,15 @@ export interface BudgetLineStatus {
   remaining_minor: number;
   percent_used: number;
   over_budget: boolean;
+  rollover: boolean;
+}
+
+export interface BudgetAssignment {
+  income_minor: number;
+  income_known: boolean;
+  assigned_minor: number;
+  unassigned_minor: number | null;
+  overspent_minor: number;
 }
 
 export interface BudgetStatus {
@@ -265,6 +276,7 @@ export interface BudgetStatus {
   as_of: string;
   period_start: string;
   period_end: string;
+  assignment?: BudgetAssignment;
   lines: BudgetLineStatus[];
 }
 

@@ -31,6 +31,18 @@ from apps.common.tenant_context import use_tenant
 logger = logging.getLogger("ledgerflow.notifications.summary")
 
 
+def _review_url(summary: dict) -> str:
+    """Deep-link the monthly sit-down, not the reports catalogue.
+
+    The summary exists to answer "was last month fine?" and then hand the
+    reader the document that answers it. Reports are a list of charts; the
+    review is the sit-down.
+    """
+    start = summary.get("period_start")
+    period = start.strftime("%Y-%m") if hasattr(start, "strftime") else ""
+    return build("review", period=period)
+
+
 def _previous_month(today: date) -> tuple[date, date]:
     """First and last day of the month before `today`."""
     first_of_this = today.replace(day=1)
@@ -113,7 +125,7 @@ def render_summary_text(summary: dict, *, currency: str, name: str = "") -> str:
         lines.append(f"  Net worth   {_money(summary['net_worth_minor'], currency)}")
     lines += [
         "",
-        f"See the detail: {build('reports')}",
+        f"Open your financial review: {_review_url(summary)}",
         "",
         f"Don't want these? Turn them off here: {build('settings/preferences')}",
     ]
@@ -144,7 +156,7 @@ def render_summary_html(summary: dict, *, currency: str, name: str = "") -> str:
     body = (
         h.hero(verdict_amount, caption, tone="accent" if saved else "danger")
         + h.figure_row(pairs)
-        + h.button("See the detail", build("reports"))
+        + h.button("Open your financial review", _review_url(summary))
     )
     greeting_name = name or "there"
     return h.wrap(

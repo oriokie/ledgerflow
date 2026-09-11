@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Users,
   Wallet,
+  Home,
   type LucideIcon,
 } from "lucide-react";
 
@@ -52,6 +53,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
       { to: "/transactions", label: "Transactions", icon: ArrowLeftRight },
       { to: "/accounts", label: "Accounts", icon: Wallet },
+      { to: "/assets", label: "Property", icon: Home },
       { to: "/income", label: "Income", icon: Banknote },
       { to: "/categories", label: "Categories", icon: FolderTree },
       { to: "/bills", label: "Bills", icon: Receipt },

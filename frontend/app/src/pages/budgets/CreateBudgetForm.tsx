@@ -4,6 +4,9 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ApiError } from "../../api/client";
 import { useCreateBudget } from "../../hooks/useBudgeting";
+import { useAuth } from "../../lib/AuthContext";
+import { useCurrencyOptions } from "../../hooks/useCurrencies";
+import { workspaceCurrency } from "../../lib/currencies";
 import { Banner, Button, Card, Grid, Inline, Input, Select, Stack } from "../../ui";
 
 const budgetSchema = z.object({
@@ -22,6 +25,8 @@ export function CreateBudgetForm({
   onCancel: () => void;
 }) {
   const createBudget = useCreateBudget();
+  const { activeWorkspace } = useAuth();
+  const currencySelect = useCurrencyOptions();
   const [error, setError] = useState<string | null>(null);
   const {
     register,
@@ -29,7 +34,11 @@ export function CreateBudgetForm({
     formState: { errors, isSubmitting },
   } = useForm<BudgetFormValues>({
     resolver: zodResolver(budgetSchema),
-    defaultValues: { currency: "USD", period: "monthly", starts_on: new Date().toISOString().slice(0, 10) },
+    defaultValues: {
+      currency: workspaceCurrency(activeWorkspace?.tenant),
+      period: "monthly",
+      starts_on: new Date().toISOString().slice(0, 10),
+    },
   });
 
   const onSubmit = handleSubmit(async (values) => {
@@ -60,7 +69,12 @@ export function CreateBudgetForm({
             />
           </Grid>
           <Grid cols={2} gap={4}>
-            <Input label="Currency" maxLength={3} error={errors.currency?.message} {...register("currency")} />
+            <Select
+              label="Currency"
+              options={currencySelect}
+              error={errors.currency?.message}
+              {...register("currency")}
+            />
             <Input label="Starts on" type="date" error={errors.starts_on?.message} {...register("starts_on")} />
           </Grid>
           {error && <Banner tone="danger">{error}</Banner>}

@@ -6,15 +6,24 @@
  * formatters are shared across every admin page anyway.
  */
 
+import { FALLBACK_CURRENCY } from "../../lib/currencies";
+import { formatAmountSigned } from "../../lib/money";
+
 /** Minor units → a localized currency string. Money is integer minor units
- * everywhere in this product, so every display goes through here. */
-export function money(minor: number | null | undefined, currency = "USD"): string {
+ * everywhere in this product, so every display goes through here. The currency
+ * is required for a real amount: a silent USD default is how a KES invoice
+ * used to render as dollars. */
+export function money(minor: number | null | undefined, currency?: string): string {
   if (minor === null || minor === undefined) return "—";
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(minor / 100);
+  return formatAmountSigned(minor, currency || FALLBACK_CURRENCY);
+}
+
+/** Two-letter mark from a workspace name, for the directory avatar. */
+export function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 /** A 0–1 rate as a percentage. `null` renders as an em dash rather than "0.0%",

@@ -111,6 +111,10 @@ class PlatformCapability(StrEnum):
     # Operations
     HEALTH_READ = "health.read"
     WEBHOOK_REPLAY = "webhook.replay"
+    #: The ISO catalog and USD reference rates every workspace reads. Distinct
+    #: from HEALTH_READ so an auditor can see the list without writing a rate
+    #: that would reprice every mixed-currency total overnight.
+    FX_MANAGE = "fx.manage"
 
     # Customer account recovery
     USER_RECOVER = "user.recover"
@@ -170,7 +174,16 @@ ROLE_CAPABILITIES: dict[PlatformRole, frozenset[PlatformCapability]] = {
     ),
     # Finance approves and reconciles money but does not touch product state.
     PlatformRole.FINANCE: _READ_ONLY
-    | frozenset({C.REFUND_REQUEST, C.REFUND_APPROVE, C.PAYMENT_RECONCILE, C.CREDIT_ISSUE, C.INVOICE_WRITE}),
+    | frozenset(
+        {
+            C.REFUND_REQUEST,
+            C.REFUND_APPROVE,
+            C.PAYMENT_RECONCILE,
+            C.CREDIT_ISSUE,
+            C.INVOICE_WRITE,
+            C.FX_MANAGE,
+        }
+    ),
     PlatformRole.CUSTOMER_SUCCESS: _READ_ONLY
     | frozenset(
         {

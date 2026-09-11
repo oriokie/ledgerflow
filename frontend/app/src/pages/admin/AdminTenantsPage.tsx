@@ -18,12 +18,17 @@ import {
   useTenantAction,
   useTenants,
 } from "../../hooks/usePlatform";
+import { countryName } from "../../lib/countries";
+import { majorToMinor } from "../../lib/money";
 import {
+  Banner,
   Eyebrow,
   Badge,
   Button,
   Card,
   EmptyState,
+  Figure,
+  FigureRow,
   Grid,
   Heading,
   Input,
@@ -37,13 +42,14 @@ import {
 } from "../../ui";
 import type { SortDirection } from "../../ui";
 import { AdminPagination } from "./AdminPagination";
-import { bytes, day, humanize, money, moment, tone } from "./format";
+import { bytes, day, humanize, initials, money, moment, tone } from "./format";
 
 export function AdminTenantsPage() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [planId, setPlanId] = useState("");
   const [country, setCountry] = useState("");
+  const [subscriptionStatus, setSubscriptionStatus] = useState("");
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<{ key: string; direction: SortDirection }>({
     key: "created_at",
@@ -54,6 +60,7 @@ export function AdminTenantsPage() {
     status,
     plan_id: planId,
     country,
+    subscription_status: subscriptionStatus,
     order_by: `${sort.direction === "desc" ? "-" : ""}${sort.key}`,
     page,
   });
@@ -81,14 +88,19 @@ export function AdminTenantsPage() {
       header: "Workspace",
       sortable: true,
       render: (row: TenantRow) => (
-        <Stack gap={1}>
-          <Link to={`/admin/tenants/${row.id}`} className="lf-admin-link">
-            {row.name}
-          </Link>
-          <Text size="xs" tone="tertiary">
-            {row.owner_email || "No owner on record"}
-          </Text>
-        </Stack>
+        <div className="lf-admin-tenant-cell">
+          <span className="lf-admin-tenant-mark" aria-hidden>
+            {initials(row.name)}
+          </span>
+          <Stack gap={1}>
+            <Link to={`/admin/tenants/${row.id}`} className="lf-admin-link">
+              {row.name}
+            </Link>
+            <Text size="xs" tone="tertiary">
+              {row.owner_email || row.billing_email || "No owner on record"}
+            </Text>
+          </Stack>
+        </div>
       ),
     },
     {
@@ -96,11 +108,23 @@ export function AdminTenantsPage() {
       header: "Plan",
       render: (row: TenantRow) => (
         <Stack gap={1}>
-          <span>{row.plan_name || "—"}</span>
-          {row.subscription_status && (
+          <span>
+            {row.plan_name || "—"}
+            {" · "}
+            <span className="lf-admin-code">{row.currency}</span>
+            {row.billing_currency && row.billing_currency !== row.currency
+              ? ` · billed ${row.billing_currency}`
+              : ""}
+          </span>
+          {row.subscription_status ? (
             <Badge tone={tone(row.subscription_status)}>
               {row.subscription_status.replace(/_/g, " ")}
             </Badge>
+          ) : null}
+          {row.subscription_status === "trialing" && row.trial_ends_at && (
+            <Text size="xs" tone="tertiary">
+              Trial until {day(row.trial_ends_at)}
+            </Text>
           )}
         </Stack>
       ),
@@ -109,7 +133,8 @@ export function AdminTenantsPage() {
       key: "mrr",
       header: "MRR",
       align: "right" as const,
-      render: (row: TenantRow) => money(row.mrr_minor, row.currency),
+      render: (row: TenantRow) =>
+        row.subscription_status ? money(row.mrr_minor, row.billing_currency || row.currency) : "—",
     },
     {
       key: "members",
@@ -123,13 +148,20 @@ export function AdminTenantsPage() {
       key: "country",
       header: "Country",
       hideMobile: true,
-      render: (row: TenantRow) => row.country || "—",
+      render: (row: TenantRow) => countryName(row.country) || "—",
     },
     {
       key: "state",
       header: "State",
       render: (row: TenantRow) =>
         row.is_active ? <Badge tone="success">Active</Badge> : <Badge tone="danger">Suspended</Badge>,
+    },
+    {
+      key: "last_activity",
+      header: "Last seen",
+      hideMobile: true,
+      sortable: true,
+      render: (row: TenantRow) => day(row.last_activity),
     },
     {
       key: "created_at",
@@ -188,11 +220,26 @@ export function AdminTenantsPage() {
           }}
         />
         <Select
+          label="Billing"
+          value={subscriptionStatus}
+          options={[
+            { value: "", label: "Any status" },
+            { value: "trialing", label: "Trialing" },
+            { value: "active", label: "Paying" },
+            { value: "past_due", label: "Past due" },
+            { value: "canceled", label: "Canceled" },
+          ]}
+          onChange={(event) => {
+            setSubscriptionStatus(event.target.value);
+            setPage(1);
+          }}
+        />
+        <Select
           label="Country"
           value={country}
           options={[
             { value: "", label: "All" },
-            ...countryOptions.map((code) => ({ value: code, label: code })),
+            ...countryOptions.map((code) => ({ value: code, label: countryName(code) || code })),
           ]}
           onChange={(event) => {
             setCountry(event.target.value);
@@ -213,7 +260,6 @@ export function AdminTenantsPage() {
             rowKey={(row) => row.id}
             caption="Customer workspaces"
             responsive
-            stickyHeader
             sort={sort}
             onSort={handleSort}
           />
@@ -313,8 +359,9 @@ export function AdminTenantDetailPage() {
           body.months = Number(months);
         }
         if (pending.kind === "credit") {
-          body.amount_minor = Math.round(Number(amount) * 100);
-          body.currency = tenant.currency;
+          const billed = tenant.billing_currency || tenant.subscription?.currency || tenant.currency;
+          body.amount_minor = majorToMinor(Number(amount), billed);
+          body.currency = billed;
         }
         await action.mutateAsync({ action: pending.kind, body });
         toast("The action was recorded in the audit log.", { tone: "success" });
@@ -327,6 +374,8 @@ export function AdminTenantDetailPage() {
 
   const copy = pending ? ACTION_COPY[pending.kind] : null;
   const sub = tenant.subscription;
+  const billedIn = tenant.billing_currency || sub?.currency || "";
+  const currenciesDiverge = Boolean(billedIn && billedIn !== tenant.currency);
   const liveSessions = (sessions?.results ?? []).filter(
     (grant) => grant.tenant_id === tenantId && grant.status === "active",
   );
@@ -349,10 +398,11 @@ export function AdminTenantDetailPage() {
             ) : (
               <Badge tone="danger">Suspended</Badge>
             )}
+            <Badge tone="neutral">{humanize(tenant.type)}</Badge>
           </div>
           <Text size="sm" tone="secondary">
-            {humanize(tenant.type)} · {tenant.country || "Country not stated"} · {tenant.currency} ·{" "}
-            {tenant.timezone}
+            {countryName(tenant.country) || "Country not stated"} · {tenant.timezone}
+            {tenant.billing_email ? ` · ${tenant.billing_email}` : ""}
           </Text>
         </div>
         {can("tenant.impersonate") && (
@@ -364,7 +414,63 @@ export function AdminTenantDetailPage() {
         )}
       </div>
 
-      <Grid cols={4} gap={3}>
+      {currenciesDiverge && (
+        <Banner tone="warning">
+          Books are kept in {tenant.currency}. The subscription is billed in {billedIn}. MRR, invoices
+          and credits use {billedIn}.
+        </Banner>
+      )}
+
+      <Card>
+        <FigureRow lead>
+          {sub ? (
+            <Figure
+              label="MRR"
+              size="hero"
+              amountMinor={sub.mrr_minor}
+              currency={billedIn || tenant.currency}
+              neutral
+              hint={`${sub.plan_name} · ${sub.interval}`}
+            />
+          ) : (
+            <Figure label="MRR" size="hero" value="—" hint="No subscription" />
+          )}
+          <Figure label="Seats" value={String(tenant.usage.member_count)} />
+          <Figure label="Transactions" value={tenant.usage.transaction_count.toLocaleString()} />
+          <Figure label="Storage" value={bytes(tenant.usage.storage_bytes)} />
+        </FigureRow>
+      </Card>
+
+      <Grid cols={2} gap={3}>
+        <Card title="Workspace">
+          <Stack gap={2}>
+            <div className="lf-admin-kv">
+              <span>Books</span>
+              <strong className="lf-admin-code">{tenant.currency}</strong>
+            </div>
+            <div className="lf-admin-kv">
+              <span>Billed in</span>
+              <strong className="lf-admin-code">{billedIn || "—"}</strong>
+            </div>
+            <div className="lf-admin-kv">
+              <span>Country</span>
+              <span>{countryName(tenant.country) || "—"}</span>
+            </div>
+            <div className="lf-admin-kv">
+              <span>Locale</span>
+              <span>{tenant.locale || "—"}</span>
+            </div>
+            <div className="lf-admin-kv">
+              <span>Timezone</span>
+              <span>{tenant.timezone}</span>
+            </div>
+            <div className="lf-admin-kv">
+              <span>Joined</span>
+              <span>{day(tenant.created_at)}</span>
+            </div>
+          </Stack>
+        </Card>
+
         <Card title="Subscription">
           {sub ? (
             <Stack gap={2}>
@@ -377,8 +483,12 @@ export function AdminTenantDetailPage() {
                 <Badge tone={tone(sub.status)}>{sub.status.replace(/_/g, " ")}</Badge>
               </div>
               <div className="lf-admin-kv">
-                <span>MRR</span>
-                <strong>{money(sub.mrr_minor, sub.currency)}</strong>
+                <span>Price</span>
+                <strong>{money(sub.price_minor, sub.currency)}</strong>
+              </div>
+              <div className="lf-admin-kv">
+                <span>Provider</span>
+                <span>{humanize(sub.provider)}</span>
               </div>
               {sub.trial_end && (
                 <div className="lf-admin-kv">
@@ -399,13 +509,11 @@ export function AdminTenantDetailPage() {
             </Text>
           )}
         </Card>
+      </Grid>
 
+      <Grid cols={2} gap={3}>
         <Card title="Usage">
           <Stack gap={2}>
-            <div className="lf-admin-kv">
-              <span>Members</span>
-              <strong>{tenant.usage.member_count}</strong>
-            </div>
             <div className="lf-admin-kv">
               <span>Accounts</span>
               <strong>{tenant.usage.account_count}</strong>
@@ -413,6 +521,10 @@ export function AdminTenantDetailPage() {
             <div className="lf-admin-kv">
               <span>Transactions</span>
               <strong>{tenant.usage.transaction_count.toLocaleString()}</strong>
+            </div>
+            <div className="lf-admin-kv">
+              <span>Attachments</span>
+              <strong>{tenant.usage.attachment_count}</strong>
             </div>
             <div className="lf-admin-kv">
               <span>Storage</span>
@@ -434,6 +546,9 @@ export function AdminTenantDetailPage() {
                   <strong>{member.name || member.email}</strong>
                   <Text size="xs" tone="tertiary">
                     {member.email}
+                    {member.last_login_at
+                      ? ` · last in ${day(member.last_login_at)}`
+                      : " · never signed in"}
                   </Text>
                 </div>
                 <Badge tone="neutral">{member.role}</Badge>
@@ -623,7 +738,7 @@ export function AdminTenantDetailPage() {
           )}
           {pending.kind === "credit" && (
             <Input
-              label={`Amount (${tenant.currency})`}
+              label={`Amount (${tenant.billing_currency || tenant.subscription?.currency || tenant.currency})`}
               type="number"
               min={0}
               step="0.01"

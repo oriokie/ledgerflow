@@ -13,6 +13,8 @@ import {
 } from "../hooks/useDebt";
 import { debtApi } from "../api/debt";
 import { majorToMinor } from "../lib/money";
+import { workspaceCurrency } from "../lib/currencies";
+import { useAuth } from "../lib/AuthContext";
 import { plural } from "../lib/plural";
 import { Button, Card, EmptyState, Figure, Inline, Input, Money, PageHeader, SkeletonCard, Text } from "../ui";
 import {
@@ -38,6 +40,8 @@ import {
  * an ordering.
  */
 export function DebtPage() {
+  const { activeWorkspace } = useAuth();
+  const books = workspaceCurrency(activeWorkspace?.tenant);
   const [strategy, setStrategy] = useState<PayoffStrategy>("avalanche");
   const [extraInput, setExtraInput] = useState("");
   const [editing, setEditing] = useState<DebtView | null>(null);
@@ -47,7 +51,7 @@ export function DebtPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const deleteDebt = useDeleteDebt();
 
-  const extraMinor = extraInput ? majorToMinor(Number(extraInput) || 0) : 0;
+  const extraMinor = extraInput ? majorToMinor(Number(extraInput) || 0, books) : 0;
 
   const { data: summary, isLoading } = useDebtSummary(extraMinor);
   const { data: debts } = useDebts();
@@ -64,7 +68,7 @@ export function DebtPage() {
     months: 12,
   });
 
-  const currency = summary?.currency ?? "USD";
+  const currency = summary?.currency ?? books;
 
   // The cards that can't compute a figure offer the fix rather than just
   // reporting the gap. `debt_views` sorts largest balance first, so the first

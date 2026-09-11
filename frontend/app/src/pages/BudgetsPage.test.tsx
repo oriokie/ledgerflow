@@ -20,6 +20,7 @@ const status: BudgetStatus = {
       remaining_minor: -12000,
       percent_used: 130,
       over_budget: true,
+      rollover: false,
     },
     {
       line_id: "l2",
@@ -32,6 +33,7 @@ const status: BudgetStatus = {
       remaining_minor: 12000,
       percent_used: 40,
       over_budget: false,
+      rollover: false,
     },
   ],
 };
@@ -46,6 +48,9 @@ vi.mock("../hooks/useBudgeting", () => ({
 }));
 vi.mock("../hooks/useFinance", () => ({
   useCategories: () => ({ data: [{ id: "c1", name: "Groceries", kind: "expense", path: "Groceries", depth: 0, parent_id: null }] }),
+}));
+vi.mock("../lib/AuthContext", () => ({
+  useAuth: () => ({ activeWorkspace: { tenant: { id: "t1", base_currency: "USD" } } }),
 }));
 
 import { BudgetsPage } from "./BudgetsPage";

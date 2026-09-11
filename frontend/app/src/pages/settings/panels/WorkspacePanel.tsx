@@ -6,19 +6,21 @@ import { ApiError } from "../../../api/client";
 import { useAuth } from "../../../lib/AuthContext";
 import { Badge, Banner, Button, Input, Select, Switch, Text, useToast } from "../../../ui";
 import { COUNTRY_OPTIONS } from "../../../lib/countries";
-import { CURRENCY_OPTIONS } from "../../../lib/currencies";
+import { useCurrencyOptions } from "../../../hooks/useCurrencies";
+import { workspaceCurrency } from "../../../lib/currencies";
 import { DangerZone, SettingsAdvanced, SettingsRow, SettingsSection } from "../components";
 
 export function WorkspacePanel() {
   const { activeWorkspace } = useAuth();
   const tenant = activeWorkspace?.tenant;
   const isOwner = activeWorkspace?.role === "owner";
+  const currencySelect = useCurrencyOptions();
   const toast = useToast();
   const [exporting, setExporting] = useState(false);
   const [confirmName, setConfirmName] = useState("");
   const [closing, setClosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const baseCurrency = tenant?.base_currency ?? "USD";
+  const baseCurrency = workspaceCurrency(tenant);
   const [savingCurrency, setSavingCurrency] = useState(false);
   const [savedCurrency, setSavedCurrency] = useState(false);
   const [savingCountry, setSavingCountry] = useState(false);
@@ -149,7 +151,7 @@ export function WorkspacePanel() {
             <div style={{ display: "flex", gap: "var(--lf-space-2)", alignItems: "center" }}>
               <Select
                 aria-label="Base currency"
-                options={CURRENCY_OPTIONS}
+                options={currencySelect}
                 value={baseCurrency}
                 onChange={(e) => saveBaseCurrency(e.target.value)}
                 disabled={savingCurrency}

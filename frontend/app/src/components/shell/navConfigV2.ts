@@ -11,6 +11,7 @@ import {
   TrendingDown,
   TrendingUp,
   Wallet,
+  Home,
   type LucideIcon,
 } from "lucide-react";
 
@@ -52,6 +53,7 @@ export const NAV_SECTIONS_V2: NavSectionV2[] = [
     items: [
       { to: "/", label: "Today", icon: LayoutDashboard, end: true },
       { to: "/accounts", label: "Accounts", icon: Wallet, metric: "netWorth" },
+      { to: "/assets", label: "Property", icon: Home },
       { to: "/income", label: "Income", icon: Banknote },
       { to: "/activity", label: "Activity", icon: ListOrdered, metric: "unreviewed" },
     ],
@@ -100,6 +102,7 @@ export const PLAN_TABS = [
 /** Tabs within `/insights`. */
 export const INSIGHT_TABS = [
   { value: "coach", label: "Briefing" },
+  { value: "review", label: "Review" },
   { value: "trends", label: "Trends" },
   { value: "reports", label: "Reports" },
   { value: "anomalies", label: "Health & anomalies" },

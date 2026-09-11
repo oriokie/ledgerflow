@@ -51,3 +51,54 @@ export const CURRENCY_OPTIONS = CURRENCIES.map((c) => ({
   value: c.code,
   label: `${c.code} — ${c.name}`,
 }));
+
+/** Matches `Tenant.base_currency` on the server. Only used when no workspace
+ * is loaded yet — never to override a stated base. */
+export const FALLBACK_CURRENCY = "USD";
+
+const BY_CODE = new Map(CURRENCIES.map((c) => [c.code, c]));
+
+export function getCurrency(code: string | null | undefined): CurrencyMeta | undefined {
+  if (!code) return undefined;
+  return BY_CODE.get(code.toUpperCase());
+}
+
+export function currencyDigits(code: string | null | undefined): number {
+  return getCurrency(code)?.digits ?? 2;
+}
+
+export function currencyScale(code: string | null | undefined): number {
+  return 10 ** currencyDigits(code);
+}
+
+export function workspaceCurrency(tenant?: { base_currency?: string | null } | null): string {
+  return tenant?.base_currency || FALLBACK_CURRENCY;
+}
+
+/** Prefer the workspace books currency when it appears in the data; otherwise
+ * the first available code. Never invents KES-vs-USD. */
+export function pickPreferredCurrency(preferred: string, available: readonly string[]): string {
+  const codes = available.filter(Boolean);
+  if (codes.includes(preferred)) return preferred;
+  return codes[0] ?? preferred;
+}
+
+export function amountInputStep(code: string | null | undefined): string {
+  const digits = currencyDigits(code);
+  if (digits <= 0) return "1";
+  return (1 / 10 ** digits).toFixed(digits);
+}
+
+export function currencyOptions(list: readonly CurrencyMeta[] = CURRENCIES) {
+  return list.map((c) => ({
+    value: c.code,
+    label: `${c.code} — ${c.name}`,
+  }));
+}
+
+/** Merge operator-added codes into the lookup so formatting learns their digits. */
+export function hydrateCurrencyCatalog(list: readonly CurrencyMeta[]): void {
+  for (const item of list) {
+    BY_CODE.set(item.code.toUpperCase(), item);
+  }
+}

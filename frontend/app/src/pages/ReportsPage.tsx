@@ -62,7 +62,7 @@ export function ReportsPage({ embedded }: { embedded?: boolean } = {}) {
 
   const actions = (
     <Inline gap={2}>
-      <Link className="lf-section-link" to="/review">
+      <Link className="lf-section-link" to="/insights?tab=review">
         Financial review
       </Link>
       <ReportFilterBar filters={filters} onChange={setFilters} />

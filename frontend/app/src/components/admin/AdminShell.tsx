@@ -2,6 +2,7 @@ import {
   Activity,
   BadgePercent,
   Building2,
+  Coins,
   CreditCard,
   FileText,
   Gauge,
@@ -75,7 +76,10 @@ const NAV_GROUPS: { label: string; items: NavEntry[] }[] = [
   },
   {
     label: "Operations",
-    items: [{ to: "/admin/health", label: "System", icon: Activity, capability: "health.read" }],
+    items: [
+      { to: "/admin/health", label: "System", icon: Activity, capability: "health.read" },
+      { to: "/admin/currencies", label: "Currencies", icon: Coins, capability: "health.read" },
+    ],
   },
   {
     label: "Support",

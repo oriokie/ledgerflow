@@ -2,7 +2,7 @@ import { Check, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import type { BudgetLineStatus } from "../../api/types";
 import { formatAmount, majorToMinor, minorToMajor } from "../../lib/money";
-import { Button, IconButton, Input, Money, useToast } from "../../ui";
+import { Button, IconButton, Input, Money, Switch, useToast } from "../../ui";
 import { BudgetProgressBar } from "./BudgetProgressBar";
 import { lineState } from "./budgetMath";
 
@@ -20,6 +20,7 @@ export function BudgetLineRow({
   pacePercent,
   paceJudgeable = true,
   onUpdateLimit,
+  onToggleRollover,
   onRemove,
 }: {
   line: BudgetLineStatus;
@@ -28,6 +29,7 @@ export function BudgetLineRow({
   /** False early in the period, when "on track" is true by construction. */
   paceJudgeable?: boolean;
   onUpdateLimit: (lineId: string, limitMinor: number) => Promise<unknown>;
+  onToggleRollover?: (lineId: string, rollover: boolean) => Promise<unknown>;
   onRemove: (lineId: string) => Promise<unknown>;
 }) {
   const state = lineState(line);
@@ -50,6 +52,17 @@ export function BudgetLineRow({
       await onUpdateLimit(line.line_id, majorToMinor(n));
       setEditing(false);
       toast(`${line.category_name} limit updated`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleRollover = async (next: boolean) => {
+    if (!onToggleRollover) return;
+    setBusy(true);
+    try {
+      await onToggleRollover(line.line_id, next);
+      toast(next ? `${line.category_name} will carry leftover` : `${line.category_name} will not carry leftover`);
     } finally {
       setBusy(false);
     }
@@ -137,6 +150,17 @@ export function BudgetLineRow({
               <IconButton label={`Remove ${line.category_name}`} icon={<Trash2 size={15} strokeWidth={1.8} />} onClick={() => setConfirmRemove(true)} />
             </span>
           )}
+        </div>
+      )}
+
+      {onToggleRollover && !editing && (
+        <div className="lf-budget-line-rollover">
+          <Switch
+            label="Carry leftover"
+            checked={line.rollover}
+            disabled={busy}
+            onChange={(e) => toggleRollover(e.target.checked)}
+          />
         </div>
       )}
     </div>

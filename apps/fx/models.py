@@ -1,8 +1,8 @@
-"""Exchange rates: global reference data (not tenant-scoped).
+"""FX reference data: the currency catalog and timestamped exchange rates.
 
-Every rate is timestamped and attributed to a source so historical conversions
-are reproducible and auditable. Cross-currency journal entries reference the
-rate used at posting time.
+Neither table is tenant-scoped. Operators maintain the catalog; every workspace
+reads the same list and the same rates. Historical conversions stay reproducible
+because every rate is attributed to a source and an as-of time.
 """
 
 from __future__ import annotations
@@ -10,6 +10,32 @@ from __future__ import annotations
 from django.db import models
 
 from apps.common.models import TimeStampedModel, UUIDModel
+
+
+class Currency(TimeStampedModel):
+    """An ISO 4217 code the product is willing to book in.
+
+    `code` is the identity — there is no surrogate key — so a row for KES is
+    the same row everywhere, and deactivating it hides it from pickers without
+    rewriting anyone's existing books.
+    """
+
+    code = models.CharField(max_length=3, primary_key=True)
+    name = models.CharField(max_length=64)
+    symbol = models.CharField(max_length=12)
+    digits = models.PositiveSmallIntegerField(default=2)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveSmallIntegerField(default=100)
+
+    class Meta:
+        ordering = ["sort_order", "code"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(code__regex=r"^[A-Z]{3}$"), name="fx_currency_iso4217"),
+            models.CheckConstraint(condition=models.Q(digits__lte=4), name="fx_currency_digits_range"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.code} ({self.name})"
 
 
 class ExchangeRate(UUIDModel, TimeStampedModel):

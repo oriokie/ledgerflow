@@ -18,6 +18,13 @@ describe("minor/major conversion", () => {
   it("round-trips a value", () => {
     expect(minorToMajor(majorToMinor(87.65))).toBe(87.65);
   });
+
+  it("uses ISO minor-unit scale for zero- and three-decimal currencies", () => {
+    expect(minorToMajor(1500, "JPY")).toBe(1500);
+    expect(majorToMinor(1500, "JPY")).toBe(1500);
+    expect(majorToMinor(1.234, "KWD")).toBe(1234);
+    expect(minorToMajor(1234, "KWD")).toBeCloseTo(1.234);
+  });
 });
 
 describe("formatAmountParts", () => {
@@ -34,6 +41,11 @@ describe("formatAmountParts", () => {
 describe("formatAmount", () => {
   it("recombines whole + cents", () => {
     expect(formatAmount(12345, "USD")).toBe("$123.45");
+  });
+
+  it("formats yen without a fractional part", () => {
+    expect(formatAmount(1500, "JPY")).toBe("¥1,500");
+    expect(formatAmountParts(1500, "JPY")).toEqual({ whole: "¥1,500", cents: "" });
   });
 });
 

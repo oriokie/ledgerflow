@@ -44,11 +44,11 @@ export interface GoalTotals {
  * and how many goals are done. Money totals use the most common currency (goals
  * can be in different currencies); counts span all live goals.
  */
-export function goalTotals(goals: SavingsGoal[] | undefined): GoalTotals {
+export function goalTotals(goals: SavingsGoal[] | undefined, fallback = "USD"): GoalTotals {
   const live = (goals ?? []).filter((g) => g.status !== "archived");
   const counts = new Map<string, number>();
   for (const g of live) counts.set(g.currency, (counts.get(g.currency) ?? 0) + 1);
-  const currency = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "USD";
+  const currency = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? fallback;
 
   let saved = 0;
   let target = 0;

@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAccounts, useCategoryBreakdown } from "../hooks/useFinance";
+import { useCategoryBreakdown } from "../hooks/useFinance";
 import { useIncomeSources } from "../hooks/useIncome";
 import { useSpendingTrend } from "../hooks/useIntelligence";
 import { useAuth } from "../lib/AuthContext";
+import { workspaceCurrency } from "../lib/currencies";
 import { Card, PageHeader, SegmentedControl, SkeletonCard, Text } from "../ui";
 import { CashFlowChart, CashflowStatement, CategoryBreakdown, CategoryDrilldown, ComparisonCards } from "./analytics";
 import { breakdownWithShare, comparisonFromTrend, rangeForMonths, topN } from "./analytics/analyticsMath";
@@ -25,13 +26,12 @@ export function AnalyticsPage({ embedded }: { embedded?: boolean } = {}) {
   const [selected, setSelected] = useState<{ id: string; name: string } | null>(null);
   const months = Number(monthsStr);
 
-  const { data: accounts } = useAccounts();
   const { data: sources } = useIncomeSources();
   const { data: trend, isLoading: trendLoading } = useSpendingTrend(months);
   const { start, end } = useMemo(() => rangeForMonths(months), [months]);
   const { data: breakdown } = useCategoryBreakdown(start, end, type);
 
-  const currency = activeWorkspace?.tenant.base_currency ?? accounts?.[0]?.currency ?? "KES";
+  const currency = workspaceCurrency(activeWorkspace?.tenant);
   const comparison = comparisonFromTrend(trend);
   const rows = topN(breakdownWithShare(breakdown), 8);
   const hasIncomePlan = (sources ?? []).some((s) => s.is_current);

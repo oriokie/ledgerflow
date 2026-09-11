@@ -4,6 +4,9 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ApiError } from "../../api/client";
 import { useCategories, useCreateBill } from "../../hooks/useFinance";
+import { useAuth } from "../../lib/AuthContext";
+import { useCurrencyOptions } from "../../hooks/useCurrencies";
+import { amountInputStep, workspaceCurrency } from "../../lib/currencies";
 import { majorToMinor } from "../../lib/money";
 import { Banner, Button, Card, Grid, Inline, Input, Select, Stack } from "../../ui";
 
@@ -20,6 +23,9 @@ const billSchema = z.object({
 type BillFormValues = z.infer<typeof billSchema>;
 
 export function CreateBillForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
+  const { activeWorkspace } = useAuth();
+  const books = workspaceCurrency(activeWorkspace?.tenant);
+  const currencySelect = useCurrencyOptions();
   const { data: categories } = useCategories();
   const createBill = useCreateBill();
   const [error, setError] = useState<string | null>(null);
@@ -28,15 +34,20 @@ export function CreateBillForm({ onCreated, onCancel }: { onCreated: () => void;
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
-  } = useForm<BillFormValues>({ resolver: zodResolver(billSchema), defaultValues: { currency: "USD" } });
+  } = useForm<BillFormValues>({
+    resolver: zodResolver(billSchema),
+    defaultValues: { currency: books },
+  });
+  const currency = watch("currency") || books;
 
   const onSubmit = handleSubmit(async (values) => {
     setError(null);
     try {
       await createBill.mutateAsync({
         name: values.name,
-        amount_minor: majorToMinor(Number(values.amount)),
+        amount_minor: majorToMinor(Number(values.amount), values.currency),
         currency: values.currency.toUpperCase(),
         due_on: values.due_on,
         category_id: values.category_id || undefined,
@@ -53,8 +64,21 @@ export function CreateBillForm({ onCreated, onCancel }: { onCreated: () => void;
         <Stack gap={4}>
           <Input label="Bill name" placeholder="e.g. Rent, Electric" error={errors.name?.message} {...register("name")} />
           <Grid cols={2} gap={4}>
-            <Input label="Amount" amount type="number" step="0.01" min="0.01" error={errors.amount?.message} {...register("amount")} />
-            <Input label="Currency" maxLength={3} error={errors.currency?.message} {...register("currency")} />
+            <Input
+              label="Amount"
+              amount
+              type="number"
+              step={amountInputStep(currency)}
+              min="0.01"
+              error={errors.amount?.message}
+              {...register("amount")}
+            />
+            <Select
+              label="Currency"
+              options={currencySelect}
+              error={errors.currency?.message}
+              {...register("currency")}
+            />
           </Grid>
           <Grid cols={2} gap={4}>
             <Input label="Due on" type="date" error={errors.due_on?.message} {...register("due_on")} />

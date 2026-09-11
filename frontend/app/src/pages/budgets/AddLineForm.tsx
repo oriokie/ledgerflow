@@ -6,7 +6,7 @@ import { ApiError } from "../../api/client";
 import type { Category } from "../../api/types";
 import { useAddBudgetLine } from "../../hooks/useBudgeting";
 import { majorToMinor } from "../../lib/money";
-import { Banner, Button, Card, Inline, Input, Select } from "../../ui";
+import { Banner, Button, Card, Checkbox, Inline, Input, Select } from "../../ui";
 
 const lineSchema = z.object({
   category_id: z.string().min(1, "Choose a category."),
@@ -14,6 +14,7 @@ const lineSchema = z.object({
     .string()
     .min(1, "Enter a limit greater than zero.")
     .refine((v) => !Number.isNaN(Number(v)) && Number(v) > 0, "Enter a limit greater than zero."),
+  rollover: z.boolean().optional(),
 });
 type LineFormValues = z.infer<typeof lineSchema>;
 
@@ -24,15 +25,24 @@ export function AddLineForm({ budgetId, availableCategories }: { budgetId: strin
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
-  } = useForm<LineFormValues>({ resolver: zodResolver(lineSchema) });
+  } = useForm<LineFormValues>({
+    resolver: zodResolver(lineSchema),
+    defaultValues: { category_id: "", limit: "", rollover: false },
+  });
 
   const onSubmit = handleSubmit(async (values) => {
     setError(null);
     try {
       await addLine.mutateAsync({
         budgetId,
-        payload: { category_id: values.category_id, limit_minor: majorToMinor(Number(values.limit)) },
+        payload: {
+          category_id: values.category_id,
+          limit_minor: majorToMinor(Number(values.limit)),
+          rollover: values.rollover ?? false,
+        },
       });
       reset();
     } catch (err) {
@@ -61,6 +71,13 @@ export function AddLineForm({ budgetId, availableCategories }: { budgetId: strin
             Add
           </Button>
         </Inline>
+        <div style={{ marginTop: "var(--lf-space-3)" }}>
+          <Checkbox
+            label="Carry leftover to the next period"
+            checked={watch("rollover") ?? false}
+            onChange={(e) => setValue("rollover", e.target.checked)}
+          />
+        </div>
       </form>
       {error && (
         <div style={{ marginTop: "var(--lf-space-3)" }}>

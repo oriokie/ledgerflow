@@ -24,6 +24,7 @@ import "./styles/coach.css";
 import "./styles/investments.css";
 import "./styles/debt.css";
 import "./styles/accounts.css";
+import "./styles/assets.css";
 import "./styles/transactions.css";
 import "./styles/budgets.css";
 import "./styles/goals.css";

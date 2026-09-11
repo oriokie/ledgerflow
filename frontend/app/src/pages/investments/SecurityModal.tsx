@@ -5,7 +5,7 @@ import { z } from "zod";
 import { ApiError } from "../../api/client";
 import type { AssetClass } from "../../api/types";
 import { useCreateSecurity } from "../../hooks/useInvestments";
-import { CURRENCY_OPTIONS } from "../../lib/currencies";
+import { useCurrencyOptions } from "../../hooks/useCurrencies";
 import { Banner, Button, Grid, Input, Modal, Select, Stack, Text } from "../../ui";
 
 const ASSET_CLASSES: { value: AssetClass; label: string }[] = [
@@ -47,6 +47,7 @@ export function SecurityModal({
   defaultCurrency: string;
 }) {
   const createSecurity = useCreateSecurity();
+  const currencySelect = useCurrencyOptions();
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -119,7 +120,7 @@ export function SecurityModal({
             <Select
               label="Currency"
               required
-              options={CURRENCY_OPTIONS}
+              options={currencySelect}
               hint="Must match the account you'll hold it in."
               error={errors.currency?.message}
               {...register("currency")}

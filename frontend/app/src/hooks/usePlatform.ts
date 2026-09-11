@@ -45,6 +45,7 @@ const KEYS = {
   notifications: (params: unknown) => ["platform", "notifications", params] as const,
   impersonations: (params: unknown) => ["platform", "impersonations", params] as const,
   plans: ["platform", "plans"] as const,
+  currencies: ["platform", "currencies"] as const,
   savedViews: (surface?: string) => ["platform", "saved-views", surface] as const,
   expiringTrials: (days: number) => ["platform", "expiring-trials", days] as const,
 };
@@ -206,6 +207,48 @@ export function useUpdatePlan() {
   return useMutation({
     mutationFn: ({ planId, payload }: { planId: string; payload: PlanUpdatePayload }) =>
       platformApi.updatePlan(planId, payload),
+    onSuccess: () => invalidateAll(client),
+  });
+}
+
+export function usePlatformCurrencies() {
+  return useQuery({
+    queryKey: KEYS.currencies,
+    queryFn: platformApi.currencies,
+    staleTime: 30_000,
+  });
+}
+
+export function useCreatePlatformCurrency() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Record<string, unknown>) => platformApi.createCurrency(payload),
+    onSuccess: () => invalidateAll(client),
+  });
+}
+
+export function useUpdatePlatformCurrency() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, payload }: { code: string; payload: Record<string, unknown> }) =>
+      platformApi.updateCurrency(code, payload),
+    onSuccess: () => invalidateAll(client),
+  });
+}
+
+export function useSetPlatformCurrencyRate() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, payload }: { code: string; payload: Record<string, unknown> }) =>
+      platformApi.setCurrencyRate(code, payload),
+    onSuccess: () => invalidateAll(client),
+  });
+}
+
+export function useRefreshFxRates() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { reason: string; force?: boolean }) => platformApi.refreshFx(payload),
     onSuccess: () => invalidateAll(client),
   });
 }

@@ -33,6 +33,9 @@ vi.mock("../hooks/useFinance", () => ({
   useCategories: () => ({ data: [] }),
   useCreateBill: () => ({ mutateAsync: vi.fn() }),
 }));
+vi.mock("../lib/AuthContext", () => ({
+  useAuth: () => ({ activeWorkspace: { tenant: { id: "t1", base_currency: "USD" } } }),
+}));
 
 import { BillsPage } from "./BillsPage";
 import { ToastProvider } from "../ui";

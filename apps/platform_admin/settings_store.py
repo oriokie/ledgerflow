@@ -388,6 +388,18 @@ SPECS: tuple[SettingSpec, ...] = (
         env_setting="PLATFORM_IMPERSONATION_TTL_MINUTES",
         default=30,
     ),
+    SettingSpec(
+        "fx.auto_refresh",
+        SettingKind.BOOLEAN,
+        "operations",
+        "Refresh exchange rates overnight",
+        "When on, a daily job pulls USD quotes from the public rate feed and "
+        "writes them for every active catalog currency. Manual rates an "
+        "operator set are left alone unless they force a refresh from the "
+        "Currencies page.",
+        env_setting="FX_AUTO_REFRESH",
+        default=True,
+    ),
 )
 
 SPEC_BY_KEY: dict[str, SettingSpec] = {spec.key: spec for spec in SPECS}

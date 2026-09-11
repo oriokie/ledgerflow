@@ -80,6 +80,7 @@ class BudgetLineStatus:
     carried_minor: int
     effective_limit_minor: int
     actual_minor: int
+    rollover: bool
 
     @property
     def remaining_minor(self) -> int:
@@ -116,6 +117,7 @@ def budget_line_status(line: BudgetLine, *, as_of: date) -> BudgetLineStatus:
         carried_minor=carried,
         effective_limit_minor=line.limit_minor + carried,
         actual_minor=actual,
+        rollover=line.rollover,
     )
 
 
@@ -123,3 +125,67 @@ def budget_status(budget: Budget, *, as_of: date | None = None) -> list[BudgetLi
     as_of = as_of or timezone.localdate()
     lines = budget.lines.select_related("category", "budget").all()
     return [budget_line_status(line, as_of=as_of) for line in lines]
+
+
+def period_income_minor(*, monthly_net: int, period: str) -> int:
+    """Scale a monthly take-home figure to the budget's period.
+
+    Weekly uses 12/52 so a month of ~4.3 weeks does not silently overstate
+    income. Integer division keeps the result in minor units.
+    """
+    if period == BudgetPeriod.WEEKLY:
+        return monthly_net * 12 // 52
+    if period == BudgetPeriod.QUARTERLY:
+        return monthly_net * 3
+    if period == BudgetPeriod.YEARLY:
+        return monthly_net * 12
+    return monthly_net
+
+
+@dataclass(frozen=True, slots=True)
+class BudgetAssignment:
+    """How this period's planned limits sit against expected income.
+
+    ``assigned_minor`` is the sum of *limits*, not effective limits with
+    rollover — leftover carry is last period's money, not this period's income.
+    ``unassigned_minor`` is ``None`` when income is unknown so the UI can ask
+    for an income source rather than invent a zero.
+    """
+
+    income_minor: int
+    income_known: bool
+    assigned_minor: int
+    unassigned_minor: int | None
+    overspent_minor: int
+
+
+def budget_assignment(
+    budget: Budget,
+    *,
+    as_of: date | None = None,
+    lines: list[BudgetLineStatus] | None = None,
+) -> BudgetAssignment:
+    as_of = as_of or timezone.localdate()
+    statuses = lines if lines is not None else budget_status(budget, as_of=as_of)
+    assigned = sum(st.limit_minor for st in statuses)
+    overspent = sum(max(0, st.actual_minor - st.effective_limit_minor) for st in statuses)
+
+    from apps.income.selectors import income_summary
+
+    summary = income_summary(as_of=as_of, currency=budget.currency)
+    if summary is None:
+        return BudgetAssignment(
+            income_minor=0,
+            income_known=False,
+            assigned_minor=assigned,
+            unassigned_minor=None,
+            overspent_minor=overspent,
+        )
+    income = period_income_minor(monthly_net=summary.monthly_net_minor, period=budget.period)
+    return BudgetAssignment(
+        income_minor=income,
+        income_known=True,
+        assigned_minor=assigned,
+        unassigned_minor=income - assigned,
+        overspent_minor=overspent,
+    )

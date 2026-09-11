@@ -606,6 +606,22 @@ def test_the_directory_never_exposes_financial_content():
     assert not forbidden & set(row)
 
 
+def test_directory_keeps_workspace_and_billing_currency_apart():
+    """MRR is a plan amount. Formatting it in the workspace's books currency
+    is how a KES household paying USD used to look 100× too rich."""
+    membership, plan = _paying_tenant(price=900, currency="USD")
+    Tenant.objects.filter(id=membership.tenant_id).update(base_currency="KES")
+    row = tenant_selectors.directory_page(list(tenant_selectors.search_tenants()))[0]
+    assert row["currency"] == "KES"
+    assert row["billing_currency"] == "USD"
+    assert row["mrr_minor"] == 900
+
+    detail = tenant_selectors.tenant_detail(Tenant.objects.get(id=membership.tenant_id))
+    assert detail["currency"] == "KES"
+    assert detail["billing_currency"] == "USD"
+    assert detail["subscription"]["currency"] == "USD"
+
+
 def test_the_directory_can_be_filtered_by_status_and_country():
     _paying_tenant(country="KE")
     suspended, _ = _paying_tenant(country="US", tier=PlanTier.FAMILY)

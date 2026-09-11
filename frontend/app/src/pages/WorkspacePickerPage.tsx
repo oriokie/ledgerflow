@@ -7,7 +7,7 @@ import { ApiError } from "../api/client";
 import { tenancyApi } from "../api/tenancy";
 import { useAuth } from "../lib/AuthContext";
 import { AuthLayout, AuthPageHeader } from "../components/auth/AuthLayout";
-import { CURRENCY_OPTIONS } from "../lib/currencies";
+import { useCurrencyOptions } from "../hooks/useCurrencies";
 import { COUNTRY_OPTIONS, CURRENCY_BY_COUNTRY } from "../lib/countries";
 import { Banner, Button, Grid, Input, Select, Stack, Text } from "../ui";
 
@@ -41,6 +41,7 @@ const BACKEND_TYPE: Record<FormValues["type"], "personal" | "household"> = {
 
 export function WorkspacePickerPage() {
   const { workspaces, switchWorkspace, refreshWorkspaces } = useAuth();
+  const currencySelect = useCurrencyOptions();
   // Derived, not captured. `useState(workspaces.length === 0)` runs its
   // initialiser only on the first render, so mounting while the session was
   // still bootstrapping (workspaces still empty) latched "creating" on
@@ -172,7 +173,7 @@ export function WorkspacePickerPage() {
               />
               <Select
                 label="Base currency"
-                options={CURRENCY_OPTIONS}
+                options={currencySelect}
                 error={errors.base_currency?.message}
                 hint="Amounts stay in this currency. Reports never mix codes."
                 {...register("base_currency")}

@@ -1,0 +1,46 @@
+.lf-asset-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--lf-space-2);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.lf-asset-card:focus-visible {
+  outline: 2px solid var(--lf-focus-ring);
+  outline-offset: 4px;
+}
+
+.lf-asset-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  width: 100%;
+}
+
+.lf-asset-history {
+  list-style: none;
+  margin: var(--lf-space-2) 0 0;
+  padding: 0;
+}
+
+.lf-asset-history li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lf-space-3);
+  padding: var(--lf-space-2) 0;
+  border-bottom: 1px solid var(--lf-border-subtle);
+  font-size: var(--lf-text-sm);
+}
+
+.lf-asset-history li:last-child {
+  border-bottom: 0;
+}

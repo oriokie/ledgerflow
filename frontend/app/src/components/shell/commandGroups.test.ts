@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { filterCommands, groupCommands, QUICK_ACTIONS } from "./commands";
 
 describe("command palette quick actions", () => {
-  it("covers the verbs the palette promises: transaction, account, transfer, budget, goal, bill, import", () => {
+  it("covers the verbs the palette promises: transaction, account, property, transfer, budget, goal, bill, import", () => {
     const ids = QUICK_ACTIONS.map((c) => c.id);
     expect(ids).toEqual(
       expect.arrayContaining([
         "action-add-transaction",
         "action-new-account",
+        "action-add-asset",
         "action-transfer",
         "action-create-budget",
         "action-create-goal",

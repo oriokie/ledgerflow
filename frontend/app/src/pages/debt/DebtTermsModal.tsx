@@ -73,18 +73,18 @@ export function DebtTermsModal({
           debt_kind: debt.debt_kind,
           apr: debt.apr ? String(debt.apr) : "",
           minimum: debt.minimum_payment_minor
-            ? String(minorToMajor(debt.minimum_payment_minor))
+            ? String(minorToMajor(debt.minimum_payment_minor, debt.currency))
             : "",
           original_principal: debt.original_principal_minor
-            ? String(minorToMajor(debt.original_principal_minor))
+            ? String(minorToMajor(debt.original_principal_minor, debt.currency))
             : "",
           payment_day: debt.payment_day ? String(debt.payment_day) : "",
           compounding: debt.compounding ?? "monthly",
           monthly_fee: debt.fees?.monthly_minor
-            ? String(minorToMajor(debt.fees.monthly_minor))
+            ? String(minorToMajor(debt.fees.monthly_minor, debt.currency))
             : "",
           annual_fee: debt.fees?.annual_minor
-            ? String(minorToMajor(debt.fees.annual_minor))
+            ? String(minorToMajor(debt.fees.annual_minor, debt.currency))
             : "",
           annual_fee_month: "",
         }
@@ -100,14 +100,14 @@ export function DebtTermsModal({
         payload: {
           debt_kind: values.debt_kind,
           apr: values.apr,
-          minimum_payment_minor: majorToMinor(Number(values.minimum)),
+          minimum_payment_minor: majorToMinor(Number(values.minimum), debt.currency),
           original_principal_minor: values.original_principal
-            ? majorToMinor(Number(values.original_principal))
+            ? majorToMinor(Number(values.original_principal), debt.currency)
             : null,
           payment_day: values.payment_day ? Number(values.payment_day) : null,
           compounding: values.compounding || "monthly",
-          monthly_fee_minor: values.monthly_fee ? majorToMinor(Number(values.monthly_fee)) : 0,
-          annual_fee_minor: values.annual_fee ? majorToMinor(Number(values.annual_fee)) : 0,
+          monthly_fee_minor: values.monthly_fee ? majorToMinor(Number(values.monthly_fee), debt.currency) : 0,
+          annual_fee_minor: values.annual_fee ? majorToMinor(Number(values.annual_fee), debt.currency) : 0,
           annual_fee_month: values.annual_fee_month
             ? Number(values.annual_fee_month)
             : undefined,

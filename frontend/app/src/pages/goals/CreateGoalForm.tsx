@@ -5,7 +5,9 @@ import { z } from "zod";
 import { ApiError } from "../../api/client";
 import type { GoalKind, GoalPriority } from "../../api/types";
 import { useCreateGoal } from "../../hooks/useGoals";
-import { CURRENCY_OPTIONS } from "../../lib/currencies";
+import { useAuth } from "../../lib/AuthContext";
+import { useCurrencyOptions } from "../../hooks/useCurrencies";
+import { amountInputStep, workspaceCurrency } from "../../lib/currencies";
 import { majorToMinor } from "../../lib/money";
 import { Banner, Button, Card, Grid, Inline, Input, Select, Stack, Text } from "../../ui";
 import { GOAL_KIND_OPTIONS, GOAL_PRIORITY_LABELS } from "./kinds";
@@ -36,18 +38,23 @@ const PRIORITY_OPTIONS = (Object.keys(GOAL_PRIORITY_LABELS) as unknown as GoalPr
 }));
 
 export function CreateGoalForm({ onCreated, onCancel }: { onCreated: () => void; onCancel: () => void }) {
+  const { activeWorkspace } = useAuth();
+  const books = workspaceCurrency(activeWorkspace?.tenant);
+  const currencySelect = useCurrencyOptions();
   const createGoal = useCreateGoal();
   const [error, setError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<GoalFormValues>({
     resolver: zodResolver(goalSchema),
     // Priority is left unset so the server fills it from the kind — a user who
     // doesn't care still gets a sensible funding order.
-    defaultValues: { currency: "USD", kind: "custom", priority: "" },
+    defaultValues: { currency: books, kind: "custom", priority: "" },
   });
+  const currency = watch("currency") || books;
 
   const onSubmit = handleSubmit(async (values) => {
     setError(null);
@@ -56,11 +63,11 @@ export function CreateGoalForm({ onCreated, onCancel }: { onCreated: () => void;
         name: values.name,
         kind: values.kind as GoalKind,
         currency: values.currency.toUpperCase(),
-        target_minor: majorToMinor(Number(values.target)),
+        target_minor: majorToMinor(Number(values.target), values.currency),
         target_date: values.target_date || undefined,
         priority: values.priority ? (Number(values.priority) as GoalPriority) : undefined,
         planned_monthly_minor: values.planned_monthly
-          ? majorToMinor(Number(values.planned_monthly))
+          ? majorToMinor(Number(values.planned_monthly), values.currency)
           : undefined,
       });
       onCreated();
@@ -103,14 +110,14 @@ export function CreateGoalForm({ onCreated, onCancel }: { onCreated: () => void;
               amount
               required
               type="number"
-              step="0.01"
+              step={amountInputStep(currency)}
               min="0.01"
               error={errors.target?.message}
               {...register("target")}
             />
             <Select
               label="Currency"
-              options={CURRENCY_OPTIONS}
+              options={currencySelect}
               error={errors.currency?.message}
               {...register("currency")}
             />
@@ -129,7 +136,7 @@ export function CreateGoalForm({ onCreated, onCancel }: { onCreated: () => void;
               optional
               amount
               type="number"
-              step="0.01"
+              step={amountInputStep(currency)}
               min="0.01"
               hint="What you intend to put in. We'll compare it to what you actually do."
               error={errors.planned_monthly?.message}

@@ -14,15 +14,24 @@ const LINE: BudgetLineStatus = {
   remaining_minor: 6000,
   percent_used: 40,
   over_budget: false,
+  rollover: false,
 };
 
-function setup(over: Partial<{ onUpdateLimit: ReturnType<typeof vi.fn>; onRemove: ReturnType<typeof vi.fn> }> = {}) {
+function setup(over: Partial<{ onUpdateLimit: ReturnType<typeof vi.fn>; onRemove: ReturnType<typeof vi.fn>; onToggleRollover: ReturnType<typeof vi.fn> }> = {}) {
   const onUpdateLimit = over.onUpdateLimit ?? vi.fn().mockResolvedValue(undefined);
   const onRemove = over.onRemove ?? vi.fn().mockResolvedValue(undefined);
+  const onToggleRollover = over.onToggleRollover;
   render(
-    <BudgetLineRow line={LINE} currency="USD" pacePercent={50} onUpdateLimit={onUpdateLimit} onRemove={onRemove} />,
+    <BudgetLineRow
+      line={LINE}
+      currency="USD"
+      pacePercent={50}
+      onUpdateLimit={onUpdateLimit}
+      onRemove={onRemove}
+      onToggleRollover={onToggleRollover}
+    />,
   );
-  return { onUpdateLimit, onRemove };
+  return { onUpdateLimit, onRemove, onToggleRollover };
 }
 
 describe("BudgetLineRow", () => {
@@ -50,5 +59,12 @@ describe("BudgetLineRow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
     await waitFor(() => expect(onRemove).toHaveBeenCalledWith("l1"));
+  });
+
+  it("toggles leftover carry when the switch is provided", async () => {
+    const onToggleRollover = vi.fn().mockResolvedValue(undefined);
+    setup({ onToggleRollover });
+    fireEvent.click(screen.getByRole("switch", { name: /carry leftover/i }));
+    await waitFor(() => expect(onToggleRollover).toHaveBeenCalledWith("l1", true));
   });
 });

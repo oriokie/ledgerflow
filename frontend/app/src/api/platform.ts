@@ -80,6 +80,8 @@ export interface TenantRow {
   country: string;
   timezone: string;
   currency: string;
+  /** Plan/invoice currency. Empty when there is no subscription. */
+  billing_currency: string;
   locale: string;
   billing_email: string;
   owner_email: string;
@@ -108,6 +110,9 @@ export interface TenantDetail {
   timezone: string;
   locale: string;
   currency: string;
+  /** Plan/invoice currency. Empty when there is no subscription. Distinct
+   * from `currency`, which is the workspace's books. */
+  billing_currency: string;
   billing_email: string;
   created_at: string;
   subscription: SubscriptionDetail | null;
@@ -448,6 +453,18 @@ export interface SavedView {
   created_at: string;
 }
 
+export interface PlatformCurrency {
+  code: string;
+  name: string;
+  symbol: string;
+  digits: number;
+  is_active: boolean;
+  sort_order: number;
+  usd_rate: string | null;
+  usd_rate_as_of: string | null;
+  usd_rate_source: string;
+}
+
 /** Drop empty values so they don't become `?q=&status=` noise in the URL. */
 function qs(params: Record<string, unknown> = {}): string {
   const search = new URLSearchParams();
@@ -590,4 +607,18 @@ export const platformApi = {
   saveView: (body: Record<string, unknown>) =>
     api.post<SavedView>(`${BASE}/saved-views/`, body, NO_TENANT),
   deleteSavedView: (id: string) => api.delete<void>(`${BASE}/saved-views/${id}/`, NO_TENANT),
+
+  currencies: () => api.get<PlatformCurrency[]>(`${BASE}/currencies/`, NO_TENANT),
+  createCurrency: (body: Record<string, unknown>) =>
+    api.post<PlatformCurrency>(`${BASE}/currencies/`, body, NO_TENANT),
+  updateCurrency: (code: string, body: Record<string, unknown>) =>
+    api.patch<PlatformCurrency>(`${BASE}/currencies/${code}/`, body, NO_TENANT),
+  setCurrencyRate: (code: string, body: Record<string, unknown>) =>
+    api.post<PlatformCurrency>(`${BASE}/currencies/${code}/rate/`, body, NO_TENANT),
+  refreshFx: (body: { reason: string; force?: boolean }) =>
+    api.post<{ updated: number; skipped_manual: number; missing: string[]; source: string; as_of: string }>(
+      `${BASE}/fx/refresh/`,
+      body,
+      NO_TENANT,
+    ),
 };

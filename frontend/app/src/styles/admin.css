@@ -596,6 +596,33 @@
   padding: var(--lf-space-6);
 }
 
+.lf-admin-tenant-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--lf-space-3);
+  min-width: 0;
+}
+
+.lf-admin-tenant-mark {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--lf-radius-md);
+  background: var(--lf-bg-sunken);
+  color: var(--lf-text-secondary);
+  display: grid;
+  place-items: center;
+  font-size: var(--lf-text-xs);
+  font-weight: var(--lf-weight-semibold);
+  letter-spacing: 0.04em;
+}
+
+.lf-admin-code {
+  font-family: var(--lf-font-ledger);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
 /* ------------------------------------------------------------ responsive */
 @media (max-width: 900px) {
   .lf-admin { grid-template-columns: 1fr; }
