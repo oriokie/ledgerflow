@@ -370,3 +370,11 @@ class ReconcileSerializer(serializers.Serializer):
     #: False un-reconciles. Mis-ticking is ordinary, so undoing is a normal
     #: operation rather than an administrative exception.
     reconciled = serializers.BooleanField(default=True)
+
+
+class MpesaSmsCaptureSerializer(serializers.Serializer):
+    """Paste the whole confirmation. Purpose and category can wait."""
+
+    message = serializers.CharField(max_length=4000)
+    purpose = serializers.CharField(max_length=255, required=False, allow_blank=True, default="")
+    category_id = serializers.UUIDField(required=False, allow_null=True)

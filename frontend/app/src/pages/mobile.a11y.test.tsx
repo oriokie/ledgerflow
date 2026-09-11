@@ -8,6 +8,7 @@
  * covered by axe passing.
  */
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -24,6 +25,7 @@ vi.mock("../hooks/useFinance", () => ({
   useAccounts: () => ({ data: accounts }),
   useCategories: () => ({ data: [{ id: "g", name: "Groceries", kind: "expense" as const }] }),
   useTransactions: () => ({ data: undefined }),
+  useUpdateTransaction: () => ({ mutate: vi.fn() }),
 }));
 vi.mock("../lib/AuthContext", () => ({
   useAuth: () => ({ activeWorkspace: { role: "owner", tenant: { id: "t1", base_currency: "USD" } } }),
@@ -31,6 +33,10 @@ vi.mock("../lib/AuthContext", () => ({
 vi.mock("../hooks/useQuickAdd", () => ({
   useQuickAdd: () => ({ mutateAsync: vi.fn().mockResolvedValue({ queued: false, result: null }), isPending: false }),
   usePendingQuickAddCount: () => 0,
+}));
+vi.mock("../hooks/useMpesaSms", () => ({
+  useCaptureMpesaSms: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useMpesaSmsCaptures: () => ({ data: [] }),
 }));
 
 const pendingCount = vi.fn(() => 0);
@@ -57,6 +63,7 @@ vi.mock("../hooks/useReceipts", () => ({
 import { ReceiptCamera } from "../components/receipts/ReceiptCamera";
 import { OfflineIndicator } from "../components/shell/OfflineIndicator";
 import { QuickAddPage } from "./QuickAddPage";
+import { MpesaSmsPage } from "./MpesaSmsPage";
 import { ReceiptScanPage } from "./ReceiptScanPage";
 
 const originalMediaDevices = navigator.mediaDevices;
@@ -88,6 +95,19 @@ function stubCamera(resolve = true) {
 
 // ============================================================ automated audit
 describe("automated accessibility audit", () => {
+  it("M-Pesa SMS page has no violations", async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const { container } = render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <MpesaSmsPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    const violations = await findViolations(container);
+    expect(violations, describeViolations(violations)).toHaveLength(0);
+  });
+
   it("Quick Add page has no violations", async () => {
     const { container } = render(
       <MemoryRouter>

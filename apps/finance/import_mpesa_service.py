@@ -35,11 +35,18 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from .import_mpesa import MpesaKind, MpesaParseError, MpesaRow, ParsedStatement, parse_statement
-from .models import AccountType, CategoryKind, FinancialAccount, Transaction, TransactionSource
+from .models import (
+    AccountType,
+    CategoryKind,
+    FinancialAccount,
+    Transaction,
+    TransactionSource,
+    TransactionStatus,
+)
 
 #: The name of the credit line created on first sight of an overdraft. Looked
 #: up by name so a re-import reuses it rather than stacking up duplicates.
@@ -245,9 +252,12 @@ def import_parsed_statement(
     # existed, and an overdraft guard or a reconciliation looking at the running
     # figure would be reading fiction.
     for row in sorted(selected, key=lambda r: r.completed_at):
-        if Transaction.objects.filter(
-            financial_account=financial_account, external_id=row.external_id
-        ).exists():
+        existing = _existing_for_row(row)
+        if existing is not None:
+            # An SMS paste already posted this receipt+amount. Adopt the
+            # statement's identity so a later re-import takes the fast path,
+            # and do not post a second copy.
+            _adopt_statement_identity(existing, row)
             result.skipped_duplicate += 1
             continue
         try:
@@ -267,6 +277,38 @@ def import_parsed_statement(
 
     _add_overdraft_notice(fuliza, result)
     return result
+
+
+def _existing_for_row(row: MpesaRow) -> Transaction | None:
+    """A row already in the books, either from this importer or an SMS paste.
+
+    Statement identity hashes the Details wording. An SMS does not carry that
+    wording, so matching on `external_id` alone would post the same receipt
+    twice — once from the phone, once from the PDF. Receipt plus signed amount
+    is unique for one Safaricom event: a transfer and its charge share a
+    receipt but never an amount.
+    """
+    live = Transaction.objects.exclude(status=TransactionStatus.VOID)
+    hit = live.filter(external_id=row.external_id).first()
+    if hit is not None:
+        return hit
+    return live.filter(metadata__mpesa_receipt=row.receipt, amount_minor=row.amount_minor).first()
+
+
+def _adopt_statement_identity(existing: Transaction, row: MpesaRow) -> None:
+    """Stamp the statement's external_id onto an SMS (or other) capture.
+
+    Skipping the post is the thing that keeps the books honest. The stamp is
+    so the next overlapping statement can match on identity without another
+    JSON lookup. A collision means another row already owns this identity —
+    leave the capture as it is.
+    """
+    if existing.external_id == row.external_id:
+        return
+    try:
+        _stamp(existing, receipt=row.receipt, external_id=row.external_id)
+    except IntegrityError:
+        return
 
 
 def _within(row: MpesaRow, from_date: date | None, to_date: date | None) -> bool:

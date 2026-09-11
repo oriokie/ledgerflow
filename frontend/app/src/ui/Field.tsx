@@ -4,6 +4,7 @@ import { useId } from "react";
 import type {
   InputHTMLAttributes,
   ReactNode,
+  Ref,
   SelectHTMLAttributes,
   TextareaHTMLAttributes,
 } from "react";
@@ -180,6 +181,7 @@ interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   success?: string | null;
   hint?: ReactNode;
   optional?: boolean;
+  ref?: Ref<HTMLTextAreaElement>;
 }
 
 export function Textarea({
@@ -192,6 +194,7 @@ export function Textarea({
   id,
   className,
   rows = 3,
+  ref,
   ...rest
 }: TextareaProps) {
   const autoId = useId();
@@ -213,6 +216,7 @@ export function Textarea({
         aria-invalid={error ? true : undefined}
         required={required}
         {...rest}
+        ref={ref}
       />
     </FormField>
   );

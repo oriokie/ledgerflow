@@ -1326,6 +1326,27 @@ export interface QuickAddResult {
   category_confidence: number | null;
 }
 
+export interface MpesaSmsCapture {
+  id: string;
+  receipt: string;
+  occurred_at: string;
+  amount_minor: number;
+  charge_minor: number;
+  charge_id: string | null;
+  counterparty: string;
+  purpose: string;
+  category_id: string | null;
+  category_name: string | null;
+  is_inflow: boolean;
+  account_id: string;
+  account_name: string;
+  currency: string;
+  already_on_statement: boolean;
+  already_recorded?: boolean;
+  kind?: string;
+  balance_minor?: number | null;
+}
+
 // ------------------------------------------------------------- push
 export interface PushSubscriptionKeys {
   p256dh: string;

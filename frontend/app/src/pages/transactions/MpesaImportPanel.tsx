@@ -113,7 +113,8 @@ export function MpesaImportPanel() {
     <Stack gap={4}>
       <Text tone="tertiary" size="sm">
         The PDF Safaricom emails you, with the password they sent with it. Fuliza is recorded as borrowing rather
-        than income, and re-importing an overlapping statement is safe — nothing posts twice.
+        than income, and re-importing is safe — nothing posts twice, including payments you already pasted from
+        an M-Pesa SMS.
       </Text>
 
       <Input
@@ -182,9 +183,9 @@ export function MpesaImportPanel() {
             />
           </div>
           <Text tone="tertiary" size="xs">
-            Defaults to the whole statement. If you have already been recording this account by
-            hand, start the day after your last manual entry — importing a period you have already
-            tracked records it twice, and the importer cannot tell the two apart.
+            Defaults to the whole statement. Payments pasted from an M-Pesa SMS are matched by
+            receipt and skipped. If you typed rows by hand with no receipt, start the day after
+            those entries — the importer cannot tell those apart from the statement.
           </Text>
 
           <Button

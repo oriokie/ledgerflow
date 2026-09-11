@@ -515,3 +515,13 @@ export const quickAddApi = {
 
   recentMerchants: () => api.get<string[]>("/finance/quick-add/recent-merchants/"),
 };
+
+export const mpesaSmsApi = {
+  list: () => api.get<import("./types").MpesaSmsCapture[]>("/finance/mpesa-sms/"),
+  capture: (payload: { message: string; purpose?: string; categoryId?: string | null }) =>
+    api.post<import("./types").MpesaSmsCapture>("/finance/mpesa-sms/", {
+      message: payload.message,
+      purpose: payload.purpose ?? "",
+      category_id: payload.categoryId ?? null,
+    }),
+};

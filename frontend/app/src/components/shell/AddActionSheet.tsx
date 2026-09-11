@@ -1,8 +1,9 @@
-import { ArrowLeftRight, Camera, Plus, Receipt } from "lucide-react";
+import { ArrowLeftRight, Camera, Plus, Receipt, Smartphone } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Modal } from "../../ui";
 
 const ACTIONS = [
+  { to: "/mpesa?add=1", label: "Paste M-Pesa SMS", hint: "Paste a confirmation and save it in a second", icon: Smartphone },
   { to: "/transactions?add=1", label: "Add transaction", hint: "Record something you spent or received", icon: Plus },
   { to: "/receipts/scan", label: "Scan receipt", hint: "Photograph a receipt and let it fill the form", icon: Camera },
   { to: "/bills?add=1", label: "Add bill", hint: "Something you owe on a date", icon: Receipt },
@@ -14,7 +15,7 @@ const ACTIONS = [
  *
  * The old rail listed "Quick Add" and "Scan Receipt" as navigation entries,
  * which is a category error — a verb is not a place. Collected here, they are
- * what they always were: the four things someone opens this app to *do*.
+ * what they always were: the things someone opens this app to *do*.
  *
  * Built on `Modal`, which is a native `<dialog>`, so focus containment,
  * Esc-to-close and inertness of the page behind come from the platform rather
