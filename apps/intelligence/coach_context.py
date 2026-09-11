@@ -286,17 +286,25 @@ def _debt_signals(as_of: date) -> tuple[dict, ...]:
     )
 
 
-def _cashflow_risk() -> dict:
+def _cash_picture() -> tuple[dict, int | None]:
+    """Calendar-backed risk plus the trough the coach treats as spendable.
+
+    One read: the calendar is not cheap, and the briefing and the overdraft
+    insight have to agree on the same projection.
+    """
     calendar = cashflow_calendar(days=45)
     if calendar is None:
-        return {}
-    return {
-        "currency": calendar.currency,
-        "first_negative_on": calendar.first_negative_on,
-        "lowest_balance_minor": calendar.lowest_balance_minor,
-        "lowest_balance_on": calendar.lowest_balance_on,
-        "negative_day_count": calendar.negative_day_count,
-    }
+        return {}, None
+    return (
+        {
+            "currency": calendar.currency,
+            "first_negative_on": calendar.first_negative_on,
+            "lowest_balance_minor": calendar.lowest_balance_minor,
+            "lowest_balance_on": calendar.lowest_balance_on,
+            "negative_day_count": calendar.negative_day_count,
+        },
+        calendar.safe_to_spend_minor,
+    )
 
 
 def _health() -> dict:
@@ -440,6 +448,38 @@ def _savings_rate() -> float | None:
     return round(max(0.0, (inflow - outflow) / inflow), 3)
 
 
+def _upcoming_bills(as_of: date) -> tuple[dict, ...]:
+    from apps.finance.bills import upcoming_bills
+
+    return tuple(
+        {
+            "bill_id": str(row.bill.id),
+            "name": row.bill.name,
+            "amount_minor": row.bill.amount_minor,
+            "currency": row.bill.currency,
+            "due_on": row.bill.due_on,
+            "days_until_due": row.days_until_due,
+        }
+        for row in upcoming_bills(within_days=14, as_of=as_of)
+    )
+
+
+def _committed(as_of: date, currency: str) -> tuple[float | None, int]:
+    """How much of income is already spoken for.
+
+    When the household has fixed pay, the ratio against *that* is the one that
+    bites — commitments do not shrink when a freelance invoice is late. The
+    coach reports the more stressful of the two figures.
+    """
+    from apps.income.selectors import committed_income
+
+    snap = committed_income(as_of=as_of, currency=currency)
+    if snap is None:
+        return None, 0
+    ratios = [p / 100.0 for p in (snap.committed_pct, snap.committed_against_fixed_pct) if p is not None]
+    return (round(max(ratios), 3) if ratios else None), snap.committed_minor
+
+
 def build_context(*, as_of: date | None = None) -> CoachContext:
     """Assemble everything the coach reasons over, in one pass.
 
@@ -447,9 +487,15 @@ def build_context(*, as_of: date | None = None) -> CoachContext:
     an empty `budget_lines`, and the providers skip that family of insight
     rather than inventing one.
     """
+    from apps.finance.commitments import link_matching_commitments
+    from apps.income.selectors import soonest_payday
+
     as_of = as_of or timezone.localdate()
+    link_matching_commitments()
     currency = finance_selectors._dominant_liquid_currency() or "USD"
     baseline = _monthly_baseline_minor(currency)
+    cashflow_risk, safe_to_spend_minor = _cash_picture()
+    committed_ratio, committed_minor = _committed(as_of, currency)
 
     return CoachContext(
         as_of=as_of,
@@ -459,7 +505,7 @@ def build_context(*, as_of: date | None = None) -> CoachContext:
         large_transactions=_large_transactions(as_of, baseline),
         possible_duplicates=_possible_duplicates(as_of),
         subscriptions=_subscriptions(),
-        cashflow_risk=_cashflow_risk(),
+        cashflow_risk=cashflow_risk,
         goal_suggestions=tuple(
             {
                 "kind": r.kind,
@@ -476,6 +522,11 @@ def build_context(*, as_of: date | None = None) -> CoachContext:
         debts=_debts(as_of),
         debt_signals=_debt_signals(as_of),
         savings_rate=_savings_rate(),
+        safe_to_spend_minor=safe_to_spend_minor,
+        next_payday_on=soonest_payday(as_of=as_of),
+        committed_ratio=committed_ratio,
+        committed_minor=committed_minor,
+        upcoming_bills=_upcoming_bills(as_of),
     )
 
 

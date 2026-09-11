@@ -1,10 +1,15 @@
 import {
   AlertTriangle,
   ArrowDownRight,
+  ArrowLeftRight,
   Banknote,
+  Calendar,
   Copy,
   CreditCard,
+  Flag,
   HeartPulse,
+  Landmark,
+  Percent,
   PiggyBank,
   Receipt,
   Repeat,
@@ -18,6 +23,7 @@ import type { InsightKind, InsightSeverity } from "../../api/types";
 export const INSIGHT_ICONS: Record<InsightKind, LucideIcon> = {
   spending_anomaly: TrendingUp,
   overspending: AlertTriangle,
+  overspend_pace: TrendingUp,
   budget_recommendation: Wallet,
   savings_opportunity: PiggyBank,
   duplicate_transaction: Copy,
@@ -29,11 +35,21 @@ export const INSIGHT_ICONS: Record<InsightKind, LucideIcon> = {
   goal_recommendation: Target,
   debt_recommendation: CreditCard,
   health_improvement: HeartPulse,
+  promo_expiry: Percent,
+  rate_increase: TrendingUp,
+  refinance_opportunity: Landmark,
+  high_fees: Receipt,
+  offset_opportunity: ArrowLeftRight,
+  debt_milestone: Flag,
+  safe_to_spend: Wallet,
+  committed_income: Percent,
+  bill_due: Calendar,
 };
 
 export const INSIGHT_KIND_LABELS: Record<InsightKind, string> = {
   spending_anomaly: "Spending anomaly",
   overspending: "Over budget",
+  overspend_pace: "On pace to overspend",
   budget_recommendation: "Budget",
   savings_opportunity: "Savings",
   duplicate_transaction: "Possible duplicate",
@@ -45,6 +61,15 @@ export const INSIGHT_KIND_LABELS: Record<InsightKind, string> = {
   goal_recommendation: "Goal",
   debt_recommendation: "Debt",
   health_improvement: "Financial health",
+  promo_expiry: "Promo ending",
+  rate_increase: "Rate increase",
+  refinance_opportunity: "Refinance",
+  high_fees: "High fees",
+  offset_opportunity: "Offset",
+  debt_milestone: "Debt milestone",
+  safe_to_spend: "Safe to spend",
+  committed_income: "Committed income",
+  bill_due: "Bill due",
 };
 
 /**
@@ -90,6 +115,10 @@ export function actionRoute(action: Record<string, unknown>): { to: string; labe
       return { to: "/recurring", label: "Review subscriptions" };
     case "open_account":
       return { to: "/accounts", label: "Open accounts" };
+    case "open_bills":
+      return { to: "/bills", label: "Open bills" };
+    case "open_income":
+      return { to: "/income", label: "Open income" };
     default:
       return null;
   }
@@ -110,8 +139,13 @@ export const EVIDENCE_LABELS: Record<string, string> = {
   annual_total_minor: "Yearly cost",
   lowest_balance_minor: "Lowest balance",
   suggested_target_minor: "Suggested target",
+  safe_to_spend_minor: "Free to spend",
+  committed_minor: "Already committed",
   count: "Occurrences",
   accounts: "Accounts",
+  days_until_due: "Days until due",
+  committed_ratio: "Share of income",
+  next_payday_on: "Next payday",
 };
 
 /** Keys whose values are money in minor units, so the card formats them. */

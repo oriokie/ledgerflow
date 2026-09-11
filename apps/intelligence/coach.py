@@ -77,7 +77,15 @@ def _amount_from_evidence(candidate: InsightCandidate) -> int | None:
     numeric field: scoring off an arbitrary number in an opaque dict is how a
     percentage ends up being treated as an amount.
     """
-    for key in ("over_minor", "amount_minor", "total_minor", "annual_total_minor", "spent_minor"):
+    for key in (
+        "over_minor",
+        "amount_minor",
+        "total_minor",
+        "annual_total_minor",
+        "spent_minor",
+        "safe_to_spend_minor",
+        "committed_minor",
+    ):
         value = candidate.evidence.get(key)
         if isinstance(value, int):
             return value
@@ -256,6 +264,7 @@ def generate_briefing(*, period: str, as_of: date | None = None) -> Briefing:
             rationale=i.rationale,
             dedupe_key=i.dedupe_key,
             evidence=i.evidence,
+            action=i.action or {},
         )
         for i in insights
     ]

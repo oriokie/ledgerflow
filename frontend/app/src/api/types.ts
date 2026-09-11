@@ -381,6 +381,7 @@ export interface Bill {
   autopay_account_id: string | null;
   paid_at: string | null;
   notes: string;
+  recurring_transaction_id?: string | null;
   days_until_due?: number;
 }
 
@@ -742,6 +743,7 @@ export interface Milestone {
 export type InsightKind =
   | "spending_anomaly"
   | "overspending"
+  | "overspend_pace"
   | "budget_recommendation"
   | "savings_opportunity"
   | "duplicate_transaction"
@@ -752,7 +754,16 @@ export type InsightKind =
   | "subscription_review"
   | "goal_recommendation"
   | "debt_recommendation"
-  | "health_improvement";
+  | "health_improvement"
+  | "promo_expiry"
+  | "rate_increase"
+  | "refinance_opportunity"
+  | "high_fees"
+  | "offset_opportunity"
+  | "debt_milestone"
+  | "safe_to_spend"
+  | "committed_income"
+  | "bill_due";
 
 /** Ordered by urgency. `critical` is reserved for things with a deadline. */
 export type InsightSeverity = "critical" | "warning" | "opportunity" | "info";

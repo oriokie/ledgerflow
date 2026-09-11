@@ -21,15 +21,15 @@ from ..protocols import (
     ProviderKind,
 )
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 # component -> weight; must sum to 1.0 (asserted in tests)
 WEIGHTS = {
-    "savings_rate": 0.25,
-    "emergency_fund": 0.25,
-    "budget_adherence": 0.20,
+    "savings_rate": 0.20,
+    "emergency_fund": 0.20,
+    "budget_adherence": 0.15,
     "debt_load": 0.20,
-    "income_stability": 0.10,
+    "income_stability": 0.25,
 }
 
 
@@ -130,10 +130,12 @@ class WeightedHealthScorer(HealthScoreProvider):
                 weight,
                 "Not enough income and spending recorded yet to measure what you keep.",
             )
-        # 20% of income kept -> full marks.
+        # 15% of income kept -> full marks. A US-style 20% bar scores ordinary
+        # households as failing; 15% is a stretch that is still reachable on
+        # a single salary with rent.
         return HealthComponent(
             "Savings rate",
-            _clamp_score(min(rate / 0.20, 1.0) * 100),
+            _clamp_score(min(rate / 0.15, 1.0) * 100),
             weight,
             f"Keeping {rate * 100:.0f}% of income.",
         )
@@ -148,10 +150,12 @@ class WeightedHealthScorer(HealthScoreProvider):
                 weight,
                 "No regular spending recorded yet, so there is nothing to measure a runway against.",
             )
-        # 6 months' runway -> full marks.
+        # 3 months' runway -> full marks. Six months is a US-textbook target
+        # that prices out most renters; three months of reachable cash is the
+        # point at which a missed payday is survivable.
         return HealthComponent(
             "Emergency fund",
-            _clamp_score(min(months / 6.0, 1.0) * 100),
+            _clamp_score(min(months / 3.0, 1.0) * 100),
             weight,
             f"{months:.1f} months of essentials covered by cash you can reach.",
         )

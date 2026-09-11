@@ -12,6 +12,7 @@ import {
 const ALL_KINDS: InsightKind[] = [
   "spending_anomaly",
   "overspending",
+  "overspend_pace",
   "budget_recommendation",
   "savings_opportunity",
   "duplicate_transaction",
@@ -23,6 +24,15 @@ const ALL_KINDS: InsightKind[] = [
   "goal_recommendation",
   "debt_recommendation",
   "health_improvement",
+  "promo_expiry",
+  "rate_increase",
+  "refinance_opportunity",
+  "high_fees",
+  "offset_opportunity",
+  "debt_milestone",
+  "safe_to_spend",
+  "committed_income",
+  "bill_due",
 ];
 
 const ALL_SEVERITIES: InsightSeverity[] = ["critical", "warning", "opportunity", "info"];
@@ -61,6 +71,8 @@ describe("actionRoute", () => {
     expect(actionRoute({ action: "create_budget" })?.to).toBe("/budgets?add=1");
     expect(actionRoute({ action: "create_goal" })?.to).toBe("/goals?add=1");
     expect(actionRoute({ action: "open_recurring" })?.to).toBe("/recurring");
+    expect(actionRoute({ action: "open_bills" })?.to).toBe("/bills");
+    expect(actionRoute({ action: "open_income" })?.to).toBe("/income");
   });
 
   it("carries the id through when the verb has a target", () => {

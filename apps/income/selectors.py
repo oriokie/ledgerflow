@@ -28,7 +28,7 @@ from datetime import date, timedelta
 
 from django.utils import timezone
 
-from apps.finance.models import Bill, BillStatus, RecurringTransaction, RecurringType
+from apps.finance.models import RecurringTransaction, RecurringType
 from apps.finance.schedule import amount_in_month, first_month_day_on_or_after, iter_occurrences
 
 from .models import (
@@ -212,6 +212,22 @@ def next_expected_payday(source: IncomeSource, *, as_of: date) -> date | None:
     for payday in iter_income_paydays(source, start=as_of, end=horizon):
         return payday
     return None
+
+
+def soonest_payday(*, as_of: date | None = None) -> date | None:
+    """The household's next payday across every active source, or ``None``.
+
+    Ad-hoc and ended sources contribute nothing. A household with income on
+    file but nothing dated is not treated as being paid today — that would
+    invent a date the books do not have.
+    """
+    as_of = as_of or timezone.localdate()
+    dates = [
+        payday
+        for source in IncomeSource.objects.filter(is_active=True)
+        if (payday := next_expected_payday(source, as_of=as_of)) is not None
+    ]
+    return min(dates) if dates else None
 
 
 def _receipt_covers_payday(source: IncomeSource, payday: date) -> bool:
@@ -569,11 +585,10 @@ def _monthly_bills_minor(*, currency: str, as_of: date) -> int:
     including it would make the ratio swing on the timing of a single vet
     visit and make month-to-month comparison meaningless.
     """
+    from apps.finance.commitments import unlinked_bills
+
     total = 0
-    bills = Bill.objects.filter(
-        currency=currency,
-        status=BillStatus.UPCOMING,
-    ).exclude(recurrence_frequency="")
+    bills = unlinked_bills().filter(currency=currency).exclude(recurrence_frequency="")
     for bill in bills:
         total += amount_in_month(
             amount_minor=bill.amount_minor,

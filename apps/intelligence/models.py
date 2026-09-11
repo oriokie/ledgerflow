@@ -129,6 +129,9 @@ class InsightKind(models.TextChoices):
     HIGH_FEES = "high_fees", "High fees"
     OFFSET_OPPORTUNITY = "offset_opportunity", "Offset opportunity"
     DEBT_MILESTONE = "debt_milestone", "Debt milestone"
+    SAFE_TO_SPEND = "safe_to_spend", "Safe to spend"
+    COMMITTED_INCOME = "committed_income", "Committed income"
+    BILL_DUE = "bill_due", "Bill due"
 
 
 class InsightSeverity(models.TextChoices):

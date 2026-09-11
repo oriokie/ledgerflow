@@ -47,8 +47,6 @@ from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 from apps.finance.models import (
-    Bill,
-    BillStatus,
     Category,
     CategoryKind,
     RecurringTransaction,
@@ -210,9 +208,9 @@ def propose_budget(*, as_of: date | None = None, months: int = DEFAULT_MONTHS) -
     # ---- commitment floors per category
     floors: dict[str, int] = {}
     floor_names: dict[str, str] = {}
-    for bill in Bill.objects.filter(currency=currency, status=BillStatus.UPCOMING).exclude(
-        recurrence_frequency=""
-    ):
+    from apps.finance.commitments import unlinked_bills
+
+    for bill in unlinked_bills().filter(currency=currency).exclude(recurrence_frequency=""):
         if bill.category_id is None:
             continue
         key = str(bill.category_id)

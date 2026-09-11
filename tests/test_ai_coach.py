@@ -773,6 +773,18 @@ def test_every_insight_kind_is_reachable():
             "components": [{"name": "Savings rate", "score": 30, "detail": "Low."}],
         },
         savings_rate=0.02,
+        committed_ratio=0.85,
+        committed_minor=340_000,
+        upcoming_bills=(
+            {
+                "bill_id": "b1",
+                "name": "Rent",
+                "amount_minor": 120_000,
+                "currency": "USD",
+                "due_on": TODAY + timedelta(days=3),
+                "days_until_due": 3,
+            },
+        ),
         # Debt-derived kinds arrive pre-analysed from the debt module rather
         # than being recomputed here, so the context must carry them for the
         # coverage guarantee to mean anything.
@@ -804,11 +816,85 @@ def test_every_insight_kind_is_reachable():
     # mutually exclusive with OVERSPENDING and excluded here by design.
     # DUPLICATE_TRANSACTION is no longer emitted: same-amount charges are
     # usually two real bills, not a double charge.
+    # SAFE_TO_SPEND is mutually exclusive with CASHFLOW_RISK — proved below.
     expected = set(InsightKind.values) - {
         InsightKind.BUDGET_RECOMMENDATION,
         InsightKind.DUPLICATE_TRANSACTION,
+        InsightKind.SAFE_TO_SPEND,
     }
     assert produced == expected, f"unreachable kinds: {sorted(expected - produced)}"
+
+
+def test_safe_to_spend_is_the_coach_when_the_calendar_stays_positive():
+    """SAFE_TO_SPEND is mutually exclusive with CASHFLOW_RISK — both in one
+    feed would tell someone they can spend money and that they will overdraw.
+    """
+    ctx = _ctx(
+        safe_to_spend_minor=45_000,
+        next_payday_on=TODAY + timedelta(days=8),
+        cashflow_risk={},
+    )
+    produced = RuleBasedCoach().generate(ctx)
+    kinds = {i.kind for i in produced}
+    assert InsightKind.SAFE_TO_SPEND in kinds
+    assert InsightKind.CASHFLOW_RISK not in kinds
+    insight = next(i for i in produced if i.kind == InsightKind.SAFE_TO_SPEND)
+    assert insight.severity == InsightSeverity.INFO
+    assert insight.action == {"action": "open_cashflow_calendar"}
+
+
+def test_safe_to_spend_is_silent_when_an_overdraft_is_already_dated():
+    ctx = _ctx(
+        safe_to_spend_minor=0,
+        cashflow_risk={"first_negative_on": TODAY + timedelta(days=4)},
+    )
+    assert not [i for i in RuleBasedCoach().generate(ctx) if i.kind == InsightKind.SAFE_TO_SPEND]
+
+
+def test_committed_income_warns_when_most_of_pay_is_spoken_for():
+    ctx = _ctx(committed_ratio=0.82, committed_minor=328_000)
+    insight = next(i for i in RuleBasedCoach().generate(ctx) if i.kind == InsightKind.COMMITTED_INCOME)
+    assert insight.severity == InsightSeverity.WARNING
+    assert insight.action == {"action": "open_income"}
+    assert "82%" in insight.title
+
+
+def test_a_bill_due_this_week_is_a_warning():
+    ctx = _ctx(
+        upcoming_bills=(
+            {
+                "bill_id": "b9",
+                "name": "Electricity",
+                "amount_minor": 9_000,
+                "currency": "USD",
+                "due_on": TODAY + timedelta(days=2),
+                "days_until_due": 2,
+            },
+        )
+    )
+    insight = next(i for i in RuleBasedCoach().generate(ctx) if i.kind == InsightKind.BILL_DUE)
+    assert insight.severity == InsightSeverity.WARNING
+    assert insight.action == {"action": "open_bills", "bill_id": "b9"}
+    assert "Electricity" in insight.title
+
+
+def test_briefing_names_safe_to_spend_and_the_next_actions():
+    draft = TemplateNarrator().write_briefing(
+        period="daily",
+        context=_ctx(safe_to_spend_minor=12_000, next_payday_on=TODAY + timedelta(days=5)),
+        insights=[
+            _candidate(
+                kind=InsightKind.BILL_DUE,
+                severity=InsightSeverity.WARNING,
+                title="Rent is due in 3 days",
+                action={"action": "open_bills"},
+            )
+        ],
+    )
+    assert "USD 120" in draft.summary
+    assert "payday" in draft.summary.lower()
+    assert draft.metrics["safe_to_spend_minor"] == 12_000
+    assert draft.metrics["next_actions"][0]["title"] == "Rent is due in 3 days"
 
 
 def test_budget_recommendation_fires_when_no_budget_exists():

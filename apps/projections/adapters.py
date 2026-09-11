@@ -30,7 +30,7 @@ from django.utils import timezone
 
 from apps.debt import selectors as debt_selectors
 from apps.finance import selectors as finance_selectors
-from apps.finance.models import AccountType, BillStatus, FinancialAccount, RecurringTransaction, RecurringType
+from apps.finance.models import AccountType, FinancialAccount, RecurringTransaction, RecurringType
 from apps.finance.schedule import amount_in_month, is_periodical, iter_occurrences, monthly_run_rate_minor
 from apps.income.models import INCOME_SCHEDULE_UNIT
 from apps.investments import selectors as investment_selectors
@@ -397,12 +397,9 @@ def _scheduled_run_rate(currency: str, as_of: date) -> tuple[int, int, list[Comp
             running=_recurring_already_running(template, as_of),
         )
 
-    from apps.finance.models import Bill
+    from apps.finance.commitments import unlinked_bills
 
-    for bill in Bill.objects.filter(
-        currency=currency,
-        status__in=[BillStatus.UPCOMING, BillStatus.OVERDUE],
-    ).exclude(recurrence_frequency=""):
+    for bill in unlinked_bills().filter(currency=currency).exclude(recurrence_frequency=""):
         if not is_periodical(bill.recurrence_frequency, bill.recurrence_interval):
             continue
         events.extend(
@@ -525,7 +522,6 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
     Upcoming schedules stay on the list so a person can see them, but they
     are not part of this month's run-rate (`current=False`).
     """
-    from apps.finance.models import Bill
     from apps.income.selectors import source_views
 
     lines: list[dict] = []
@@ -642,10 +638,9 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
             )
         )
 
-    for bill in Bill.objects.filter(
-        currency=currency,
-        status__in=[BillStatus.UPCOMING, BillStatus.OVERDUE],
-    ).exclude(recurrence_frequency=""):
+    from apps.finance.commitments import unlinked_bills
+
+    for bill in unlinked_bills().filter(currency=currency).exclude(recurrence_frequency=""):
         periodical = is_periodical(bill.recurrence_frequency, bill.recurrence_interval)
         if periodical:
             monthly = bill.amount_minor
