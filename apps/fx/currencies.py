@@ -131,12 +131,7 @@ def _table_rows():
 def list_currencies(*, active_only: bool = True) -> list[Currency]:
     """Picker catalog. Empty table (pre-migration) falls back to the seed."""
     rows = _table_rows()
-    if rows is None:
-        items = list(SEED_CURRENCIES)
-    elif not rows:
-        items = list(SEED_CURRENCIES)
-    else:
-        items = [_dto(r) for r in rows]
+    items = [_dto(r) for r in rows] if rows else list(SEED_CURRENCIES)
     if active_only:
         return [c for c in items if c.is_active]
     return items

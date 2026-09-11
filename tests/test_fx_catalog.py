@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from apps.fx import catalog, services as fx
+from apps.fx import services as fx
 from apps.fx.currencies import is_known, is_supported, list_currencies
 from apps.fx.models import Currency
 from apps.fx.providers import RateProviderError
