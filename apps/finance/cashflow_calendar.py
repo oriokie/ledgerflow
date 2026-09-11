@@ -562,8 +562,10 @@ def _bill_events(*, currency: str, start: date, end: date, today: date) -> list[
     events: list[CashflowEvent] = []
     from .commitments import unlinked_bills
 
-    bills = unlinked_bills().filter(currency=currency, due_on__lte=end).select_related(
-        "payee", "category", "autopay_account"
+    bills = (
+        unlinked_bills()
+        .filter(currency=currency, due_on__lte=end)
+        .select_related("payee", "category", "autopay_account")
     )
 
     for bill in bills:

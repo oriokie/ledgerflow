@@ -251,9 +251,7 @@ Rules:
                 "currency": context.currency,
                 "savings_rate": context.savings_rate,
                 "safe_to_spend_minor": context.safe_to_spend_minor,
-                "next_payday_on": (
-                    context.next_payday_on.isoformat() if context.next_payday_on else None
-                ),
+                "next_payday_on": (context.next_payday_on.isoformat() if context.next_payday_on else None),
                 "committed_ratio": context.committed_ratio,
                 "insights": [
                     {"severity": i.severity, "title": i.title, "body": i.body} for i in insights[:12]

@@ -50,9 +50,7 @@ def link_matching_commitments() -> int:
     )
     by_payee: dict[tuple, RecurringTransaction] = {}
     by_name: dict[tuple, RecurringTransaction] = {}
-    for template in RecurringTransaction.objects.filter(
-        is_active=True, txn_type=RecurringType.EXPENSE
-    ):
+    for template in RecurringTransaction.objects.filter(is_active=True, txn_type=RecurringType.EXPENSE):
         if template.id in claimed:
             continue
         ccy = template.currency.upper()

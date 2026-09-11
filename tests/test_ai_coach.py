@@ -848,9 +848,7 @@ def test_safe_to_spend_is_silent_when_an_overdraft_is_already_dated():
         safe_to_spend_minor=0,
         cashflow_risk={"first_negative_on": TODAY + timedelta(days=4)},
     )
-    assert not [
-        i for i in RuleBasedCoach().generate(ctx) if i.kind == InsightKind.SAFE_TO_SPEND
-    ]
+    assert not [i for i in RuleBasedCoach().generate(ctx) if i.kind == InsightKind.SAFE_TO_SPEND]
 
 
 def test_committed_income_warns_when_most_of_pay_is_spoken_for():
