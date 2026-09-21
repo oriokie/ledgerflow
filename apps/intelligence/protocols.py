@@ -6,7 +6,7 @@ implementations live in `providers/`:
 
     CategorizationProvider   <- RuleBasedCategorizer   (today)
                              <- LLMCategorizer          (later, same interface)
-    ForecastProvider         <- MovingAverageForecaster (today)
+    ForecastProvider         <- EnsembleForecaster (seasonal when eligible, else MA)
     HealthScoreProvider      <- WeightedHealthScorer    (today)
     AnomalyProvider          <- StatisticalAnomalyDetector (today)
     RecommendationProvider   <- HeuristicRecommender    (today)
@@ -300,6 +300,8 @@ class CoachContext:
     committed_minor: int = 0
     #: {"bill_id", "name", "amount_minor", "currency", "due_on", "days_until_due"}
     upcoming_bills: tuple[dict, ...] = ()
+    #: {"policy_id", "name", "asset_name", "coverage_minor", "asset_value_minor", "gap_minor", "currency"}
+    insurance_gaps: tuple[dict, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

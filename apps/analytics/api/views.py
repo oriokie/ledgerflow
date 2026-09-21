@@ -194,6 +194,8 @@ class FinancialIndependenceView(TenantScopedAPIView, APIView):
                 ],
                 "never_at_current_pace": projection.never_at_current_pace,
                 "required_monthly_for_horizon_minor": projection.required_monthly_for_horizon_minor,
+                "pension_monthly_minor": projection.pension_monthly_minor,
+                "spend_is_override": projection.spend_is_override,
                 "horizon_years": fi.FALLBACK_HORIZON_YEARS,
                 "caveats": projection.caveats,
             }

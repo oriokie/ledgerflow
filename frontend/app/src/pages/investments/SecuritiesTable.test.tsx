@@ -13,6 +13,7 @@ function security(overrides: Partial<Security> = {}): Security {
     sector: "",
     currency: "KES",
     exchange: "",
+    expense_ratio_bp: null,
     ...overrides,
   } as Security;
 }

@@ -15,7 +15,7 @@ fallback.
 
     INTELLIGENCE_PROVIDERS = {
         "categorization": "apps.intelligence.providers.rules.RuleBasedCategorizer",
-        "forecast":       "apps.intelligence.providers.statistical.MovingAverageForecaster",
+        "forecast":       "apps.intelligence.providers.statistical.EnsembleForecaster",
         ...
     }
 """
@@ -37,7 +37,7 @@ from .protocols import (
 
 _DEFAULTS = {
     "categorization": "apps.intelligence.providers.rules.RuleBasedCategorizer",
-    "forecast": "apps.intelligence.providers.statistical.MovingAverageForecaster",
+    "forecast": "apps.intelligence.providers.statistical.EnsembleForecaster",
     "health": "apps.intelligence.providers.health.WeightedHealthScorer",
     "anomaly": "apps.intelligence.providers.statistical.StatisticalAnomalyDetector",
     "recommendation": "apps.intelligence.providers.recommend.HeuristicRecommender",

@@ -13,6 +13,7 @@ import {
   PiggyBank,
   Receipt,
   Repeat,
+  Shield,
   Target,
   TrendingUp,
   Wallet,
@@ -44,6 +45,7 @@ export const INSIGHT_ICONS: Record<InsightKind, LucideIcon> = {
   safe_to_spend: Wallet,
   committed_income: Percent,
   bill_due: Calendar,
+  underinsured: Shield,
 };
 
 export const INSIGHT_KIND_LABELS: Record<InsightKind, string> = {
@@ -70,6 +72,7 @@ export const INSIGHT_KIND_LABELS: Record<InsightKind, string> = {
   safe_to_spend: "Safe to spend",
   committed_income: "Committed income",
   bill_due: "Bill due",
+  underinsured: "Underinsured",
 };
 
 /**
@@ -119,6 +122,8 @@ export function actionRoute(action: Record<string, unknown>): { to: string; labe
       return { to: "/bills", label: "Open bills" };
     case "open_income":
       return { to: "/income", label: "Open income" };
+    case "open_insurance":
+      return { to: "/insurance", label: "Open insurance" };
     default:
       return null;
   }
@@ -146,6 +151,9 @@ export const EVIDENCE_LABELS: Record<string, string> = {
   days_until_due: "Days until due",
   committed_ratio: "Share of income",
   next_payday_on: "Next payday",
+  coverage_minor: "Cover",
+  asset_value_minor: "Asset value",
+  gap_minor: "Cover gap",
 };
 
 /** Keys whose values are money in minor units, so the card formats them. */

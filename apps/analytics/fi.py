@@ -32,6 +32,9 @@ from datetime import date
 from django.utils import timezone
 
 from apps.finance import selectors as finance_selectors
+from apps.income.models import IncomeKind, IncomeSource, Reliability
+from apps.income.selectors import monthly_equivalent_minor
+from apps.projections.models import PlanningProfile
 
 from .filters import Period, ReportFilters
 from .reports import _currency_for, _month_range, _monthly_totals
@@ -88,6 +91,9 @@ class FIProjection:
     #: The actionable inverse for the never case: monthly saving that reaches
     #: the number in FALLBACK_HORIZON_YEARS at the middle return.
     required_monthly_for_horizon_minor: int | None = None
+    #: Contractual pension and benefits, monthly, already reducing the FI number.
+    pension_monthly_minor: int = 0
+    spend_is_override: bool = False
     caveats: list[str] = field(default_factory=list)
 
 
@@ -119,6 +125,34 @@ def _required_monthly(net: int, target: int, years: int, annual_return: float) -
     growth = (1 + i) ** n
     needed = (target - net * growth) * i / (growth - 1)
     return max(0, math.ceil(needed))
+
+
+def _planning_profile() -> PlanningProfile | None:
+    return PlanningProfile.objects.first()
+
+
+def _contractual_pension_monthly(*, currency: str, as_of: date) -> int:
+    """Fixed pension and benefit sources that already cover part of spending.
+
+    Variable and irregular kinds are omitted: treating a fluctuating benefit as
+    a reduction of the FI number would assume money nobody promised.
+    """
+    total = 0
+    sources = IncomeSource.objects.filter(
+        is_active=True,
+        currency=currency,
+        kind__in=[IncomeKind.PENSION, IncomeKind.BENEFITS],
+        reliability=Reliability.FIXED,
+    )
+    for source in sources:
+        if source.starts_on > as_of:
+            continue
+        if source.ends_on is not None and source.ends_on < as_of:
+            continue
+        monthly = monthly_equivalent_minor(source.net_minor, source.frequency)
+        if monthly:
+            total += monthly
+    return total
 
 
 def project(*, as_of: date | None = None) -> FIProjection:
@@ -157,10 +191,21 @@ def project(*, as_of: date | None = None) -> FIProjection:
     if monthly_spending <= 0:
         raise NotEnoughHistoryError("No outflows recorded — nothing for independence to cover.")
 
-    net = next((row.net_minor for row in finance_selectors.net_worth() if row.currency == currency), 0)
+    profile = _planning_profile()
+    spend_is_override = False
+    if profile is not None and profile.monthly_spend_override_minor:
+        monthly_spending = profile.monthly_spend_override_minor
+        spend_is_override = True
 
-    fi_number = round(monthly_spending * 12 / SAFE_WITHDRAWAL_RATE)
-    progress = round(max(0, net) / fi_number * 100, 1) if fi_number else 0.0
+    swr = float(profile.safe_withdrawal_rate) if profile is not None else SAFE_WITHDRAWAL_RATE
+    if swr <= 0:
+        swr = SAFE_WITHDRAWAL_RATE
+
+    net = next((row.net_minor for row in finance_selectors.net_worth() if row.currency == currency), 0)
+    pension_monthly = _contractual_pension_monthly(currency=currency, as_of=as_of)
+    annual_gap = max(0, monthly_spending * 12 - pension_monthly * 12)
+    fi_number = round(annual_gap / swr) if swr else 0
+    progress = round(max(0, net) / fi_number * 100, 1) if fi_number else 100.0
 
     band: list[FIBandPoint] = []
     for annual in RETURN_BAND:
@@ -185,6 +230,20 @@ def project(*, as_of: date | None = None) -> FIProjection:
     )
 
     caveats = []
+    if spend_is_override:
+        caveats.append(
+            "Spending is the figure you set, not the median of recorded months. "
+            "Change the override to measure from the ledger again."
+        )
+    if pension_monthly:
+        caveats.append(
+            "The number is reduced by contractual pension and benefit income already on the books. "
+            "Work only has to cover the remainder."
+        )
+    if abs(swr - SAFE_WITHDRAWAL_RATE) > 1e-9:
+        caveats.append(
+            f"Withdrawal rate is {swr:.2%}, not the 4% convention. The number moves with that choice."
+        )
     if not save_samples:
         caveats.append(
             "No months with recorded income, so the saving rate is treated as zero — "
@@ -208,10 +267,12 @@ def project(*, as_of: date | None = None) -> FIProjection:
         monthly_savings_minor=monthly_savings,
         net_worth_minor=net,
         fi_number_minor=fi_number,
-        swr=SAFE_WITHDRAWAL_RATE,
+        swr=swr,
         progress_pct=progress,
         band=band,
         never_at_current_pace=never,
         required_monthly_for_horizon_minor=required,
+        pension_monthly_minor=pension_monthly,
+        spend_is_override=spend_is_override,
         caveats=caveats,
     )

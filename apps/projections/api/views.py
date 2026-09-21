@@ -31,6 +31,7 @@ from .serializers import (
     CALCULATORS,
     AssumptionSetSerializer,
     CompareSerializer,
+    PlanningProfileSerializer,
     ScenarioEventWriteSerializer,
     ScenarioWriteSerializer,
     event_catalogue,
@@ -79,6 +80,18 @@ def _assumptions_out(assumption_set: AssumptionSet) -> dict:
         "annual_cash_return": str(assumption_set.annual_cash_return),
         "effective_tax_rate": str(assumption_set.effective_tax_rate),
         "annual_property_growth": str(assumption_set.annual_property_growth),
+        "annual_return_volatility": str(assumption_set.annual_return_volatility),
+        "annual_inflation_volatility": str(assumption_set.annual_inflation_volatility),
+        "annual_expense_ratio": str(assumption_set.annual_expense_ratio),
+    }
+
+
+def _planning_out(profile) -> dict:
+    return {
+        "id": str(profile.id),
+        "target_fi_year": profile.target_fi_year,
+        "monthly_spend_override_minor": profile.monthly_spend_override_minor,
+        "safe_withdrawal_rate": str(profile.safe_withdrawal_rate),
     }
 
 
@@ -424,6 +437,27 @@ class AssumptionSetView(TenantScopedAPIView, APIView):
         except services.ScenarioError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(_assumptions_out(updated))
+
+
+class PlanningProfileView(TenantScopedAPIView, APIView):
+    permission_classes = [IsTenantMember, PLANNING]
+    required_role = Role.VIEWER
+    serializer_class = PlanningProfileSerializer
+
+    @extend_schema(operation_id="planning_profile_get")
+    def get(self, request):
+        return Response(_planning_out(services.ensure_planning_profile()))
+
+    @extend_schema(operation_id="planning_profile_update")
+    def patch(self, request):
+        profile = services.ensure_planning_profile()
+        s = PlanningProfileSerializer(data=request.data, partial=True)
+        s.is_valid(raise_exception=True)
+        try:
+            updated = services.update_planning_profile(profile, **s.validated_data)
+        except (services.ScenarioError, DjangoValidationError) as exc:
+            return _bad_request(exc)
+        return Response(_planning_out(updated))
 
 
 class EventCatalogueView(TenantScopedAPIView, APIView):

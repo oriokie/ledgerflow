@@ -132,6 +132,7 @@ class InsightKind(models.TextChoices):
     SAFE_TO_SPEND = "safe_to_spend", "Safe to spend"
     COMMITTED_INCOME = "committed_income", "Committed income"
     BILL_DUE = "bill_due", "Bill due"
+    UNDERINSURED = "underinsured", "Underinsured"
 
 
 class InsightSeverity(models.TextChoices):

@@ -12,6 +12,7 @@ what keep it that way. What they defend:
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -584,3 +585,47 @@ def test_an_inheritance_is_taken_as_received_with_no_tax_guessed():
         assumptions=EconomicAssumptions(effective_tax_rate=0.4),
     )
     assert compiled[0].one_off_cash_minor == 1_000_000
+
+
+def test_expense_ratio_reduces_investment_growth():
+    """A 7% return with a 1% TER is 6%, not 7% with a footnote."""
+    pos = position(
+        investment_minor=1_000_000, liquid_minor=0, monthly_net_income_minor=0, monthly_expenses_minor=0
+    )
+    gross = project(
+        position=pos,
+        assumptions=replace(FLAT, annual_investment_return=0.07),
+        months=12,
+    )
+    net = project(
+        position=pos,
+        assumptions=replace(FLAT, annual_investment_return=0.07, annual_expense_ratio=0.01),
+        months=12,
+    )
+    assert net.points[-1].investment_minor < gross.points[-1].investment_minor
+
+
+def test_a_bad_year_then_recovery_is_not_the_geometric_mean():
+    """Sequence-of-returns risk lives *inside* a path when money is still
+    being contributed. Collapsing the path to its geometric mean before
+    projecting is the opposite of what retirement risk is.
+    """
+    pos = position(
+        investment_minor=5_000_000,
+        liquid_minor=2_000_000,
+        monthly_net_income_minor=100_000,
+        monthly_expenses_minor=0,
+        monthly_investment_contribution_minor=100_000,
+    )
+    path = [
+        replace(FLAT, annual_investment_return=-0.40),
+        replace(FLAT, annual_investment_return=0.50),
+    ]
+    geo = (0.60 * 1.50) ** 0.5 - 1
+    along_path = project(position=pos, assumptions=FLAT, months=24, assumption_path=path)
+    collapsed = project(
+        position=pos,
+        assumptions=replace(FLAT, annual_investment_return=geo),
+        months=24,
+    )
+    assert along_path.points[-1].investment_minor != collapsed.points[-1].investment_minor

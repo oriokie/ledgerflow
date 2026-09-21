@@ -13,6 +13,16 @@ export interface AssumptionSet {
   annual_cash_return: string;
   effective_tax_rate: string;
   annual_property_growth: string;
+  annual_return_volatility: string;
+  annual_inflation_volatility: string;
+  annual_expense_ratio: string;
+}
+
+export interface PlanningProfile {
+  id: string;
+  target_fi_year: number | null;
+  monthly_spend_override_minor: number | null;
+  safe_withdrawal_rate: string;
 }
 
 export type ScenarioStatus = "draft" | "active" | "archived";
@@ -154,6 +164,9 @@ export const projectionsApi = {
   assumptions: () => api.get<AssumptionSet>("/projections/assumptions/"),
   updateAssumptions: (body: Partial<AssumptionSet>) =>
     api.patch<AssumptionSet>("/projections/assumptions/", body),
+  planningProfile: () => api.get<PlanningProfile>("/projections/planning-profile/"),
+  updatePlanningProfile: (body: Partial<PlanningProfile>) =>
+    api.patch<PlanningProfile>("/projections/planning-profile/", body),
 
   /** The scenario builder renders its forms from this rather than a hard-coded
    * copy that drifts from the backend's schema. */

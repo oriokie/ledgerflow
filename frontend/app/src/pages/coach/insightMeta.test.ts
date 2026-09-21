@@ -33,6 +33,7 @@ const ALL_KINDS: InsightKind[] = [
   "safe_to_spend",
   "committed_income",
   "bill_due",
+  "underinsured",
 ];
 
 const ALL_SEVERITIES: InsightSeverity[] = ["critical", "warning", "opportunity", "info"];
@@ -73,6 +74,7 @@ describe("actionRoute", () => {
     expect(actionRoute({ action: "open_recurring" })?.to).toBe("/recurring");
     expect(actionRoute({ action: "open_bills" })?.to).toBe("/bills");
     expect(actionRoute({ action: "open_income" })?.to).toBe("/income");
+    expect(actionRoute({ action: "open_insurance" })?.to).toBe("/insurance");
   });
 
   it("carries the id through when the verb has a target", () => {

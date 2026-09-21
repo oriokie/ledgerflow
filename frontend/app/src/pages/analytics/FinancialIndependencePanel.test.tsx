@@ -31,6 +31,8 @@ const BASE: FIProjection = {
   ],
   never_at_current_pace: false,
   required_monthly_for_horizon_minor: null,
+  pension_monthly_minor: 0,
+  spend_is_override: false,
   horizon_years: 15,
   caveats: ["Returns are real (after inflation); today's money throughout."],
 };

@@ -33,7 +33,14 @@ from django.utils import timezone
 from . import adapters
 from .engine import CompiledEvent, EconomicAssumptions, FinancialPosition, ProjectionResult
 from .events import EventParamError, compile_event
-from .models import AssumptionSet, Scenario, ScenarioEvent, ScenarioStatus, ScenarioVisibility
+from .models import (
+    AssumptionSet,
+    PlanningProfile,
+    Scenario,
+    ScenarioEvent,
+    ScenarioStatus,
+    ScenarioVisibility,
+)
 
 
 class ScenarioError(Exception):
@@ -53,6 +60,9 @@ DEFAULT_ASSUMPTIONS = {
     "annual_cash_return": "0.0000",
     "effective_tax_rate": "0.0000",
     "annual_property_growth": "0.0400",
+    "annual_return_volatility": "0.1500",
+    "annual_inflation_volatility": "0.0200",
+    "annual_expense_ratio": "0.0000",
 }
 
 
@@ -77,6 +87,13 @@ def to_engine_assumptions(assumption_set: AssumptionSet | None) -> EconomicAssum
     """Decimal settings to engine floats, at the boundary and nowhere else."""
     if assumption_set is None:
         return EconomicAssumptions()
+    expense_ratio = float(assumption_set.annual_expense_ratio)
+    if expense_ratio == 0:
+        from apps.investments.selectors import weighted_expense_ratio
+
+        ter = weighted_expense_ratio()
+        if ter:
+            expense_ratio = ter
     return EconomicAssumptions(
         annual_inflation=float(assumption_set.annual_inflation),
         annual_salary_growth=float(assumption_set.annual_salary_growth),
@@ -84,6 +101,9 @@ def to_engine_assumptions(assumption_set: AssumptionSet | None) -> EconomicAssum
         annual_cash_return=float(assumption_set.annual_cash_return),
         effective_tax_rate=float(assumption_set.effective_tax_rate),
         annual_property_growth=float(assumption_set.annual_property_growth),
+        annual_expense_ratio=expense_ratio,
+        annual_return_volatility=float(assumption_set.annual_return_volatility),
+        annual_inflation_volatility=float(assumption_set.annual_inflation_volatility),
     )
 
 
@@ -327,3 +347,31 @@ def compare(scenarios: list[Scenario], *, as_of: date | None = None) -> Scenario
             "between them is a difference of opinion about inflation and returns, not of plan."
         )
     return ScenarioComparison(as_of=as_of, currency=position.currency, runs=runs, notes=notes)
+
+
+# ---------------------------------------------------------------------------
+# planning profile
+# ---------------------------------------------------------------------------
+def ensure_planning_profile() -> PlanningProfile:
+    """The workspace's planning facts, created on first use.
+
+    Lazy for the same reason the default assumption set is: tenants arrive
+    continuously, and a row nobody asked for is not a fact.
+    """
+    existing = PlanningProfile.objects.first()
+    if existing is not None:
+        return existing
+    return PlanningProfile.objects.create()
+
+
+@transaction.atomic
+def update_planning_profile(profile: PlanningProfile, **fields) -> PlanningProfile:
+    allowed = {"target_fi_year", "monthly_spend_override_minor", "safe_withdrawal_rate"}
+    unknown = set(fields) - allowed
+    if unknown:
+        raise ScenarioError(f"unknown planning field(s): {sorted(unknown)}")
+    for key, value in fields.items():
+        setattr(profile, key, value)
+    profile.full_clean(exclude=["tenant_id", "created_by", "updated_by"])
+    profile.save()
+    return profile

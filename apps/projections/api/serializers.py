@@ -25,6 +25,15 @@ class AssumptionSetSerializer(serializers.Serializer):
     annual_cash_return = serializers.DecimalField(max_digits=6, decimal_places=4, required=False)
     effective_tax_rate = serializers.DecimalField(max_digits=6, decimal_places=4, required=False)
     annual_property_growth = serializers.DecimalField(max_digits=6, decimal_places=4, required=False)
+    annual_return_volatility = serializers.DecimalField(max_digits=6, decimal_places=4, required=False)
+    annual_inflation_volatility = serializers.DecimalField(max_digits=6, decimal_places=4, required=False)
+    annual_expense_ratio = serializers.DecimalField(max_digits=6, decimal_places=4, required=False)
+
+
+class PlanningProfileSerializer(serializers.Serializer):
+    target_fi_year = serializers.IntegerField(min_value=2000, max_value=2200, required=False, allow_null=True)
+    monthly_spend_override_minor = serializers.IntegerField(min_value=1, required=False, allow_null=True)
+    safe_withdrawal_rate = serializers.DecimalField(max_digits=6, decimal_places=4, required=False)
 
 
 class ScenarioWriteSerializer(serializers.Serializer):
@@ -158,8 +167,8 @@ class SimulationSerializer(serializers.Serializer):
     #: Part of the request *and* the response. A simulation nobody can
     #: reproduce is one nobody can check or act on.
     seed = serializers.IntegerField(default=12345)
-    return_volatility = serializers.FloatField(min_value=0, max_value=1, default=0.15)
-    inflation_volatility = serializers.FloatField(min_value=0, max_value=1, default=0.02)
+    return_volatility = serializers.FloatField(min_value=0, max_value=1, required=False)
+    inflation_volatility = serializers.FloatField(min_value=0, max_value=1, required=False)
     income_shock_probability = serializers.FloatField(min_value=0, max_value=1, default=0.04)
     #: Simulate a saved scenario rather than the bare position.
     scenario_id = serializers.UUIDField(required=False, allow_null=True)

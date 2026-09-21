@@ -695,6 +695,36 @@ class RuleBasedCoach:
             )
         ]
 
+    def _underinsured(self, ctx: CoachContext) -> list[InsightCandidate]:
+        if not ctx.insurance_gaps:
+            return []
+        worst = max(ctx.insurance_gaps, key=lambda g: g["gap_minor"])
+        asset = worst.get("asset_name") or "an asset"
+        return [
+            InsightCandidate(
+                kind=InsightKind.UNDERINSURED,
+                severity=InsightSeverity.WARNING,
+                title=f"{asset} is insured for less than it is worth",
+                body=(
+                    f"{worst['name']} covers {_money(worst['coverage_minor'], ctx.currency)} "
+                    f"against {_money(worst['asset_value_minor'], ctx.currency)} — "
+                    f"a gap of {_money(worst['gap_minor'], ctx.currency)}."
+                ),
+                rationale=(
+                    "Cover is compared with the latest valuation of the linked asset. "
+                    "A gap is a fact about the two numbers, not a recommendation to buy more."
+                ),
+                action={"action": "open_insurance"},
+                dedupe_key=f"underinsured:{worst['policy_id']}",
+                evidence={
+                    "coverage_minor": worst["coverage_minor"],
+                    "asset_value_minor": worst["asset_value_minor"],
+                    "gap_minor": worst["gap_minor"],
+                },
+                provenance=self._provenance("insurance cover versus asset valuation"),
+            )
+        ]
+
     def _health(self, ctx: CoachContext) -> list[InsightCandidate]:
         health = ctx.health
         if not health or not health.get("components"):
@@ -742,6 +772,7 @@ class RuleBasedCoach:
             self._subscriptions,
             self._goals,
             self._budget_recommendations,
+            self._underinsured,
             self._health,
             self._safe_to_spend,
         )

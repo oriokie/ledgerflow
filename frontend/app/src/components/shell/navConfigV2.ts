@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Wallet,
   Home,
+  Shield,
   type LucideIcon,
 } from "lucide-react";
 
@@ -54,6 +55,7 @@ export const NAV_SECTIONS_V2: NavSectionV2[] = [
       { to: "/", label: "Today", icon: LayoutDashboard, end: true },
       { to: "/accounts", label: "Accounts", icon: Wallet, metric: "netWorth" },
       { to: "/assets", label: "Property", icon: Home },
+      { to: "/insurance", label: "Insurance", icon: Shield },
       { to: "/income", label: "Income", icon: Banknote },
       { to: "/activity", label: "Activity", icon: ListOrdered, metric: "unreviewed" },
     ],

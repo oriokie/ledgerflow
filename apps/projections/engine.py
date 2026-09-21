@@ -105,9 +105,13 @@ class EconomicAssumptions:
     effective_tax_rate: float = 0.0
     #: Annual growth in property values, used for assets introduced by events.
     annual_property_growth: float = 0.04
+    #: Subtracted from ``annual_investment_return`` when credits are applied.
+    annual_expense_ratio: float = 0.0
+    annual_return_volatility: float = 0.15
+    annual_inflation_volatility: float = 0.02
 
     def describe(self) -> list[str]:
-        return [
+        notes = [
             f"Inflation {self.annual_inflation:.2%} a year, applied to living costs.",
             f"Earned income growing {self.annual_salary_growth:.2%} a year.",
             f"Invested assets returning {self.annual_investment_return:.2%} a year, nominal.",
@@ -115,6 +119,11 @@ class EconomicAssumptions:
             f"Changes in gross pay taxed at an effective {self.effective_tax_rate:.2%}.",
             f"Property appreciating {self.annual_property_growth:.2%} a year.",
         ]
+        if self.annual_expense_ratio:
+            notes.append(
+                f"Investment returns reduced by a {self.annual_expense_ratio:.2%} annual expense ratio."
+            )
+        return notes
 
 
 @dataclass(frozen=True)
@@ -250,12 +259,25 @@ class ProjectionResult:
 # ---------------------------------------------------------------------------
 # the engine
 # ---------------------------------------------------------------------------
+def _monthly_rates(assumptions: EconomicAssumptions) -> tuple[float, float, float, float, float]:
+    """Inflation, salary, net investment, cash, property — monthly effective."""
+    net_return = assumptions.annual_investment_return - assumptions.annual_expense_ratio
+    return (
+        monthly_rate(assumptions.annual_inflation, compounding="effective"),
+        monthly_rate(assumptions.annual_salary_growth, compounding="effective"),
+        monthly_rate(max(-0.5, net_return), compounding="effective"),
+        monthly_rate(assumptions.annual_cash_return, compounding="effective"),
+        monthly_rate(assumptions.annual_property_growth, compounding="effective"),
+    )
+
+
 def project(
     *,
     position: FinancialPosition,
     assumptions: EconomicAssumptions | None = None,
     events: list[CompiledEvent] | None = None,
     months: int = 120,
+    assumption_path: list[EconomicAssumptions] | None = None,
 ) -> ProjectionResult:
     """Roll the position forward month by month.
 
@@ -263,6 +285,10 @@ def project(
     ambiguous: expenses and debt service are taken out before any return is
     credited, so a month that is tight looks tight rather than being rescued by
     interest that would not have arrived until the end of the period.
+
+    ``assumption_path`` is a yearly sequence. Month ``m`` (1-based) uses
+    ``path[(m - 1) // 12]``. When omitted, a single assumption set applies to
+    the whole window — today's deterministic behaviour.
     """
     if months <= 0:
         raise ValueError("a projection needs at least one month")
@@ -271,12 +297,13 @@ def project(
 
     assumptions = assumptions or EconomicAssumptions()
     events = list(events or [])
+    if assumption_path:
+        years_needed = (months + 11) // 12
+        last = assumption_path[-1]
+        if len(assumption_path) < years_needed:
+            assumption_path = list(assumption_path) + [last] * (years_needed - len(assumption_path))
 
-    inflation_m = monthly_rate(assumptions.annual_inflation, compounding="effective")
-    salary_m = monthly_rate(assumptions.annual_salary_growth, compounding="effective")
-    invest_m = monthly_rate(assumptions.annual_investment_return, compounding="effective")
-    cash_m = monthly_rate(assumptions.annual_cash_return, compounding="effective")
-    property_m = monthly_rate(assumptions.annual_property_growth, compounding="effective")
+    inflation_m, salary_m, invest_m, cash_m, property_m = _monthly_rates(assumptions)
 
     liquid = float(position.liquid_minor)
     invested = float(position.investment_minor)
@@ -296,6 +323,13 @@ def project(
 
     for month in range(1, months + 1):
         fired: list[str] = []
+
+        if assumption_path:
+            year_assumptions = assumption_path[(month - 1) // 12]
+            inflation_m, salary_m, invest_m, cash_m, property_m = _monthly_rates(year_assumptions)
+            if tranches:
+                # Opening other-assets tranche tracks the current property rate.
+                tranches[0][1] = property_m
 
         # -- one-off effects land at the start of their month ---------------
         for event in events:

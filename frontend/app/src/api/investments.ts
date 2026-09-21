@@ -4,6 +4,7 @@ import type {
   AssetClass,
   HoldingValuation,
   PortfolioHistoryPoint,
+  PortfolioPerformance,
   PortfolioSummary,
   Security,
 } from "./types";
@@ -18,6 +19,7 @@ export const investmentsApi = {
     currency: string;
     sector?: string;
     exchange?: string;
+    expense_ratio_bp?: number | null;
   }) => api.post<Security>("/investments/securities/", payload),
 
   holdings: () => api.get<HoldingValuation[]>("/investments/holdings/"),
@@ -28,6 +30,9 @@ export const investmentsApi = {
 
   history: (months = 12) =>
     api.get<PortfolioHistoryPoint[]>(`/investments/portfolio/history/?months=${months}`),
+
+  performance: (months = 12) =>
+    api.get<PortfolioPerformance | null>(`/investments/portfolio/performance/?months=${months}`),
 
   trade: (
     action: "buy" | "sell",

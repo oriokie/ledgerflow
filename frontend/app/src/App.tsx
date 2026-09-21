@@ -46,6 +46,9 @@ const WorkspacePickerPage = lazy(() =>
 );
 const AccountsPage = lazy(() => import("./pages/AccountsPage").then((m) => ({ default: m.AccountsPage })));
 const AssetsPage = lazy(() => import("./pages/AssetsPage").then((m) => ({ default: m.AssetsPage })));
+const InsurancePage = lazy(() =>
+  import("./pages/InsurancePage").then((m) => ({ default: m.InsurancePage })),
+);
 const CategoriesPage = lazy(() => import("./pages/CategoriesPage").then((m) => ({ default: m.CategoriesPage })));
 const RecurringPage = lazy(() => import("./pages/RecurringPage").then((m) => ({ default: m.RecurringPage })));
 const InsightsPage = lazy(() => import("./pages/InsightsPage").then((m) => ({ default: m.InsightsPage })));
@@ -197,6 +200,7 @@ export default function App() {
           <Route path="/receivables" element={<ReceivablesPage />} />
           <Route path="/accounts" element={<AccountsPage />} />
           <Route path="/assets" element={<AssetsPage />} />
+          <Route path="/insurance" element={<InsurancePage />} />
           <Route path="/categories" element={<CategoriesPage />} />
           <Route path="/goals" element={<GoalsPage />} />
 

@@ -26,6 +26,7 @@ const SECURITY: Security = {
   sector: "Technology",
   currency: "USD",
   exchange: "",
+  expense_ratio_bp: null,
 };
 
 const HOLDING: HoldingValuation = {

@@ -31,7 +31,9 @@ from apps.intelligence.providers.health import WEIGHTS, WeightedHealthScorer
 from apps.intelligence.providers.recommend import HeuristicRecommender
 from apps.intelligence.providers.rules import RuleBasedCategorizer
 from apps.intelligence.providers.statistical import (
+    EnsembleForecaster,
     MovingAverageForecaster,
+    SeasonalForecaster,
     StatisticalAnomalyDetector,
 )
 
@@ -112,6 +114,46 @@ def test_forecast_projects_trailing_average():
 def test_forecast_handles_empty_history():
     forecast = MovingAverageForecaster().forecast_expense([], periods_ahead=1)
     assert forecast.points[0].projected_expense_minor == 0
+
+
+def _seasonal_history(years: int = 2):
+    """Repeating annual spike in December, quiet the rest of the year."""
+    points = []
+    for year in range(2024, 2024 + years):
+        for month in range(1, 13):
+            expense = 300_000 if month == 12 else 100_000
+            points.append(CashflowPoint(date(year, month, 1), 500_000, expense))
+    return points
+
+
+def test_seasonal_forecaster_falls_back_to_the_moving_average_without_two_years():
+    history = _seasonal_history(years=1)
+    forecast = SeasonalForecaster().forecast_expense(history, periods_ahead=1)
+    assert "trailing average" in forecast.provenance.rationale.lower()
+
+
+def test_seasonal_forecaster_sees_a_repeating_annual_spike():
+    history = _seasonal_history(years=2)
+    forecast = SeasonalForecaster().forecast_expense(history, periods_ahead=12)
+    january = forecast.points[0].projected_expense_minor
+    december = forecast.points[11].projected_expense_minor
+    assert december > january
+    assert december > 200_000
+
+
+def test_ensemble_uses_seasonal_when_eligible_and_ma_otherwise():
+    short = EnsembleForecaster().forecast_expense(_seasonal_history(years=1), 1)
+    long = EnsembleForecaster().forecast_expense(_seasonal_history(years=2), 12)
+    assert short.provenance.provider == "EnsembleForecaster"
+    assert "trailing average" in short.provenance.rationale.lower()
+    assert long.points[11].projected_expense_minor > long.points[0].projected_expense_minor
+
+
+def test_the_registry_default_forecaster_is_the_ensemble():
+    from apps.intelligence.registry import get_forecaster
+
+    assert isinstance(EnsembleForecaster(), ForecastProvider)
+    assert type(get_forecaster()).__name__ == "EnsembleForecaster"
 
 
 # --------------------------------------------------------------- health

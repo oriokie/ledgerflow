@@ -266,6 +266,24 @@ def test_assumptions_are_readable_and_editable(tenant_context):
     patched = client.patch(f"{BASE}/assumptions/", {"annual_inflation": "0.0800"}, format="json")
     assert patched.status_code == 200
     assert patched.data["annual_inflation"] == "0.0800"
+    assert "annual_return_volatility" in res.data
+    assert "annual_expense_ratio" in res.data
+
+
+def test_planning_profile_is_a_workspace_singleton(tenant_context):
+    _, client = tenant_context
+    res = client.get(f"{BASE}/planning-profile/")
+    assert res.status_code == 200
+    assert res.data["safe_withdrawal_rate"] == "0.0400"
+
+    patched = client.patch(
+        f"{BASE}/planning-profile/",
+        {"monthly_spend_override_minor": 250_000, "safe_withdrawal_rate": "0.0350"},
+        format="json",
+    )
+    assert patched.status_code == 200
+    assert patched.data["monthly_spend_override_minor"] == 250_000
+    assert patched.data["safe_withdrawal_rate"] == "0.0350"
 
 
 def test_the_event_catalogue_describes_every_declared_kind(tenant_context):
