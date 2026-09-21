@@ -639,6 +639,19 @@ def cashflow_stack(*, currency: str, as_of: date) -> list[dict]:
         )
 
     from apps.finance.commitments import unlinked_bills
+    from apps.insurance.selectors import unlinked_monthly_premiums
+
+    for premium in unlinked_monthly_premiums(currency=currency, as_of=as_of):
+        lines.append(
+            _stack_line(
+                line_id=f"insurance:{premium['id']}",
+                kind="insurance",
+                direction="out",
+                label=premium["label"],
+                monthly_minor=premium["monthly_minor"],
+                current=True,
+            )
+        )
 
     for bill in unlinked_bills().filter(currency=currency).exclude(recurrence_frequency=""):
         periodical = is_periodical(bill.recurrence_frequency, bill.recurrence_interval)

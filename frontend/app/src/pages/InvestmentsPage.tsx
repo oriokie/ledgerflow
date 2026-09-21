@@ -1,10 +1,10 @@
 import { Plus, TagIcon, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { useAccounts } from "../hooks/useFinance";
-import { useHoldings, usePortfolio, usePortfolioHistory, useSecurities } from "../hooks/useInvestments";
+import { useHoldings, usePortfolio, usePortfolioHistory, usePortfolioPerformance, useSecurities } from "../hooks/useInvestments";
 import { useAuth } from "../lib/AuthContext";
 import { workspaceCurrency } from "../lib/currencies";
-import { Button, Card, EmptyState, Grid, Inline, PageHeader, SkeletonCard } from "../ui";
+import { Button, Card, EmptyState, Figure, FigureRow, Grid, Inline, PageHeader, SkeletonCard, Text } from "../ui";
 import {
   AllocationChart,
   HoldingsTable,
@@ -29,6 +29,7 @@ export function InvestmentsPage() {
   const { data: portfolio, isLoading } = usePortfolio();
   const { data: holdings } = useHoldings();
   const { data: history } = usePortfolioHistory(12);
+  const { data: performance } = usePortfolioPerformance(12);
   const { data: securities } = useSecurities();
   // Where a payment landed. Interest can be paid into any account, not only
   // the brokerage that holds the security — an MMF often sweeps to current.
@@ -146,6 +147,38 @@ export function InvestmentsPage() {
 
           <div className="lf-dash-section">
             <Card title="Performance">
+              {performance && (
+                <FigureRow>
+                  <Figure
+                    label="Modified Dietz"
+                    value={
+                      performance.modified_dietz === null
+                        ? "—"
+                        : `${(performance.modified_dietz * 100).toFixed(1)}%`
+                    }
+                  />
+                  <Figure
+                    label="Volatility"
+                    value={
+                      performance.volatility === null ? "—" : `${(performance.volatility * 100).toFixed(1)}%`
+                    }
+                  />
+                  <Figure
+                    label="Max drawdown"
+                    value={
+                      performance.max_drawdown === null
+                        ? "—"
+                        : `${(performance.max_drawdown * 100).toFixed(1)}%`
+                    }
+                  />
+                </FigureRow>
+              )}
+              {performance?.irregular_quotes && (
+                <Text tone="secondary" size="sm">
+                  Quotes in this window are irregular, so this is a Modified Dietz estimate rather than a
+                  true time-weighted return.
+                </Text>
+              )}
               <PerformanceChart points={history ?? []} currency={currency} />
             </Card>
           </div>

@@ -11,7 +11,7 @@ from apps.finance.models import FinancialAccount
 from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
 
-from .. import selectors, services
+from .. import performance, selectors, services
 from ..models import InvestmentTransaction, Security
 from .serializers import (
     DividendSerializer,
@@ -35,6 +35,7 @@ def _security_out(security: Security) -> dict:
         "sector": security.sector,
         "currency": security.currency,
         "exchange": security.exchange,
+        "expense_ratio_bp": security.expense_ratio_bp,
     }
 
 
@@ -208,6 +209,42 @@ class PortfolioHistoryView(TenantScopedAPIView, APIView):
                 }
                 for p in selectors.valuation_history(months=months)
             ]
+        )
+
+
+class PortfolioPerformanceView(TenantScopedAPIView, APIView):
+    """Modified Dietz return, volatility and max drawdown over the recent window.
+
+    204 when there are no holdings — the same absence as the summary, rather
+    than a zero return that would read as a wipeout.
+    """
+
+    permission_classes = [IsTenantMember, require_feature(PlanFeature.INVESTMENTS)]
+    required_role = Role.VIEWER
+    serializer_class = None
+
+    @extend_schema(operation_id="portfolio_performance")
+    def get(self, request):
+        months = min(int(request.query_params.get("months", 12)), 60)
+        result = performance.portfolio_performance(months=months)
+        if result is None:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {
+                "currency": result.currency,
+                "start": result.start,
+                "end": result.end,
+                "beginning_value_minor": result.beginning_value_minor,
+                "ending_value_minor": result.ending_value_minor,
+                "net_flow_minor": result.net_flow_minor,
+                "modified_dietz": result.modified_dietz,
+                "annualized_return": result.annualized_return,
+                "volatility": result.volatility,
+                "max_drawdown": result.max_drawdown,
+                "months": result.months,
+                "irregular_quotes": result.irregular_quotes,
+                "caveats": result.caveats,
+            }
         )
 
 

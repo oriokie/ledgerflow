@@ -24,7 +24,7 @@ knowledge. See `success_probability` for the model and its stated limits.
 
 from __future__ import annotations
 
-import math
+import random
 from dataclasses import dataclass
 from datetime import date, timedelta
 
@@ -43,6 +43,10 @@ RUN_RATE_WINDOW_MONTHS = 6
 #: Below this many months with any contribution, the observed rate is noise and
 #: no probability is reported.
 MIN_MONTHS_FOR_PROBABILITY = 3
+
+#: Trials for the contribution-and-return simulation. Seeded per goal so the
+#: figure does not flicker on refresh.
+MC_TRIALS = 400
 
 #: Forecasts beyond this horizon are not meaningful for personal finance and
 #: are reported as "not on this trajectory" instead of a date in 2190.
@@ -160,26 +164,18 @@ def success_probability(
 ) -> float | None:
     """Likelihood of hitting the target by the target date, 0.0–1.0.
 
-    **This is a calibrated heuristic, not a statistical guarantee**, and it is
-    labelled as such everywhere it surfaces. The model:
-
-        ratio       = observed monthly rate ÷ required monthly rate
-        base        = logistic(4 × (ratio − 1))   → 0.5 at exactly on-pace
-        probability = base × (0.6 + 0.4 × consistency)
-
-    The logistic gives a smooth, saturating response: contributing twice the
-    required amount is reassuring but not a certainty, and contributing half is
-    discouraging but not impossible. The consistency term caps an erratic
-    saver's score, because a mean built from one large deposit is a weaker
-    signal than the same mean built from six regular ones.
+    When there are at least `MIN_MONTHS_FOR_PROBABILITY` funded months, this is
+    a seeded Monte Carlo: each remaining month resamples an observed month
+    (zeros included, so skipped months stay skipped) and applies the workspace
+    return assumption. It is labelled as a simulation, not a guarantee.
 
     Returns `None` — never a number — when:
       * there is no target date (nothing to be on time for);
       * fewer than `MIN_MONTHS_FOR_PROBABILITY` months have any contribution;
       * the goal is not manually tracked, so no contribution history exists.
 
-    Refusing to answer is the point. A probability fabricated from thin data
-    would look exactly like one earned from rich data.
+    Refusing to answer from thinner data is the point. A probability invented
+    from two deposits would look exactly like one earned from a year of them.
     """
     if goal.target_date is None:
         return None
@@ -201,10 +197,60 @@ def success_probability(
         # Target date already passed and the goal is unmet.
         return 0.0
 
-    ratio = observed / required
-    base = 1 / (1 + math.exp(-4 * (ratio - 1)))
-    consistency = contribution_consistency(goal, as_of=as_of)
-    return round(min(1.0, max(0.0, base * (0.6 + 0.4 * consistency))), 3)
+    return _mc_success_probability(
+        goal,
+        history=history,
+        saved=saved,
+        as_of=as_of or timezone.localdate(),
+    )
+
+
+def _assumption_return_and_vol() -> tuple[float, float]:
+    """Workspace return assumption, or the unremarkable 7% / 15% backdrop."""
+    from apps.projections.models import AssumptionSet
+
+    aset = AssumptionSet.objects.filter(is_default=True).first()
+    if aset is None:
+        return 0.07, 0.15
+    return float(aset.annual_investment_return), float(aset.annual_return_volatility)
+
+
+def _mc_success_probability(
+    goal: SavingsGoal,
+    *,
+    history: list[MonthlyContribution],
+    saved: int,
+    as_of: date,
+) -> float:
+    """Fraction of trials that hit the target by the deadline.
+
+    Each month resamples an observed month (including the zeros) and applies a
+    return drawn from the workspace's assumed mean and volatility. Bootstrap
+    rather than a fitted Gaussian: a lumpy saver's zeros are the information,
+    and a normal would invent contributions that never happened. Seeded from
+    the goal so two reads of the same facts agree.
+    """
+    months_left = months_between(as_of, goal.target_date) if goal.target_date else 0
+    if months_left <= 0:
+        return 0.0
+
+    amounts = [h.amount_minor for h in history]
+    annual_return, annual_vol = _assumption_return_and_vol()
+    monthly_r = (1 + annual_return) ** (1 / 12) - 1
+    monthly_vol = annual_vol / (12 ** 0.5)
+
+    rng = random.Random(goal.id.int % (2**32))
+    hits = 0
+    target = goal.target_minor
+    for _ in range(MC_TRIALS):
+        balance = float(saved)
+        for _month in range(months_left):
+            contrib = rng.choice(amounts)
+            growth = rng.gauss(monthly_r, monthly_vol)
+            balance = balance * (1 + growth) + contrib
+        if balance >= target:
+            hits += 1
+    return round(hits / MC_TRIALS, 3)
 
 
 def projected_completion_date(

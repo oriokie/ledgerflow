@@ -1137,6 +1137,172 @@ def income_stability_report(filters: ReportFilters) -> ReportResult:
     )
 
 
+def forecast_vs_actual_report(filters: ReportFilters) -> ReportResult:
+    """Walk-forward expense forecast versus what actually posted.
+
+    Each month is predicted from history *before* it, never from itself. An
+    in-sample fit would congratulate the model for remembering December.
+    """
+    from apps.intelligence.protocols import CashflowPoint
+    from apps.intelligence.providers.statistical import EnsembleForecaster
+
+    start, end = filters.window()
+    currency = _currency_for(filters)
+    lookback_start = date(start.year - 2, start.month, 1)
+    monthly = _monthly_totals(filters, lookback_start, end)
+    prior_months = _month_range(lookback_start, end)
+    eval_months = _month_range(start, end)
+
+    if not any((monthly.get(m) or {}).get("outflow_minor", 0) for m in prior_months):
+        return ReportResult(
+            slug="forecast_vs_actual",
+            title="Forecast vs actual",
+            currency=currency,
+            start=start,
+            end=end,
+            meta={"method": "walk-forward ensemble (seasonal or moving average)"},
+        )
+
+    series: list[dict] = []
+    abs_errors: list[int] = []
+    for month in eval_months:
+        history_months = [m for m in prior_months if m < month]
+        if len(history_months) < 3:
+            continue
+        history = [
+            CashflowPoint(
+                period_start=m,
+                income_minor=(monthly.get(m) or {}).get("inflow_minor", 0),
+                expense_minor=(monthly.get(m) or {}).get("outflow_minor", 0),
+            )
+            for m in history_months
+        ]
+        forecast = EnsembleForecaster().forecast_expense(history, 1)
+        predicted = forecast.points[0].projected_expense_minor if forecast.points else 0
+        actual = (monthly.get(month) or {}).get("outflow_minor", 0)
+        error = actual - predicted
+        abs_errors.append(abs(error))
+        series.append(
+            {
+                "period": month.isoformat(),
+                "actual_minor": actual,
+                "forecast_minor": predicted,
+                "error_minor": error,
+            }
+        )
+
+    mae = round(sum(abs_errors) / len(abs_errors)) if abs_errors else 0
+    return ReportResult(
+        slug="forecast_vs_actual",
+        title="Forecast vs actual",
+        currency=currency,
+        start=start,
+        end=end,
+        totals={
+            "months": len(series),
+            "mean_absolute_error_minor": mae,
+        },
+        series=series,
+        meta={"method": "walk-forward ensemble (seasonal or moving average)"},
+    )
+
+
+def portfolio_performance_report(filters: ReportFilters) -> ReportResult:
+    """Modified Dietz return, volatility and max drawdown."""
+    from apps.investments import performance as inv_performance
+    from apps.investments.selectors import valuation_history
+
+    start, end = filters.window()
+    currency = _currency_for(filters)
+    result = inv_performance.portfolio_performance(months=12, currency=currency)
+    if result is None:
+        return ReportResult(
+            slug="portfolio_performance",
+            title="Portfolio performance",
+            currency=currency,
+            start=start,
+            end=end,
+        )
+
+    history = valuation_history(months=12, currency=currency)
+    series = [
+        {
+            "period": p.as_of.isoformat(),
+            "market_value_minor": p.market_value_minor,
+            "cost_basis_minor": p.cost_basis_minor,
+        }
+        for p in history
+    ]
+    return ReportResult(
+        slug="portfolio_performance",
+        title="Portfolio performance",
+        currency=result.currency,
+        start=start,
+        end=end,
+        totals={
+            "beginning_value_minor": result.beginning_value_minor,
+            "ending_value_minor": result.ending_value_minor,
+            "net_flow_minor": result.net_flow_minor,
+            "modified_dietz": result.modified_dietz or 0,
+            "annualized_return": result.annualized_return or 0,
+            "volatility": result.volatility or 0,
+            "max_drawdown": result.max_drawdown or 0,
+        },
+        series=series,
+        meta={
+            "irregular_quotes": result.irregular_quotes,
+            "caveats": result.caveats,
+            "window_start": result.start.isoformat(),
+            "window_end": result.end.isoformat(),
+        },
+    )
+
+
+def insurance_coverage_report(filters: ReportFilters) -> ReportResult:
+    """Premium committed and cover versus the assets those policies protect."""
+    from apps.insurance.selectors import policy_views
+    from apps.insurance.selectors import summary as insurance_summary
+
+    start, end = filters.window()
+    headline = insurance_summary()
+    if headline is None:
+        return ReportResult(
+            slug="insurance_coverage",
+            title="Insurance coverage",
+            currency=_currency_for(filters),
+            start=start,
+            end=end,
+        )
+
+    views = [v for v in policy_views() if v.currency == headline.currency]
+    rows = [
+        {
+            "name": v.name,
+            "kind": v.kind,
+            "annual_premium_minor": v.annual_premium_minor,
+            "coverage_minor": v.coverage_minor or 0,
+            "asset_value_minor": v.asset_value_minor or 0,
+            "coverage_gap_minor": v.coverage_gap_minor or 0,
+            "underinsured": v.underinsured,
+        }
+        for v in views
+    ]
+    return ReportResult(
+        slug="insurance_coverage",
+        title="Insurance coverage",
+        currency=headline.currency,
+        start=start,
+        end=end,
+        totals={
+            "annual_premium_minor": headline.annual_premium_minor,
+            "underinsured_count": headline.underinsured_count,
+            "unlinked_count": headline.unlinked_count,
+            "count": headline.count,
+        },
+        rows=rows,
+    )
+
+
 REPORTS: dict[str, Callable[[ReportFilters], ReportResult]] = {
     "net_worth": net_worth_report,
     "savings_rate": savings_rate_report,
@@ -1156,6 +1322,9 @@ REPORTS: dict[str, Callable[[ReportFilters], ReportResult]] = {
     "spending_by_weekday": spending_by_weekday_report,
     "committed_vs_discretionary": committed_vs_discretionary_report,
     "income_stability": income_stability_report,
+    "forecast_vs_actual": forecast_vs_actual_report,
+    "portfolio_performance": portfolio_performance_report,
+    "insurance_coverage": insurance_coverage_report,
 }
 
 #: Presentation hints, so the frontend can render an unfamiliar report without
@@ -1184,6 +1353,9 @@ REPORT_META: dict[str, dict] = {
         "group": "spending",
     },
     "category_movers": {"title": "What changed", "chart": "table", "group": "compare"},
+    "forecast_vs_actual": {"title": "Forecast vs actual", "chart": "composed", "group": "compare"},
+    "portfolio_performance": {"title": "Portfolio performance", "chart": "line", "group": "position"},
+    "insurance_coverage": {"title": "Insurance coverage", "chart": "table", "group": "position"},
 }
 
 

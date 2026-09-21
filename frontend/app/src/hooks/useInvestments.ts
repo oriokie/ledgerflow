@@ -34,6 +34,15 @@ export function usePortfolioHistory(months = 12) {
   });
 }
 
+export function usePortfolioPerformance(months = 12) {
+  const { activeWorkspace } = useAuth();
+  return useQuery({
+    queryKey: [PREFIX, "performance", activeWorkspace?.tenant.id, months],
+    queryFn: () => investmentsApi.performance(months),
+    enabled: !!activeWorkspace,
+  });
+}
+
 export function useSecurities() {
   const { activeWorkspace } = useAuth();
   return useQuery({

@@ -73,6 +73,136 @@ class MovingAverageForecaster(ForecastProvider):
         )
 
 
+class SeasonalForecaster(ForecastProvider):
+    """Additive Holt–Winters with a yearly period.
+
+    School fees, annual insurance, December — a trailing average cannot see
+    those. This can, once there are two full years to measure the shape of.
+    With less history it refuses rather than inventing a seasonal pattern
+    from a single spike, and callers fall back to the moving average.
+    """
+
+    PERIOD = 12
+    MIN_HISTORY = 24
+    ALPHA = 0.3
+    BETA = 0.1
+    GAMMA = 0.4
+
+    def forecast_expense(self, history: list[CashflowPoint], periods_ahead: int) -> Forecast:
+        expenses = [float(p.expense_minor) for p in history]
+        if len(expenses) < self.MIN_HISTORY:
+            fallback = MovingAverageForecaster().forecast_expense(history, periods_ahead)
+            return Forecast(
+                points=fallback.points,
+                provenance=Provenance(
+                    provider="SeasonalForecaster",
+                    kind=ProviderKind.STATISTICAL,
+                    version=FORECAST_VERSION,
+                    rationale=(
+                        f"Fewer than {self.MIN_HISTORY} months of history, so this is the "
+                        "trailing average rather than a seasonal model."
+                    ),
+                ),
+            )
+
+        forecasts, spread = _holt_winters_additive(
+            expenses,
+            period=self.PERIOD,
+            horizon=periods_ahead,
+            alpha=self.ALPHA,
+            beta=self.BETA,
+            gamma=self.GAMMA,
+        )
+        last_start = history[-1].period_start
+        points = []
+        for step, value in enumerate(forecasts, start=1):
+            base = max(0, round(value))
+            points.append(
+                ForecastPoint(
+                    period_start=last_start + relativedelta(months=step),
+                    projected_expense_minor=base,
+                    low_minor=max(0, base - spread),
+                    high_minor=base + spread,
+                )
+            )
+        return Forecast(
+            points=tuple(points),
+            provenance=Provenance(
+                provider="SeasonalForecaster",
+                kind=ProviderKind.STATISTICAL,
+                version=FORECAST_VERSION,
+                rationale="Additive Holt–Winters with a 12-month period, fitted on the full history.",
+            ),
+        )
+
+
+class EnsembleForecaster(ForecastProvider):
+    """Seasonal when two years of history exist, otherwise the moving average.
+
+    The product default. A household with a year of data still gets a number;
+    one with two years gets the December spike in December, not smeared across
+    the year.
+    """
+
+    def forecast_expense(self, history: list[CashflowPoint], periods_ahead: int) -> Forecast:
+        if len(history) >= SeasonalForecaster.MIN_HISTORY:
+            inner = SeasonalForecaster().forecast_expense(history, periods_ahead)
+        else:
+            inner = MovingAverageForecaster().forecast_expense(history, periods_ahead)
+        return Forecast(
+            points=inner.points,
+            provenance=Provenance(
+                provider="EnsembleForecaster",
+                kind=ProviderKind.ENSEMBLE,
+                version=FORECAST_VERSION,
+                rationale=inner.provenance.rationale,
+            ),
+        )
+
+
+def _holt_winters_additive(
+    series: list[float],
+    *,
+    period: int,
+    horizon: int,
+    alpha: float,
+    beta: float,
+    gamma: float,
+) -> tuple[list[float], int]:
+    """Level, trend and additive seasonals. Returns forecasts and a residual band."""
+    n = len(series)
+    m = period
+    n_seasons = n // m
+    seasonals = [0.0] * m
+    for i in range(m):
+        seasonals[i] = sum(series[i + k * m] for k in range(n_seasons)) / n_seasons
+    mean_s = sum(seasonals) / m
+    seasonals = [s - mean_s for s in seasonals]
+
+    level = sum(series[:m]) / m
+    trend = (sum(series[m : 2 * m]) / m - sum(series[:m]) / m) / m
+
+    residuals: list[float] = []
+    for t, observed in enumerate(series):
+        season = seasonals[t % m]
+        fitted = level + trend + season
+        residuals.append(observed - fitted)
+        last_level = level
+        last_trend = trend
+        level = alpha * (observed - season) + (1 - alpha) * (last_level + last_trend)
+        trend = beta * (level - last_level) + (1 - beta) * last_trend
+        seasonals[t % m] = gamma * (observed - last_level) + (1 - gamma) * season
+
+    forecasts = [level + h * trend + seasonals[(n + h - 1) % m] for h in range(1, horizon + 1)]
+    if len(residuals) > 1:
+        mean_r = sum(residuals) / len(residuals)
+        var = sum((r - mean_r) ** 2 for r in residuals) / len(residuals)
+        spread = round(var ** 0.5)
+    else:
+        spread = 0
+    return forecasts, spread
+
+
 class StatisticalAnomalyDetector(AnomalyProvider):
     """Flags amount spikes (z-score within a payee's own history), duplicates
     (same payee+amount in a short window), and large first-time payees. Every

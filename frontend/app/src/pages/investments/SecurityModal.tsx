@@ -26,6 +26,7 @@ const schema = z.object({
   asset_class: z.string().min(1),
   currency: z.string().length(3, "3-letter code, e.g. USD."),
   sector: z.string().optional(),
+  expense_ratio_bp: z.string().optional(),
 });
 type SecurityForm = z.infer<typeof schema>;
 
@@ -69,6 +70,10 @@ export function SecurityModal({
         asset_class: values.asset_class as AssetClass,
         currency: values.currency.toUpperCase(),
         sector: values.sector || "",
+        expense_ratio_bp:
+          values.expense_ratio_bp && values.expense_ratio_bp.trim()
+            ? Math.round(Number(values.expense_ratio_bp))
+            : undefined,
       });
       reset({ asset_class: "stock", currency: defaultCurrency });
       onClose();
@@ -133,6 +138,14 @@ export function SecurityModal({
             placeholder="Technology"
             hint="Used for the sector breakdown. Leave blank if you're not sure."
             {...register("sector")}
+          />
+
+          <Input
+            label="Expense ratio (bp)"
+            optional
+            placeholder="50"
+            hint="Fund TER in basis points — 50 is 0.50% a year. Leave blank if you don't know."
+            {...register("expense_ratio_bp")}
           />
 
           <Text tone="tertiary" size="xs">

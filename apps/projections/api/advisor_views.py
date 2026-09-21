@@ -111,8 +111,8 @@ class SimulationView(TenantScopedAPIView, APIView):
             settings = simulation.SimulationSettings(
                 trials=data["trials"],
                 seed=data["seed"],
-                return_volatility=data["return_volatility"],
-                inflation_volatility=data["inflation_volatility"],
+                return_volatility=data.get("return_volatility", assumptions.annual_return_volatility),
+                inflation_volatility=data.get("inflation_volatility", assumptions.annual_inflation_volatility),
                 income_shock_probability=data["income_shock_probability"],
             )
             result = simulation.simulate(

@@ -179,3 +179,39 @@ def test_api_with_no_history_is_a_404_with_an_explanation(tenant_context):
     resp = client.get("/api/v1/analytics/financial-independence/")
     assert resp.status_code == 404
     assert "months" in resp.data["detail"]
+
+
+def test_a_pension_reduces_the_fi_number():
+    """Independence only has to cover spending the pension does not already."""
+    from apps.income import services as income_services
+    from apps.income.models import IncomeKind
+
+    tenant = uuid.uuid4()
+    with tenant_scope(tenant):
+        _workspace(spend=300_000)
+        income_services.create_source(
+            name="State pension",
+            currency="USD",
+            net_minor=100_000,
+            starts_on=date(2020, 1, 1),
+            kind=IncomeKind.PENSION,
+        )
+        projection = fi.project()
+
+    assert projection.pension_monthly_minor == 100_000
+    assert projection.fi_number_minor == round(200_000 * 12 / 0.04)
+
+
+def test_a_spend_override_and_custom_swr_are_honoured():
+    from apps.projections.models import PlanningProfile
+
+    tenant = uuid.uuid4()
+    with tenant_scope(tenant):
+        _workspace(spend=300_000)
+        PlanningProfile.objects.create(monthly_spend_override_minor=200_000, safe_withdrawal_rate="0.0500")
+        projection = fi.project()
+
+    assert projection.spend_is_override
+    assert projection.monthly_spending_minor == 200_000
+    assert projection.swr == 0.05
+    assert projection.fi_number_minor == round(200_000 * 12 / 0.05)

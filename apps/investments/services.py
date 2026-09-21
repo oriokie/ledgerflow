@@ -124,6 +124,7 @@ def create_security(
     sector: str = "",
     exchange: str = "",
     external_id: str = "",
+    expense_ratio_bp: int | None = None,
 ) -> Security:
     if not symbol.strip():
         raise InvestmentError("A security needs a symbol.")
@@ -156,6 +157,7 @@ def create_security(
             sector=sector,
             exchange=exchange,
             external_id=external_id,
+            expense_ratio_bp=expense_ratio_bp,
         )
     except IntegrityError as exc:
         raise InvestmentError(f"{normalized} is already tracked in this workspace.") from exc
@@ -810,7 +812,7 @@ def update_security(*, security: Security, **fields) -> Security:
     `symbol` is editable and re-checked for collisions, since the typo people
     most want to fix is in the symbol itself.
     """
-    editable = {"symbol", "name", "asset_class", "currency", "sector", "exchange"}
+    editable = {"symbol", "name", "asset_class", "currency", "sector", "exchange", "expense_ratio_bp"}
     unknown = set(fields) - editable
     if unknown:
         raise InvestmentError(f"Cannot edit: {', '.join(sorted(unknown))}.")

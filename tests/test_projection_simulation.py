@@ -20,6 +20,7 @@ from apps.projections import risk, sensitivity, simulation
 from apps.projections.engine import (
     CompiledEvent,
     DebtPosition,
+    EconomicAssumptions,
     FinancialPosition,
 )
 
@@ -98,6 +99,30 @@ def test_percentiles_are_ordered():
     result = simulation.simulate(position=position(), months=120, settings=FAST)
     p = result.closing_net_worth
     assert p.p10 <= p.p25 <= p.p50 <= p.p75 <= p.p90
+
+
+def test_each_trial_projects_along_a_yearly_path_not_a_collapsed_mean(monkeypatch):
+    """Sequence-of-returns risk has to live *inside* a trial. If the sampled
+    years were averaged before `project()` ran, this would capture a path of
+    length 1 — or none at all."""
+    seen: list = []
+    real = simulation.project
+
+    def capture(**kwargs):
+        seen.append(kwargs.get("assumption_path"))
+        return real(**kwargs)
+
+    monkeypatch.setattr(simulation, "project", capture)
+    simulation._run_trial(
+        position=position(),
+        base=EconomicAssumptions(),
+        events=[],
+        months=24,
+        settings=FAST,
+        rng=simulation._trial_rng(7, 0),
+    )
+    assert seen and seen[0] is not None
+    assert len(seen[0]) >= 2
 
 
 def test_a_more_volatile_world_produces_a_wider_band():

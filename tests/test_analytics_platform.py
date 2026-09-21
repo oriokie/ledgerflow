@@ -1,6 +1,6 @@
 """Analytics reporting platform.
 
-Fourteen reports over one shared filter, cache and export layer. The tests are
+Reports over one shared filter, cache and export layer. The tests are
 organised the same way: the platform machinery is tested once, then each report
 is checked for the thing it specifically claims.
 
@@ -253,7 +253,7 @@ def test_every_required_dashboard_exists():
 
 
 def test_every_report_has_rendering_metadata():
-    """The client draws from this rather than hard-coding fourteen layouts, so
+    """The client draws from this rather than hard-coding layouts, so
     a report without it would render as nothing."""
     for slug in reports.REPORTS:
         meta = reports.REPORT_META.get(slug)

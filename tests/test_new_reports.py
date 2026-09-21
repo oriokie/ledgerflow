@@ -56,6 +56,9 @@ def test_new_reports_are_registered():
         "spending_by_weekday",
         "committed_vs_discretionary",
         "income_stability",
+        "forecast_vs_actual",
+        "portfolio_performance",
+        "insurance_coverage",
     ):
         assert slug in REPORTS
         assert REPORT_META[slug]["group"] in {"position", "flow", "spending", "compare"}
@@ -84,6 +87,9 @@ def test_the_new_reports_report_nothing_on_an_empty_workspace():
             "spending_by_weekday",
             "committed_vs_discretionary",
             "income_stability",
+            "forecast_vs_actual",
+            "portfolio_performance",
+            "insurance_coverage",
         ):
             assert run_report(slug, ReportFilters(currency="USD")).is_empty
 

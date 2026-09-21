@@ -763,7 +763,8 @@ export type InsightKind =
   | "debt_milestone"
   | "safe_to_spend"
   | "committed_income"
-  | "bill_due";
+  | "bill_due"
+  | "underinsured";
 
 /** Ordered by urgency. `critical` is reserved for things with a deadline. */
 export type InsightSeverity = "critical" | "warning" | "opportunity" | "info";
@@ -870,6 +871,7 @@ export interface Security {
   sector: string;
   currency: string;
   exchange: string;
+  expense_ratio_bp: number | null;
 }
 
 export interface HoldingValuation {
@@ -933,6 +935,22 @@ export interface PortfolioHistoryPoint {
   market_value_minor: number;
   cost_basis_minor: number;
   unrealized_gain_minor: number;
+}
+
+export interface PortfolioPerformance {
+  currency: string;
+  start: string;
+  end: string;
+  beginning_value_minor: number;
+  ending_value_minor: number;
+  net_flow_minor: number;
+  modified_dietz: number | null;
+  annualized_return: number | null;
+  volatility: number | null;
+  max_drawdown: number | null;
+  months: number;
+  irregular_quotes: boolean;
+  caveats: string[];
 }
 
 
@@ -1432,6 +1450,8 @@ export interface FIProjection {
   band: FIBandPoint[];
   never_at_current_pace: boolean;
   required_monthly_for_horizon_minor: number | null;
+  pension_monthly_minor: number;
+  spend_is_override: boolean;
   horizon_years: number;
   caveats: string[];
 }

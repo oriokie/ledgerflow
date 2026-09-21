@@ -96,6 +96,8 @@ class HoldingValuation:
     priced_as_of: date | None
     market_value_minor: int | None
     unrealized_gain_minor: int | None
+    #: Fund TER in basis points, copied from the security. Null when unknown.
+    expense_ratio_bp: int | None = None
 
     @property
     def unrealized_gain_pct(self) -> float | None:
@@ -140,6 +142,7 @@ def holding_valuations(*, as_of: date | None = None) -> list[HoldingValuation]:
                 priced_as_of=priced_on,
                 market_value_minor=market,
                 unrealized_gain_minor=(market - cost) if market is not None else None,
+                expense_ratio_bp=holding.security.expense_ratio_bp,
             )
         )
     return out
@@ -211,6 +214,7 @@ class PortfolioSummary:
     priced_as_of: date | None = None
     #: Holdings whose quote predates `as_of` — priced, but not priced today.
     stale_count: int = 0
+    expense_ratio_bp: int | None = None
 
     @property
     def unrealized_gain_pct(self) -> float:
@@ -615,3 +619,21 @@ def upcoming_income(*, days: int = 90, as_of: date | None = None) -> list[Income
     as_of = as_of or timezone.localdate()
     horizon = as_of + timedelta(days=days)
     return [v for v in income_views(as_of=as_of) if v.next_payment_on and v.next_payment_on <= horizon]
+
+
+def weighted_expense_ratio(*, as_of: date | None = None) -> float | None:
+    """Value-weighted portfolio TER as a fraction (50 bp → 0.005).
+
+    `None` when no priced holding has a known ratio. Zero is a claim that the
+    portfolio is free; silence is "we have not been told".
+    """
+    priced = [
+        v
+        for v in holding_valuations(as_of=as_of)
+        if v.market_value_minor is not None and v.market_value_minor > 0 and v.expense_ratio_bp is not None
+    ]
+    if not priced:
+        return None
+    total = sum(v.market_value_minor for v in priced)
+    weighted_bp = sum(v.market_value_minor * v.expense_ratio_bp for v in priced) / total
+    return weighted_bp / 10_000

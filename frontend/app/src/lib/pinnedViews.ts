@@ -110,6 +110,7 @@ export function suggestLabel(to: string, fallback = "Pinned view"): string {
       "/insights": "Insights",
       "/accounts": "Accounts",
       "/assets": "Property",
+      "/insurance": "Insurance",
       "/goals": "Goals",
       "/investments": "Invest",
       "/debt": "Debt",

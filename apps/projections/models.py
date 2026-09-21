@@ -82,6 +82,15 @@ class AssumptionSet(SoftDeletableModel):
     annual_cash_return = models.DecimalField(max_digits=6, decimal_places=4, default="0.0000")
     effective_tax_rate = models.DecimalField(max_digits=6, decimal_places=4, default="0.0000")
     annual_property_growth = models.DecimalField(max_digits=6, decimal_places=4, default="0.0400")
+    #: Annual standard deviation of investment returns. The Monte Carlo reads
+    #: this instead of a buried constant, so a household that disagrees with
+    #: 15% can say so once and every simulation follows.
+    annual_return_volatility = models.DecimalField(max_digits=6, decimal_places=4, default="0.1500")
+    annual_inflation_volatility = models.DecimalField(max_digits=6, decimal_places=4, default="0.0200")
+    #: Portfolio TER drag, as a fraction of invested assets. Subtracted from
+    #: the investment return inside the engine so a 7% return and a 0.5% fee
+    #: is 6.5%, not 7% with a footnote nobody reads.
+    annual_expense_ratio = models.DecimalField(max_digits=6, decimal_places=4, default="0.0000")
 
     #: Why these numbers. An assumption without a rationale is a number nobody
     #: can revisit six months later.
@@ -199,3 +208,47 @@ class ScenarioEvent(SoftDeletableModel):
 
     def __str__(self) -> str:  # pragma: no cover - trivial
         return self.label or EVENT_LABELS.get(self.kind, self.kind)
+
+
+class PlanningProfile(SoftDeletableModel):
+    """Household planning facts that are not economic assumptions.
+
+    Separate from ``AssumptionSet`` because inflation is a view about the world
+    and "I want to stop needing work by 2045" is a view about the person. Mixing
+    them would let a change of inflation silently rewrite someone's retirement
+    year.
+
+    One live row per tenant. No date of birth: years-from-now is the same
+    answer without holding identity the product has no other use for.
+    """
+
+    target_fi_year = models.PositiveSmallIntegerField(null=True, blank=True)
+    monthly_spend_override_minor = models.BigIntegerField(null=True, blank=True)
+    safe_withdrawal_rate = models.DecimalField(max_digits=6, decimal_places=4, default="0.0400")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant_id"],
+                name="uniq_planning_profile",
+                condition=models.Q(deleted_at__isnull=True),
+            ),
+            models.CheckConstraint(
+                condition=models.Q(monthly_spend_override_minor__isnull=True)
+                | models.Q(monthly_spend_override_minor__gt=0),
+                name="planning_spend_positive",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(safe_withdrawal_rate__gt=0, safe_withdrawal_rate__lte="0.2000"),
+                name="planning_swr_in_range",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(target_fi_year__isnull=True)
+                | models.Q(target_fi_year__gte=2000, target_fi_year__lte=2200),
+                name="planning_fi_year_sane",
+            ),
+        ]
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return f"Planning profile {self.tenant_id}"
+

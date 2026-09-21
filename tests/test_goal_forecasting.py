@@ -253,10 +253,10 @@ def test_probability_rises_with_pace(tenant):
 
 def test_erratic_saving_scores_below_steady_saving_at_the_same_mean(tenant):
     with tenant_scope(tenant):
-        steady = _goal(name="Steady", target_minor=3_600_00, target_date=date(2027, 6, 1))
+        steady = _goal(name="Steady", target_minor=1_200_00, target_date=date(2026, 12, 1))
         _fund(steady, [(date(2026, m, 5), 100_00) for m in range(1, 7)])
 
-        erratic = _goal(name="Erratic", target_minor=3_600_00, target_date=date(2027, 6, 1))
+        erratic = _goal(name="Erratic", target_minor=1_200_00, target_date=date(2026, 12, 1))
         _fund(erratic, [(date(2026, 4, 5), 200_00), (date(2026, 5, 5), 200_00), (date(2026, 6, 5), 200_00)])
 
         p_steady = forecasting.success_probability(steady, as_of=TODAY)

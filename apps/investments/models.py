@@ -78,6 +78,10 @@ class Security(SoftDeletableModel):
     #: Crypto and some funds trade in fractions; equities usually don't. Stored
     #: per security so quantity precision is a property of the instrument.
     quantity_precision = models.PositiveSmallIntegerField(default=8)
+    #: Total expense ratio in basis points — 50 is 0.50% a year. Null when
+    #: unknown, never zero standing in for "I have not looked it up": zero
+    #: would claim the fund is free.
+    expense_ratio_bp = models.PositiveIntegerField(null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
 
     class Meta:
@@ -86,6 +90,10 @@ class Security(SoftDeletableModel):
                 fields=["tenant_id", "symbol"],
                 name="uniq_security_symbol",
                 condition=models.Q(deleted_at__isnull=True),
+            ),
+            models.CheckConstraint(
+                condition=models.Q(expense_ratio_bp__isnull=True) | models.Q(expense_ratio_bp__lte=10000),
+                name="security_ter_sane",
             ),
         ]
         indexes = [

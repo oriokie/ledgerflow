@@ -15,6 +15,7 @@ from .views import (
     BaselineProjectionView,
     CalculatorView,
     EventCatalogueView,
+    PlanningProfileView,
     ScenarioArchiveView,
     ScenarioCompareView,
     ScenarioDetailView,
@@ -30,6 +31,7 @@ urlpatterns = [
     # `<uuid:scenario_id>` pattern.
     path("baseline/", BaselineProjectionView.as_view(), name="projection-baseline"),
     path("assumptions/", AssumptionSetView.as_view(), name="projection-assumptions"),
+    path("planning-profile/", PlanningProfileView.as_view(), name="projection-planning-profile"),
     path("event-catalogue/", EventCatalogueView.as_view(), name="projection-event-catalogue"),
     path("calculators/<slug:slug>/", CalculatorView.as_view(), name="projection-calculator"),
     # --- Phase 2: decision support -------------------------------------

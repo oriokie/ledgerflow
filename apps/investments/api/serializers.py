@@ -12,6 +12,7 @@ class SecurityCreateSerializer(serializers.Serializer):
     currency = serializers.CharField(max_length=3, min_length=3)
     sector = serializers.CharField(max_length=80, required=False, allow_blank=True, default="")
     exchange = serializers.CharField(max_length=32, required=False, allow_blank=True, default="")
+    expense_ratio_bp = serializers.IntegerField(min_value=0, max_value=10_000, required=False, allow_null=True)
 
 
 class TradeSerializer(serializers.Serializer):
@@ -60,6 +61,7 @@ class SecurityUpdateSerializer(serializers.Serializer):
     currency = serializers.CharField(required=False, max_length=3)
     sector = serializers.CharField(required=False, allow_blank=True, max_length=60)
     exchange = serializers.CharField(required=False, allow_blank=True, max_length=24)
+    expense_ratio_bp = serializers.IntegerField(min_value=0, max_value=10_000, required=False, allow_null=True)
 
 
 class SecurityTermsSerializer(serializers.Serializer):

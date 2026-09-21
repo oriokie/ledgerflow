@@ -209,7 +209,10 @@ def simulate(
         raise SimulationError(f"months must be between 1 and {MAX_HORIZON_MONTHS}")
 
     base = assumptions or EconomicAssumptions()
-    settings = settings or SimulationSettings()
+    settings = settings or SimulationSettings(
+        return_volatility=base.annual_return_volatility,
+        inflation_volatility=base.annual_inflation_volatility,
+    )
     events = [*adapters.schedule_adjustments(position), *(events or [])]
 
     closings: list[int] = []
@@ -285,49 +288,33 @@ def _run_trial(
     would produce a smoother aggregate through pure averaging — the central
     limit theorem quietly cancelling the very variance the simulation exists to
     show — and annual is also the frequency the assumptions are quoted at.
+
+    The sampled years are handed to the engine as an ``assumption_path``, so
+    a bad year then a recovery is not the same as the geometric mean of the
+    two. Sequence-of-returns risk lives inside the trial, not only between
+    trials.
     """
     years = months // 12 + 1
     shock = 0.0
-    segments: list[tuple[int, EconomicAssumptions]] = []
+    path: list[EconomicAssumptions] = []
     income_shock_months: set[int] = set()
 
     for year in range(years):
         shock = _next_shock(rng, shock)
-        segments.append(
-            (
-                year,
-                replace(
-                    base,
-                    annual_investment_return=base.annual_investment_return
-                    + shock * settings.return_volatility,
-                    annual_inflation=max(
-                        -0.02,
-                        base.annual_inflation + rng.gauss(0, 1) * settings.inflation_volatility,
-                    ),
+        path.append(
+            replace(
+                base,
+                annual_investment_return=base.annual_investment_return
+                + shock * settings.return_volatility,
+                annual_inflation=max(
+                    -0.02,
+                    base.annual_inflation + rng.gauss(0, 1) * settings.inflation_volatility,
                 ),
             )
         )
         if rng.random() < settings.income_shock_probability:
             start = year * 12 + rng.randrange(12) + 1
             income_shock_months.update(range(start, start + INCOME_SHOCK_MONTHS))
-
-    # The engine takes one assumption set for the whole window, so a sampled
-    # *path* is collapsed to its geometric mean return and arithmetic mean
-    # inflation. This is the one approximation in the module and it is stated
-    # rather than hidden: it preserves the spread across trials, which is what
-    # the percentiles measure, while losing within-trial ordering. Sequence
-    # risk therefore shows up between trials, not inside one.
-    growth = 1.0
-    for _, sampled in segments:
-        growth *= 1 + sampled.annual_investment_return
-    mean_return = growth ** (1 / len(segments)) - 1 if segments else base.annual_investment_return
-    mean_inflation = statistics.fmean(s.annual_inflation for _, s in segments)
-
-    trial_assumptions = replace(
-        base,
-        annual_investment_return=max(-0.5, min(2.0, mean_return)),
-        annual_inflation=max(-0.5, min(2.0, mean_inflation)),
-    )
 
     trial_events = list(events)
     in_window = sorted(m for m in income_shock_months if m <= months)
@@ -346,4 +333,10 @@ def _run_trial(
             )
         )
 
-    return project(position=position, assumptions=trial_assumptions, events=trial_events, months=months)
+    return project(
+        position=position,
+        assumptions=base,
+        events=trial_events,
+        months=months,
+        assumption_path=path,
+    )

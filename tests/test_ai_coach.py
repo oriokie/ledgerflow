@@ -785,6 +785,17 @@ def test_every_insight_kind_is_reachable():
                 "days_until_due": 3,
             },
         ),
+        insurance_gaps=(
+            {
+                "policy_id": "p1",
+                "name": "Home policy",
+                "asset_name": "The house",
+                "coverage_minor": 4_000_000_00,
+                "asset_value_minor": 8_000_000_00,
+                "gap_minor": 4_000_000_00,
+                "currency": "USD",
+            },
+        ),
         # Debt-derived kinds arrive pre-analysed from the debt module rather
         # than being recomputed here, so the context must carry them for the
         # coverage guarantee to mean anything.

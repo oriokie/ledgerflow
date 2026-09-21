@@ -72,6 +72,7 @@ LOCAL_APPS = [
     "apps.income",
     "apps.receivables",
     "apps.assets",
+    "apps.insurance",
     "apps.notifications",
     "apps.billing",
     "apps.platform_admin",

@@ -230,6 +230,12 @@ def _subscriptions() -> tuple[dict, ...]:
     return tuple(sorted(out, key=lambda s: -s["annual_minor"]))
 
 
+def _insurance_gaps() -> tuple[dict, ...]:
+    from apps.insurance.selectors import underinsured_gaps
+
+    return underinsured_gaps()
+
+
 def _debts(as_of: date) -> tuple[dict, ...]:
     accounts = FinancialAccount.objects.filter(
         account_type__in=[AccountType.CREDIT_CARD, AccountType.LOAN],
@@ -527,6 +533,7 @@ def build_context(*, as_of: date | None = None) -> CoachContext:
         committed_ratio=committed_ratio,
         committed_minor=committed_minor,
         upcoming_bills=_upcoming_bills(as_of),
+        insurance_gaps=_insurance_gaps(),
     )
 
 

@@ -49,6 +49,14 @@ export const QUICK_ACTIONS: Command[] = [
     group: "Actions",
   },
   {
+    id: "action-add-policy",
+    label: "Add insurance policy",
+    hint: "Action",
+    to: "/insurance?add=1",
+    keywords: "cover premium life motor home health insure policy",
+    group: "Actions",
+  },
+  {
     id: "action-transfer",
     label: "Transfer money",
     hint: "Action",
