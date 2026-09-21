@@ -197,7 +197,7 @@ def _holt_winters_additive(
     if len(residuals) > 1:
         mean_r = sum(residuals) / len(residuals)
         var = sum((r - mean_r) ** 2 for r in residuals) / len(residuals)
-        spread = round(var ** 0.5)
+        spread = round(var**0.5)
     else:
         spread = 0
     return forecasts, spread

@@ -251,4 +251,3 @@ class PlanningProfile(SoftDeletableModel):
 
     def __str__(self) -> str:  # pragma: no cover - trivial
         return f"Planning profile {self.tenant_id}"
-

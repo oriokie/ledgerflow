@@ -114,7 +114,9 @@ class InsurancePolicy(SoftDeletableModel):
 
     class Meta:
         constraints = [
-            models.CheckConstraint(condition=models.Q(premium_minor__gt=0), name="insurance_premium_positive"),
+            models.CheckConstraint(
+                condition=models.Q(premium_minor__gt=0), name="insurance_premium_positive"
+            ),
             models.CheckConstraint(
                 condition=models.Q(coverage_minor__isnull=True) | models.Q(coverage_minor__gte=0),
                 name="insurance_coverage_non_negative",

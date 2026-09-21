@@ -237,7 +237,7 @@ def _mc_success_probability(
     amounts = [h.amount_minor for h in history]
     annual_return, annual_vol = _assumption_return_and_vol()
     monthly_r = (1 + annual_return) ** (1 / 12) - 1
-    monthly_vol = annual_vol / (12 ** 0.5)
+    monthly_vol = annual_vol / (12**0.5)
 
     rng = random.Random(goal.id.int % (2**32))
     hits = 0

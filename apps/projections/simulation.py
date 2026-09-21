@@ -304,8 +304,7 @@ def _run_trial(
         path.append(
             replace(
                 base,
-                annual_investment_return=base.annual_investment_return
-                + shock * settings.return_volatility,
+                annual_investment_return=base.annual_investment_return + shock * settings.return_volatility,
                 annual_inflation=max(
                     -0.02,
                     base.annual_inflation + rng.gauss(0, 1) * settings.inflation_volatility,

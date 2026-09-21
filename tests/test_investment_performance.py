@@ -78,12 +78,8 @@ def test_expense_ratio_is_stored_and_weights_the_portfolio_ter():
             currency="USD",
             expense_ratio_bp=100,
         )
-        services.buy(
-            financial_account=account, security=cheap, quantity=Decimal("1"), amount_minor=75_000
-        )
-        services.buy(
-            financial_account=account, security=dear, quantity=Decimal("1"), amount_minor=25_000
-        )
+        services.buy(financial_account=account, security=cheap, quantity=Decimal("1"), amount_minor=75_000)
+        services.buy(financial_account=account, security=dear, quantity=Decimal("1"), amount_minor=25_000)
         services.record_price(security=cheap, price_minor=75_000, as_of=today)
         services.record_price(security=dear, price_minor=25_000, as_of=today)
 

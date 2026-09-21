@@ -64,7 +64,10 @@ def test_no_gap_is_invented_without_cover_or_a_valuation():
 def test_an_unlinked_premium_appears_on_the_cashflow_stack():
     with tenant_scope(uuid.uuid4()):
         finance_services.create_financial_account(
-            name="Checking", account_type=AccountType.CHECKING, currency="USD", opening_balance_minor=1_000_000
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
         )
         _policy()
         stack = adapters.cashflow_stack(currency="USD", as_of=timezone.localdate())
@@ -77,9 +80,14 @@ def test_an_unlinked_premium_appears_on_the_cashflow_stack():
 def test_a_premium_linked_to_a_bill_is_not_double_counted():
     with tenant_scope(uuid.uuid4()):
         finance_services.create_financial_account(
-            name="Checking", account_type=AccountType.CHECKING, currency="USD", opening_balance_minor=1_000_000
+            name="Checking",
+            account_type=AccountType.CHECKING,
+            currency="USD",
+            opening_balance_minor=1_000_000,
         )
-        category = finance_services.create_category(name="Insurance", kind=CategoryKind.EXPENSE, currency="USD")
+        category = finance_services.create_category(
+            name="Insurance", kind=CategoryKind.EXPENSE, currency="USD"
+        )
         bill = bill_services.create_bill(
             name="Home premium",
             amount_minor=12_000_00,

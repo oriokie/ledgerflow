@@ -81,9 +81,7 @@ def portfolio_performance(
             max_drawdown=None,
             months=len(history),
             irregular_quotes=True,
-            caveats=[
-                "Fewer than two month-end valuations — a return needs a beginning and an end."
-            ],
+            caveats=["Fewer than two month-end valuations — a return needs a beginning and an end."],
         )
 
     start = history[0].as_of
@@ -125,7 +123,7 @@ def portfolio_performance(
     if len(monthly_returns) >= 2:
         mean = sum(monthly_returns) / len(monthly_returns)
         var = sum((r - mean) ** 2 for r in monthly_returns) / (len(monthly_returns) - 1)
-        volatility = (var ** 0.5) * (12 ** 0.5)
+        volatility = (var**0.5) * (12**0.5)
 
     peak = history[0].market_value_minor
     max_dd = 0.0

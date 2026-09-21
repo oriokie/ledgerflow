@@ -589,7 +589,9 @@ def test_an_inheritance_is_taken_as_received_with_no_tax_guessed():
 
 def test_expense_ratio_reduces_investment_growth():
     """A 7% return with a 1% TER is 6%, not 7% with a footnote."""
-    pos = position(investment_minor=1_000_000, liquid_minor=0, monthly_net_income_minor=0, monthly_expenses_minor=0)
+    pos = position(
+        investment_minor=1_000_000, liquid_minor=0, monthly_net_income_minor=0, monthly_expenses_minor=0
+    )
     gross = project(
         position=pos,
         assumptions=replace(FLAT, annual_investment_return=0.07),

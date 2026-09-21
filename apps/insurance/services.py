@@ -22,7 +22,9 @@ class InsuranceError(ValueError):
     """A write that would produce a policy the product cannot defend."""
 
 
-def _validate(*, name: str, premium_minor: int, coverage_minor: int | None, deductible_minor: int | None) -> None:
+def _validate(
+    *, name: str, premium_minor: int, coverage_minor: int | None, deductible_minor: int | None
+) -> None:
     if not name.strip():
         raise InsuranceError("A policy needs a name.")
     if premium_minor <= 0:
@@ -53,7 +55,12 @@ def create_policy(
     is_active: bool = True,
     notes: str = "",
 ) -> InsurancePolicy:
-    _validate(name=name, premium_minor=premium_minor, coverage_minor=coverage_minor, deductible_minor=deductible_minor)
+    _validate(
+        name=name,
+        premium_minor=premium_minor,
+        coverage_minor=coverage_minor,
+        deductible_minor=deductible_minor,
+    )
     if kind not in PolicyKind.values:
         raise InsuranceError(f"Unknown policy kind {kind!r}.")
     if premium_frequency not in PremiumFrequency.values:

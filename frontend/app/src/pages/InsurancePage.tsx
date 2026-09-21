@@ -312,9 +312,8 @@ function PolicyDetailModal({ id, onClose }: { id: string; onClose: () => void })
             </Button>
             <ConfirmAction
               label="Remove"
-              title="Remove this policy?"
-              body="The bill or standing order that pays it is left untouched."
               confirmLabel="Remove"
+              variant="danger"
               onConfirm={async () => {
                 await remove.mutateAsync(policy.id);
                 toast("Policy removed.", { tone: "success" });
