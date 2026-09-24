@@ -137,6 +137,9 @@ bold "Containers"
 ps_out="$(dc ps --format '{{.Service}}\t{{.State}}\t{{.Status}}' 2>/dev/null)"
 if [ -z "$ps_out" ]; then
   fail "No containers are running."
+  fixhint "If 'up' died with 'No such container: <sha>', Compose is holding a ghost ID:"
+  fixhint "docker compose -f $COMPOSE_FILE rm -sf web worker beat"
+  fixhint "docker rm -f deploy-web-1 deploy-worker-1 deploy-beat-1"
   fixhint "docker compose -f $COMPOSE_FILE up -d"
 else
   while IFS=$'\t' read -r svc state status; do

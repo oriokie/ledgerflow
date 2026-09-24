@@ -111,6 +111,29 @@ export COMPOSE_PROFILES="$PROFILES"
 
 dc() { docker compose -f "$COMPOSE_FILE" "$@"; }
 
+#: Recreate one service at a time. Parallel Recreate of web/worker/beat is
+#: how Compose ends up with leftover names like `2c146b2d7c4e_deploy-web-1`
+#: and then dies on `No such container: <sha>` while Redis is still Running.
+export COMPOSE_PARALLEL_LIMIT=1
+
+#: `up` Recreate dies with "No such container: <sha>" when Compose still has
+#: an ID the daemon already dropped — a crash, a Ctrl-C, or a leftover from
+#: the rename Compose does mid-recreate. Redis stays Running while
+#: web/worker/beat sit half-removed, and the proxy then 500s. Clearing those
+#: app containers (including the ID-prefixed leftovers) and retrying is the
+#: recovery. Never `down -v`: that would drop the database.
+compose_up() {
+  if dc up -d "$@"; then
+    return 0
+  fi
+  log "compose up failed; clearing stale app container IDs and retrying."
+  dc rm -sf web worker beat frontend 2>/dev/null || true
+  docker ps -aq --format '{{.ID}} {{.Names}}' \
+    | awk '/deploy-(web|worker|beat|frontend)/ { print $1 }' \
+    | xargs -r docker rm -f || true
+  dc up -d "$@"
+}
+
 #: Content id, not the tag name. `:released` is a moving pointer; comparing
 #: RepoDigests[0] after `compose pull` of a service that also has a `build:`
 #: section can report "already current" while the registry has moved on,
@@ -163,11 +186,11 @@ if [ "$images_changed" -eq 1 ]; then
   # is the part that actually swaps the files: the container copies once at
   # start and then sleeps, so `up -d` on an already-running frontend leaves
   # Caddy serving yesterday's bundle.
-  dc up -d --force-recreate --no-deps frontend
-  dc up -d
+  compose_up --force-recreate --no-deps frontend
+  compose_up
 elif [ "$checkout_changed" -eq 1 ]; then
   log "Checkout updated with no new image; applying compose and reloading the proxy."
-  dc up -d
+  compose_up
   dc restart caddy 2>/dev/null || dc restart caddy_internal 2>/dev/null || true
 fi
 
@@ -192,10 +215,10 @@ log "Rolling back."
 if [ "$images_changed" -eq 1 ] && [ -n "$previous_app_ref" ]; then
   LEDGERFLOW_APP_IMAGE="$previous_app_ref" \
   LEDGERFLOW_FRONTEND_IMAGE="${previous_frontend_ref:-$FRONTEND_IMAGE}" \
-    dc up -d --force-recreate --no-deps frontend
+    compose_up --force-recreate --no-deps frontend
   LEDGERFLOW_APP_IMAGE="$previous_app_ref" \
   LEDGERFLOW_FRONTEND_IMAGE="${previous_frontend_ref:-$FRONTEND_IMAGE}" \
-    dc up -d
+    compose_up
   if smoke; then
     log "Rolled back to the previous release, which is healthy."
   else
