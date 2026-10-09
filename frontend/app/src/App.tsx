@@ -43,8 +43,12 @@ const ResetPasswordPage = lazy(() =>
 const VerifyEmailPage = lazy(() =>
   import("./pages/VerifyEmailPage").then((m) => ({ default: m.VerifyEmailPage })),
 );
+const ShareDecisionPage = lazy(() =>
+  import("./pages/ShareDecisionPage").then((m) => ({ default: m.ShareDecisionPage })),
+);
 const PrivacyPage = lazy(() => import("./pages/LegalPage").then((m) => ({ default: m.PrivacyPage })));
 const TermsPage = lazy(() => import("./pages/LegalPage").then((m) => ({ default: m.TermsPage })));
+const ContactPage = lazy(() => import("./pages/LegalPage").then((m) => ({ default: m.ContactPage })));
 const LoggedOutPage = lazy(() => import("./pages/LoggedOutPage").then((m) => ({ default: m.LoggedOutPage })));
 const WorkspacePickerPage = lazy(() =>
   import("./pages/WorkspacePickerPage").then((m) => ({ default: m.WorkspacePickerPage })),
@@ -156,8 +160,10 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/share/decision" element={<ShareDecisionPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/logged-out" element={<LoggedOutPage />} />
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
 

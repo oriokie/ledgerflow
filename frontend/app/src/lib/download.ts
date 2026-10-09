@@ -10,10 +10,9 @@
  * the 401-refresh-retry path, and lets us surface a real error instead of
  * handing the user a corrupt file.
  */
-import { getBlob } from "../api/client";
+import { getBlob, postBlob } from "../api/client";
 
-export async function downloadFile(path: string, filename: string): Promise<void> {
-  const blob = await getBlob(path);
+function saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -23,4 +22,16 @@ export async function downloadFile(path: string, filename: string): Promise<void
   link.remove();
   // Without this the object URL — and the whole blob — leaks until page unload.
   URL.revokeObjectURL(url);
+}
+
+export async function downloadFile(path: string, filename: string): Promise<void> {
+  saveBlob(await getBlob(path), filename);
+}
+
+export async function downloadFilePost(
+  path: string,
+  filename: string,
+  body?: unknown,
+): Promise<void> {
+  saveBlob(await postBlob(path, body), filename);
 }

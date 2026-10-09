@@ -251,3 +251,9 @@ class PlanningProfile(SoftDeletableModel):
 
     def __str__(self) -> str:  # pragma: no cover - trivial
         return f"Planning profile {self.tenant_id}"
+
+
+# Register the share model so migrations see it. Kept in a sibling module
+# because it is tenancy control-plane data (token lookup, no RLS), not a
+# scenario.
+from .share_models import DecisionShare  # noqa: E402,F401

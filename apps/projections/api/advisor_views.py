@@ -12,20 +12,26 @@ cheaper to enforce at the boundary than to remember at each call site.
 
 from __future__ import annotations
 
+import json
 from dataclasses import fields, is_dataclass
 
+from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.common.api_base import TenantScopedAPIView
+from apps.common.frontend_urls import decision_share as decision_share_url
 from apps.intelligence import advisor
 from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
 
 from .. import adapters, decisions, kenya, risk, sensitivity, services, simulation
 from ..calculators import CalculatorError
+from ..export import decision_pdf, decision_xlsx
+from ..share import create_share, get_usable_share
 from .serializers import (
     DECISION_SERIALIZERS,
     RiskQuerySerializer,
@@ -265,6 +271,78 @@ class KenyaRatesView(TenantScopedAPIView, APIView):
         return Response(kenya.rates_catalogue())
 
 
+XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _payload_dict(data) -> dict:
+    return json.loads(json.dumps(data))
+
+
+def _file_response(content: bytes, *, content_type: str, filename: str) -> HttpResponse:
+    response = HttpResponse(content, content_type=content_type)
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+def answer_decision(slug, data) -> Response:
+    """Validate inputs, compute, and return the same envelope the form endpoint
+    has always returned. Export and share go through here so a PDF of a
+    question is the same answer the screen showed, not a parallel calculation.
+    """
+    entry = DECISION_SERIALIZERS.get(slug)
+    if entry is None:
+        return Response(
+            {"detail": f"Unknown question {slug!r}.", "available": sorted(DECISION_SERIALIZERS)},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    serializer_class, func_name = entry
+    s = serializer_class(data=data)
+    s.is_valid(raise_exception=True)
+
+    try:
+        position, assumptions, _ = _context()
+    except adapters.NoPositionError as exc:
+        return _position_error(exc)
+
+    kwargs = dict(s.validated_data)
+    explain = kwargs.pop("explain", True)
+    try:
+        decision = dispatch_decision(func_name, position=position, assumptions=assumptions, kwargs=kwargs)
+    except CalculatorError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    explanation = advisor.explain(decision, currency=position.currency, use_llm=explain)
+    return Response(
+        {
+            "question": decision.question,
+            "verdict": decision.verdict,
+            "headline": decision.headline,
+            "confidence": decision.confidence,
+            "because": [_dc(f) for f in decision.because],
+            "costs": [_dc(f) for f in decision.costs],
+            "risks": [_dc(f) for f in decision.risks],
+            "alternatives": [_dc(f) for f in decision.alternatives],
+            "assumptions": decision.assumptions,
+            "explanation": {
+                "paragraphs": explanation.paragraphs,
+                "llm_used": explanation.llm_used,
+                "rejected_reason": explanation.rejected_reason,
+            },
+            "currency": position.currency,
+        }
+    )
+
+
+def _shared_or_404(token: str):
+    share = get_usable_share(token)
+    if share is None:
+        return None, Response(
+            {"detail": "This link is invalid or has expired."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    return share, None
+
+
 class DecisionView(TenantScopedAPIView, APIView):
     """The named questions, one endpoint per slug.
 
@@ -280,47 +358,122 @@ class DecisionView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="decision_ask")
     def post(self, request, slug):
-        entry = DECISION_SERIALIZERS.get(slug)
-        if entry is None:
-            return Response(
-                {"detail": f"Unknown question {slug!r}.", "available": sorted(DECISION_SERIALIZERS)},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        serializer_class, func_name = entry
-        s = serializer_class(data=request.data)
-        s.is_valid(raise_exception=True)
+        return answer_decision(slug, request.data)
 
-        try:
-            position, assumptions, _ = _context()
-        except adapters.NoPositionError as exc:
-            return _position_error(exc)
 
-        kwargs = dict(s.validated_data)
-        explain = kwargs.pop("explain", True)
-        try:
-            decision = dispatch_decision(func_name, position=position, assumptions=assumptions, kwargs=kwargs)
-        except CalculatorError as exc:
-            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+class DecisionExportPdfView(TenantScopedAPIView, APIView):
+    """The same answer as POST /questions/<slug>/, as a printable PDF."""
 
-        explanation = advisor.explain(decision, currency=position.currency, use_llm=explain)
+    permission_classes = [IsTenantMember, PLANNING]
+    required_role = Role.VIEWER
+    serializer_class = None
+
+    @extend_schema(operation_id="decision_export_pdf")
+    def post(self, request, slug):
+        response = answer_decision(slug, request.data)
+        if response.status_code != status.HTTP_200_OK:
+            return response
+        return _file_response(
+            decision_pdf(_payload_dict(response.data)),
+            content_type="application/pdf",
+            filename=f"ledgerflow-{slug}.pdf",
+        )
+
+
+class DecisionExportXlsxView(TenantScopedAPIView, APIView):
+    """The same answer as POST /questions/<slug>/, as a spreadsheet."""
+
+    permission_classes = [IsTenantMember, PLANNING]
+    required_role = Role.VIEWER
+    serializer_class = None
+
+    @extend_schema(operation_id="decision_export_xlsx")
+    def post(self, request, slug):
+        response = answer_decision(slug, request.data)
+        if response.status_code != status.HTTP_200_OK:
+            return response
+        return _file_response(
+            decision_xlsx(_payload_dict(response.data)),
+            content_type=XLSX_CONTENT_TYPE,
+            filename=f"ledgerflow-{slug}.xlsx",
+        )
+
+
+class DecisionShareCreateView(TenantScopedAPIView, APIView):
+    """Mint a time-limited link to this computed decision.
+
+    The raw token is in the URL and is returned once. The stored payload is the
+    snapshot just computed — not a recipe that would re-run against live
+    ledger data for whoever opens the link.
+    """
+
+    permission_classes = [IsTenantMember, PLANNING]
+    required_role = Role.VIEWER
+    serializer_class = None
+
+    @extend_schema(operation_id="decision_share_create")
+    def post(self, request, slug):
+        response = answer_decision(slug, request.data)
+        if response.status_code != status.HTTP_200_OK:
+            return response
+        raw_token, share = create_share(
+            tenant_id=request.tenant_id,
+            created_by=request.user,
+            slug=slug,
+            payload=_payload_dict(response.data),
+        )
         return Response(
-            {
-                "question": decision.question,
-                "verdict": decision.verdict,
-                "headline": decision.headline,
-                "confidence": decision.confidence,
-                "because": [_dc(f) for f in decision.because],
-                "costs": [_dc(f) for f in decision.costs],
-                "risks": [_dc(f) for f in decision.risks],
-                "alternatives": [_dc(f) for f in decision.alternatives],
-                "assumptions": decision.assumptions,
-                "explanation": {
-                    "paragraphs": explanation.paragraphs,
-                    "llm_used": explanation.llm_used,
-                    "rejected_reason": explanation.rejected_reason,
-                },
-                "currency": position.currency,
-            }
+            {"url": decision_share_url(raw_token), "expires_at": share.expires_at},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class SharedDecisionView(APIView):
+    """Public. Token-gated read of a frozen decision snapshot."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = "auth"
+    serializer_class = None
+
+    @extend_schema(operation_id="decision_share_get")
+    def get(self, request, token):
+        share, error = _shared_or_404(token)
+        if error is not None:
+            return error
+        return Response(share.payload)
+
+
+class SharedDecisionPdfView(APIView):
+    permission_classes = [AllowAny]
+    throttle_scope = "auth"
+    serializer_class = None
+
+    @extend_schema(operation_id="decision_share_pdf")
+    def get(self, request, token):
+        share, error = _shared_or_404(token)
+        if error is not None:
+            return error
+        return _file_response(
+            decision_pdf(share.payload),
+            content_type="application/pdf",
+            filename=f"ledgerflow-{share.slug}.pdf",
+        )
+
+
+class SharedDecisionXlsxView(APIView):
+    permission_classes = [AllowAny]
+    throttle_scope = "auth"
+    serializer_class = None
+
+    @extend_schema(operation_id="decision_share_xlsx")
+    def get(self, request, token):
+        share, error = _shared_or_404(token)
+        if error is not None:
+            return error
+        return _file_response(
+            decision_xlsx(share.payload),
+            content_type=XLSX_CONTENT_TYPE,
+            filename=f"ledgerflow-{share.slug}.xlsx",
         )
 
 
@@ -356,9 +509,15 @@ class DecisionCatalogueView(TenantScopedAPIView, APIView):
 
 __all__ = [
     "DecisionCatalogueView",
+    "DecisionExportPdfView",
+    "DecisionExportXlsxView",
+    "DecisionShareCreateView",
     "DecisionView",
     "RiskView",
     "SensitivityView",
+    "SharedDecisionPdfView",
+    "SharedDecisionView",
+    "SharedDecisionXlsxView",
     "SimulationView",
     "WhatIfView",
 ]

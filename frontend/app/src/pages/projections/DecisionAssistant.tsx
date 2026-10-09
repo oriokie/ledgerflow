@@ -9,8 +9,21 @@ import type {
   Verdict,
 } from "../../api/projections";
 import { advisorApi } from "../../api/projections";
+import { downloadFilePost } from "../../lib/download";
 import { formatAmount } from "../../lib/money";
-import { Badge, Banner, Button, Card, FormField, Input, Select, Stack, Text } from "../../ui";
+import {
+  Badge,
+  Banner,
+  Button,
+  Card,
+  FormField,
+  Inline,
+  Input,
+  Select,
+  Stack,
+  Text,
+  useToast,
+} from "../../ui";
 import { decisionFieldDefaults, scenarioHints } from "./scenarioHints";
 
 /** Money fields are typed in whole units; rates as percentages. Same rule as
@@ -75,7 +88,7 @@ function FindingList({ items, currency }: { items: DecisionFinding[]; currency: 
   );
 }
 
-function Answer({ result }: { result: DecisionResult }) {
+export function Answer({ result }: { result: DecisionResult }) {
   const { currency } = result;
   return (
     <Stack gap={4}>
@@ -165,6 +178,60 @@ function Answer({ result }: { result: DecisionResult }) {
   );
 }
 
+function TakeHomeActions({ slug, body }: { slug: string; body: Record<string, unknown> }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState<"pdf" | "xlsx" | "share" | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+
+  const run = async (kind: "pdf" | "xlsx" | "share") => {
+    setBusy(kind);
+    try {
+      if (kind === "share") {
+        const { url } = await advisorApi.share(slug, body);
+        setShareUrl(url);
+        try {
+          await navigator.clipboard.writeText(url);
+          toast("Link copied. Anyone with it can view this result for seven days.", {
+            tone: "success",
+          });
+        } catch {
+          toast("Share link ready — copy it from the field below.", { tone: "info" });
+        }
+        return;
+      }
+      const ext = kind === "pdf" ? "pdf" : "xlsx";
+      await downloadFilePost(
+        `/projections/questions/${slug}/export.${ext}`,
+        `ledgerflow-${slug}.${ext}`,
+        body,
+      );
+    } catch (err) {
+      toast(err instanceof ApiError ? err.detail : "Couldn't prepare that file.", { tone: "danger" });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Stack gap={2}>
+      <Inline gap={2} wrap>
+        <Button variant="secondary" loading={busy === "pdf"} onClick={() => run("pdf")}>
+          Download PDF
+        </Button>
+        <Button variant="secondary" loading={busy === "xlsx"} onClick={() => run("xlsx")}>
+          Download Excel
+        </Button>
+        <Button variant="ghost" loading={busy === "share"} onClick={() => run("share")}>
+          Copy share link
+        </Button>
+      </Inline>
+      {shareUrl && (
+        <Input readOnly value={shareUrl} aria-label="Share link" onFocus={(e) => e.target.select()} />
+      )}
+    </Stack>
+  );
+}
+
 /**
  * The named questions, with forms rendered from the backend's own schema.
  *
@@ -183,6 +250,7 @@ export function DecisionAssistant({
   const [slug, setSlug] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const [result, setResult] = useState<DecisionResult | null>(null);
+  const [lastBody, setLastBody] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
   const [ratesAsOf, setRatesAsOf] = useState<string | null>(null);
@@ -217,6 +285,7 @@ export function DecisionAssistant({
         if (raw === undefined || raw === "") continue;
         body[field.name] = toWire(field.name, raw);
       }
+      setLastBody(body);
       setResult(await advisorApi.ask(slug, body));
     } catch (err) {
       setResult(null);
@@ -238,6 +307,7 @@ export function DecisionAssistant({
               onChange={(e) => {
                 setSlug(e.target.value);
                 setResult(null);
+                setLastBody(null);
               }}
             >
               {questions.map((q) => (
@@ -267,9 +337,28 @@ export function DecisionAssistant({
               </FormField>
             ))}
           </div>
-          <Button type="submit" disabled={asking || !selected}>
-            {asking ? "Working it out…" : "Answer this"}
-          </Button>
+          <Inline gap={2} wrap>
+            <Button type="submit" disabled={asking || !selected}>
+              {asking ? "Working it out…" : "Answer this"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={!selected}
+              onClick={() => {
+                if (!selected) return;
+                setValues(
+                  position
+                    ? decisionFieldDefaults(slug, scenarioHints(position, stack ?? []), position)
+                    : {},
+                );
+                setResult(null);
+                setLastBody(null);
+              }}
+            >
+              Reset inputs
+            </Button>
+          </Inline>
           {ratesAsOf && (
             <Text size="xs" tone="tertiary">
               Kenya statutory and conveyancing rates as of {ratesAsOf}. Every rate is an
@@ -279,9 +368,12 @@ export function DecisionAssistant({
         </form>
       </Card>
 
-      {result && (
+      {result && lastBody && (
         <Card title={result.question}>
-          <Answer result={result} />
+          <Stack gap={4}>
+            <Answer result={result} />
+            <TakeHomeActions slug={slug} body={lastBody} />
+          </Stack>
         </Card>
       )}
     </Stack>

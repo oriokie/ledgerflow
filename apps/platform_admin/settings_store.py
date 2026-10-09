@@ -233,7 +233,7 @@ SPECS: tuple[SettingSpec, ...] = (
         SettingKind.STRING,
         "email",
         "SMTP host",
-        "Overrides EMAIL_HOST. Leave every field here empty to keep using the " "environment.",
+        "Overrides EMAIL_HOST. Leave every field here empty to keep using the environment.",
         env_setting="EMAIL_HOST",
         default="",
     ),
@@ -269,7 +269,7 @@ SPECS: tuple[SettingSpec, ...] = (
         SettingKind.BOOLEAN,
         "email",
         "Use STARTTLS",
-        "On for port 587. Turn off only for port 465 (implicit TLS) or an " "unencrypted relay you control.",
+        "On for port 587. Turn off only for port 465 (implicit TLS) or an unencrypted relay you control.",
         env_setting="EMAIL_USE_TLS",
         default=True,
     ),
@@ -400,6 +400,17 @@ SPECS: tuple[SettingSpec, ...] = (
         env_setting="FX_AUTO_REFRESH",
         default=True,
     ),
+    SettingSpec(
+        "kenya.rate_overrides",
+        SettingKind.JSON,
+        "kenya",
+        "Kenya statutory rate overrides",
+        "Partial overlay on the code table (stamp duty, SHIF, housing levy, "
+        "SACCO multiple, PAYE bands, as_of, …). Empty object means 'use the "
+        "rates shipped in the last deploy'. Unknown keys are refused so a typo "
+        "cannot silently leave last year's band in force.",
+        default={},
+    ),
 )
 
 SPEC_BY_KEY: dict[str, SettingSpec] = {spec.key: spec for spec in SPECS}
@@ -436,9 +447,21 @@ class PlatformSetting(UUIDModel, TimeStampedModel):
         if self.is_secret:
             self.encrypted_value = encrypt_str(str(raw)) if raw else ""
             self.value = ""
-        else:
-            self.value = "" if raw is None else str(raw)
+            return
+        if self.kind == SettingKind.JSON:
+            import json
+
+            if raw in (None, ""):
+                self.value = ""
+            elif isinstance(raw, str):
+                json.loads(raw)
+                self.value = raw
+            else:
+                self.value = json.dumps(raw)
             self.encrypted_value = ""
+            return
+        self.value = "" if raw is None else str(raw)
+        self.encrypted_value = ""
 
     def get_value(self) -> Any:
         if self.is_secret:
@@ -568,6 +591,14 @@ def set_value(*, key: str, raw: Any, user=None) -> PlatformSetting:
 
     if spec.choices and str(raw) not in spec.choices:
         raise InvalidSettingValue(f"{raw!r} is not one of {', '.join(spec.choices)}.")
+
+    if spec.key == "kenya.rate_overrides":
+        from apps.projections.kenya import validate_rate_overrides
+
+        try:
+            raw = validate_rate_overrides(raw)
+        except ValueError as exc:
+            raise InvalidSettingValue(str(exc)) from exc
 
     row, _ = PlatformSetting.objects.get_or_create(key=key, defaults={"kind": spec.kind})
     row.kind = spec.kind

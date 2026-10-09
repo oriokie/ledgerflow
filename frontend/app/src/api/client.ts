@@ -199,6 +199,15 @@ export async function postForm<T>(path: string, form: FormData, isRetry = false)
   return payload as T;
 }
 
+async function blobFrom(res: Response): Promise<Blob> {
+  if (!res.ok) {
+    const contentType = res.headers.get("content-type") ?? "";
+    const payload = contentType.includes("application/json") ? await res.json() : await res.text();
+    throw new ApiError(res.status, payload);
+  }
+  return res.blob();
+}
+
 /** GET a binary resource (e.g. a receipt) as a Blob, with auth + one refresh. */
 export async function getBlob(path: string, isRetry = false): Promise<Blob> {
   const res = await fetch(`${BASE_URL}${path}`, { method: "GET", headers: authHeaders() });
@@ -210,12 +219,25 @@ export async function getBlob(path: string, isRetry = false): Promise<Blob> {
     window.dispatchEvent(new CustomEvent("lf:session-expired"));
     throw new ApiError(401, { detail: "Session expired." });
   }
-  if (!res.ok) {
-    const contentType = res.headers.get("content-type") ?? "";
-    const payload = contentType.includes("application/json") ? await res.json() : await res.text();
-    throw new ApiError(res.status, payload);
+  return blobFrom(res);
+}
+
+/** POST JSON and receive a binary resource (PDF / Excel exports). */
+export async function postBlob(path: string, body?: unknown, isRetry = false): Promise<Blob> {
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401 && !isRetry) {
+    const newAccess = await refreshAccessToken();
+    if (newAccess) return postBlob(path, body, true);
+    tokenStore.clear();
+    tenantStore.clear();
+    window.dispatchEvent(new CustomEvent("lf:session-expired"));
+    throw new ApiError(401, { detail: "Session expired." });
   }
-  return res.blob();
+  return blobFrom(res);
 }
 
 export const api = {

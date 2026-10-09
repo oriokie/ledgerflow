@@ -438,12 +438,14 @@ OAUTH_REDIRECT_URI = env("OAUTH_REDIRECT_URI", default="http://localhost:5173/au
 # only job is "where does the frontend live" removes the temptation to infer it
 # from something adjacent.
 FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", default="http://localhost:5173").rstrip("/")
+SUPPORT_EMAIL = env("SUPPORT_EMAIL", default="support@ledgerflow.app")
 OAUTH_STATE_TTL_SECONDS = env.int("OAUTH_STATE_TTL_SECONDS", default=600)
 
 # --------------------------------------------------------------------------
 # Invitations
 # --------------------------------------------------------------------------
 INVITATION_TTL_DAYS = env.int("INVITATION_TTL_DAYS", default=7)
+DECISION_SHARE_TTL_DAYS = env.int("DECISION_SHARE_TTL_DAYS", default=7)
 
 # --------------------------------------------------------------------------
 # Platform administration workspace

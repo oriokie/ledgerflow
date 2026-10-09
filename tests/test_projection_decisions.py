@@ -59,6 +59,7 @@ def _all_decisions() -> list[dec.Decision]:
             annual_rate=0.09,
             monthly_rent_minor=150_000,
         ),
+        dec.sacco_loan_decision(position=p, amount_minor=1_000_000, shares_held_minor=1_000_000),
     ]
 
 
@@ -477,3 +478,33 @@ def test_how_much_house_scales_to_high_incomes():
     # ...and the payment at that price still respects the housing guide.
     payment = next(f for f in decision.because if f.label == "Monthly payment at that price")
     assert payment.amount_minor <= high_earner.monthly_net_income_minor * dec.HOUSING_CEILING
+
+
+def test_sacco_loan_is_no_when_extra_shares_exceed_cash():
+    decision = dec.sacco_loan_decision(
+        position=position(liquid_minor=1_000_000),
+        amount_minor=30_000_000,
+        shares_held_minor=0,
+    )
+    assert decision.verdict == dec.Verdict.NO
+    assert decision.costs
+    assert any(f.amount_minor == 10_000_000 for f in decision.costs)
+
+
+def test_sacco_loan_is_tight_when_the_instalment_blows_debt_service():
+    decision = dec.sacco_loan_decision(
+        position=position(),
+        amount_minor=20_000_000,
+        shares_held_minor=8_000_000,
+    )
+    assert decision.verdict == dec.Verdict.TIGHT
+
+
+def test_sacco_loan_fits_when_shares_cover_it_and_the_instalment_is_small():
+    decision = dec.sacco_loan_decision(
+        position=position(),
+        amount_minor=1_000_000,
+        shares_held_minor=1_000_000,
+    )
+    assert decision.verdict in (dec.Verdict.YES, dec.Verdict.YES_WITH_CARE)
+    assert decision.costs

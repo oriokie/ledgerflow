@@ -7,8 +7,8 @@ inherited:
 
     The model routes. The product computes.
 
-A language model reads the question, picks which of the five evaluators answers
-it, and pulls the numbers *the user typed in their own sentence* into that
+A language model reads the question, picks which evaluator answers it, and
+pulls the numbers *the user typed in their own sentence* into that
 evaluator's parameters. It does not compute anything, does not estimate a
 missing figure, and never sees a balance. Every number in the answer comes from
 `apps.projections.decisions`, and the narrative comes from `advisor.explain`,
@@ -38,6 +38,16 @@ from apps.intelligence.llm import LLMError, complete_json, llm_available
 #: Evaluator slug -> the words that pick it out. Ordered by specificity: the
 #: first pattern that matches wins, so "how much house" beats "afford".
 ROUTES: list[tuple[str, list[str]]] = [
+    (
+        "sacco-loan",
+        [
+            "sacco loan",
+            "sacco",
+            "take this sacco",
+            "borrowing from the sacco",
+            "share multiple",
+        ],
+    ),
     (
         "how-much-house",
         [
@@ -100,6 +110,7 @@ REQUIRED: dict[str, list[str]] = {
     "debt-or-invest": ["monthly_amount_minor", "expected_return"],
     "retire": ["years_until", "monthly_income_needed_minor"],
     "buy-or-rent": ["property_price_minor", "annual_rate", "monthly_rent_minor"],
+    "sacco-loan": ["amount_minor"],
 }
 
 QUESTION_LABELS = {
@@ -108,6 +119,7 @@ QUESTION_LABELS = {
     "debt-or-invest": "Should I pay debt down or invest?",
     "retire": "Can I retire when I want to?",
     "buy-or-rent": "Should I buy or rent?",
+    "sacco-loan": "Can I take this SACCO loan?",
 }
 
 
@@ -192,7 +204,13 @@ def route_deterministic(question: str) -> Routing:
                 else (
                     "monthly_amount_minor"
                     if slug == "debt-or-invest"
-                    else "monthly_income_needed_minor" if slug == "retire" else "deposit_minor"
+                    else (
+                        "amount_minor"
+                        if slug == "sacco-loan"
+                        else "monthly_income_needed_minor"
+                        if slug == "retire"
+                        else "deposit_minor"
+                    )
                 )
             )
         ] = amounts[0]
@@ -209,11 +227,11 @@ def route_deterministic(question: str) -> Routing:
     return Routing(slug=slug, params=params, missing=missing)
 
 
-SYSTEM = """You route a personal-finance question to one of five calculators.
+SYSTEM = """You route a personal-finance question to one of these calculators.
 
 Reply with JSON only: {"slug": "...", "params": {...}}
 
-Valid slugs: afford-mortgage, how-much-house, debt-or-invest, retire, buy-or-rent.
+Valid slugs: afford-mortgage, how-much-house, debt-or-invest, retire, buy-or-rent, sacco-loan.
 Use null for slug if the question is not one of these.
 
 Rules:
@@ -222,7 +240,7 @@ Rules:
 - Money goes in minor units (multiply by 100). Rates go as fractions (9% -> 0.09).
 - Parameter names: property_price_minor, deposit_minor, annual_rate, years,
   monthly_rent_minor, monthly_amount_minor, expected_return, years_until,
-  monthly_income_needed_minor.
+  monthly_income_needed_minor, amount_minor, shares_held_minor, share_multiple.
 
 You do not answer the question. You only decide which calculator answers it and
 which numbers the user supplied."""

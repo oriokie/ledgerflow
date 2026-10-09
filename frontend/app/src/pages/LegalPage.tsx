@@ -23,6 +23,22 @@ export function PrivacyPage() {
   );
 }
 
+export function ContactPage() {
+  return (
+    <LegalShell title="Contact">
+      <Text as="p">
+        LedgerFlow is decision support, not a helpline for a specific product. For account,
+        billing, or data questions, write to{" "}
+        <a href="mailto:support@ledgerflow.app">support@ledgerflow.app</a>. Signed-in users
+        can also update their profile and request a data export from Settings.
+      </Text>
+      <Text as="p" tone="secondary">
+        {DISCLAIMER}
+      </Text>
+    </LegalShell>
+  );
+}
+
 export function TermsPage() {
   return (
     <LegalShell title="Terms of service">
@@ -39,7 +55,7 @@ export function TermsPage() {
   );
 }
 
-function LegalShell({ title, children }: { title: string; children: React.ReactNode }) {
+export function LegalShell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="lf-status-page">
       <header className="lf-status-header">
@@ -57,6 +73,8 @@ function LegalShell({ title, children }: { title: string; children: React.ReactN
             <Link to="/privacy">Privacy</Link>
             {" · "}
             <Link to="/terms">Terms</Link>
+            {" · "}
+            <Link to="/contact">Contact</Link>
           </Text>
         </Stack>
       </main>

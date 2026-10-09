@@ -42,5 +42,11 @@ export function decisionFieldDefaults(
   if (slug === "retire") {
     out.monthly_income_needed_minor = major(position.monthly_expenses_minor);
   }
+  if (slug === "sacco-loan") {
+    out.share_multiple = "3";
+    out.annual_rate = "12";
+    out.months = "36";
+    if (position.liquid_minor > 0) out.shares_held_minor = major(position.liquid_minor);
+  }
   return out;
 }

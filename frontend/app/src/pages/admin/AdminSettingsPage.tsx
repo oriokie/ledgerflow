@@ -28,6 +28,7 @@ const GROUP_LABELS: Record<string, string> = {
   ai: "AI",
   oauth: "Sign-in with Google & Apple",
   operations: "Operations",
+  kenya: "Kenya rates",
 };
 
 /** Fixed display order. Deriving this from whatever groups a given API
@@ -40,7 +41,7 @@ const GROUP_ORDER = Object.keys(GROUP_LABELS);
  * edit or a Tenant action, so they go through a reason prompt instead of
  * straight to the API. Left ungated, the backend logs only the generic
  * "Updated {key}.", which is indistinguishable from no audit trail at all. */
-const REASON_REQUIRED_GROUPS = new Set(["payments", "email", "ai", "oauth"]);
+const REASON_REQUIRED_GROUPS = new Set(["payments", "email", "ai", "oauth", "kenya"]);
 
 const GROUP_NOTES: Record<string, string> = {
   appearance:
@@ -55,6 +56,8 @@ const GROUP_NOTES: Record<string, string> = {
   oauth:
     "Credentials for Sign in with Google and Sign in with Apple. Until both the client ID and secret are set (here or in the environment), the buttons on the login page will refuse to start. Apple needs a Services ID and a JWT generated from your .p8 key.",
   operations: "Thresholds the health dashboard and support tooling use.",
+  kenya:
+    "Statutory and conveyancing defaults every workspace starts from. A mid-year KRA change belongs here, not in a deploy. Keys you do not list keep the values shipped in code. Unknown keys are refused.",
 };
 
 /** Where a value came from, in words an operator can act on. */
@@ -151,6 +154,14 @@ function ConnectionTest({
   );
 }
 
+function valueToDraft(setting: PlatformSetting): string {
+  if (setting.value === null || setting.value === undefined) return "";
+  if (setting.kind === "json") {
+    return typeof setting.value === "string" ? setting.value : JSON.stringify(setting.value, null, 2);
+  }
+  return String(setting.value);
+}
+
 function SettingRow({
   setting,
   disabled,
@@ -160,19 +171,17 @@ function SettingRow({
   disabled: boolean;
   onSave: (key: string, value: unknown, label: string) => Promise<void>;
 }) {
+  const toast = useToast();
   const isSecret = setting.kind === "secret";
-  const [draft, setDraft] = useState<string>(
-    setting.value === null || setting.value === undefined ? "" : String(setting.value),
-  );
+  const isJson = setting.kind === "json";
+  const [draft, setDraft] = useState<string>(valueToDraft(setting));
   const [dirty, setDirty] = useState(false);
 
   // Re-sync when the server value changes underneath us (another operator, or
   // our own save landing) — but never clobber an edit in progress.
   useEffect(() => {
-    if (!dirty) {
-      setDraft(setting.value === null || setting.value === undefined ? "" : String(setting.value));
-    }
-  }, [setting.value, dirty]);
+    if (!dirty) setDraft(valueToDraft(setting));
+  }, [setting.value, setting.kind, dirty]);
 
   const commit = async (value: unknown) => {
     await onSave(setting.key, value, setting.label);
@@ -245,22 +254,47 @@ function SettingRow({
       </div>
       <div className="lf-admin-setting-control">
         <SourceBadge setting={setting} />
-        <Input
-          type={isSecret ? "password" : setting.kind === "integer" ? "number" : "text"}
-          value={draft}
-          disabled={disabled}
-          placeholder={isSecret && setting.is_set ? "••••••••" : undefined}
-          aria-label={setting.label}
-          onChange={(event) => {
-            setDraft(event.target.value);
-            setDirty(true);
-          }}
-        />
+        {isJson ? (
+          <textarea
+            className="lf-input"
+            rows={8}
+            value={draft}
+            disabled={disabled}
+            aria-label={setting.label}
+            spellCheck={false}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setDirty(true);
+            }}
+          />
+        ) : (
+          <Input
+            type={isSecret ? "password" : setting.kind === "integer" ? "number" : "text"}
+            value={draft}
+            disabled={disabled}
+            placeholder={isSecret && setting.is_set ? "••••••••" : undefined}
+            aria-label={setting.label}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setDirty(true);
+            }}
+          />
+        )}
         <Button
           size="sm"
           variant="secondary"
           disabled={disabled || !dirty || draft === ""}
-          onClick={() => commit(setting.kind === "integer" ? Number(draft) : draft)}
+          onClick={() => {
+            if (isJson) {
+              try {
+                void commit(JSON.parse(draft));
+              } catch {
+                toast("That is not valid JSON.", { tone: "danger" });
+              }
+              return;
+            }
+            void commit(setting.kind === "integer" ? Number(draft) : draft);
+          }}
         >
           Save
         </Button>

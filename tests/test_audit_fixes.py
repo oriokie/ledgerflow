@@ -15,7 +15,13 @@ from django.db.utils import IntegrityError
 
 from apps.common import audit as tenant_audit
 from apps.common.audit import AuditLog
-from apps.common.frontend_urls import email_verify, invitation_accept, password_reset
+from apps.common.frontend_urls import (
+    contact,
+    decision_share,
+    email_verify,
+    invitation_accept,
+    password_reset,
+)
 from apps.common.rls import bind_db_tenant
 from apps.common.tenant_context import use_tenant
 from apps.investments.models import Security
@@ -70,6 +76,8 @@ def test_invitation_email_url_matches_a_declared_react_route(settings):
         (invitation_accept("t"), "/invite"),
         (password_reset("t"), "/reset-password"),
         (email_verify("t"), "/verify-email"),
+        (decision_share("t"), "/share/decision"),
+        (contact(), "/contact"),
     ):
         assert expected in routes, f"{expected} is not a declared route"
         assert url.startswith(f"http://x{expected}")
