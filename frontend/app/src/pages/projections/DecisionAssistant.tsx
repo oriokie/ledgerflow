@@ -158,8 +158,8 @@ function Answer({ result }: { result: DecisionResult }) {
       </details>
 
       <Text size="xs" tone="tertiary">
-        This is decision support, not financial advice — a calculation with its workings
-        shown, so you can disagree with the assumptions rather than the conclusion.
+        LedgerFlow is an educational decision-support tool, not licensed financial
+        advice. Figures are calculations from the inputs and assumptions shown.
       </Text>
     </Stack>
   );
@@ -185,6 +185,7 @@ export function DecisionAssistant({
   const [result, setResult] = useState<DecisionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [asking, setAsking] = useState(false);
+  const [ratesAsOf, setRatesAsOf] = useState<string | null>(null);
 
   useEffect(() => {
     advisorApi
@@ -194,6 +195,7 @@ export function DecisionAssistant({
         if (results.length) setSlug(results[0].slug);
       })
       .catch(() => setError("Couldn't load the questions."));
+    advisorApi.kenyaRates().then((r) => setRatesAsOf(r.as_of)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -268,6 +270,12 @@ export function DecisionAssistant({
           <Button type="submit" disabled={asking || !selected}>
             {asking ? "Working it out…" : "Answer this"}
           </Button>
+          {ratesAsOf && (
+            <Text size="xs" tone="tertiary">
+              Kenya statutory and conveyancing rates as of {ratesAsOf}. Every rate is an
+              editable input, not a locked figure.
+            </Text>
+          )}
         </form>
       </Card>
 

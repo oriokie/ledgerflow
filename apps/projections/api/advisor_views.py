@@ -24,7 +24,7 @@ from apps.intelligence import advisor
 from apps.tenancy.models import Role
 from apps.tenancy.permissions import IsTenantMember
 
-from .. import adapters, decisions, risk, sensitivity, services, simulation
+from .. import adapters, decisions, kenya, risk, sensitivity, services, simulation
 from ..calculators import CalculatorError
 from .serializers import (
     DECISION_SERIALIZERS,
@@ -252,6 +252,17 @@ def _income_sources() -> list[int] | None:
         return None
     amounts = [v.monthly_equivalent_minor for v in views if getattr(v, "monthly_equivalent_minor", None)]
     return amounts or None
+
+
+class KenyaRatesView(TenantScopedAPIView, APIView):
+    """Statutory and conveyancing rates, with the date they were last set."""
+
+    permission_classes = [IsTenantMember, PLANNING]
+    required_role = Role.VIEWER
+
+    @extend_schema(operation_id="kenya_rates")
+    def get(self, request):
+        return Response(kenya.rates_catalogue())
 
 
 class DecisionView(TenantScopedAPIView, APIView):

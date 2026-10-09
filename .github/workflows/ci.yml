@@ -22,6 +22,15 @@ jobs:
       - run: ruff check apps config tests manage.py
       - run: black --check apps config tests manage.py
 
+      # Supply-chain scan for the Python dependencies that actually ship to
+      # production. Fails the build when a dependency has a known advisory; if a
+      # transitive one has no fix yet, exempt that single ID with
+      # `--ignore-vuln GHSA-xxxx` here rather than disabling the gate.
+      - name: Dependency vulnerability scan (pip-audit)
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements/base.txt -r requirements/production.txt --skip-editable
+
       # Design-system guards. Both are stdlib-only and need no browser, so
       # they belong in the fast job rather than gating on the test matrix.
       - name: Palette contrast and colour-vision floors
@@ -44,6 +53,11 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/app/package-lock.json
       - run: npm ci
+      # Supply-chain scan. High/critical only — moderate advisories in dev-only
+      # transitive deps would block every PR without describing a real exposure
+      # for a built, served SPA. `--omit=dev` audits what actually ships.
+      - name: Dependency vulnerability scan (npm audit)
+        run: npm audit --omit=dev --audit-level=high
       # `tsc --noEmit` here would be a no-op: the root tsconfig has `files: []`
       # and only project references, so without `-b` it checks zero files and
       # always exits 0. Ran that way for several phases before it was noticed.

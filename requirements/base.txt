@@ -1,6 +1,6 @@
 # Core framework
-Django==5.2.16
-djangorestframework==3.17.1
+Django==5.2.17
+djangorestframework==3.17.2
 djangorestframework-simplejwt==5.5.1
 django-filter==26.1
 drf-spectacular==0.30.0
@@ -26,13 +26,11 @@ boto3==1.43.50
 pyotp==2.9.0
 webauthn==3.0.0
 argon2-cffi==25.1.0
-requests==2.32.3
+requests==2.33.0
 reportlab==4.2.5  # payoff schedule PDF export
 pytesseract==0.3.13  # receipt OCR (apps.receipts)
-Pillow==11.0.0  # receipt image preprocessing
+Pillow==12.3.0  # receipt image preprocessing
 pywebpush==2.3.0  # Web Push delivery (apps.notifications)
-# M-Pesa PDF statement import (apps.finance.import_mpesa). Held below 0.11.10,
-# which requires Pillow>=12.2 and would drag the pinned Pillow — and with it
-# receipt OCR and the payoff-schedule PDF export — along for the ride.
-pdfplumber==0.11.9
+# M-Pesa PDF statement import (apps.finance.import_mpesa).
+pdfplumber==0.11.10
 openpyxl==3.1.5  # Excel (.xlsx) bulk import for bills/recurring (apps.finance.import_xlsx)

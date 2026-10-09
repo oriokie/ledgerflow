@@ -351,6 +351,9 @@ export const advisorApi = {
 
   ask: (slug: string, body: Record<string, unknown>) =>
     api.post<DecisionResult>(`/projections/questions/${slug}/`, body),
+
+  kenyaRates: () =>
+    api.get<{ as_of: string; source: string }>("/projections/kenya-rates/"),
 };
 
 // ---------------------------------------------------------------------------

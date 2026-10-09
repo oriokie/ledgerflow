@@ -3,9 +3,14 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const update = vi.fn();
-vi.mock("../../../api/auth", () => ({ profileApi: { update: (...a: unknown[]) => update(...a) } }));
+vi.mock("../../../api/auth", () => ({
+  profileApi: { update: (...a: unknown[]) => update(...a) },
+  authApi: { requestEmailVerification: vi.fn(), deleteAccount: vi.fn() },
+}));
 vi.mock("../../../lib/AuthContext", () => ({
-  useAuth: () => ({ user: { email: "amina@example.test", first_name: "Amina", last_name: "Otieno" } }),
+  useAuth: () => ({
+    user: { email: "amina@example.test", first_name: "Amina", last_name: "Otieno", is_verified: true },
+  }),
 }));
 
 import { ProfilePanel } from "./ProfilePanel";

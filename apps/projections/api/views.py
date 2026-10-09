@@ -13,6 +13,7 @@ directly and a summary block it can render without walking the array.
 from __future__ import annotations
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -26,7 +27,7 @@ from apps.tenancy.permissions import IsTenantMember
 
 from .. import adapters, calculators, services
 from ..events import EventParamError
-from ..models import AssumptionSet, Scenario, ScenarioEvent
+from ..models import AssumptionSet, Scenario, ScenarioEvent, ScenarioVisibility
 from .serializers import (
     CALCULATORS,
     AssumptionSetSerializer,
@@ -38,6 +39,26 @@ from .serializers import (
 )
 
 PLANNING = require_feature(PlanFeature.SMART_PLANNING)
+
+
+def _visible_scenarios(request, base=None):
+    """Scenarios the requesting member is allowed to see.
+
+    Tenant RLS already walls this workspace off from every other one. The cut
+    this adds is *within* the workspace: a ``PRIVATE`` ("Only me") scenario is
+    visible to the member who created it and to nobody else, while a
+    ``HOUSEHOLD`` scenario is shared with everyone in the workspace. Without
+    this, any member — a ``VIEWER`` included — could list and read a colleague's
+    private plans (leaving a job, a separation, helping a parent), which is
+    exactly the confidence the model's default visibility promises to keep.
+
+    Applied as a queryset filter rather than a per-object check so an
+    unauthorised id returns a clean 404 (indistinguishable from "does not
+    exist") instead of leaking the row's existence.
+    """
+    qs = Scenario.objects.all() if base is None else base
+    user_id = getattr(request.user, "id", None)
+    return qs.filter(Q(visibility=ScenarioVisibility.HOUSEHOLD) | Q(created_by_id=user_id))
 
 
 def _scenario_out(scenario: Scenario) -> dict:
@@ -177,7 +198,9 @@ class ScenarioListView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="scenario_list")
     def get(self, request):
-        scenarios = Scenario.objects.prefetch_related("events").order_by("-updated_at")
+        scenarios = _visible_scenarios(request, Scenario.objects.prefetch_related("events")).order_by(
+            "-updated_at"
+        )
         wanted_status = request.query_params.get("status")
         if wanted_status:
             scenarios = scenarios.filter(status=wanted_status)
@@ -204,12 +227,14 @@ class ScenarioDetailView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="scenario_detail")
     def get(self, request, scenario_id):
-        scenario = get_object_or_404(Scenario.objects.prefetch_related("events"), id=scenario_id)
+        scenario = get_object_or_404(
+            _visible_scenarios(request, Scenario.objects.prefetch_related("events")), id=scenario_id
+        )
         return Response(_scenario_out(scenario))
 
     @extend_schema(operation_id="scenario_update")
     def patch(self, request, scenario_id):
-        scenario = get_object_or_404(Scenario, id=scenario_id)
+        scenario = get_object_or_404(_visible_scenarios(request), id=scenario_id)
         s = ScenarioWriteSerializer(data=request.data, partial=True)
         s.is_valid(raise_exception=True)
         for field, value in s.validated_data.items():
@@ -226,7 +251,7 @@ class ScenarioDetailView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="scenario_delete")
     def delete(self, request, scenario_id):
-        scenario = get_object_or_404(Scenario, id=scenario_id)
+        scenario = get_object_or_404(_visible_scenarios(request), id=scenario_id)
         scenario.delete()  # soft delete
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -238,7 +263,7 @@ class ScenarioEventsView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="scenario_event_create")
     def post(self, request, scenario_id):
-        scenario = get_object_or_404(Scenario, id=scenario_id)
+        scenario = get_object_or_404(_visible_scenarios(request), id=scenario_id)
         s = ScenarioEventWriteSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         data = dict(s.validated_data)
@@ -260,7 +285,8 @@ class ScenarioEventDetailView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="scenario_event_update")
     def patch(self, request, scenario_id, event_id):
-        event = get_object_or_404(ScenarioEvent, id=event_id, scenario_id=scenario_id)
+        scenario = get_object_or_404(_visible_scenarios(request), id=scenario_id)
+        event = get_object_or_404(ScenarioEvent, id=event_id, scenario_id=scenario.id)
         s = ScenarioEventWriteSerializer(data=request.data, partial=True)
         s.is_valid(raise_exception=True)
         for field, value in s.validated_data.items():
@@ -273,7 +299,8 @@ class ScenarioEventDetailView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="scenario_event_delete")
     def delete(self, request, scenario_id, event_id):
-        event = get_object_or_404(ScenarioEvent, id=event_id, scenario_id=scenario_id)
+        scenario = get_object_or_404(_visible_scenarios(request), id=scenario_id)
+        event = get_object_or_404(ScenarioEvent, id=event_id, scenario_id=scenario.id)
         event.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -287,7 +314,9 @@ class ScenarioRunView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="scenario_run")
     def get(self, request, scenario_id):
-        scenario = get_object_or_404(Scenario.objects.prefetch_related("events"), id=scenario_id)
+        scenario = get_object_or_404(
+            _visible_scenarios(request, Scenario.objects.prefetch_related("events")), id=scenario_id
+        )
         try:
             run = services.run(scenario)
         except adapters.NoPositionError as exc:
@@ -304,7 +333,7 @@ class ScenarioDuplicateView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="scenario_duplicate")
     def post(self, request, scenario_id):
-        scenario = get_object_or_404(Scenario, id=scenario_id)
+        scenario = get_object_or_404(_visible_scenarios(request), id=scenario_id)
         copy = services.duplicate_scenario(scenario, name=request.data.get("name"))
         return Response(_scenario_out(copy), status=status.HTTP_201_CREATED)
 
@@ -316,7 +345,7 @@ class ScenarioArchiveView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="scenario_archive")
     def post(self, request, scenario_id):
-        scenario = get_object_or_404(Scenario, id=scenario_id)
+        scenario = get_object_or_404(_visible_scenarios(request), id=scenario_id)
         return Response(_scenario_out(services.archive_scenario(scenario)))
 
 
@@ -332,7 +361,9 @@ class ScenarioCompareView(TenantScopedAPIView, APIView):
         s = CompareSerializer(data=request.data)
         s.is_valid(raise_exception=True)
         ids = [str(i) for i in s.validated_data["scenario_ids"]]
-        scenarios = list(Scenario.objects.prefetch_related("events").filter(id__in=ids))
+        scenarios = list(
+            _visible_scenarios(request, Scenario.objects.prefetch_related("events")).filter(id__in=ids)
+        )
         if len(scenarios) != len(ids):
             return Response(
                 {"detail": "One or more scenarios could not be found."},

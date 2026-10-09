@@ -425,3 +425,47 @@ def test_one_tenants_scenarios_are_invisible_to_another(tenant_context, django_u
 
     assert other_client.get(f"{BASE}/scenarios/").data["results"] == []
     assert len(client.get(f"{BASE}/scenarios/").data["results"]) == 1
+
+
+def test_a_private_scenario_is_invisible_to_other_members_of_the_same_workspace(tenant_context):
+    """Regression for the intra-workspace privacy leak: a PRIVATE ('Only me')
+    scenario must not be listed, read, run or copied by a colleague in the same
+    workspace — only by its creator — while a HOUSEHOLD scenario is shared."""
+    from apps.tenancy.models import Role
+    from tests.conftest import _bearer_client
+    from tests.factories import MembershipFactory, UserFactory
+
+    membership, client = tenant_context
+    created = _scenario(client, name="Leaving my job").data
+    scenario_id = created["id"]
+    assert created["visibility"] == "private"
+
+    # A second, genuine member of the *same* workspace.
+    colleague = MembershipFactory(tenant=membership.tenant, user=UserFactory(), role=Role.MEMBER)
+    colleague_client = _bearer_client(colleague.user, tenant_id=membership.tenant_id)
+
+    # The private scenario is invisible to the colleague on every read path.
+    assert colleague_client.get(f"{BASE}/scenarios/").data["results"] == []
+    assert colleague_client.get(f"{BASE}/scenarios/{scenario_id}/").status_code == 404
+    assert colleague_client.get(f"{BASE}/scenarios/{scenario_id}/run/").status_code == 404
+    assert (
+        colleague_client.post(f"{BASE}/scenarios/{scenario_id}/duplicate/", {}, format="json").status_code
+        == 404
+    )
+    # ...and cannot be mutated by them.
+    assert (
+        colleague_client.patch(
+            f"{BASE}/scenarios/{scenario_id}/", {"name": "hijacked"}, format="json"
+        ).status_code
+        == 404
+    )
+    assert colleague_client.delete(f"{BASE}/scenarios/{scenario_id}/").status_code == 404
+
+    # The owner still sees it.
+    assert len(client.get(f"{BASE}/scenarios/").data["results"]) == 1
+
+    # Sharing it with the household makes it visible to the colleague.
+    client.patch(f"{BASE}/scenarios/{scenario_id}/", {"visibility": "household"}, format="json")
+    shared = colleague_client.get(f"{BASE}/scenarios/")
+    assert [s["name"] for s in shared.data["results"]] == ["Leaving my job"]
+    assert colleague_client.get(f"{BASE}/scenarios/{scenario_id}/").status_code == 200

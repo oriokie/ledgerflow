@@ -1287,7 +1287,11 @@ def payoff_timeline_pdf(
         "custom": "Custom order",
     }.get(plan.strategy, plan.strategy)
 
+    from apps.common.legal import DISCLAIMER
+
     story.append(Paragraph("Debt payoff schedule", styles["Title"]))
+    story.append(Spacer(1, 2 * mm))
+    story.append(Paragraph(DISCLAIMER, styles["BodyText"]))
     story.append(Spacer(1, 4 * mm))
 
     # The summary a reader needs before the table means anything.

@@ -155,10 +155,10 @@ def create_workspace(
     name: str,
     owner,
     type: str = TenantType.PERSONAL,  # noqa: A002 -- matches the public API vocabulary
-    base_currency: str = "USD",
-    country: str = "",
-    locale: str = "en-US",
-    timezone: str = "UTC",
+    base_currency: str = "KES",
+    country: str = "KE",
+    locale: str = "en-KE",
+    timezone: str = "Africa/Nairobi",
 ) -> Tenant:
     # A platform operator account is for acting on other people's workspaces,
     # not for owning one. See apps.platform_admin.separation for why.
@@ -170,12 +170,13 @@ def create_workspace(
 
     from apps.fx.currencies import is_supported
 
-    code = (base_currency or "USD").upper()
+    code = (base_currency or "KES").upper()
     if not is_supported(code):
         raise TenancyError(f"{code} isn't a supported currency.")
     country_code = (country or "").strip().upper()
     defaults = _COUNTRY_DEFAULTS.get(country_code)
-    if defaults and locale == "en-US" and timezone == "UTC":
+    implicit_locale = (locale, timezone) in {("en-US", "UTC"), ("en-KE", "Africa/Nairobi")}
+    if defaults and implicit_locale:
         locale, timezone = defaults
 
     tenant = Tenant.objects.create(

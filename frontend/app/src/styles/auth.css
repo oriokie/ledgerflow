@@ -635,6 +635,23 @@
   font-size: var(--lf-text-sm);
 }
 
+/* Standalone legal links on register. Inline "Terms" in the consent sentence
+   measured 38×28 on a 375px screen, which is under `--lf-touch-target` and
+   lifted the route-audit ratchet. Same treatment as the landing footer. */
+.lf-auth-legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lf-space-2) var(--lf-space-4);
+}
+
+.lf-auth-shell .lf-auth-legal-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--lf-touch-target);
+  min-width: var(--lf-touch-target);
+  padding-block: 0;
+}
+
 @media (prefers-contrast: more) {
   .lf-auth-shell,
   .lf-auth-panel,

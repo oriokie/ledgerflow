@@ -37,10 +37,10 @@ class WorkspaceMembershipSerializer(serializers.ModelSerializer):
 class CreateWorkspaceSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=120)
     type = serializers.ChoiceField(choices=TenantType.choices, default=TenantType.PERSONAL)
-    base_currency = serializers.CharField(max_length=3, default="USD")
-    country = serializers.CharField(max_length=2, required=False, allow_blank=True, default="")
-    locale = serializers.CharField(max_length=10, default="en-US")
-    timezone = serializers.CharField(max_length=64, default="UTC")
+    base_currency = serializers.CharField(max_length=3, default="KES")
+    country = serializers.CharField(max_length=2, required=False, allow_blank=True, default="KE")
+    locale = serializers.CharField(max_length=10, default="en-KE")
+    timezone = serializers.CharField(max_length=64, default="Africa/Nairobi")
 
     def validate_base_currency(self, value: str) -> str:
         from apps.fx.currencies import is_supported

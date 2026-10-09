@@ -91,7 +91,11 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data) -> User:
-        return User.objects.create_user(**validated_data)
+        user = User.objects.create_user(**validated_data)
+        from ..services import email_verification
+
+        email_verification.request_verification(user=user)
+        return user
 
 
 class LoginSerializer(serializers.Serializer):
@@ -154,3 +158,11 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         # once the token resolves to a user.
         password_validation.validate_password(value)
         return value
+
+
+class EmailVerificationConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField()
+
+
+class DeleteAccountSerializer(serializers.Serializer):
+    password = serializers.CharField(write_only=True)

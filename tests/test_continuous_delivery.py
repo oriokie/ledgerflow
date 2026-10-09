@@ -219,6 +219,16 @@ def test_the_agent_fast_forwards_the_checkout():
     assert '"$branch" != "main"' in source
 
 
+def test_the_agent_retries_up_after_a_ghost_container_id():
+    """Compose Recreate on a vanished ID is 'No such container: <sha>' with
+    Redis still Running — that is a 500 at the proxy, not a failed pull."""
+    source = AGENT.read_text()
+    assert "compose_up" in source
+    assert "stale app container" in source
+    assert "COMPOSE_PARALLEL_LIMIT=1" in source
+    assert "deploy-(web|worker|beat|frontend)" in source
+
+
 def test_the_agent_recreates_frontend_so_the_volume_swaps():
     """The frontend container copies the SPA into a volume once at start and
     then sleeps. `up -d` on an already-running container leaves Caddy serving

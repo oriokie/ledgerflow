@@ -5,6 +5,7 @@ from django.urls import path
 from .advisor_views import (
     DecisionCatalogueView,
     DecisionView,
+    KenyaRatesView,
     RiskView,
     SensitivityView,
     SimulationView,
@@ -39,6 +40,7 @@ urlpatterns = [
     path("sensitivity/", SensitivityView.as_view(), name="projection-sensitivity"),
     path("what-if/", WhatIfView.as_view(), name="projection-what-if"),
     path("risk/", RiskView.as_view(), name="projection-risk"),
+    path("kenya-rates/", KenyaRatesView.as_view(), name="projection-kenya-rates"),
     path("questions/", DecisionCatalogueView.as_view(), name="decision-catalogue"),
     path("questions/<slug:slug>/", DecisionView.as_view(), name="decision-ask"),
     path("scenarios/", ScenarioListView.as_view(), name="scenario-list"),
