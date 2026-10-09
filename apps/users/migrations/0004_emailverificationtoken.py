@@ -36,6 +36,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="emailverificationtoken",
-            index=models.Index(fields=["token_hash", "used_at"], name="users_email_token_h_idx"),
+            index=models.Index(fields=["token_hash", "used_at"], name="users_email_token_h_76e548_idx"),
         ),
     ]
