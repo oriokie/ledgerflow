@@ -434,6 +434,7 @@ function LandingFooter() {
           <h2>Legal</h2>
           <Link to="/privacy">Privacy</Link>
           <Link to="/terms">Terms</Link>
+          <Link to="/contact">Contact</Link>
         </div>
       </nav>
       <p className="lf-landing-copyright">

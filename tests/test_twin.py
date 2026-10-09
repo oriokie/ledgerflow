@@ -380,6 +380,7 @@ def test_forecasts_do_not_leak_across_tenants(tenant):
         ("Should I pay off debt or invest?", "debt-or-invest"),
         ("Can I retire at 55?", "retire"),
         ("Will we reach financial independence?", "retire"),
+        ("Can I take this SACCO loan?", "sacco-loan"),
     ],
 )
 def test_the_phrasings_people_actually_use_are_routed(question, slug):
@@ -401,6 +402,13 @@ def test_numbers_are_pulled_out_of_the_sentence():
     assert routing.params["property_price_minor"] == 450_000_000
     assert routing.params["deposit_minor"] == 90_000_000
     assert routing.params["annual_rate"] == pytest.approx(0.09)
+
+
+def test_sacco_loan_amount_is_pulled_out_of_the_sentence():
+    routing = conversation.route_deterministic("Can I take this SACCO loan of 300,000?")
+    assert routing.slug == "sacco-loan"
+    assert routing.params["amount_minor"] == 30_000_000
+    assert routing.answerable
 
 
 def test_a_percentage_is_not_also_read_as_an_amount():

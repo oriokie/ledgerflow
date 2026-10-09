@@ -225,6 +225,7 @@ def test_the_catalogue_lists_every_question_and_what_it_needs(tenant_context):
         ),
         ("school-fees", {"fee_per_term_minor": 15_000_000, "children": 2}),
         ("commute", {"extra_km": 12, "cost_per_km_minor": 2500}),
+        ("sacco-loan", {"amount_minor": 300_000_00, "shares_held_minor": 100_000_00}),
     ],
 )
 def test_every_question_answers_with_a_verdict_and_its_assumptions(tenant_context, slug, payload):

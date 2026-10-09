@@ -835,8 +835,7 @@ def buy_or_rent(
         risks=[
             Finding(
                 "Property growth is the swing factor",
-                "This comparison moves more on the assumed house-price growth than on "
-                "anything you control.",
+                "This comparison moves more on the assumed house-price growth than on anything you control.",
             ),
             Finding(
                 "Moving costs are not modelled",
@@ -1235,4 +1234,119 @@ def commute_cost_decision(
             )
         ],
         assumptions=result.assumptions,
+    )
+
+
+# ---------------------------------------------------------------------------
+# SACCO loan
+# ---------------------------------------------------------------------------
+def sacco_loan_decision(
+    *,
+    position: FinancialPosition,
+    amount_minor: int,
+    shares_held_minor: int = 0,
+    share_multiple: float = kenya.SACCO_SHARE_MULTIPLE,
+    annual_rate: float = kenya.SACCO_TYPICAL_RATE,
+    months: int = 36,
+) -> Decision:
+    """Can this household take this SACCO loan given the shares they already hold."""
+    quote = calc.sacco_loan(
+        amount_minor=amount_minor,
+        shares_held_minor=shares_held_minor,
+        share_multiple=share_multiple,
+        annual_rate=annual_rate,
+        months=months,
+    )
+    income = position.monthly_net_income_minor
+    extra = quote.extra_shares_needed_minor
+    existing_service = sum(d.monthly_payment_minor for d in position.debts)
+    share = (quote.monthly_payment_minor + existing_service) / income if income else None
+    leftover = position.liquid_minor - extra
+
+    if amount_minor <= 0:
+        verdict, headline = Verdict.UNKNOWN, "A loan of nothing does not need a verdict."
+    elif extra > position.liquid_minor:
+        verdict, headline = (
+            Verdict.NO,
+            "Unlocking this loan takes more extra shares than you hold in cash.",
+        )
+    elif share is not None and share > TOTAL_DEBT_CEILING:
+        verdict, headline = (
+            Verdict.TIGHT,
+            "The instalment plus existing debts take more than a third of take-home.",
+        )
+    elif leftover < position.monthly_expenses_minor * RUNWAY_FLOOR_MONTHS:
+        verdict, headline = (
+            Verdict.YES_WITH_CARE,
+            "The loan fits, but buying the extra shares leaves the emergency fund thin.",
+        )
+    else:
+        verdict, headline = Verdict.YES, "The SACCO will lend this, and the instalment fits."
+
+    alternatives = []
+    if quote.capacity_minor < amount_minor:
+        alternatives.append(
+            Finding(
+                "What current shares already unlock",
+                "The largest loan this SACCO would grant without buying more shares.",
+                amount_minor=quote.capacity_minor,
+            )
+        )
+
+    return Decision(
+        question="Can I take this SACCO loan?",
+        verdict=verdict,
+        headline=headline,
+        confidence=Confidence.MEASURED if income else Confidence.ASSUMED,
+        because=[
+            Finding(
+                "Borrowing power on shares held",
+                f"{share_multiple:g}× deposits already in the SACCO.",
+                amount_minor=quote.capacity_minor,
+            ),
+            Finding(
+                "Monthly instalment",
+                f"{months} months at {annual_rate:.1%}.",
+                amount_minor=quote.monthly_payment_minor,
+            ),
+            Finding(
+                "Share of take-home",
+                (
+                    f"{share:.0%} of net income including existing debts, against a "
+                    f"{TOTAL_DEBT_CEILING:.0%} guide."
+                    if share is not None
+                    else "No recorded income to measure against."
+                ),
+                percent=round(share, 4) if share is not None else None,
+            ),
+        ],
+        costs=[
+            Finding(
+                "Extra shares to unlock the loan",
+                "Cash that has to go into the SACCO before the loan is disbursed.",
+                amount_minor=extra,
+            ),
+            Finding(
+                "Interest over the term",
+                f"Total paid to borrow, over {months} months.",
+                amount_minor=quote.total_interest_minor,
+            ),
+        ],
+        risks=(
+            [
+                Finding(
+                    "Everything committed",
+                    "Existing debts plus this instalment leave little room for a bad month.",
+                    percent=round(share, 4),
+                )
+            ]
+            if share is not None and share > HOUSING_CEILING
+            else []
+        ),
+        alternatives=alternatives,
+        assumptions=quote.assumptions
+        + [
+            f"Debt-service guide of {TOTAL_DEBT_CEILING:.0%} of net income, existing loans included.",
+            "Your income and cash are the figures measured from your own ledger.",
+        ],
     )

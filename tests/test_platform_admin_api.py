@@ -629,3 +629,31 @@ def test_the_console_refuses_a_style_outside_the_allowed_set(api):
     )
     assert animated.status_code == 200, animated.data
     assert animated.data["value"] == "motion"
+
+
+def test_kenya_rate_overrides_refuse_an_unknown_key(api):
+    """A typo'd band name stored happily would leave last year's table in force
+    with no error attached to it."""
+    bad = api.post(
+        "/api/v1/platform/settings/",
+        {
+            "key": "kenya.rate_overrides",
+            "value": {"stamp_duty_urbann": 0.05},
+            "reason": "KRA FY update",
+        },
+        format="json",
+    )
+    assert bad.status_code == 400, bad.data
+
+    good = api.post(
+        "/api/v1/platform/settings/",
+        {
+            "key": "kenya.rate_overrides",
+            "value": {"stamp_duty_urban": 0.05, "as_of": "2026-10-01"},
+            "reason": "KRA FY update",
+        },
+        format="json",
+    )
+    assert good.status_code == 200, good.data
+    assert good.data["value"]["stamp_duty_urban"] == 0.05
+    assert good.data["value"]["as_of"] == "2026-10-01"

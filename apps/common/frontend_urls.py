@@ -37,3 +37,13 @@ def password_reset(token: str) -> str:
 def email_verify(token: str) -> str:
     """Route: /verify-email — see VerifyEmailPage."""
     return build("verify-email", token=token)
+
+
+def decision_share(token: str) -> str:
+    """Route: /share/decision — see ShareDecisionPage."""
+    return build("share/decision", token=token)
+
+
+def contact() -> str:
+    """Route: /contact — see ContactPage."""
+    return build("contact")

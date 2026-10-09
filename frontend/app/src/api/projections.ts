@@ -352,6 +352,15 @@ export const advisorApi = {
   ask: (slug: string, body: Record<string, unknown>) =>
     api.post<DecisionResult>(`/projections/questions/${slug}/`, body),
 
+  share: (slug: string, body: Record<string, unknown>) =>
+    api.post<{ url: string; expires_at: string }>(`/projections/questions/${slug}/share/`, body),
+
+  shared: (token: string) =>
+    api.get<DecisionResult>(`/projections/shared/${encodeURIComponent(token)}/`, {
+      skipAuth: true,
+      skipTenant: true,
+    }),
+
   kenyaRates: () =>
     api.get<{ as_of: string; source: string }>("/projections/kenya-rates/"),
 };

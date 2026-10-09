@@ -184,3 +184,31 @@ describe("closed-set settings", () => {
     );
   });
 });
+
+describe("structured settings", () => {
+  it("edits JSON as text and sends an object", async () => {
+    staffState.value = { capabilities: ["health.read", "staff.manage"] };
+    settingsState.value = [
+      setting({
+        key: "kenya.rate_overrides",
+        kind: "json",
+        group: "invoicing",
+        label: "Kenya statutory rate overrides",
+        value: {},
+      }),
+    ];
+    render(<AdminSettingsPage />);
+
+    const field = screen.getByLabelText("Kenya statutory rate overrides");
+    expect(field.tagName).toBe("TEXTAREA");
+    fireEvent.change(field, { target: { value: '{"stamp_duty_urban": 0.05}' } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(writeMutate).toHaveBeenCalledWith({
+        key: "kenya.rate_overrides",
+        value: { stamp_duty_urban: 0.05 },
+      }),
+    );
+  });
+});

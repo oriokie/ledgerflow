@@ -922,3 +922,63 @@ def commute_cost(
             "Round trip (×2) on every working day. Time cost is not priced in money.",
         ],
     )
+
+
+# ---------------------------------------------------------------------------
+# SACCO loan
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class SaccoLoanResult:
+    amount_minor: int
+    shares_held_minor: int
+    share_multiple: float
+    capacity_minor: int
+    extra_shares_needed_minor: int
+    monthly_payment_minor: int
+    total_interest_minor: int
+    total_paid_minor: int
+    months: int
+    annual_rate: float
+    assumptions: list[str] = field(default_factory=list)
+
+
+def sacco_loan(
+    *,
+    amount_minor: int,
+    shares_held_minor: int,
+    share_multiple: float = 3.0,
+    annual_rate: float = 0.12,
+    months: int = 36,
+) -> SaccoLoanResult:
+    """Borrowing power and the instalment, given shares already held.
+
+    Kenyan SACCOs typically cap a loan at a multiple of the member's deposits.
+    The multiple is an input — 3× is the common printed rule, not a law — so a
+    household whose SACCO uses 4× is not stuck with our default. Extra shares
+    needed to unlock the loan are cash that has to come from somewhere; the
+    caller decides whether the household actually holds it.
+    """
+    _validate_amount(amount_minor, "loan amount")
+    _validate_amount(shares_held_minor, "shares held")
+    if share_multiple <= 0:
+        raise CalculatorError("share multiple must be positive")
+    capacity = round(shares_held_minor * share_multiple)
+    extra_shares = max(0, round(amount_minor / share_multiple) - shares_held_minor)
+    quote = loan(principal_minor=amount_minor, annual_rate=annual_rate, months=months)
+    return SaccoLoanResult(
+        amount_minor=amount_minor,
+        shares_held_minor=shares_held_minor,
+        share_multiple=share_multiple,
+        capacity_minor=capacity,
+        extra_shares_needed_minor=extra_shares,
+        monthly_payment_minor=quote.monthly_payment_minor,
+        total_interest_minor=quote.total_interest_minor,
+        total_paid_minor=quote.total_paid_minor,
+        months=months,
+        annual_rate=annual_rate,
+        assumptions=[
+            f"Maximum loan is {share_multiple:g}× deposits/shares held.",
+            *quote.assumptions,
+            "Extra shares to unlock a larger loan are cash, paid up front.",
+        ],
+    )

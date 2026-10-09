@@ -84,6 +84,12 @@ describe("landing page", () => {
     expect(preview?.textContent?.trim()).toBe("");
   });
 
+  it("links to the contact page from the footer", () => {
+    usePlans.mockReturnValue({ data: [] });
+    renderPage();
+    expect(screen.getByRole("link", { name: "Contact" })).toHaveAttribute("href", "/contact");
+  });
+
   it("renders the intelligence band as its own well", () => {
     usePlans.mockReturnValue({ data: [] });
     const { container } = renderPage();

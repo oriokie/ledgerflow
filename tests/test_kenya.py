@@ -85,6 +85,15 @@ def test_kenya_rates_catalogue_is_dated():
     assert catalogue["as_of"] == "2026-07-01"
     assert catalogue["stamp_duty_urban"] == 0.04
     assert catalogue["rental_income_tax_rate"] == 0.075
+    assert catalogue["sacco_share_multiple"] == 3.0
+    assert catalogue["sacco_typical_rate"] == 0.12
+
+
+def test_sacco_loan_capacity_is_shares_times_multiple():
+    result = calc.sacco_loan(amount_minor=300_000_00, shares_held_minor=80_000_00, share_multiple=3)
+    assert result.capacity_minor == 240_000_00
+    assert result.extra_shares_needed_minor == 20_000_00
+    assert result.monthly_payment_minor > 0
 
 
 @pytest.mark.django_db
@@ -94,3 +103,50 @@ def test_kenya_rates_endpoint(tenant_context):
     assert res.status_code == 200
     assert res.data["as_of"] == kenya.RATES_AS_OF.isoformat()
     assert "paye_bands_monthly_minor" in res.data
+
+
+def test_unknown_rate_override_keys_are_refused():
+    with pytest.raises(ValueError, match="Unknown Kenya rate keys"):
+        kenya.validate_rate_overrides({"not_a_rate": 0.1})
+
+
+def test_a_rate_outside_zero_to_one_is_refused():
+    with pytest.raises(ValueError, match="stamp_duty_urban"):
+        kenya.validate_rate_overrides({"stamp_duty_urban": 4})
+
+
+@pytest.mark.django_db
+def test_an_operator_override_moves_stamp_duty_without_a_deploy():
+    """KRA changing a band mid-year must not wait for the next release."""
+    from apps.platform_admin import settings_store
+
+    settings_store.clear(key="kenya.rate_overrides")
+    try:
+        settings_store.set_value(
+            key="kenya.rate_overrides", raw={"stamp_duty_urban": 0.05, "as_of": "2026-10-01"}
+        )
+        catalogue = kenya.rates_catalogue()
+        assert catalogue["stamp_duty_urban"] == 0.05
+        assert catalogue["as_of"] == "2026-10-01"
+        # Unmentioned keys keep the code table.
+        assert catalogue["stamp_duty_rural"] == kenya.STAMP_DUTY_RURAL
+        costs = kenya.purchase_upfront_costs(property_price_minor=10_000_000_00, deposit_minor=1_000_000_00)
+        assert costs.stamp_duty_minor == 500_000_00
+    finally:
+        settings_store.clear(key="kenya.rate_overrides")
+
+
+@pytest.mark.django_db
+def test_kenya_rates_endpoint_reflects_an_operator_override(tenant_context):
+    from apps.platform_admin import settings_store
+
+    _, client = tenant_context
+    settings_store.clear(key="kenya.rate_overrides")
+    try:
+        settings_store.set_value(key="kenya.rate_overrides", raw={"housing_levy_rate": 0.02})
+        res = client.get("/api/v1/projections/kenya-rates/")
+        assert res.status_code == 200
+        assert res.data["housing_levy_rate"] == 0.02
+        assert res.data["shif_rate"] == kenya.SHIF_RATE
+    finally:
+        settings_store.clear(key="kenya.rate_overrides")

@@ -13,6 +13,7 @@ from rest_framework import serializers
 
 from ..calculators import MAX_HORIZON_MONTHS
 from ..events import EVENT_LABELS, EVENT_PARAMS, EventKind
+from ..kenya import SACCO_SHARE_MULTIPLE, SACCO_TYPICAL_RATE
 from ..models import ScenarioStatus, ScenarioVisibility
 
 
@@ -319,6 +320,15 @@ class CommuteDecisionSerializer(_DecisionSerializer):
     working_days = serializers.IntegerField(min_value=0, max_value=31, default=22)
 
 
+class SaccoLoanSerializer(_DecisionSerializer):
+    question = "Can I take this SACCO loan?"
+    amount_minor = serializers.IntegerField(min_value=0)
+    shares_held_minor = serializers.IntegerField(min_value=0, default=0)
+    share_multiple = serializers.FloatField(min_value=0.1, default=SACCO_SHARE_MULTIPLE)
+    annual_rate = serializers.FloatField(default=SACCO_TYPICAL_RATE)
+    months = serializers.IntegerField(min_value=1, max_value=MAX_HORIZON_MONTHS, default=36)
+
+
 #: Question slug -> (serialiser, evaluator name in `decisions`). One registry,
 #: so the URL surface, the catalogue endpoint and the dispatch cannot disagree
 #: about which questions exist.
@@ -333,4 +343,5 @@ DECISION_SERIALIZERS = {
     "rent-buy-build": (RentBuyBuildSerializer, "rent_buy_build"),
     "school-fees": (SchoolFeesPlanSerializer, "school_fees_plan"),
     "commute": (CommuteDecisionSerializer, "commute_cost_decision"),
+    "sacco-loan": (SaccoLoanSerializer, "sacco_loan_decision"),
 }
