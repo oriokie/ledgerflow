@@ -44,7 +44,9 @@ export function BudgetPulse({
         <>
           {exceptions.length > 0 && (
             <p className="lf-cmd-panel-sub">
-              {exceptions.length} categor{exceptions.length === 1 ? "y" : "ies"} need a look first.
+              {exceptions.length === 1
+                ? "1 category needs a look first."
+                : `${exceptions.length} categories need a look first.`}
             </p>
           )}
           <div className="lf-disclosure-panel" style={{ marginTop: 0 }}>

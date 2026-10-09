@@ -345,3 +345,24 @@ DECISION_SERIALIZERS = {
     "commute": (CommuteDecisionSerializer, "commute_cost_decision"),
     "sacco-loan": (SaccoLoanSerializer, "sacco_loan_decision"),
 }
+
+
+class GuestPositionSerializer(serializers.Serializer):
+    """A household stated in the request, for someone who has no workspace yet.
+
+    Nothing here is stored. The calculator treats these the way it treats a
+    ledger snapshot, and the response says they were typed.
+    """
+
+    currency = serializers.CharField(min_length=3, max_length=3)
+    monthly_net_income_minor = serializers.IntegerField(min_value=0)
+    monthly_expenses_minor = serializers.IntegerField(min_value=0)
+    liquid_minor = serializers.IntegerField(min_value=0, default=0)
+
+    def validate_currency(self, value: str) -> str:
+        from apps.fx.currencies import is_known
+
+        code = value.strip().upper()
+        if not is_known(code):
+            raise serializers.ValidationError("Choose a currency LedgerFlow knows.")
+        return code

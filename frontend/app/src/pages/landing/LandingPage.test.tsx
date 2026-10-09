@@ -84,6 +84,14 @@ describe("landing page", () => {
     expect(preview?.textContent?.trim()).toBe("");
   });
 
+  it("offers a decision with no account", () => {
+    usePlans.mockReturnValue({ data: [] });
+    renderPage();
+    const links = screen.getAllByRole("link", { name: "Try a decision" });
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) expect(link).toHaveAttribute("href", "/try");
+  });
+
   it("links to the contact page from the footer", () => {
     usePlans.mockReturnValue({ data: [] });
     renderPage();

@@ -49,6 +49,7 @@ const ShareDecisionPage = lazy(() =>
 const PrivacyPage = lazy(() => import("./pages/LegalPage").then((m) => ({ default: m.PrivacyPage })));
 const TermsPage = lazy(() => import("./pages/LegalPage").then((m) => ({ default: m.TermsPage })));
 const ContactPage = lazy(() => import("./pages/LegalPage").then((m) => ({ default: m.ContactPage })));
+const GuestPage = lazy(() => import("./pages/GuestPage").then((m) => ({ default: m.GuestPage })));
 const LoggedOutPage = lazy(() => import("./pages/LoggedOutPage").then((m) => ({ default: m.LoggedOutPage })));
 const WorkspacePickerPage = lazy(() =>
   import("./pages/WorkspacePickerPage").then((m) => ({ default: m.WorkspacePickerPage })),
@@ -164,6 +165,7 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/try" element={<GuestPage />} />
         <Route path="/logged-out" element={<LoggedOutPage />} />
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
 

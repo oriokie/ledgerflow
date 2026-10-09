@@ -311,6 +311,8 @@ export interface DecisionResult {
   assumptions: string[];
   explanation: { paragraphs: string[]; llm_used: boolean; rejected_reason: string };
   currency: string;
+  /** "stated" on a guest try; "ledger" when the figures were measured. */
+  source?: "stated" | "ledger";
 }
 
 export interface QuestionField {
@@ -363,6 +365,36 @@ export const advisorApi = {
 
   kenyaRates: () =>
     api.get<{ as_of: string; source: string }>("/projections/kenya-rates/"),
+
+  /** No account. The position is sent with the question and is not stored. */
+  guestQuestions: () =>
+    api.get<{ results: QuestionMeta[] }>("/projections/guest/questions/", {
+      skipAuth: true,
+      skipTenant: true,
+    }),
+
+  guestRates: () =>
+    api.get<{ as_of: string; source: string }>("/projections/guest/kenya-rates/", {
+      skipAuth: true,
+      skipTenant: true,
+    }),
+
+  guestAsk: (
+    slug: string,
+    body: {
+      position: {
+        currency: string;
+        monthly_net_income_minor: number;
+        monthly_expenses_minor: number;
+        liquid_minor: number;
+      };
+      inputs: Record<string, unknown>;
+    },
+  ) =>
+    api.post<DecisionResult>(`/projections/guest/questions/${slug}/`, body, {
+      skipAuth: true,
+      skipTenant: true,
+    }),
 };
 
 // ---------------------------------------------------------------------------

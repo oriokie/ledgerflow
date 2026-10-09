@@ -16,6 +16,7 @@ import json
 from dataclasses import fields, is_dataclass
 
 from django.http import HttpResponse
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -30,10 +31,12 @@ from apps.tenancy.permissions import IsTenantMember
 
 from .. import adapters, decisions, kenya, risk, sensitivity, services, simulation
 from ..calculators import CalculatorError
+from ..engine import EconomicAssumptions, FinancialPosition
 from ..export import decision_pdf, decision_xlsx
 from ..share import create_share, get_usable_share
 from .serializers import (
     DECISION_SERIALIZERS,
+    GuestPositionSerializer,
     RiskQuerySerializer,
     SensitivitySerializer,
     SimulationSerializer,
@@ -284,34 +287,74 @@ def _file_response(content: bytes, *, content_type: str, filename: str) -> HttpR
     return response
 
 
-def answer_decision(slug, data) -> Response:
-    """Validate inputs, compute, and return the same envelope the form endpoint
-    has always returned. Export and share go through here so a PDF of a
-    question is the same answer the screen showed, not a parallel calculation.
-    """
-    entry = DECISION_SERIALIZERS.get(slug)
-    if entry is None:
-        return Response(
-            {"detail": f"Unknown question {slug!r}.", "available": sorted(DECISION_SERIALIZERS)},
-            status=status.HTTP_404_NOT_FOUND,
+def decision_catalogue() -> list[dict]:
+    """Question slugs and the fields each one needs. Shared by the signed-in
+    catalogue and the guest try, so the two forms cannot drift."""
+    out = []
+    for slug, (serializer_class, _func) in sorted(DECISION_SERIALIZERS.items()):
+        instance = serializer_class()
+        out.append(
+            {
+                "slug": slug,
+                "question": getattr(serializer_class, "question", slug),
+                "fields": [
+                    {
+                        "name": name,
+                        "required": field.required,
+                        "type": type(field).__name__.replace("Field", "").lower(),
+                    }
+                    for name, field in instance.fields.items()
+                    if name != "explain"
+                ],
+            }
         )
-    serializer_class, func_name = entry
+    return out
+
+
+def unknown_question_response(slug) -> Response | None:
+    """404 before any ledger read.
+
+    A workspace with nothing in it is a 409, but only for a question that
+    exists. Asking for one that does not should say so even when there is no
+    position to measure against.
+    """
+    if slug in DECISION_SERIALIZERS:
+        return None
+    return Response(
+        {"detail": f"Unknown question {slug!r}.", "available": sorted(DECISION_SERIALIZERS)},
+        status=status.HTTP_404_NOT_FOUND,
+    )
+
+
+def answer_with_position(slug, data, *, position, assumptions, stated: bool = False) -> Response:
+    """Compute one decision against a position the caller already holds.
+
+    `stated` is the guest try: the figures were typed, not read from a ledger,
+    and the language model is not called. An unauthenticated request must not
+    be able to spend the platform's model budget.
+    """
+    unknown = unknown_question_response(slug)
+    if unknown is not None:
+        return unknown
+    serializer_class, func_name = DECISION_SERIALIZERS[slug]
     s = serializer_class(data=data)
     s.is_valid(raise_exception=True)
 
-    try:
-        position, assumptions, _ = _context()
-    except adapters.NoPositionError as exc:
-        return _position_error(exc)
-
     kwargs = dict(s.validated_data)
-    explain = kwargs.pop("explain", True)
+    explain = False if stated else kwargs.pop("explain", True)
+    if stated:
+        kwargs.pop("explain", None)
     try:
         decision = dispatch_decision(func_name, position=position, assumptions=assumptions, kwargs=kwargs)
     except CalculatorError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-    explanation = advisor.explain(decision, currency=position.currency, use_llm=explain)
+    explanation = advisor.explain(decision, currency=position.currency, use_llm=explain, stated=stated)
+    assumptions_out = list(decision.assumptions)
+    if stated:
+        assumptions_out.append(
+            "Income, spending and cash were stated for this try. They were not read from a ledger."
+        )
     return Response(
         {
             "question": decision.question,
@@ -322,15 +365,31 @@ def answer_decision(slug, data) -> Response:
             "costs": [_dc(f) for f in decision.costs],
             "risks": [_dc(f) for f in decision.risks],
             "alternatives": [_dc(f) for f in decision.alternatives],
-            "assumptions": decision.assumptions,
+            "assumptions": assumptions_out,
             "explanation": {
                 "paragraphs": explanation.paragraphs,
                 "llm_used": explanation.llm_used,
                 "rejected_reason": explanation.rejected_reason,
             },
             "currency": position.currency,
+            "source": "stated" if stated else "ledger",
         }
     )
+
+
+def answer_decision(slug, data) -> Response:
+    """Validate inputs, compute, and return the same envelope the form endpoint
+    has always returned. Export and share go through here so a PDF of a
+    question is the same answer the screen showed, not a parallel calculation.
+    """
+    unknown = unknown_question_response(slug)
+    if unknown is not None:
+        return unknown
+    try:
+        position, assumptions, _ = _context()
+    except adapters.NoPositionError as exc:
+        return _position_error(exc)
+    return answer_with_position(slug, data, position=position, assumptions=assumptions)
 
 
 def _shared_or_404(token: str):
@@ -486,29 +545,71 @@ class DecisionCatalogueView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="decision_catalogue")
     def get(self, request):
-        out = []
-        for slug, (serializer_class, _func) in sorted(DECISION_SERIALIZERS.items()):
-            instance = serializer_class()
-            out.append(
-                {
-                    "slug": slug,
-                    "question": getattr(serializer_class, "question", slug),
-                    "fields": [
-                        {
-                            "name": name,
-                            "required": field.required,
-                            "type": type(field).__name__.replace("Field", "").lower(),
-                        }
-                        for name, field in instance.fields.items()
-                        if name != "explain"
-                    ],
-                }
-            )
-        return Response({"results": out})
+        return Response({"results": decision_catalogue()})
+
+
+class GuestCatalogueView(APIView):
+    """The same question list, with no workspace and nothing stored."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = "guest"
+    authentication_classes = []
+    serializer_class = None
+
+    @extend_schema(operation_id="guest_decision_catalogue")
+    def get(self, request):
+        return Response({"results": decision_catalogue()})
+
+
+class GuestKenyaRatesView(APIView):
+    permission_classes = [AllowAny]
+    throttle_scope = "guest"
+    authentication_classes = []
+    serializer_class = None
+
+    @extend_schema(operation_id="guest_kenya_rates")
+    def get(self, request):
+        return Response(kenya.rates_catalogue())
+
+
+class GuestDecisionView(APIView):
+    """Answer one question from figures the visitor typed.
+
+    No tenant, no row, no model call. The position lives only for this request.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_scope = "guest"
+    authentication_classes = []
+    serializer_class = GuestPositionSerializer
+
+    @extend_schema(operation_id="guest_decision_ask")
+    def post(self, request, slug):
+        body = request.data if isinstance(request.data, dict) else {}
+        position_in = GuestPositionSerializer(data=body.get("position") or {})
+        position_in.is_valid(raise_exception=True)
+        stated = position_in.validated_data
+        position = FinancialPosition(
+            currency=stated["currency"],
+            as_of=timezone.localdate(),
+            liquid_minor=stated["liquid_minor"],
+            monthly_net_income_minor=stated["monthly_net_income_minor"],
+            monthly_expenses_minor=stated["monthly_expenses_minor"],
+        )
+        return answer_with_position(
+            slug,
+            body.get("inputs") or {},
+            position=position,
+            assumptions=EconomicAssumptions(),
+            stated=True,
+        )
 
 
 __all__ = [
     "DecisionCatalogueView",
+    "GuestCatalogueView",
+    "GuestDecisionView",
+    "GuestKenyaRatesView",
     "DecisionExportPdfView",
     "DecisionExportXlsxView",
     "DecisionShareCreateView",

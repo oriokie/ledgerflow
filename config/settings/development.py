@@ -22,6 +22,7 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F405
     "mfa_verify": "1000/min",
     "write": "1000/min",
     "read": "10000/min",
+    "guest": "1000/min",
 }
 
 CORS_ALLOW_ALL_ORIGINS = True

@@ -59,6 +59,7 @@ function LandingHeader() {
         <a href="#features">Features</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
+        <Link to="/try">Try it</Link>
       </nav>
       <div className="lf-landing-header-actions">
         <Link className="lf-btn lf-btn--ghost lf-btn--sm" to="/login">
@@ -94,9 +95,9 @@ function Hero() {
               Build your financial picture
               <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
             </Link>
-            <a className="lf-btn lf-btn--secondary lf-btn--lg" href="#preview">
-              Explore the product
-            </a>
+            <Link className="lf-btn lf-btn--secondary lf-btn--lg" to="/try">
+              Try a decision
+            </Link>
           </div>
           <p className="lf-hero-note">Seven days free. No card required. Your data stays exportable.</p>
           <ul className="lf-hero-trust" aria-label="What you get on every plan">
@@ -402,10 +403,15 @@ function ClosingCta() {
       <Illustration name="welcome" size="spot" {...DOODLE} />
       <h2>Start with one account and a week of transactions.</h2>
       <p>That is enough for the projection to say something useful.</p>
-      <Link className="lf-btn lf-btn--primary" to="/register">
-        Create your workspace
-        <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
-      </Link>
+      <div className="lf-hero-actions">
+        <Link className="lf-btn lf-btn--primary" to="/register">
+          Create your workspace
+          <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+        </Link>
+        <Link className="lf-btn lf-btn--secondary" to="/try">
+          Try a decision first
+        </Link>
+      </div>
     </section>
   );
 }
@@ -420,6 +426,7 @@ function LandingFooter() {
       <nav aria-label="Footer">
         <div>
           <h2>Product</h2>
+          <Link to="/try">Try a decision</Link>
           <a href="#features">Features</a>
           <a href="#pricing">Pricing</a>
           <a href="#faq">FAQ</a>
