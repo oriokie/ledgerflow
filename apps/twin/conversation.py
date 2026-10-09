@@ -207,9 +207,7 @@ def route_deterministic(question: str) -> Routing:
                     else (
                         "amount_minor"
                         if slug == "sacco-loan"
-                        else "monthly_income_needed_minor"
-                        if slug == "retire"
-                        else "deposit_minor"
+                        else "monthly_income_needed_minor" if slug == "retire" else "deposit_minor"
                     )
                 )
             )

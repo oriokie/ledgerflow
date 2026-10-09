@@ -67,14 +67,19 @@ beforeEach(() => {
   });
 });
 
+async function fillMortgageForm() {
+  await waitFor(() => expect(screen.getByRole("button", { name: "Answer this" })).toBeEnabled());
+  // Defaults land in an effect after the form enables; filling sooner is overwritten.
+  await waitFor(() => expect(screen.getByLabelText(/deposit/i)).toHaveValue(5600));
+  fireEvent.change(screen.getByLabelText(/property price/i), { target: { value: "200000" } });
+  fireEvent.change(screen.getByLabelText(/deposit/i), { target: { value: "50000" } });
+  fireEvent.change(screen.getByLabelText(/annual rate/i), { target: { value: "9" } });
+}
+
 describe("DecisionAssistant take-home actions", () => {
   it("offers PDF, Excel and a share link after an answer", async () => {
     render(<DecisionAssistant position={POSITION} />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Answer this" })).toBeEnabled());
-
-    fireEvent.change(screen.getByLabelText(/property price/i), { target: { value: "200000" } });
-    fireEvent.change(screen.getByLabelText(/deposit/i), { target: { value: "50000" } });
-    fireEvent.change(screen.getByLabelText(/annual rate/i), { target: { value: "9" } });
+    await fillMortgageForm();
     fireEvent.click(screen.getByRole("button", { name: "Answer this" }));
 
     await waitFor(() => expect(screen.getByText("The payment fits.")).toBeInTheDocument());
@@ -90,10 +95,7 @@ describe("DecisionAssistant take-home actions", () => {
 
   it("resets the form and clears the last answer", async () => {
     render(<DecisionAssistant position={POSITION} />);
-    await waitFor(() => expect(screen.getByRole("button", { name: "Answer this" })).toBeEnabled());
-    fireEvent.change(screen.getByLabelText(/property price/i), { target: { value: "200000" } });
-    fireEvent.change(screen.getByLabelText(/deposit/i), { target: { value: "50000" } });
-    fireEvent.change(screen.getByLabelText(/annual rate/i), { target: { value: "9" } });
+    await fillMortgageForm();
     fireEvent.click(screen.getByRole("button", { name: "Answer this" }));
     await waitFor(() => expect(screen.getByText("The payment fits.")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Reset inputs" }));

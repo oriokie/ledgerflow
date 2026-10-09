@@ -332,7 +332,10 @@ export function DecisionAssistant({
                   required={field.required}
                   amount={isMoney(field.name)}
                   value={values[field.name] ?? ""}
-                  onChange={(e) => setValues({ ...values, [field.name]: e.target.value })}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setValues((prev) => ({ ...prev, [field.name]: next }));
+                  }}
                 />
               </FormField>
             ))}
