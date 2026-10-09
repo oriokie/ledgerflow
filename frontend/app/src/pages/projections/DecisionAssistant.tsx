@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { ApiError } from "../../api/client";
 import type {
   CashflowStackLine,
@@ -42,10 +43,12 @@ function toWire(name: string, raw: string): number {
 
 function labelFor(name: string): string {
   const base = name.replace(/_minor$/, "").replace(/_/g, " ");
-  if (name.endsWith("_rate") || name.endsWith("_return")) return `${base} (%)`;
-  if (name.includes("year")) return `${base} (years)`;
-  if (name.includes("month")) return `${base} (months)`;
-  return base;
+  const titled = base.charAt(0).toUpperCase() + base.slice(1);
+  if (name.endsWith("_rate") || name.endsWith("_return")) return `${titled} (%)`;
+  // "years" already says the unit. "term_years" would otherwise read "Term years (years)".
+  if (name.includes("year") && !base.endsWith("year") && !base.endsWith("years")) return `${titled} (years)`;
+  if (name.includes("month") && !base.endsWith("month") && !base.endsWith("months")) return `${titled} (months)`;
+  return titled;
 }
 
 const VERDICT_TONE: Record<Verdict, "success" | "warning" | "danger" | "neutral"> = {
@@ -242,9 +245,12 @@ function TakeHomeActions({ slug, body }: { slug: string; body: Record<string, un
 export function DecisionAssistant({
   position,
   stack,
+  stated = false,
 }: {
   position?: Position;
   stack?: CashflowStackLine[];
+  /** Figures were typed for a try, not read from a workspace. */
+  stated?: boolean;
 }) {
   const [questions, setQuestions] = useState<QuestionMeta[]>([]);
   const [slug, setSlug] = useState("");
@@ -256,20 +262,25 @@ export function DecisionAssistant({
   const [ratesAsOf, setRatesAsOf] = useState<string | null>(null);
 
   useEffect(() => {
-    advisorApi
-      .questions()
+    const questions = stated ? advisorApi.guestQuestions : advisorApi.questions;
+    const rates = stated ? advisorApi.guestRates : advisorApi.kenyaRates;
+    questions()
       .then(({ results }) => {
         setQuestions(results);
         if (results.length) setSlug(results[0].slug);
       })
       .catch(() => setError("Couldn't load the questions."));
-    advisorApi.kenyaRates().then((r) => setRatesAsOf(r.as_of)).catch(() => {});
-  }, []);
+    rates().then((r) => setRatesAsOf(r.as_of)).catch(() => {});
+  }, [stated]);
 
   useEffect(() => {
     if (!slug || !position) return;
     setValues(decisionFieldDefaults(slug, scenarioHints(position, stack ?? []), position));
-  }, [slug, position, stack]);
+    // A guest's typed figures change on every keystroke. Re-applying defaults
+    // then would wipe the question they are in the middle of filling in.
+    // Reset inputs still reads the latest position.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, stated ? null : position, stack]);
 
   const selected = useMemo(() => questions.find((q) => q.slug === slug), [questions, slug]);
 
@@ -286,7 +297,19 @@ export function DecisionAssistant({
         body[field.name] = toWire(field.name, raw);
       }
       setLastBody(body);
-      setResult(await advisorApi.ask(slug, body));
+      setResult(
+        stated
+          ? await advisorApi.guestAsk(slug, {
+              position: {
+                currency: position?.currency ?? "KES",
+                monthly_net_income_minor: position?.monthly_net_income_minor ?? 0,
+                monthly_expenses_minor: position?.monthly_expenses_minor ?? 0,
+                liquid_minor: position?.liquid_minor ?? 0,
+              },
+              inputs: body,
+            })
+          : await advisorApi.ask(slug, body),
+      );
     } catch (err) {
       setResult(null);
       setError(err instanceof ApiError ? err.detail : "Couldn't answer that.");
@@ -375,7 +398,24 @@ export function DecisionAssistant({
         <Card title={result.question}>
           <Stack gap={4}>
             <Answer result={result} />
-            <TakeHomeActions slug={slug} body={lastBody} />
+            {stated ? (
+              <Stack gap={2}>
+                <Text size="sm" tone="secondary">
+                  This used the figures you typed. Nothing was saved. A workspace measures the
+                  same question from your own records, and you can take the answer with you.
+                </Text>
+                <Inline gap={2} wrap>
+                  <Link className="lf-btn lf-btn--primary" to="/register">
+                    Create a workspace
+                  </Link>
+                  <Link className="lf-btn lf-btn--ghost" to="/login">
+                    Sign in
+                  </Link>
+                </Inline>
+              </Stack>
+            ) : (
+              <TakeHomeActions slug={slug} body={lastBody} />
+            )}
           </Stack>
         </Card>
       )}

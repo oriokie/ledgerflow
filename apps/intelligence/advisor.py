@@ -68,6 +68,19 @@ CONFIDENCE_SENTENCE = {
     ),
 }
 
+#: The same levels, when the position was typed for a try rather than read.
+#: A measured badge must not claim a ledger that was never opened.
+STATED_CONFIDENCE_SENTENCE = {
+    Confidence.MEASURED: (
+        "The arithmetic uses only the income, spending and cash typed for this try. "
+        "Nothing was read from a ledger, so the answer is only as solid as those figures."
+    ),
+    Confidence.MIXED: (
+        "The position was typed for this try, and the years ahead are assumed. "
+        "Treat the direction as a comparison and the exact figures as a sketch."
+    ),
+}
+
 #: Numbers that carry no information about someone's money and therefore do not
 #: need to be in the allow-list: years, small counts, percentages already stated
 #: in the findings. Kept tight on purpose — the looser this is, the weaker the
@@ -102,7 +115,7 @@ def _money(amount_minor: int, currency: str) -> str:
     return f"{currency} {amount_minor / 100:,.2f}"
 
 
-def render(decision: Decision, *, currency: str) -> Explanation:
+def render(decision: Decision, *, currency: str, stated: bool = False) -> Explanation:
     """The deterministic explanation. Always available, always complete."""
     paragraphs: list[str] = []
 
@@ -125,7 +138,8 @@ def render(decision: Decision, *, currency: str) -> Explanation:
         alternatives = "; ".join(_finding_sentence(f, currency) for f in decision.alternatives)
         paragraphs.append(f"Worth considering instead: {alternatives}.")
 
-    paragraphs.append(CONFIDENCE_SENTENCE.get(decision.confidence, ""))
+    sentences = STATED_CONFIDENCE_SENTENCE if stated else CONFIDENCE_SENTENCE
+    paragraphs.append(sentences.get(decision.confidence, CONFIDENCE_SENTENCE.get(decision.confidence, "")))
     return Explanation(headline=decision.headline, paragraphs=[p for p in paragraphs if p])
 
 
@@ -153,7 +167,7 @@ You are writing for someone who asked a question about their own money and got
 an answer. Explain why the answer came out that way."""
 
 
-def explain(decision: Decision, *, currency: str, use_llm: bool = True) -> Explanation:
+def explain(decision: Decision, *, currency: str, use_llm: bool = True, stated: bool = False) -> Explanation:
     """Deterministic explanation, optionally rephrased by a configured model.
 
     The model's reply is accepted only if every figure in it appears in the
@@ -161,7 +175,7 @@ def explain(decision: Decision, *, currency: str, use_llm: bool = True) -> Expla
     reason is recorded — visibly, because silently discarding a model's output
     would make an operator think the feature was working when it was not.
     """
-    baseline = render(decision, currency=currency)
+    baseline = render(decision, currency=currency, stated=stated)
     if not use_llm:
         return baseline
 

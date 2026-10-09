@@ -356,6 +356,7 @@ REST_FRAMEWORK = {
         "mfa_verify": env("THROTTLE_MFA_VERIFY", default="5/min"),
         "write": env("THROTTLE_WRITE", default="120/min"),
         "read": env("THROTTLE_READ", default="1000/min"),
+        "guest": env("THROTTLE_GUEST", default="20/min"),
     },
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
