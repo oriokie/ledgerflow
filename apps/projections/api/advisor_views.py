@@ -311,6 +311,21 @@ def decision_catalogue() -> list[dict]:
     return out
 
 
+def unknown_question_response(slug) -> Response | None:
+    """404 before any ledger read.
+
+    A workspace with nothing in it is a 409, but only for a question that
+    exists. Asking for one that does not should say so even when there is no
+    position to measure against.
+    """
+    if slug in DECISION_SERIALIZERS:
+        return None
+    return Response(
+        {"detail": f"Unknown question {slug!r}.", "available": sorted(DECISION_SERIALIZERS)},
+        status=status.HTTP_404_NOT_FOUND,
+    )
+
+
 def answer_with_position(slug, data, *, position, assumptions, stated: bool = False) -> Response:
     """Compute one decision against a position the caller already holds.
 
@@ -318,13 +333,10 @@ def answer_with_position(slug, data, *, position, assumptions, stated: bool = Fa
     and the language model is not called. An unauthenticated request must not
     be able to spend the platform's model budget.
     """
-    entry = DECISION_SERIALIZERS.get(slug)
-    if entry is None:
-        return Response(
-            {"detail": f"Unknown question {slug!r}.", "available": sorted(DECISION_SERIALIZERS)},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-    serializer_class, func_name = entry
+    unknown = unknown_question_response(slug)
+    if unknown is not None:
+        return unknown
+    serializer_class, func_name = DECISION_SERIALIZERS[slug]
     s = serializer_class(data=data)
     s.is_valid(raise_exception=True)
 
@@ -370,6 +382,9 @@ def answer_decision(slug, data) -> Response:
     has always returned. Export and share go through here so a PDF of a
     question is the same answer the screen showed, not a parallel calculation.
     """
+    unknown = unknown_question_response(slug)
+    if unknown is not None:
+        return unknown
     try:
         position, assumptions, _ = _context()
     except adapters.NoPositionError as exc:
