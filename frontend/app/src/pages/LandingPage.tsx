@@ -430,6 +430,11 @@ function LandingFooter() {
           <Link to="/register">Create account</Link>
           <Link to="/forgot-password">Reset password</Link>
         </div>
+        <div>
+          <h2>Legal</h2>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/terms">Terms</Link>
+        </div>
       </nav>
       <p className="lf-landing-copyright">
         © {new Date().getFullYear()} LedgerFlow

@@ -24,6 +24,17 @@ export const authApi = {
       { skipAuth: true, skipTenant: true },
     ),
 
+  requestEmailVerification: () =>
+    api.post<{ detail: string; debug_token?: string }>("/auth/email/verify/", {}, { skipTenant: true }),
+  confirmEmailVerification: (token: string) =>
+    api.post<{ detail: string }>(
+      "/auth/email/verify/confirm/",
+      { token },
+      { skipAuth: true, skipTenant: true },
+    ),
+  deleteAccount: (password: string) =>
+    api.post<void>("/auth/me/delete/", { password }, { skipTenant: true }),
+
   logout: (refresh: string) => api.post<void>("/auth/logout/", { refresh }, { skipTenant: true }),
 
   me: () => api.get<User>("/auth/me/", { skipTenant: true }),

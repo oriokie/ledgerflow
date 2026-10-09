@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { profileApi } from "../../../api/auth";
+import { authApi, profileApi } from "../../../api/auth";
 import { ApiError } from "../../../api/client";
 import { useAuth } from "../../../lib/AuthContext";
-import { Input } from "../../../ui";
-import { SaveStatus, SettingsRow, SettingsSection, type SaveState } from "../components";
+import { Banner, Button, Input, PasswordInput } from "../../../ui";
+import { DangerZone, SaveStatus, SettingsRow, SettingsSection, type SaveState } from "../components";
 
 /** Long enough that a save isn't fired per keystroke, short enough that the
  * confirmation still feels like a response to what you just typed. */
@@ -86,6 +86,60 @@ export function ProfilePanel() {
       </SettingsRow>
 
       <SaveStatus state={state} error={error} onRetry={() => void save(firstName, lastName)} />
+
+      {!user?.is_verified && (
+        <Banner tone="warning">
+          Your email is not verified.{" "}
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => void authApi.requestEmailVerification().then(() => setError(null))}
+          >
+            Resend confirmation
+          </Button>
+        </Banner>
+      )}
+
+      <DangerZone
+        title="Delete account"
+        description="Closes workspaces you own and removes your login. This cannot be undone from the app."
+      >
+        <AccountDeleteForm />
+      </DangerZone>
     </SettingsSection>
+  );
+}
+
+function AccountDeleteForm() {
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onDelete = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await authApi.deleteAccount(password);
+      window.location.href = "/logged-out";
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : "Couldn't delete the account.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <PasswordInput
+        label="Confirm with your password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        autoComplete="current-password"
+      />
+      {error && <Banner tone="danger">{error}</Banner>}
+      <Button type="button" variant="danger" disabled={!password || busy} loading={busy} onClick={() => void onDelete()}>
+        Delete my account
+      </Button>
+    </>
   );
 }

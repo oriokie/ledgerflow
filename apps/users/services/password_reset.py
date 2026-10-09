@@ -5,10 +5,11 @@ Security posture:
   enumeration): the endpoint always succeeds, and the token is only created
   when a matching active user exists.
 - Tokens are random, hashed at rest, single-use, and short-lived.
-- Delivery is decoupled: there's no email backend wired in this build, so the
-  reset link is emitted via the logger (and returned to the caller only in
-  DEBUG). In production this hook is where an email/notification worker sends
-  the link.
+- Delivery is decoupled: the reset link is sent by a Celery task
+  (`apps.users.tasks.send_password_reset_email`) dispatched *after* the
+  surrounding transaction commits, so a rolled-back request never emails a
+  token, and a slow mail provider never blocks (or fails) the API call. The raw
+  token is returned to the caller only in DEBUG.
 """
 
 from __future__ import annotations
@@ -60,8 +61,19 @@ def request_password_reset(*, email: str) -> str | None:
         expires_at=timezone.now() + TOKEN_TTL,
     )
 
-    # Delivery hook — replace with an email/notification send in production.
-    logger.info("Password reset link issued for user %s (delivered out of band).", user.id)
+    # Send the link only once the token is durably committed. Dispatching inline
+    # would let the worker race ahead of the row it needs, and would email a
+    # token for a request that then rolls back. The raw token travels with the
+    # task and is never persisted in the clear.
+    user_id = str(user.id)
+
+    def _dispatch() -> None:
+        from ..tasks import send_password_reset_email
+
+        send_password_reset_email.delay(user_id=user_id, raw_token=raw_token)
+
+    transaction.on_commit(_dispatch)
+    logger.info("Password reset link issued for user %s (email queued).", user.id)
     return raw_token
 
 

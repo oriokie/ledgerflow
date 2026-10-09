@@ -9,17 +9,20 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from ..models import User
+from ..services import account as account_service
 from ..services import auth as auth_service
+from ..services import email_verification, webauthn_service
 from ..services import mfa as mfa_service
 from ..services import oauth as oauth_service
 from ..services import password_reset as user_services
-from ..services import webauthn_service
 from ..services.audit import record_login_event
 from ..services.mfa import InvalidCodeError, MFAAlreadyEnabledError, MFANotEnabledError
 from ..services.oauth import OAuthError
 from ..services.webauthn_service import WebAuthnError
 from ..webauthn_models import WebAuthnCredential
 from .serializers import (
+    DeleteAccountSerializer,
+    EmailVerificationConfirmSerializer,
     LoginSerializer,
     MFACodeSerializer,
     MFAVerifySerializer,
@@ -151,6 +154,52 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self) -> User:
         return self.request.user
+
+
+class EmailVerificationRequestView(APIView):
+    """Authenticated. Re-sends a verification link. Always 200."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_scope = "auth"
+
+    def post(self, request):
+        raw = email_verification.request_verification(user=request.user)
+        body = {"detail": "If this account is unverified, a confirmation email is on its way."}
+        if settings.DEBUG and raw is not None:
+            body["debug_token"] = raw
+        return Response(body)
+
+
+class EmailVerificationConfirmView(APIView):
+    permission_classes = [AllowAny]
+    throttle_scope = "auth"
+    serializer_class = EmailVerificationConfirmSerializer
+
+    def post(self, request):
+        serializer = EmailVerificationConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            user = email_verification.confirm_verification(raw_token=serializer.validated_data["token"])
+        except email_verification.InvalidVerificationToken as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "Your email is verified.", "email": user.email})
+
+
+class DeleteAccountView(APIView):
+    """Requires the password so a stolen session cannot wipe the account."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_scope = "auth"
+    serializer_class = DeleteAccountSerializer
+
+    def post(self, request):
+        serializer = DeleteAccountSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            account_service.delete_account(user=request.user, password=serializer.validated_data["password"])
+        except account_service.AccountError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ============================================================ MFA management (TOTP)

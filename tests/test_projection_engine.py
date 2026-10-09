@@ -275,6 +275,15 @@ def test_all_fifteen_life_events_compile_and_run():
     """The product promises fifteen. This is the test that says so."""
     samples = {
         ev.EventKind.HOME_PURCHASE: {"price_minor": 10_000_000, "deposit_minor": 2_000_000},
+        ev.EventKind.BUY_TO_LET: {
+            "price_minor": 10_000_000,
+            "deposit_minor": 2_000_000,
+            "expected_monthly_rent_minor": 80_000,
+        },
+        ev.EventKind.BUILD_HOUSE: {
+            "land_cost_minor": 3_000_000,
+            "construction_cost_minor": 7_000_000,
+        },
         ev.EventKind.MORTGAGE: {"principal_minor": 5_000_000, "annual_rate": 0.09},
         ev.EventKind.VEHICLE_PURCHASE: {"price_minor": 2_000_000, "deposit_minor": 500_000},
         ev.EventKind.JOB_CHANGE: {"monthly_gross_delta_minor": 100_000},

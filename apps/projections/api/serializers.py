@@ -120,6 +120,18 @@ class NetWorthSerializer(serializers.Serializer):
     months = serializers.IntegerField(min_value=1, max_value=MAX_HORIZON_MONTHS)
 
 
+class SchoolFeesSerializer(serializers.Serializer):
+    fee_per_term_minor = serializers.IntegerField(min_value=0)
+    children = serializers.IntegerField(min_value=1, default=1)
+    terms_per_year = serializers.IntegerField(min_value=1, max_value=4, default=3)
+
+
+class CommuteSerializer(serializers.Serializer):
+    extra_km = serializers.FloatField(min_value=0)
+    cost_per_km_minor = serializers.IntegerField(min_value=0)
+    working_days = serializers.IntegerField(min_value=0, max_value=31, default=22)
+
+
 #: Calculator slug -> (serialiser, callable name). One registry so the URL
 #: surface, the docs and the dispatch cannot disagree about what exists.
 CALCULATORS = {
@@ -129,6 +141,8 @@ CALCULATORS = {
     "savings-goal": (SavingsGoalSerializer, "savings_goal"),
     "retirement": (RetirementSerializer, "retirement_estimate"),
     "net-worth": (NetWorthSerializer, "net_worth_projection"),
+    "school-fees": (SchoolFeesSerializer, "school_fees"),
+    "commute": (CommuteSerializer, "commute_cost"),
 }
 
 
@@ -246,6 +260,65 @@ class BuyOrRentSerializer(_DecisionSerializer):
     maintenance_rate = serializers.FloatField(default=0.01)
 
 
+class BuyAndLetSerializer(_DecisionSerializer):
+    question = "Should I buy this to let out?"
+    property_price_minor = serializers.IntegerField(min_value=0)
+    deposit_minor = serializers.IntegerField(min_value=0, default=0)
+    annual_rate = serializers.FloatField()
+    years = serializers.IntegerField(min_value=1, max_value=40, default=25)
+    expected_monthly_rent_minor = serializers.IntegerField(min_value=0)
+    monthly_service_minor = serializers.IntegerField(min_value=0, default=0)
+    vacancy_rate = serializers.FloatField(default=0.08)
+    agent_fee_rate = serializers.FloatField(required=False)
+    tax_rate = serializers.FloatField(required=False)
+    monthly_repairs_minor = serializers.IntegerField(min_value=0, default=0)
+    monthly_own_rent_minor = serializers.IntegerField(min_value=0, default=0)
+    urban = serializers.BooleanField(default=True)
+
+
+class BuildHouseSerializer(_DecisionSerializer):
+    question = "Should I build rather than buy?"
+    land_cost_minor = serializers.IntegerField(min_value=0)
+    construction_cost_minor = serializers.IntegerField(min_value=0)
+    overrun_buffer = serializers.FloatField(default=0.20)
+    annual_rate = serializers.FloatField(default=0.0)
+    years = serializers.IntegerField(min_value=1, max_value=40, default=15)
+    deposit_minor = serializers.IntegerField(min_value=0, default=0)
+    monthly_own_rent_minor = serializers.IntegerField(min_value=0, default=0)
+    extra_km = serializers.FloatField(min_value=0, default=0)
+    cost_per_km_minor = serializers.IntegerField(min_value=0, default=0)
+    working_days = serializers.IntegerField(min_value=0, max_value=31, default=22)
+    construction_months = serializers.IntegerField(min_value=1, max_value=120, default=18)
+
+
+class RentBuyBuildSerializer(_DecisionSerializer):
+    question = "Rent, buy, or build?"
+    monthly_rent_minor = serializers.IntegerField(min_value=0)
+    property_price_minor = serializers.IntegerField(min_value=0)
+    deposit_minor = serializers.IntegerField(min_value=0, default=0)
+    annual_rate = serializers.FloatField()
+    years = serializers.IntegerField(min_value=1, max_value=40, default=10)
+    land_cost_minor = serializers.IntegerField(min_value=0, default=0)
+    construction_cost_minor = serializers.IntegerField(min_value=0, default=0)
+    overrun_buffer = serializers.FloatField(default=0.20)
+    extra_km = serializers.FloatField(min_value=0, default=0)
+    cost_per_km_minor = serializers.IntegerField(min_value=0, default=0)
+
+
+class SchoolFeesPlanSerializer(_DecisionSerializer):
+    question = "Can I cover school fees?"
+    fee_per_term_minor = serializers.IntegerField(min_value=0)
+    children = serializers.IntegerField(min_value=1, default=1)
+    terms_per_year = serializers.IntegerField(min_value=1, max_value=4, default=3)
+
+
+class CommuteDecisionSerializer(_DecisionSerializer):
+    question = "What does the extra commute cost?"
+    extra_km = serializers.FloatField(min_value=0)
+    cost_per_km_minor = serializers.IntegerField(min_value=0)
+    working_days = serializers.IntegerField(min_value=0, max_value=31, default=22)
+
+
 #: Question slug -> (serialiser, evaluator name in `decisions`). One registry,
 #: so the URL surface, the catalogue endpoint and the dispatch cannot disagree
 #: about which questions exist.
@@ -255,4 +328,9 @@ DECISION_SERIALIZERS = {
     "debt-or-invest": (DebtOrInvestSerializer, "debt_or_invest"),
     "retire": (RetireSerializer, "can_i_retire"),
     "buy-or-rent": (BuyOrRentSerializer, "buy_or_rent"),
+    "buy-and-let": (BuyAndLetSerializer, "buy_and_let_out"),
+    "build": (BuildHouseSerializer, "build_a_house"),
+    "rent-buy-build": (RentBuyBuildSerializer, "rent_buy_build"),
+    "school-fees": (SchoolFeesPlanSerializer, "school_fees_plan"),
+    "commute": (CommuteDecisionSerializer, "commute_cost_decision"),
 }

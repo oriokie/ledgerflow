@@ -164,13 +164,9 @@ def test_the_catalogue_lists_every_question_and_what_it_needs(tenant_context):
     res = client.get(f"{BASE}/questions/")
     assert res.status_code == 200
     slugs = {q["slug"] for q in res.data["results"]}
-    assert slugs == {
-        "afford-mortgage",
-        "how-much-house",
-        "debt-or-invest",
-        "retire",
-        "buy-or-rent",
-    }
+    from apps.projections.api.serializers import DECISION_SERIALIZERS
+
+    assert slugs == set(DECISION_SERIALIZERS)
     for question in res.data["results"]:
         assert question["question"]
         assert question["fields"]
@@ -196,6 +192,39 @@ def test_the_catalogue_lists_every_question_and_what_it_needs(tenant_context):
                 "monthly_rent_minor": 120_000,
             },
         ),
+        (
+            "buy-and-let",
+            {
+                "property_price_minor": 20_000_000,
+                "deposit_minor": 5_000_000,
+                "annual_rate": 0.13,
+                "expected_monthly_rent_minor": 150_000,
+                "monthly_own_rent_minor": 80_000,
+            },
+        ),
+        (
+            "build",
+            {
+                "land_cost_minor": 4_000_000,
+                "construction_cost_minor": 8_000_000,
+                "deposit_minor": 3_000_000,
+                "annual_rate": 0.14,
+                "monthly_own_rent_minor": 80_000,
+            },
+        ),
+        (
+            "rent-buy-build",
+            {
+                "monthly_rent_minor": 80_000,
+                "property_price_minor": 20_000_000,
+                "deposit_minor": 5_000_000,
+                "annual_rate": 0.13,
+                "land_cost_minor": 4_000_000,
+                "construction_cost_minor": 8_000_000,
+            },
+        ),
+        ("school-fees", {"fee_per_term_minor": 15_000_000, "children": 2}),
+        ("commute", {"extra_km": 12, "cost_per_km_minor": 2500}),
     ],
 )
 def test_every_question_answers_with_a_verdict_and_its_assumptions(tenant_context, slug, payload):

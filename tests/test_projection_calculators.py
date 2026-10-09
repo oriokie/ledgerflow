@@ -461,6 +461,8 @@ def test_every_calculator_returns_its_assumptions():
             debt_annual_rate=0.0,
             months=12,
         ),
+        calc.school_fees(fee_per_term_minor=150_000_00, children=1),
+        calc.commute_cost(extra_km=8, cost_per_km_minor=2000),
     ]
     for result in results:
         assert result.assumptions, f"{type(result).__name__} returned no assumptions"

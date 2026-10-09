@@ -32,3 +32,8 @@ def invitation_accept(token: str) -> str:
 def password_reset(token: str) -> str:
     """Route: /reset-password — see ResetPasswordPage."""
     return build("reset-password", token=token)
+
+
+def email_verify(token: str) -> str:
+    """Route: /verify-email — see VerifyEmailPage."""
+    return build("verify-email", token=token)

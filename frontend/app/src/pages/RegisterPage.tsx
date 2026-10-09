@@ -9,7 +9,7 @@ import { useAuth } from "../lib/AuthContext";
 import { AuthDivider, AuthLayout, AuthPageHeader } from "../components/auth/AuthLayout";
 import { PasswordStrengthMeter } from "../components/auth/PasswordStrengthMeter";
 import { SocialAuthButtons } from "../components/auth/SocialAuthButtons";
-import { Banner, Button, Grid, Input, PasswordInput, Stack } from "../ui";
+import { Banner, Button, Grid, Input, PasswordInput, Stack, Text } from "../ui";
 
 const schema = z.object({
   first_name: z.string().min(1, "First name is required."),
@@ -115,6 +115,12 @@ export function RegisterPage() {
           </div>
 
           {serverError && <Banner tone="danger">{serverError}</Banner>}
+
+          <Text size="sm" tone="secondary">
+            By creating an account you agree to the <Link to="/terms">Terms</Link> and{" "}
+            <Link to="/privacy">Privacy Policy</Link>. LedgerFlow is educational
+            decision support, not licensed financial advice.
+          </Text>
 
           <Button type="submit" variant="primary" block loading={isSubmitting}>
             Create account

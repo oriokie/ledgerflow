@@ -40,6 +40,11 @@ const ForgotPasswordPage = lazy(() =>
 const ResetPasswordPage = lazy(() =>
   import("./pages/ResetPasswordPage").then((m) => ({ default: m.ResetPasswordPage })),
 );
+const VerifyEmailPage = lazy(() =>
+  import("./pages/VerifyEmailPage").then((m) => ({ default: m.VerifyEmailPage })),
+);
+const PrivacyPage = lazy(() => import("./pages/LegalPage").then((m) => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import("./pages/LegalPage").then((m) => ({ default: m.TermsPage })));
 const LoggedOutPage = lazy(() => import("./pages/LoggedOutPage").then((m) => ({ default: m.LoggedOutPage })));
 const WorkspacePickerPage = lazy(() =>
   import("./pages/WorkspacePickerPage").then((m) => ({ default: m.WorkspacePickerPage })),
@@ -150,6 +155,9 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
         <Route path="/logged-out" element={<LoggedOutPage />} />
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
 

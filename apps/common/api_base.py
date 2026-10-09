@@ -29,6 +29,15 @@ class TenantScopedAPIView:
     what populates `request.tenant_id`."""
 
     _tenant_cm = None
+    _SAFE = frozenset({"GET", "HEAD", "OPTIONS"})
+
+    @property
+    def throttle_scope(self) -> str:
+        """Every tenant API is rate-limited. Auth endpoints set their own
+        tighter scopes; this is the backstop so a forgotten view is not an
+        open scrape."""
+        method = getattr(getattr(self, "request", None), "method", "GET")
+        return "read" if method in self._SAFE else "write"
 
     def dispatch(self, request, *args, **kwargs):
         with transaction.atomic():

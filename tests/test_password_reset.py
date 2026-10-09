@@ -52,6 +52,32 @@ def test_full_reset_flow(api_client):
     assert again.status_code == 400
 
 
+def test_request_sends_an_email_with_the_reset_link(api_client, django_capture_on_commit_callbacks):
+    """Regression: the reset link must actually be delivered, not just logged.
+
+    The email is dispatched via `transaction.on_commit`, so the callbacks are
+    captured and run to mirror a real committed request."""
+    from django.core import mail
+
+    user = _make_user()
+    with django_capture_on_commit_callbacks(execute=True):
+        res = api_client.post("/api/v1/auth/password/reset/", {"email": user.email}, format="json")
+    assert res.status_code == 200
+
+    assert len(mail.outbox) == 1
+    message = mail.outbox[0]
+    assert message.to == [user.email]
+    assert "reset-password?token=" in message.body
+
+
+def test_unknown_email_sends_no_message(api_client, django_capture_on_commit_callbacks):
+    from django.core import mail
+
+    with django_capture_on_commit_callbacks(execute=True):
+        api_client.post("/api/v1/auth/password/reset/", {"email": "nobody@example.com"}, format="json")
+    assert mail.outbox == []
+
+
 def test_requesting_again_invalidates_the_previous_token(api_client):
     user = _make_user()
     first = svc.request_password_reset(email=user.email)

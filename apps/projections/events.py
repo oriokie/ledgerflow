@@ -43,6 +43,8 @@ class EventKind:
     """
 
     HOME_PURCHASE = "home_purchase"
+    BUY_TO_LET = "buy_to_let"
+    BUILD_HOUSE = "build_house"
     MORTGAGE = "mortgage"
     VEHICLE_PURCHASE = "vehicle_purchase"
     JOB_CHANGE = "job_change"
@@ -78,6 +80,8 @@ class EventKind:
 #: Human labels, used for choices and for the `label` on a compiled event.
 EVENT_LABELS: dict[str, str] = {
     EventKind.HOME_PURCHASE: "Buying a home",
+    EventKind.BUY_TO_LET: "Buying to let out",
+    EventKind.BUILD_HOUSE: "Building a house",
     EventKind.MORTGAGE: "Taking a mortgage",
     EventKind.VEHICLE_PURCHASE: "Buying a vehicle",
     EventKind.JOB_CHANGE: "Changing jobs",
@@ -124,6 +128,26 @@ EVENT_PARAMS: dict[str, tuple[ParamSpec, ...]] = {
         ParamSpec("annual_growth", default=None, kind=float),
         # Explicit: rent/lease the purchase replaces. Never inferred.
         ParamSpec("stops_monthly_minor"),
+    ),
+    EventKind.BUY_TO_LET: (
+        ParamSpec("price_minor", required=True),
+        ParamSpec("deposit_minor"),
+        ParamSpec("annual_rate", default=0.0, kind=float),
+        ParamSpec("term_years", default=25),
+        ParamSpec("expected_monthly_rent_minor"),
+        ParamSpec("vacancy_rate", default=0.08, kind=float),
+        ParamSpec("monthly_service_minor"),
+        ParamSpec("monthly_own_rent_minor"),
+    ),
+    EventKind.BUILD_HOUSE: (
+        ParamSpec("land_cost_minor", required=True),
+        ParamSpec("construction_cost_minor", required=True),
+        ParamSpec("overrun_buffer", default=0.20, kind=float),
+        ParamSpec("deposit_minor"),
+        ParamSpec("annual_rate", default=0.0, kind=float),
+        ParamSpec("term_years", default=15),
+        ParamSpec("monthly_own_rent_minor"),
+        ParamSpec("construction_months", default=18),
     ),
     EventKind.MORTGAGE: (
         ParamSpec("principal_minor", required=True),
@@ -284,6 +308,66 @@ def _home_purchase(p, start, position, assumptions, label):
             new_debt=debt,
             monthly_expense_delta_minor=p["monthly_running_costs_minor"]
             - int(p.get("stops_monthly_minor") or 0),
+        )
+    ]
+
+
+def _buy_to_let(p, start, position, assumptions, label):
+    """A let-out purchase: mortgage plus net rental income after vacancy."""
+    from .kenya import rental_yield
+
+    months = max(1, int(p["term_years"]) * 12)
+    debt = _financed(
+        price_minor=p["price_minor"],
+        deposit_minor=p["deposit_minor"],
+        annual_rate=p["annual_rate"],
+        months=months,
+        label=f"{label} mortgage",
+    )
+    yields = rental_yield(
+        property_price_minor=p["price_minor"],
+        expected_monthly_rent_minor=int(p.get("expected_monthly_rent_minor") or 0),
+        vacancy_rate=float(p.get("vacancy_rate") or 0.08),
+        monthly_service_minor=int(p.get("monthly_service_minor") or 0),
+    )
+    return [
+        CompiledEvent(
+            label=label,
+            start_month=start,
+            one_off_cash_minor=-p["deposit_minor"],
+            asset_delta_minor=p["price_minor"],
+            new_debt=debt,
+            monthly_income_delta_minor=yields.net_monthly_income_minor,
+            monthly_expense_delta_minor=int(p.get("monthly_own_rent_minor") or 0)
+            + int(p.get("monthly_service_minor") or 0),
+        )
+    ]
+
+
+def _build_house(p, start, position, assumptions, label):
+    """Land plus construction, with an overrun buffer applied to the build cost."""
+    buffer_rate = float(p.get("overrun_buffer") or 0.20)
+    construction = int(p["construction_cost_minor"]) + round(int(p["construction_cost_minor"]) * buffer_rate)
+    total = int(p["land_cost_minor"]) + construction
+    deposit = int(p.get("deposit_minor") or 0)
+    months = max(1, int(p["term_years"]) * 12)
+    debt = _financed(
+        price_minor=total,
+        deposit_minor=deposit,
+        annual_rate=p["annual_rate"],
+        months=months,
+        label=f"{label} finance",
+    )
+    build_months = max(1, int(p.get("construction_months") or 18))
+    return [
+        CompiledEvent(
+            label=label,
+            start_month=start,
+            one_off_cash_minor=-deposit,
+            asset_delta_minor=total,
+            new_debt=debt,
+            monthly_expense_delta_minor=int(p.get("monthly_own_rent_minor") or 0),
+            end_month=start + build_months - 1 if int(p.get("monthly_own_rent_minor") or 0) else None,
         )
     ]
 
@@ -654,6 +738,8 @@ def _inheritance(p, start, position, assumptions, label):
 
 _COMPILERS: dict[str, Callable] = {
     EventKind.HOME_PURCHASE: _home_purchase,
+    EventKind.BUY_TO_LET: _buy_to_let,
+    EventKind.BUILD_HOUSE: _build_house,
     EventKind.MORTGAGE: _mortgage,
     EventKind.VEHICLE_PURCHASE: _vehicle_purchase,
     EventKind.JOB_CHANGE: _job_change,

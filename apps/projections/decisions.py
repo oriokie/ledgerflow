@@ -34,7 +34,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 
-from . import adapters
+from . import adapters, kenya
 from . import calculators as calc
 from .engine import (
     CompiledEvent,
@@ -850,4 +850,308 @@ def buy_or_rent(
             "this answer is most sensitive to.",
             "The renter keeps the deposit rather than spending it, or the comparison is rigged.",
         ],
+    )
+
+
+# ---------------------------------------------------------------------------
+# "Buy and let out"
+# ---------------------------------------------------------------------------
+def buy_and_let_out(
+    *,
+    position: FinancialPosition,
+    property_price_minor: int,
+    deposit_minor: int,
+    annual_rate: float,
+    years: int = 25,
+    expected_monthly_rent_minor: int,
+    monthly_service_minor: int = 0,
+    vacancy_rate: float = 0.08,
+    agent_fee_rate: float = kenya.LETTING_AGENT_FEE_RATE,
+    tax_rate: float = kenya.RENTAL_INCOME_TAX_RATE,
+    monthly_repairs_minor: int = 0,
+    monthly_own_rent_minor: int = 0,
+    urban: bool = True,
+) -> Decision:
+    """Buy a property to let, while optionally still paying your own rent.
+
+    Net monthly cost = own rent + mortgage + service − rental income after
+    vacancy, agent fees and tax. That is the figure a buy-to-let advert
+    leaves out, and the one a household actually feels.
+    """
+    quote = calc.mortgage(
+        property_price_minor=property_price_minor,
+        deposit_minor=deposit_minor,
+        annual_rate=annual_rate,
+        years=years,
+    )
+    yields = kenya.rental_yield(
+        property_price_minor=property_price_minor,
+        expected_monthly_rent_minor=expected_monthly_rent_minor,
+        vacancy_rate=vacancy_rate,
+        agent_fee_rate=agent_fee_rate,
+        tax_rate=tax_rate,
+        monthly_service_minor=monthly_service_minor,
+        monthly_repairs_minor=monthly_repairs_minor,
+    )
+    upfront = kenya.purchase_upfront_costs(
+        property_price_minor=property_price_minor,
+        deposit_minor=deposit_minor,
+        urban=urban,
+    )
+    net_monthly = (
+        monthly_own_rent_minor
+        + quote.monthly_payment_minor
+        + monthly_service_minor
+        - yields.net_monthly_income_minor
+    )
+    income = position.monthly_net_income_minor
+    share = net_monthly / income if income else None
+
+    if deposit_minor + upfront.stamp_duty_minor + upfront.legal_fees_minor > position.liquid_minor:
+        verdict, headline = Verdict.NO, "Completion costs take more cash than you hold."
+    elif net_monthly > 0 and share is not None and share > TOTAL_DEBT_CEILING:
+        verdict, headline = Verdict.TIGHT, "The property costs more each month than it returns."
+    elif net_monthly > 0:
+        verdict, headline = Verdict.YES_WITH_CARE, "It runs at a monthly shortfall — only if the rest of the budget absorbs it."
+    else:
+        verdict, headline = Verdict.YES, "After vacancy, agent and tax, the rent covers the mortgage."
+
+    return Decision(
+        question="Should I buy this to let out?",
+        verdict=verdict,
+        headline=headline,
+        confidence=_confidence(position, years * 12),
+        because=[
+            Finding("Net monthly cost", "Own rent + mortgage + service − net rental income.", amount_minor=net_monthly),
+            Finding("Gross rental yield", f"{yields.gross_yield:.1%} of purchase price.", percent=yields.gross_yield),
+            Finding("Net rental yield", f"{yields.net_yield:.1%} after vacancy, agent, tax and running costs.", percent=yields.net_yield),
+        ],
+        costs=[
+            Finding("Cash on completion", "Deposit, stamp duty, legal and valuation.", amount_minor=upfront.total_minor),
+            Finding("Mortgage payment", "Quoted instalment, before service or voids.", amount_minor=quote.monthly_payment_minor),
+        ],
+        risks=[
+            Finding("Empty months", f"Vacancy modelled at {vacancy_rate:.0%} of the year."),
+            Finding("Tax on rent", f"Residential rental income tax at {tax_rate:.1%} (rates as of {kenya.RATES_AS_OF.isoformat()})."),
+        ],
+        assumptions=yields.assumptions + upfront.assumptions + quote.assumptions,
+    )
+
+
+# ---------------------------------------------------------------------------
+# "Build"
+# ---------------------------------------------------------------------------
+def build_a_house(
+    *,
+    position: FinancialPosition,
+    land_cost_minor: int,
+    construction_cost_minor: int,
+    overrun_buffer: float = 0.20,
+    annual_rate: float = 0.0,
+    years: int = 15,
+    deposit_minor: int = 0,
+    monthly_own_rent_minor: int = 0,
+    extra_km: float = 0.0,
+    cost_per_km_minor: int = 0,
+    working_days: int = 22,
+    construction_months: int = 18,
+) -> Decision:
+    """Land + build, with an overrun buffer and the rent you keep paying until handover."""
+    buffered = construction_cost_minor + round(construction_cost_minor * overrun_buffer)
+    total = land_cost_minor + buffered
+    commute = calc.commute_cost(
+        extra_km=extra_km, cost_per_km_minor=cost_per_km_minor, working_days=working_days
+    )
+    borrowed = max(0, total - deposit_minor)
+    payment = calc.level_payment_minor(borrowed, annual_rate, years * 12) if borrowed else 0
+    funding_gap = max(0, total - deposit_minor - position.liquid_minor)
+    rent_during = monthly_own_rent_minor * construction_months
+    cash_needed = deposit_minor + rent_during
+
+    if funding_gap > 0:
+        verdict, headline = Verdict.NO, "There is a funding gap before a single brick is laid."
+    elif cash_needed > position.liquid_minor:
+        verdict, headline = Verdict.TIGHT, "The land deposit plus rent during the build empties the emergency fund."
+    elif payment and position.monthly_net_income_minor and payment / position.monthly_net_income_minor > HOUSING_CEILING:
+        verdict, headline = Verdict.TIGHT, "The loan that finishes the build takes more than a third of take-home."
+    else:
+        verdict, headline = Verdict.YES, "The build is funded, with the overrun buffer included."
+
+    return Decision(
+        question="Should I build rather than buy?",
+        verdict=verdict,
+        headline=headline,
+        confidence=Confidence.ASSUMED,
+        because=[
+            Finding("Land plus buffered construction", f"Construction includes a {overrun_buffer:.0%} overrun buffer.", amount_minor=total),
+            Finding("Funding gap", "What you still need after cash on hand and the deposit.", amount_minor=funding_gap),
+            Finding("Monthly loan if you borrow the rest", f"Over {years} years.", amount_minor=payment),
+        ],
+        costs=[
+            Finding("Rent paid during the build", f"{construction_months} months of the current rent.", amount_minor=rent_during),
+            Finding("Extra commute", "Round-trip extra km × working days × cost/km.", amount_minor=commute.monthly_cost_minor),
+        ],
+        risks=[
+            Finding("Overrun", f"A further 20 points on top of the {overrun_buffer:.0%} buffer would add {round(construction_cost_minor * 0.20)}."),
+            Finding("The rent does not stop", "You pay rent until handover, which most build quotes ignore."),
+        ],
+        assumptions=[
+            f"Overrun buffer {overrun_buffer:.0%} of construction cost.",
+            commute.assumptions[0],
+            "No stamp duty on a completed house you already own the land for; land purchase duty is not modelled here.",
+        ],
+    )
+
+
+# ---------------------------------------------------------------------------
+# Rent vs Buy vs Build — same inputs, three options
+# ---------------------------------------------------------------------------
+def rent_buy_build(
+    *,
+    position: FinancialPosition,
+    monthly_rent_minor: int,
+    property_price_minor: int,
+    deposit_minor: int,
+    annual_rate: float,
+    years: int = 10,
+    land_cost_minor: int = 0,
+    construction_cost_minor: int = 0,
+    overrun_buffer: float = 0.20,
+    extra_km: float = 0.0,
+    cost_per_km_minor: int = 0,
+) -> Decision:
+    """Side-by-side: keep renting, buy and live in it, or build."""
+    renting = buy_or_rent(
+        position=position,
+        property_price_minor=property_price_minor,
+        deposit_minor=deposit_minor,
+        annual_rate=annual_rate,
+        monthly_rent_minor=monthly_rent_minor,
+        years=years,
+    )
+    live_in = can_i_afford_mortgage(
+        position=position,
+        property_price_minor=property_price_minor,
+        deposit_minor=deposit_minor,
+        annual_rate=annual_rate,
+        years=25,
+    )
+    build = build_a_house(
+        position=position,
+        land_cost_minor=land_cost_minor or property_price_minor // 3,
+        construction_cost_minor=construction_cost_minor or (property_price_minor * 2) // 3,
+        overrun_buffer=overrun_buffer,
+        annual_rate=annual_rate,
+        deposit_minor=deposit_minor,
+        monthly_own_rent_minor=monthly_rent_minor,
+        extra_km=extra_km,
+        cost_per_km_minor=cost_per_km_minor,
+    )
+    # Rank by whether each option is viable, then by the cash it leaves.
+    ranked = [
+        ("Keep renting", renting),
+        ("Buy and live in it", live_in),
+        ("Build", build),
+    ]
+    viable = [name for name, d in ranked if d.verdict in (Verdict.YES, Verdict.YES_WITH_CARE)]
+    headline = (
+        f"{viable[0]} is the option that clears the tests."
+        if viable
+        else "None of the three options is comfortable on these numbers."
+    )
+    verdict = Verdict.YES if viable else Verdict.NO
+    return Decision(
+        question="Rent, buy, or build?",
+        verdict=verdict,
+        headline=headline,
+        confidence=Confidence.MIXED,
+        because=[
+            Finding(f"{name}: {d.verdict}", d.headline, amount_minor=d.because[0].amount_minor if d.because else None)
+            for name, d in ranked
+        ],
+        costs=[c for _, d in ranked for c in d.costs[:1]],
+        risks=[r for _, d in ranked for r in d.risks[:1]],
+        alternatives=[
+            Finding("Same inputs", "Rent, purchase price, deposit, rate and build costs were held still across the three options.")
+        ],
+        assumptions=[
+            "Three options, one set of numbers — the comparison is only honest if nothing else changes.",
+            *renting.assumptions[:2],
+        ],
+    )
+
+
+# ---------------------------------------------------------------------------
+# School fees
+# ---------------------------------------------------------------------------
+def school_fees_plan(
+    *,
+    position: FinancialPosition,
+    fee_per_term_minor: int,
+    children: int = 1,
+    terms_per_year: int = 3,
+) -> Decision:
+    """Term-by-term school-fee cash flow against take-home."""
+    plan = calc.school_fees(
+        fee_per_term_minor=fee_per_term_minor, children=children, terms_per_year=terms_per_year
+    )
+    income = position.monthly_net_income_minor
+    share = plan.monthly_average_minor / income if income else None
+    if share is not None and share > 0.25:
+        verdict, headline = Verdict.TIGHT, "Fees take more than a quarter of take-home once averaged monthly."
+    elif plan.term_cashflows_minor[0] > position.liquid_minor:
+        verdict, headline = Verdict.NO, "The next term's bill is larger than the cash you hold."
+    else:
+        verdict, headline = Verdict.YES, "The term bills fit, if you save the monthly average in between."
+
+    return Decision(
+        question="Can I cover school fees?",
+        verdict=verdict,
+        headline=headline,
+        confidence=Confidence.MEASURED if income else Confidence.ASSUMED,
+        because=[
+            Finding("Annual total", f"{children} child(ren) × {terms_per_year} terms.", amount_minor=plan.annual_total_minor),
+            Finding("Monthly average", "What to set aside each month so the lumps do not surprise you.", amount_minor=plan.monthly_average_minor),
+            Finding("Each term", "The cash that leaves three times a year.", amount_minor=plan.term_cashflows_minor[0]),
+        ],
+        costs=[
+            Finding("Share of take-home", f"{share:.0%} of net income." if share is not None else "No recorded income to measure against."),
+        ],
+        assumptions=plan.assumptions,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Commute
+# ---------------------------------------------------------------------------
+def commute_cost_decision(
+    *,
+    position: FinancialPosition,
+    extra_km: float,
+    cost_per_km_minor: int,
+    working_days: int = 22,
+) -> Decision:
+    result = calc.commute_cost(
+        extra_km=extra_km, cost_per_km_minor=cost_per_km_minor, working_days=working_days
+    )
+    income = position.monthly_net_income_minor
+    share = result.monthly_cost_minor / income if income else None
+    verdict = Verdict.TIGHT if share is not None and share > 0.10 else Verdict.YES
+    return Decision(
+        question="What does the extra commute cost?",
+        verdict=verdict,
+        headline=(
+            "The extra distance is a material slice of take-home."
+            if verdict == Verdict.TIGHT
+            else "The extra commute is a cost, and here is the monthly figure."
+        ),
+        confidence=Confidence.MEASURED,
+        because=[
+            Finding(
+                "Monthly extra commute",
+                f"{extra_km} km extra × 2 × {working_days} days × cost/km.",
+                amount_minor=result.monthly_cost_minor,
+            )
+        ],
+        assumptions=result.assumptions,
     )

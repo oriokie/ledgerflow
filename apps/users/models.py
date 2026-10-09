@@ -103,6 +103,7 @@ class UserProfile(UUIDModel, TimeStampedModel):
 
 
 # Register concrete models defined in sibling modules so migrations see them.
+from .email_verification_models import EmailVerificationToken  # noqa: E402,F401
 from .mfa_models import MFABackupCode, TOTPDevice  # noqa: E402,F401
 from .oauth_models import SocialAccount  # noqa: E402,F401
 from .password_reset_models import PasswordResetToken  # noqa: E402,F401

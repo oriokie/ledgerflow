@@ -839,3 +839,86 @@ def net_worth_projection(
         points=points,
         assumptions=assumptions,
     )
+
+
+# ---------------------------------------------------------------------------
+# school fees — Kenyan three-term year
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class SchoolFeesResult:
+    children: int
+    fee_per_term_minor: int
+    terms_per_year: int
+    annual_total_minor: int
+    monthly_average_minor: int
+    term_cashflows_minor: list[int]
+    assumptions: list[str] = field(default_factory=list)
+
+
+def school_fees(
+    *,
+    fee_per_term_minor: int,
+    children: int = 1,
+    terms_per_year: int = 3,
+) -> SchoolFeesResult:
+    """Term-by-term school-fee cash flow for a Kenyan three-term year.
+
+    150,000 per term × 3 terms = 450,000/year = 37,500/month. The monthly
+    figure is an average for budgeting; the cash still leaves in three lumps.
+    """
+    _validate_amount(fee_per_term_minor, "fee per term")
+    if children < 1:
+        raise CalculatorError("children must be at least 1")
+    if terms_per_year < 1:
+        raise CalculatorError("terms per year must be at least 1")
+    per_term = fee_per_term_minor * children
+    annual = per_term * terms_per_year
+    monthly = round(annual / 12)
+    return SchoolFeesResult(
+        children=children,
+        fee_per_term_minor=fee_per_term_minor,
+        terms_per_year=terms_per_year,
+        annual_total_minor=annual,
+        monthly_average_minor=monthly,
+        term_cashflows_minor=[per_term] * terms_per_year,
+        assumptions=[
+            f"{terms_per_year}-term school year; fees due once per term, not monthly.",
+            "Monthly average is for cash-flow planning; the lumps still arrive three times a year.",
+        ],
+    )
+
+
+# ---------------------------------------------------------------------------
+# commute
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class CommuteResult:
+    extra_km: float
+    working_days: int
+    cost_per_km_minor: int
+    monthly_cost_minor: int
+    assumptions: list[str] = field(default_factory=list)
+
+
+def commute_cost(
+    *,
+    extra_km: float,
+    cost_per_km_minor: int,
+    working_days: int = 22,
+) -> CommuteResult:
+    """Extra commute cost: extra km × 2 (round trip) × working days × cost/km."""
+    _validate_amount(cost_per_km_minor, "cost per km")
+    if extra_km < 0:
+        raise CalculatorError("extra km cannot be negative")
+    if working_days < 0:
+        raise CalculatorError("working days cannot be negative")
+    monthly = round(extra_km * 2 * working_days * cost_per_km_minor)
+    return CommuteResult(
+        extra_km=extra_km,
+        working_days=working_days,
+        cost_per_km_minor=cost_per_km_minor,
+        monthly_cost_minor=monthly,
+        assumptions=[
+            "Round trip (×2) on every working day. Time cost is not priced in money.",
+        ],
+    )

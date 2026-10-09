@@ -28,6 +28,16 @@ def test_create_workspace(auth_client, user):
     assert resp.data["tenant"]["name"] == "My Household"
 
 
+def test_new_workspace_defaults_to_kenya(auth_client, user):
+    resp = auth_client.post("/api/v1/tenancy/workspaces/", {"name": "Nairobi books"}, format="json")
+    assert resp.status_code == 201
+    tenant = resp.data["tenant"]
+    assert tenant["base_currency"] == "KES"
+    assert tenant["country"] == "KE"
+    assert tenant["default_locale"] == "en-KE"
+    assert tenant["default_timezone"] == "Africa/Nairobi"
+
+
 def test_list_workspaces_returns_only_my_memberships(auth_client, user):
     auth_client.post("/api/v1/tenancy/workspaces/", {"name": "Mine"}, format="json")
     MembershipFactory()  # someone else's workspace — must not appear
