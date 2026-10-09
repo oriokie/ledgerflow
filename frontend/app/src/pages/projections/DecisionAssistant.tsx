@@ -25,7 +25,7 @@ import {
   Text,
   useToast,
 } from "../../ui";
-import { decisionFieldDefaults, scenarioHints } from "./scenarioHints";
+import { decisionFieldDefaults, isPercentField, scenarioHints } from "./scenarioHints";
 
 /** Money fields are typed in whole units; rates as percentages. Same rule as
  * the scenario builder, and for the same reason: people say "5,000", not
@@ -37,14 +37,14 @@ function toWire(name: string, raw: string): number {
   const n = Number(raw);
   if (Number.isNaN(n)) return 0;
   if (isMoney(name)) return Math.round(n * 100);
-  if (name.endsWith("_rate") || name.endsWith("_return")) return n / 100;
+  if (isPercentField(name)) return n / 100;
   return n;
 }
 
 function labelFor(name: string): string {
   const base = name.replace(/_minor$/, "").replace(/_/g, " ");
   const titled = base.charAt(0).toUpperCase() + base.slice(1);
-  if (name.endsWith("_rate") || name.endsWith("_return")) return `${titled} (%)`;
+  if (isPercentField(name)) return `${titled} (%)`;
   // "years" already says the unit. "term_years" would otherwise read "Term years (years)".
   if (name.includes("year") && !base.endsWith("year") && !base.endsWith("years")) return `${titled} (years)`;
   if (name.includes("month") && !base.endsWith("month") && !base.endsWith("months")) return `${titled} (months)`;
@@ -346,7 +346,13 @@ export function DecisionAssistant({
                 key={field.name}
                 label={labelFor(field.name)}
                 htmlFor={`decision-${field.name}`}
-                hint={field.required ? "Required" : undefined}
+                hint={
+                  field.name === "overrun_buffer"
+                    ? "Percent of the construction cost. 20 means a fifth, not a shilling amount."
+                    : field.required
+                      ? "Required"
+                      : undefined
+                }
               >
                 <Input
                   id={`decision-${field.name}`}

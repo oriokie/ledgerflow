@@ -30,7 +30,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from .calculators import level_payment_minor
+from .calculators import as_percent_fraction, level_payment_minor
 from .engine import CompiledEvent, DebtPosition, EconomicAssumptions, FinancialPosition
 
 
@@ -346,7 +346,7 @@ def _buy_to_let(p, start, position, assumptions, label):
 
 def _build_house(p, start, position, assumptions, label):
     """Land plus construction, with an overrun buffer applied to the build cost."""
-    buffer_rate = float(p.get("overrun_buffer") or 0.20)
+    buffer_rate = as_percent_fraction(float(p.get("overrun_buffer") or 0.20), label="Overrun buffer")
     construction = int(p["construction_cost_minor"]) + round(int(p["construction_cost_minor"]) * buffer_rate)
     total = int(p["land_cost_minor"]) + construction
     deposit = int(p.get("deposit_minor") or 0)

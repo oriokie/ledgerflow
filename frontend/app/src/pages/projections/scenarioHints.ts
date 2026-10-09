@@ -21,6 +21,22 @@ export function scenarioHints(position: Position, stack: CashflowStackLine[]): S
   };
 }
 
+/**
+ * A fraction the engine stores as 0.20 and a person types as 20.
+ * `share_multiple` is a count of times, and `extra_km` is a distance.
+ */
+export function isPercentField(name: string): boolean {
+  if (name === "share_multiple" || name === "extra_km") return false;
+  return (
+    name.endsWith("_rate") ||
+    name.endsWith("_return") ||
+    name.endsWith("_fraction") ||
+    name.endsWith("_growth") ||
+    name.startsWith("annual_") ||
+    name === "overrun_buffer"
+  );
+}
+
 export function decisionFieldDefaults(
   slug: string,
   hints: ScenarioHints,
@@ -41,6 +57,9 @@ export function decisionFieldDefaults(
   }
   if (slug === "retire") {
     out.monthly_income_needed_minor = major(position.monthly_expenses_minor);
+  }
+  if (slug === "build" || slug === "rent-buy-build") {
+    out.overrun_buffer = "20";
   }
   if (slug === "sacco-loan") {
     out.share_multiple = "3";

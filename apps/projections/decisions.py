@@ -963,6 +963,12 @@ def buy_and_let_out(
     )
 
 
+def _spoken_money(amount_minor: int, currency: str) -> str:
+    """Major units. The same /100 the rest of the decision prose uses, so a
+    risk line cannot print the minor-unit integer beside a formatted figure."""
+    return f"{currency} {amount_minor / 100:,.2f}"
+
+
 # ---------------------------------------------------------------------------
 # "Build"
 # ---------------------------------------------------------------------------
@@ -982,6 +988,7 @@ def build_a_house(
     construction_months: int = 18,
 ) -> Decision:
     """Land + build, with an overrun buffer and the rent you keep paying until handover."""
+    overrun_buffer = calc.as_percent_fraction(overrun_buffer, label="Overrun buffer")
     buffered = construction_cost_minor + round(construction_cost_minor * overrun_buffer)
     total = land_cost_minor + buffered
     commute = calc.commute_cost(
@@ -1045,7 +1052,8 @@ def build_a_house(
         risks=[
             Finding(
                 "Overrun",
-                f"A further 20 points on top of the {overrun_buffer:.0%} buffer would add {round(construction_cost_minor * 0.20)}.",
+                f"A further 20 points on top of the {overrun_buffer:.0%} buffer would add "
+                f"{_spoken_money(round(construction_cost_minor * 0.20), position.currency)}.",
             ),
             Finding("The rent does not stop", "You pay rent until handover, which most build quotes ignore."),
         ],

@@ -53,6 +53,22 @@ class CalculatorError(ValueError):
     """A calculator input that cannot describe a real financial product."""
 
 
+def as_percent_fraction(value: float, *, label: str) -> float:
+    """A rate stored as a fraction. ``0.20`` and ``20`` both mean 20 percent.
+
+    A figure above 300 is an amount of money typed into a percent field. Using
+    it as a multiplier turns a build quote into trillions, so it is refused
+    rather than applied.
+    """
+    if value < 0:
+        raise CalculatorError(f"{label} cannot be negative.")
+    if value > 3:
+        if value <= 300:
+            return value / 100
+        raise CalculatorError(f"{label} is a percent, such as 20, not an amount of money.")
+    return value
+
+
 # ---------------------------------------------------------------------------
 # shared helpers
 # ---------------------------------------------------------------------------

@@ -14,7 +14,7 @@ import {
   Switch,
   Text,
 } from "../../ui";
-import type { ScenarioHints } from "./scenarioHints";
+import { isPercentField, type ScenarioHints } from "./scenarioHints";
 
 /** Parameter names ending in `_minor` are money and are typed in whole units —
  * people say "5,000", not "500000". Everything else is a plain number, except
@@ -23,7 +23,7 @@ function isMoney(name: string) {
   return name.endsWith("_minor");
 }
 function isRate(name: string) {
-  return name.startsWith("annual_") || name.endsWith("_fraction") || name.endsWith("_growth");
+  return isPercentField(name);
 }
 
 function toWire(name: string, raw: string): number | string {

@@ -15,7 +15,10 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
+
 from apps.projections import decisions as dec
+from apps.projections.calculators import CalculatorError
 from apps.projections.engine import DebtPosition, EconomicAssumptions, FinancialPosition
 
 TODAY = date(2026, 1, 31)
@@ -478,6 +481,31 @@ def test_how_much_house_scales_to_high_incomes():
     # ...and the payment at that price still respects the housing guide.
     payment = next(f for f in decision.because if f.label == "Monthly payment at that price")
     assert payment.amount_minor <= high_earner.monthly_net_income_minor * dec.HOUSING_CEILING
+
+
+def test_a_percent_typed_for_the_build_buffer_stays_a_percent():
+    """20 means a fifth of the build, not a 20× markup, and the extra cost is
+    spoken in shillings rather than minor units."""
+    decision = dec.build_a_house(
+        position=position(liquid_minor=0),
+        land_cost_minor=200_000_000,
+        construction_cost_minor=800_000_000,
+        overrun_buffer=20,
+    )
+    assert decision.because[0].amount_minor == 200_000_000 + round(800_000_000 * 1.20)
+    assert "20%" in decision.risks[0].text
+    assert "KES 1,600,000.00" in decision.risks[0].text
+    assert "160000000" not in decision.risks[0].text
+
+
+def test_a_shilling_amount_in_the_build_buffer_is_refused():
+    with pytest.raises(CalculatorError, match="not an amount of money"):
+        dec.build_a_house(
+            position=position(),
+            land_cost_minor=200_000_000,
+            construction_cost_minor=800_000_000,
+            overrun_buffer=1_000_000,
+        )
 
 
 def test_sacco_loan_is_no_when_extra_shares_exceed_cash():
