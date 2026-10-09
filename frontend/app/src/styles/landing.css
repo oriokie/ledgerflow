@@ -1334,7 +1334,7 @@
   align-items: start;
 }
 
-@media (min-width: 960px) {
+@media (min-width: 1024px) {
   .lf-guest-layout {
     grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
   }
