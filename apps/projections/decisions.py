@@ -912,7 +912,10 @@ def buy_and_let_out(
     elif net_monthly > 0 and share is not None and share > TOTAL_DEBT_CEILING:
         verdict, headline = Verdict.TIGHT, "The property costs more each month than it returns."
     elif net_monthly > 0:
-        verdict, headline = Verdict.YES_WITH_CARE, "It runs at a monthly shortfall — only if the rest of the budget absorbs it."
+        verdict, headline = (
+            Verdict.YES_WITH_CARE,
+            "It runs at a monthly shortfall — only if the rest of the budget absorbs it.",
+        )
     else:
         verdict, headline = Verdict.YES, "After vacancy, agent and tax, the rent covers the mortgage."
 
@@ -922,17 +925,40 @@ def buy_and_let_out(
         headline=headline,
         confidence=_confidence(position, years * 12),
         because=[
-            Finding("Net monthly cost", "Own rent + mortgage + service − net rental income.", amount_minor=net_monthly),
-            Finding("Gross rental yield", f"{yields.gross_yield:.1%} of purchase price.", percent=yields.gross_yield),
-            Finding("Net rental yield", f"{yields.net_yield:.1%} after vacancy, agent, tax and running costs.", percent=yields.net_yield),
+            Finding(
+                "Net monthly cost",
+                "Own rent + mortgage + service − net rental income.",
+                amount_minor=net_monthly,
+            ),
+            Finding(
+                "Gross rental yield",
+                f"{yields.gross_yield:.1%} of purchase price.",
+                percent=yields.gross_yield,
+            ),
+            Finding(
+                "Net rental yield",
+                f"{yields.net_yield:.1%} after vacancy, agent, tax and running costs.",
+                percent=yields.net_yield,
+            ),
         ],
         costs=[
-            Finding("Cash on completion", "Deposit, stamp duty, legal and valuation.", amount_minor=upfront.total_minor),
-            Finding("Mortgage payment", "Quoted instalment, before service or voids.", amount_minor=quote.monthly_payment_minor),
+            Finding(
+                "Cash on completion",
+                "Deposit, stamp duty, legal and valuation.",
+                amount_minor=upfront.total_minor,
+            ),
+            Finding(
+                "Mortgage payment",
+                "Quoted instalment, before service or voids.",
+                amount_minor=quote.monthly_payment_minor,
+            ),
         ],
         risks=[
             Finding("Empty months", f"Vacancy modelled at {vacancy_rate:.0%} of the year."),
-            Finding("Tax on rent", f"Residential rental income tax at {tax_rate:.1%} (rates as of {kenya.RATES_AS_OF.isoformat()})."),
+            Finding(
+                "Tax on rent",
+                f"Residential rental income tax at {tax_rate:.1%} (rates as of {kenya.RATES_AS_OF.isoformat()}).",
+            ),
         ],
         assumptions=yields.assumptions + upfront.assumptions + quote.assumptions,
     )
@@ -971,9 +997,19 @@ def build_a_house(
     if funding_gap > 0:
         verdict, headline = Verdict.NO, "There is a funding gap before a single brick is laid."
     elif cash_needed > position.liquid_minor:
-        verdict, headline = Verdict.TIGHT, "The land deposit plus rent during the build empties the emergency fund."
-    elif payment and position.monthly_net_income_minor and payment / position.monthly_net_income_minor > HOUSING_CEILING:
-        verdict, headline = Verdict.TIGHT, "The loan that finishes the build takes more than a third of take-home."
+        verdict, headline = (
+            Verdict.TIGHT,
+            "The land deposit plus rent during the build empties the emergency fund.",
+        )
+    elif (
+        payment
+        and position.monthly_net_income_minor
+        and payment / position.monthly_net_income_minor > HOUSING_CEILING
+    ):
+        verdict, headline = (
+            Verdict.TIGHT,
+            "The loan that finishes the build takes more than a third of take-home.",
+        )
     else:
         verdict, headline = Verdict.YES, "The build is funded, with the overrun buffer included."
 
@@ -983,16 +1019,35 @@ def build_a_house(
         headline=headline,
         confidence=Confidence.ASSUMED,
         because=[
-            Finding("Land plus buffered construction", f"Construction includes a {overrun_buffer:.0%} overrun buffer.", amount_minor=total),
-            Finding("Funding gap", "What you still need after cash on hand and the deposit.", amount_minor=funding_gap),
+            Finding(
+                "Land plus buffered construction",
+                f"Construction includes a {overrun_buffer:.0%} overrun buffer.",
+                amount_minor=total,
+            ),
+            Finding(
+                "Funding gap",
+                "What you still need after cash on hand and the deposit.",
+                amount_minor=funding_gap,
+            ),
             Finding("Monthly loan if you borrow the rest", f"Over {years} years.", amount_minor=payment),
         ],
         costs=[
-            Finding("Rent paid during the build", f"{construction_months} months of the current rent.", amount_minor=rent_during),
-            Finding("Extra commute", "Round-trip extra km × working days × cost/km.", amount_minor=commute.monthly_cost_minor),
+            Finding(
+                "Rent paid during the build",
+                f"{construction_months} months of the current rent.",
+                amount_minor=rent_during,
+            ),
+            Finding(
+                "Extra commute",
+                "Round-trip extra km × working days × cost/km.",
+                amount_minor=commute.monthly_cost_minor,
+            ),
         ],
         risks=[
-            Finding("Overrun", f"A further 20 points on top of the {overrun_buffer:.0%} buffer would add {round(construction_cost_minor * 0.20)}."),
+            Finding(
+                "Overrun",
+                f"A further 20 points on top of the {overrun_buffer:.0%} buffer would add {round(construction_cost_minor * 0.20)}.",
+            ),
             Finding("The rent does not stop", "You pay rent until handover, which most build quotes ignore."),
         ],
         assumptions=[
@@ -1066,13 +1121,20 @@ def rent_buy_build(
         headline=headline,
         confidence=Confidence.MIXED,
         because=[
-            Finding(f"{name}: {d.verdict}", d.headline, amount_minor=d.because[0].amount_minor if d.because else None)
+            Finding(
+                f"{name}: {d.verdict}",
+                d.headline,
+                amount_minor=d.because[0].amount_minor if d.because else None,
+            )
             for name, d in ranked
         ],
         costs=[c for _, d in ranked for c in d.costs[:1]],
         risks=[r for _, d in ranked for r in d.risks[:1]],
         alternatives=[
-            Finding("Same inputs", "Rent, purchase price, deposit, rate and build costs were held still across the three options.")
+            Finding(
+                "Same inputs",
+                "Rent, purchase price, deposit, rate and build costs were held still across the three options.",
+            )
         ],
         assumptions=[
             "Three options, one set of numbers — the comparison is only honest if nothing else changes.",
@@ -1110,12 +1172,31 @@ def school_fees_plan(
         headline=headline,
         confidence=Confidence.MEASURED if income else Confidence.ASSUMED,
         because=[
-            Finding("Annual total", f"{children} child(ren) × {terms_per_year} terms.", amount_minor=plan.annual_total_minor),
-            Finding("Monthly average", "What to set aside each month so the lumps do not surprise you.", amount_minor=plan.monthly_average_minor),
-            Finding("Each term", "The cash that leaves three times a year.", amount_minor=plan.term_cashflows_minor[0]),
+            Finding(
+                "Annual total",
+                f"{children} child(ren) × {terms_per_year} terms.",
+                amount_minor=plan.annual_total_minor,
+            ),
+            Finding(
+                "Monthly average",
+                "What to set aside each month so the lumps do not surprise you.",
+                amount_minor=plan.monthly_average_minor,
+            ),
+            Finding(
+                "Each term",
+                "The cash that leaves three times a year.",
+                amount_minor=plan.term_cashflows_minor[0],
+            ),
         ],
         costs=[
-            Finding("Share of take-home", f"{share:.0%} of net income." if share is not None else "No recorded income to measure against."),
+            Finding(
+                "Share of take-home",
+                (
+                    f"{share:.0%} of net income."
+                    if share is not None
+                    else "No recorded income to measure against."
+                ),
+            ),
         ],
         assumptions=plan.assumptions,
     )

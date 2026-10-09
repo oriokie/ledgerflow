@@ -198,9 +198,9 @@ class ScenarioListView(TenantScopedAPIView, APIView):
 
     @extend_schema(operation_id="scenario_list")
     def get(self, request):
-        scenarios = _visible_scenarios(
-            request, Scenario.objects.prefetch_related("events")
-        ).order_by("-updated_at")
+        scenarios = _visible_scenarios(request, Scenario.objects.prefetch_related("events")).order_by(
+            "-updated_at"
+        )
         wanted_status = request.query_params.get("status")
         if wanted_status:
             scenarios = scenarios.filter(status=wanted_status)

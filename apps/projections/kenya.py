@@ -83,7 +83,10 @@ def nssf_employee_minor(gross_monthly_minor: int) -> int:
     if gross_monthly_minor <= 0:
         return 0
     tier1 = min(gross_monthly_minor, NSSF_TIER1_CEILING_MINOR)
-    tier2 = min(max(0, gross_monthly_minor - NSSF_TIER1_CEILING_MINOR), NSSF_TIER2_CEILING_MINOR - NSSF_TIER1_CEILING_MINOR)
+    tier2 = min(
+        max(0, gross_monthly_minor - NSSF_TIER1_CEILING_MINOR),
+        NSSF_TIER2_CEILING_MINOR - NSSF_TIER1_CEILING_MINOR,
+    )
     return round(tier1 * NSSF_EMPLOYEE_RATE) + round(tier2 * NSSF_EMPLOYEE_RATE)
 
 

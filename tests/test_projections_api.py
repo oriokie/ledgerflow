@@ -448,11 +448,17 @@ def test_a_private_scenario_is_invisible_to_other_members_of_the_same_workspace(
     assert colleague_client.get(f"{BASE}/scenarios/").data["results"] == []
     assert colleague_client.get(f"{BASE}/scenarios/{scenario_id}/").status_code == 404
     assert colleague_client.get(f"{BASE}/scenarios/{scenario_id}/run/").status_code == 404
-    assert colleague_client.post(f"{BASE}/scenarios/{scenario_id}/duplicate/", {}, format="json").status_code == 404
+    assert (
+        colleague_client.post(f"{BASE}/scenarios/{scenario_id}/duplicate/", {}, format="json").status_code
+        == 404
+    )
     # ...and cannot be mutated by them.
-    assert colleague_client.patch(
-        f"{BASE}/scenarios/{scenario_id}/", {"name": "hijacked"}, format="json"
-    ).status_code == 404
+    assert (
+        colleague_client.patch(
+            f"{BASE}/scenarios/{scenario_id}/", {"name": "hijacked"}, format="json"
+        ).status_code
+        == 404
+    )
     assert colleague_client.delete(f"{BASE}/scenarios/{scenario_id}/").status_code == 404
 
     # The owner still sees it.
