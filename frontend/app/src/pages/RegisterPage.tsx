@@ -117,10 +117,14 @@ export function RegisterPage() {
           {serverError && <Banner tone="danger">{serverError}</Banner>}
 
           <Text size="sm" tone="secondary">
-            By creating an account you agree to the <Link to="/terms">Terms</Link> and{" "}
-            <Link to="/privacy">Privacy Policy</Link>. LedgerFlow is educational
-            decision support, not licensed financial advice.
+            By creating an account you agree to LedgerFlow&apos;s terms of service and
+            privacy policy. LedgerFlow is educational decision support, not licensed
+            financial advice.
           </Text>
+          <nav className="lf-auth-legal-links" aria-label="Legal">
+            <Link to="/terms">Terms</Link>
+            <Link to="/privacy">Privacy Policy</Link>
+          </nav>
 
           <Button type="submit" variant="primary" block loading={isSubmitting}>
             Create account
